@@ -1,0 +1,99 @@
+mod std;
+
+import ( std.math )
+
+/**
+ * Extra methods for the `double` class (floating point boxes), added with a
+ * `mutate` declaration; std/primitives/numbers.sharp itself is unchanged.
+ *
+ *     d : double = 3.14159;
+ *     d.round_to(2).value         // 3.14
+ *     d.floor().value             // 3
+ *     d.to_fixed(3)               // "3.142"
+ *     d.to_short_string()         // "3.14159"
+ *     d.is_whole()          // false
+ *
+ * The methods that produce a number return a new double; the object they
+ * are called on is not changed.
+ */
+mutate double {
+
+    /** true when the value is NaN ("not a number", e.g. the result of 0.0 / 0.0) */
+    def is_nan(): bool {
+        return value != value;
+    }
+
+    /** true when the value is positive or negative infinity */
+    def is_infinite(): bool {
+        return value == value && (value - value) != 0;
+    }
+
+    /** true when the value is an ordinary number: neither NaN nor infinite */
+    def is_finite(): bool {
+        return (value - value) == 0;
+    }
+
+    /** true when the value has no fractional part (and is finite): 3.0, -7.0 */
+    def is_whole(): bool {
+        return (value - value) == 0 && floor(value) == value;
+    }
+
+    /** the largest whole number <= the value: 2.7 -> 2, -2.5 -> -3 */
+    def floor(): double {
+        return new double(floor(value));
+    }
+
+    /** the smallest whole number >= the value: 2.1 -> 3, -2.5 -> -2 */
+    def ceil(): double {
+        return new double(ceil(value));
+    }
+
+    /** the nearest whole number, ties away from zero: 2.5 -> 3, -2.5 -> -3 */
+    def round(): double {
+        return new double(round_half_away(value));
+    }
+
+    /** the value without its fractional part (toward zero): 2.9 -> 2, -2.9 -> -2 */
+    def truncate(): double {
+        return new double(trunc(value));
+    }
+
+    /** the fractional part, with the sign of the value: 2.75 -> 0.75, -2.75 -> -0.75 */
+    def fraction_part(): double {
+        return new double(fract(value));
+    }
+
+    /**
+     * The value rounded to `decimals` digits after the decimal point (ties
+     * away from zero): 3.14159.round_to(2) is 3.14. See std.math#round_to
+     * for the floating point caveat (1.005 is stored slightly below 1.005).
+     */
+    def round_to(decimals: decimal): double {
+        return new double(std.math#round_to(value, decimals));
+    }
+
+    /**
+     * True when this value and `other` differ by at most `tolerance`: the
+     * way to compare results of floating point arithmetic.
+     */
+    def approx_equals(other: double, tolerance: decimal): bool {
+        return abs(value - other.value) <= tolerance;
+    }
+
+    /**
+     * The value as text with exactly `decimals` digits after the decimal
+     * point, rounded: 3.14159.to_fixed(2) is "3.14", 2.0.to_fixed(3) is "2.000".
+     * Throws illegal_argument_exception when decimals is outside 0 .. 100.
+     */
+    def to_fixed(decimals: decimal): string {
+        return number_to_fixed(value, decimals);
+    }
+
+    /**
+     * The shortest text that reads back as exactly this value: "2.5", "3",
+     * "0.1", "NaN", "Infinity" - what `"" + value` gives.
+     */
+    def to_short_string(): string {
+        return number_to_string(value);
+    }
+}

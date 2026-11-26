@@ -1,0 +1,217 @@
+mod backend.finalizer.sni;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.finalizer.layout
+)
+
+/**
+ * THE C++ FILES `sharpc -sni <folder>` WRITES
+ *
+ *      native "sensors" { def read(port: _int32) : decimal; }
+ *
+ *      <folder>/sni.h              the interface itself (the VM's runtime/sni/sni.h)
+ *      <folder>/sensors_sni.h      what YOU write:   double sensors_read(sni_env* env, int32_t port);
+ *      <folder>/sensors_sni.cpp    what the VM calls: the glue and the library's table
+ *
+ * You write `sensors_read` in a file of your own that includes
+ * sensors_sni.h, and build both .cpp files into one library (sensors.dll,
+ * libsensors.so). All three files are written again by every compile - never
+ * edit them. When a declaration changes in Sharp, the prototype changes with
+ * it and your C++ stops compiling until it agrees: the mistake is found by
+ * the C++ compiler, not by a crash.
+ *
+ * THE GLUE of a function turns the VM's arguments - each one a whole number,
+ * a decimal or a reference (`sni_value`) - into the typed C++ call:
+ *
+ *      static void glue_sensors_read(sni_env* env, sni_value* a, sni_value* r) {
+ *          r->d = sensors_read(env, (int32_t) a[0].i);
+ *      }
+ *
+ *      Java comparison: the header `javac -h` writes; here the glue that JNI
+ *      does with a calling-convention trick is plain generated C++.
+ */
+
+/** the C++ type of a parameter or result: int32_t, double, sni_ref, void */
+def cpp_type_of(type: resolved_type?) : string {
+    text := signature_type_text(type);
+    if(text == "nil") { return "void"; }
+    if(text == "decimal") { return "double"; }
+    if(text == "bool") { return "bool"; }
+    if(text == "_int8") { return "int8_t"; }
+    if(text == "_int16") { return "int16_t"; }
+    if(text == "_int32") { return "int32_t"; }
+    if(text == "_int64") { return "int64_t"; }
+    if(text == "_uint8") { return "uint8_t"; }
+    if(text == "_uint16") { return "uint16_t"; }
+    if(text == "_uint32") { return "uint32_t"; }
+    if(text == "_uint64") { return "uint64_t"; }
+    return "sni_ref";                   // text, an array, any object
+}
+
+/** a Sharp parameter name as a C++ one: a word C++ keeps for itself gets a `_` */
+def cpp_parameter_name(name: string) : string {
+    made := identifier_of(name);
+    reserved := " env self int char short long float double bool void class struct union enum new delete this "
+              + "default switch case break continue return if else for while do goto try catch throw public private "
+              + "protected virtual static const volatile signed unsigned auto register extern inline template typename "
+              + "namespace using operator sizeof typedef friend explicit mutable true false and or not xor export ";
+    if(reserved.find(" " + made + " ")) { return made + "_"; }
+    return made;
+}
+
+/** the Sharp declaration of a native function, for the comment above its prototype */
+def sharp_declaration_text(made: function_layout) : string {
+    text := new string_builder("def ");
+    text.append(made.of.name);
+    text.append("(");
+    for(i : _int64 = 0; i < made.of.parameters.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        parameter := made.of.parameters.at(i);
+        text.append(parameter.name);
+        if(parameter.value_type != null) {
+            text.append(": ");
+            text.append(parameter.value_type!!.to_text());
+        }
+    }
+    text.append(")");
+    if(made.returns_value() == 1) {
+        text.append(" : ");
+        text.append(made.of.result_type!!.to_text());
+    }
+    return text.build();
+}
+
+/** `double sensors_read(sni_env* env, int32_t port)` */
+def cpp_prototype(entry: native_function) : string {
+    made := entry.made;
+    text := new string_builder("");
+    text.append(cpp_type_of(made.of.result_type));
+    text.append(" ");
+    text.append(entry.cpp_name);
+    text.append("(sni_env* env");
+    if(made.is_static == 0) { text.append(", sni_ref self"); }
+    for(i : _int64 = 0; i < made.of.parameters.size(); i++) {
+        parameter := made.of.parameters.at(i);
+        text.append(", ");
+        text.append(cpp_type_of(parameter.value_type));
+        text.append(" ");
+        text.append(cpp_parameter_name(parameter.name));
+    }
+    text.append(")");
+    return text.build();
+}
+
+/** <library>_sni.h: one prototype per native function */
+def header_text(library: native_library) : string {
+    guard := "SHARP_SNI_" + library.identifier + "_H";
+    text := new string_builder("");
+    text.append("//\n// The native functions of the Sharp library \"" + library.name + "\".\n");
+    text.append("// Written by `sharpc -sni`, and written again by every compile: do not edit.\n//\n");
+    text.append("// Write each function below in a .cpp file of your own that includes this header,\n");
+    text.append("// and build it together with " + library.identifier + "_sni.cpp into one library:\n//\n");
+    text.append("//      Linux:    g++ -shared -fPIC -std=c++11 *.cpp -o " + library.name + ".so\n");
+    text.append("//      Windows:  g++ -shared -static -std=c++11 *.cpp -o " + library.name + ".dll\n");
+    text.append("//                (a Windows g++, MinGW-w64 - not the g++ of WSL, which writes a Linux library;\n");
+    text.append("//                 -static puts the C++ runtime inside, so the .dll needs no other .dll)\n//\n");
+    text.append("// The program loads it before the first call:  load_library(\"" + library.name + "\");\n");
+    text.append("// (the path of the library file; the ending may be left off. Nothing is searched for.)\n//\n\n");
+    text.append("#ifndef " + guard + "\n#define " + guard + "\n\n#include \"sni.h\"\n");
+    for(i : _int64 = 0; i < library.functions.size(); i++) {
+        entry := library.functions.at(i);
+        text.append("\n/** Sharp: " + sharp_declaration_text(entry.made) + "    (" + entry.made.full_name + ")");
+        if(entry.made.is_static == 0) { text.append("\n *  `self` is the object the function was called on."); }
+        text.append(" */\n");
+        text.append(cpp_prototype(entry) + ";\n");
+    }
+    text.append("\n#endif\n");
+    return text.build();
+}
+
+/** how the glue reads argument `index` as a value of this type: `(int32_t) a[0].i`, `a[1].d`, `a[2].r` */
+def glue_argument(type: resolved_type?, index: _int64) : string {
+    cpp := cpp_type_of(type);
+    if(cpp == "double") { return "a[" + index + "].d"; }
+    if(cpp == "sni_ref") { return "a[" + index + "].r"; }
+    return "(" + cpp + ") a[" + index + "].i";
+}
+
+/** <library>_sni.cpp: the glue of every function, the table, and the one exported function */
+def glue_text(library: native_library) : string {
+    text := new string_builder("");
+    text.append("//\n// The glue of the Sharp native library \"" + library.name + "\": what the VM calls.\n");
+    text.append("// Written by `sharpc -sni`, and written again by every compile: do not edit.\n");
+    text.append("// Build this file into the library together with your own code.\n//\n\n");
+    text.append("#include \"" + library.identifier + "_sni.h\"\n\n");
+    for(i : _int64 = 0; i < library.functions.size(); i++) {
+        entry := library.functions.at(i);
+        made := entry.made;
+        text.append("static void glue_" + entry.cpp_name + "(sni_env* env, sni_value* a, sni_value* r) {\n    ");
+        result := cpp_type_of(made.of.result_type);
+        if(result == "double") { text.append("r->d = "); }
+        else if(result == "sni_ref") { text.append("r->r = "); }
+        else if(result != "void") { text.append("r->i = (int64_t) "); }
+        text.append(entry.cpp_name + "(env");
+        index : _int64 = 0;
+        if(made.is_static == 0) {
+            text.append(", a[0].r");
+            index = 1;
+        }
+        for(j : _int64 = 0; j < made.of.parameters.size(); j++) {
+            text.append(", " + glue_argument(made.of.parameters.at(j).value_type, index));
+            index++;
+        }
+        text.append(");\n");
+        if(result == "void") { text.append("    (void) r;\n"); }
+        if(index == 0) { text.append("    (void) a;\n"); }
+        text.append("}\n\n");
+    }
+    text.append("// the name of each function in Sharp, its signature as the program was compiled, its glue\n");
+    text.append("static const sni_function functions[] = {\n");
+    for(i : _int64 = 0; i < library.functions.size(); i++) {
+        entry := library.functions.at(i);
+        text.append("    { \"" + entry.made.full_name + "\", \"" + entry.signature + "\", glue_" + entry.cpp_name + " },\n");
+    }
+    text.append("};\n\n");
+    text.append("static const sni_library library = { SNI_VERSION, \"" + library.name + "\", "
+                + library.functions.size() + ", functions };\n\n");
+    text.append("// the one thing the library exports: the VM asks for the table when it loads the library\n");
+    text.append("extern \"C\" SNI_EXPORT const sni_library* sni_library_table() { return &library; }\n");
+    return text.build();
+}
+
+/**
+ * Write `text` to the file, unless the file says exactly that already: a file
+ * that did not change keeps its date, and the date is what tells a C++ build
+ * (make, or the compiler's own: native_build.sharp) that nothing has to be
+ * compiled again.
+ */
+def write_when_changed(path: string, text: string) {
+    target := new file(path);
+    if(target.exists() && target.read_text() == text) { return; }
+    file_natives.write(target.path, text);
+}
+
+/**
+ * Write the files of every native library into `folder` (made when it is not
+ * there). Returns "" when all were written, else what went wrong.
+ */
+def write_native_files(layout: program_layout, folder: string) : string {
+    libraries := native_libraries_of(layout);
+    try {
+        directory := new file(folder);
+        if(!directory.exists()) { directory.mkdirs(); }
+        write_when_changed(folder + "/sni.h", sni_header_text());
+        for(i : _int64 = 0; i < libraries.size(); i++) {
+            library := libraries.at(i);
+            write_when_changed(folder + "/" + library.identifier + "_sni.h", header_text(library));
+            write_when_changed(folder + "/" + library.identifier + "_sni.cpp", glue_text(library));
+        }
+    } catch(e: exception) {
+        return "could not write the native interface files into `" + folder + "`: " + e.get_message();
+    }
+    return "";
+}

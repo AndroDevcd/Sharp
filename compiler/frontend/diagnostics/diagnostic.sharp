@@ -1,0 +1,136 @@
+mod frontend.diagnostics;
+
+import (
+    std.io,
+    frontend.lexer
+)
+
+/**
+ * WHAT THE COMPILER TELLS THE PROGRAMMER
+ *
+ * Every problem the compiler finds, in any stage, is a `diagnostic`. A good
+ * one answers three questions, and this class has a place for each:
+ *
+ *      WHAT is wrong, and WHERE        message + the exact piece of source (from .. to)
+ *                                      + a few words written right under that piece (label)
+ *      WHY                             notes: the rule that was broken, what the compiler saw
+ *      WHAT TO DO ABOUT IT             helps: a name that was probably meant, the import
+ *                                      to add, the character that is missing
+ *
+ *      error[E0301]: there is no type named `strng`
+ *       --> src/main.sharp:12:12
+ *         |
+ *      12 |     name : strng = "x";
+ *         |            ^^^^^ not declared in this file, in module `main` or in anything it imports
+ *         |
+ *         = help: did you mean `string`?
+ *
+ * A diagnostic can also point at a SECOND place that explains the first
+ * ("the `{` that was never closed is here", "it was first declared here"):
+ * related_place.
+ *
+ *      C++ comparison: what clang and rustc print. The old compiler's
+ *      "file:line:col: error S807: expected `;`" is the WHAT and WHERE only.
+ *
+ * THE RULE FOR ANYONE ADDING AN ERROR
+ * Do not stop at what is wrong. Ask "what would I tell someone sitting next
+ * to me?" and put that in a help line.
+ *
+ * Stages build these with the functions at the end of this file and the
+ * methods of the class, which return the diagnostic so they can be chained:
+ *
+ *      new_error("E0301", "there is no type named `" + name + "`", file, source, table, from, to)
+ *          .with_label("not declared in this file or in anything it imports")
+ *          .with_help("did you mean `string`?");
+ */
+
+const SEVERITY_ERROR   : decimal = 0;
+const SEVERITY_WARNING : decimal = 1;
+
+/** a second place in the source that helps to understand a diagnostic */
+class related_place {
+    file : string;
+    source : _int8[];
+    table : token_table;
+    from : _int64;
+    to : _int64;
+    label : string;
+
+    related_place(file: string, source: _int8[], table: token_table, from: _int64, to: _int64, label: string) {
+        self->file = file;
+        self->source = source;
+        self->table = table;
+        self->from = from;
+        self->to = to;
+        self->label = label;
+    }
+}
+
+class diagnostic {
+    severity : decimal = SEVERITY_ERROR;
+    code : string;              // "E0301": a number to search for and to refer to
+    message : string;           // one line: what is wrong
+
+    // where: the file, its text, its line table, and the characters from..to
+    file : string;
+    source : _int8[];
+    table : token_table;
+    from : _int64;
+    to : _int64;
+    label : string = "";        // written under the marked characters
+
+    related := new list<related_place>();
+    notes := new list<string>();        // why
+    helps := new list<string>();        // what to do about it
+
+    diagnostic(code: string, message: string, file: string, source: _int8[], table: token_table,
+               from: _int64, to: _int64) {
+        self->code = code;
+        self->message = message;
+        self->file = file;
+        self->source = source;
+        self->table = table;
+        self->from = from;
+        self->to = to;
+    }
+
+    /** a few words under the marked characters */
+    def with_label(text: string) : diagnostic {
+        label = text;
+        return self;
+    }
+
+    /** one more line of explanation */
+    def with_note(text: string) : diagnostic {
+        notes.add(text);
+        return self;
+    }
+
+    /** one more suggestion for fixing it */
+    def with_help(text: string) : diagnostic {
+        helps.add(text);
+        return self;
+    }
+
+    /** a second place, in the same file */
+    def with_related(from: _int64, to: _int64, text: string) : diagnostic {
+        related.add(new related_place(file, source, table, from, to, text));
+        return self;
+    }
+
+    /** a second place, anywhere */
+    def with_related_place(place: related_place) : diagnostic {
+        related.add(place);
+        return self;
+    }
+
+    def as_warning() : diagnostic {
+        severity = SEVERITY_WARNING;
+        return self;
+    }
+}
+
+def new_error(code: string, message: string, file: string, source: _int8[], table: token_table,
+              from: _int64, to: _int64) : diagnostic {
+    return new diagnostic(code, message, file, source, table, from, to);
+}

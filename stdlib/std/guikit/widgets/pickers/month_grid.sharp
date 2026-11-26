@@ -1,0 +1,203 @@
+mod std.guikit.widgets.pickers;
+
+import (
+    std.guikit.*,
+    std.time
+)
+
+/**
+ * month_grid - a month laid out as a calendar page, to pick a day from. Made
+ * with month_view(state), and used inside date_picker(...).
+ *
+ *      due := state_of<date>(date.today());
+ *      month_view(due, modifier().fill_width());
+ *
+ *      +----------------------------------+
+ *      |  <       November 2026        >  |      the month shown; the arrows step a month
+ *      |  Mo  Tu  We  Th  Fr  Sa  Su      |
+ *      |                           1      |
+ *      |   2   3   4   5   6   7   8      |
+ *      |   9  10  11  12  13  14  15      |
+ *      |  16 (17) 18  19  20  21  22      |      today has a ring; the chosen day is filled
+ *      |  23  24  25  26  27  28  29      |
+ *      |  30                              |
+ *      +----------------------------------+
+ *
+ * Clicking a day puts that date into the state. The month that is SHOWN is
+ * the widget's own business (you can page through months without changing
+ * the chosen day); it starts at the month of the state's date.
+ *
+ * Weeks start on Monday (ISO 8601, like the rest of std.time).
+ * (Android: CalendarView, MaterialDatePicker. Compose: DatePicker.)
+ *
+ * The widget is `stateful`: when the screen around it is built again, the new
+ * widget takes over which month the old one was showing.
+ */
+stable class month_grid base widget : behavior, pointer_target, stateful {
+    private bound : state<date>;
+    private shown_year : _int64 = 0 - 1;        // the month on the page; -1: not decided yet (the month of the date)
+    private shown_month : _int64 = 0 - 1;
+
+    private static const HEAD : decimal = 44;       // the height of the row with the month's name and the arrows
+    private static const DAYS : decimal = 26;       // the height of the row with the weekday names
+    private static const CELL : decimal = 38;       // the height of one week
+
+    month_grid(value: state<date>) {
+        attach(self);
+        bound = value;
+    }
+
+    override def kind() : string { return "month_grid"; }
+
+    /** make sure a month is being shown: at first, the month of the chosen date */
+    private def settle() {
+        if(shown_year < 0) {
+            chosen : date = bound.peek();
+            shown_year = chosen.year();
+            shown_month = chosen.month_value();
+        }
+    }
+
+    /** show the month before (-1) or after (1) the one on the page */
+    private def step_month(by: _int64) {
+        settle();
+        shown_month = shown_month + by;
+        if(shown_month < 1) { shown_month = 12; shown_year = shown_year - 1; }
+        if(shown_month > 12) { shown_month = 1; shown_year = shown_year + 1; }
+    }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        me.content_w = 7 * 40;
+        me.content_h = HEAD + DAYS + 6 * CELL;      // six weeks: enough for every month, so the page never changes height
+    }
+
+    override def arrange() {
+    }
+
+    /** how many empty cells come before day 1: 0 when the month starts on a Monday */
+    private def lead_in() : _int64 {
+        first : date = date.of(shown_year, shown_month, 1);
+        return first.day_of_week().value() - 1;
+    }
+
+    // ------------------------------------------------------------ the mouse
+
+    /** the day of the shown month under a window point, or 0 when the point is not on a day */
+    private def day_at(x: decimal, y: decimal) : _int64 {
+        top : decimal = me.y + HEAD + DAYS;
+        if(x < me.x || x >= me.x + me.w || y < top || y >= top + 6 * CELL) {
+            return 0;
+        }
+        across : _int64 = num.whole((x - me.x) / (me.w / 7));
+        down : _int64 = num.whole((y - top) / CELL);
+        day : _int64 = down * 7 + across - lead_in() + 1;
+        length : _int64 = date.days_in_month(shown_year, shown_month);
+        if(day < 1 || day > length) {
+            return 0;
+        }
+        return day;
+    }
+
+    override def pointer(what: _int64, x: decimal, y: decimal) {
+        if(what != POINTER_RELEASE || me.contains(x, y) == 0) {
+            return;
+        }
+        settle();
+
+        if(y < me.y + HEAD) {
+            // the arrows at the two ends of the top row
+            if(x < me.x + HEAD) { step_month(0 - 1); }
+            else if(x >= me.x + me.w - HEAD) { step_month(1); }
+            if(ui_host.current != null) { ui_host.current!!.repaint(); }
+            return;
+        }
+
+        day : _int64 = day_at(x, y);
+        if(day > 0) {
+            bound.value = date.of(shown_year, shown_month, day);
+        }
+    }
+
+    // ------------------------------------------------------------ painting
+
+    /** an arrow head pointing left (way -1) or right (way 1), centred on (cx, cy) */
+    private static def arrow(p: painter, cx: decimal, cy: decimal, way: _int64, ink: color) {
+        p.line(cx - 3 * way, cy - 6, cx + 3 * way, cy, 2, ink);
+        p.line(cx + 3 * way, cy, cx - 3 * way, cy + 6, 2, ink);
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        settle();
+
+        chosen : date = bound.peek();
+        today : date = date.today();
+        cell_w : decimal = me.w / 7;
+        over : _int64 = 0;
+        if(me.hovered == 1) { over = day_at(host.mouse_x, host.mouse_y); }
+
+        // ---- the top row: the month and year, an arrow at each end
+        title : font = host.font_of(t.text_size, 1);
+        words : string = month.of(shown_month).name() + " " + shown_year;
+        p.text(words, me.x + (me.w - title.width_of(words)) / 2, me.y + (HEAD - title.line_height) / 2, title, t.text);
+
+        if(me.hovered == 1 && host.mouse_y < me.y + HEAD) {
+            if(host.mouse_x < me.x + HEAD) { p.circle(me.x + HEAD / 2, me.y + HEAD / 2, 16, t.text.with_alpha(22)); }
+            if(host.mouse_x >= me.x + me.w - HEAD) { p.circle(me.x + me.w - HEAD / 2, me.y + HEAD / 2, 16, t.text.with_alpha(22)); }
+        }
+        arrow(p, me.x + HEAD / 2, me.y + HEAD / 2, 0 - 1, t.text_dim);
+        arrow(p, me.x + me.w - HEAD / 2, me.y + HEAD / 2, 1, t.text_dim);
+
+        // ---- the weekday names
+        small : font = host.font_of(t.small_size);
+        for(i : _int64 = 0; i < 7; i++) {
+            name : string = txt.slice(day_of_week.of(i + 1).short_name(), 0, 2);
+            p.text(name, me.x + cell_w * i + (cell_w - small.width_of(name)) / 2, me.y + HEAD + (DAYS - small.line_height) / 2, small, t.text_dim);
+        }
+
+        // ---- the days
+        f : font = host.font_of(t.text_size);
+        top : decimal = me.y + HEAD + DAYS;
+        lead : _int64 = lead_in();
+        length : _int64 = date.days_in_month(shown_year, shown_month);
+
+        for(day : _int64 = 1; day <= length; day++) {
+            place : _int64 = lead + day - 1;
+            cx : decimal = me.x + cell_w * (place % 7) + cell_w / 2;
+            cy : decimal = top + CELL * num.whole(place / 7) + CELL / 2;
+
+            is_chosen : _int64 = 0;
+            if(chosen.year() == shown_year && chosen.month_value() == shown_month && chosen.day() == day) { is_chosen = 1; }
+            is_today : _int64 = 0;
+            if(today.year() == shown_year && today.month_value() == shown_month && today.day() == day) { is_today = 1; }
+
+            ink : color = t.text;
+            if(is_chosen == 1) {
+                p.circle(cx, cy, 16, t.primary);
+                ink = t.on_primary;
+            } else {
+                if(day == over) { p.circle(cx, cy, 16, t.text.with_alpha(22)); }
+                if(is_today == 1) {
+                    p.ring(cx, cy, 16, 1.5, t.primary);
+                    ink = t.primary;
+                }
+            }
+            number : string = "" + day;
+            p.text(number, cx - f.width_of(number) / 2, cy - f.line_height / 2, f, ink);
+        }
+
+        // the mouse moves between days without anything else changing: keep painting while it is over the page
+        if(me.hovered == 1) {
+            host.wake_in(0.05);
+        }
+    }
+
+    override def adopt(old: behavior) {
+        if(old is month_grid) {
+            before := old as month_grid;
+            shown_year = before.shown_year;
+            shown_month = before.shown_month;
+        }
+    }
+}

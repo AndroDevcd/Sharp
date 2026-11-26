@@ -1,0 +1,114 @@
+mod backend.compiler.initializers;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.postprocessor.inheritance,
+    backend.postprocessor.generics,
+    backend.compiler.context
+)
+
+/**
+ * THE BASE CONSTRUCTOR EVERY CONSTRUCTOR CALLS
+ *
+ *      class animal { name : string; }
+ *      class dog base animal {
+ *          dog() { }                       runs animal() first, although nothing says so
+ *          dog(n: string) -> base(n) { }   runs animal(n) first (bound by the calls stage)
+ *      }
+ *
+ * Making an object runs, in order (doc/backend.md 7.15.2): the constructor
+ * of the class above, the values of the fields and the `init { }` blocks,
+ * then the constructor's own body. A constructor that writes no
+ * `-> base(...)` - and the constructor the compiler adds to a class that
+ * has none without parameters - calls the constructor WITHOUT parameters of
+ * the class above, which every class has (the compiler adds one where none
+ * is written, members/constructors.sharp). So there is nothing to check,
+ * only the call to record: `sharp_function.bound_base_call`, the same
+ * bound_call (dispatch CALL_CONSTRUCTOR, no arguments) a written
+ * `-> base()` gives. An `init(x)` conversion function makes an object too
+ * and gets the same call. Only `_object_`, the class above every class, has
+ * nothing above it.
+ *
+ * W1024. The arguments of a written `-> base(...)` are evaluated BEFORE the
+ * fields get their values, so a field of the object read there still holds
+ * its start value (0, null) - checked with the C++ compiler: with
+ * `w : _int64 = 4;` and `-> base(n + w)`, the base constructor receives
+ * `n + 0`. Accepted, as there; the warning says so.
+ *
+ *      C++ comparison: `compile_function` in compiler/functions/function_compiler.cpp
+ *      (the base call, then the static-init check, then `init<C>`, then the body).
+ */
+
+/** the call of the base class's constructor without parameters; null when the class has nothing above it */
+def implied_base_call(context: analysis_context, function: sharp_function) : bound_expression? {
+    owner : sharp_class? = function.owner;
+    if(owner == null) { return null; }
+    above : sharp_class? = real_base_of(context.prog, owner!!);
+    if(above == null) { return null; }
+    ensure_members(context.prog, above!!);
+    constructor : sharp_function? = above!!.default_constructor;
+    if(constructor == null) { return null; }
+
+    call := new bound_call(context.unit, function.node, constructor!!, null, context.session.types.nil_type);
+    call.dispatch = CALL_CONSTRUCTOR;
+    return call;
+}
+
+/** does this function make an object (so it calls a base constructor)? A constructor, or an `init(x)` */
+def makes_an_object(function: sharp_function) : _int64 {
+    if(function.kind == D_CONSTRUCTOR) { return 1; }
+    return function.kind == D_INIT && function.parameters.size() > 0;
+}
+
+/**
+ * A constructor the compiler added (`is_synthesized`): an empty body and
+ * the implied base call, so that a code generator treats it like a written one.
+ */
+def complete_added_constructor(context: analysis_context, function: sharp_function) {
+    function.bound_base_call = implied_base_call(context, function);
+    function.bound_body = new bound_block(context.unit, function.node);
+}
+
+/** W1024 for every field of the object a written `-> base(...)` reads: a read through `self` (or its getter), once per field */
+def check_base_arguments(context: analysis_context, call: bound_expression) {
+    reported := new list<sharp_field>();
+    every := all_expressions_in(call);
+    for(i : _int64 = 0; i < every.size(); i++) {
+        expression := every.at(i);
+        field : sharp_field? = field_of_self_read(expression);
+        if(field == null || already_in(reported, field!!)) { continue; }
+        reported.add(field!!);
+        d := problem_over(context, "W1024", "`" + field!!.name + "` has not been given its value yet when the base constructor runs",
+                          expression.node);
+        d.with_label("reads the start value of `" + field!!.name + "` (0 or null)");
+        d.with_related_place(place_of_declaration(field!!, "its value is set after the base constructor"));
+        d.with_note("making an object runs the base constructor FIRST, then the values of the fields and the `init` blocks, then the rest of the constructor");
+        d.with_help("pass the value itself (a parameter, or the expression the field is given), not the field");
+        report(context, d);
+    }
+}
+
+/** the instance field `expression` reads from the object being made, if that is what it is */
+def field_of_self_read(expression: bound_expression) : sharp_field? {
+    if(expression.kind == BX_FIELD) {
+        read := expression as bound_field;
+        if(read.on != null && read.on!!.kind == BX_SELF && !read.field.has(FLAG_STATIC)) { return read.field; }
+        return null;
+    }
+    if(expression.kind == BX_CALL) {
+        call := expression as bound_call;
+        if(call.written_as == AS_GETTER && call.on != null && call.on!!.kind == BX_SELF) { return call.function.field; }
+    }
+    return null;
+}
+
+/** is `field` in the list already? */
+def already_in(fields: list<sharp_field>, field: sharp_field) : _int64 {
+    for(i : _int64 = 0; i < fields.size(); i++) {
+        if(fields.at(i) == field) { return 1; }
+    }
+    return 0;
+}

@@ -1,0 +1,328 @@
+mod backend.finalizer.generation;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation.statements,
+    backend.finalizer.generation.setup,
+    backend.finalizer.generation.closures
+)
+
+/**
+ * GENERATION: THE TYPED TREE OF A FUNCTION BECOMES ITS IR (doc/codegen.md 2.2, section 6)
+ *
+ * The second step of code generation. For one function at a time it walks
+ * the typed tree analysis built (`sharp_function.bound_body`) and writes the
+ * IR of backend/finalizer/ir: each expression's value is put into a slot,
+ * each statement becomes instructions and labels.
+ *
+ *      def twice(n: _int64) : _int64 { return n * 2; }
+ *
+ *          bound_return                    int_constant %1, 2
+ *            bound_binary *       ->       int_binary mul %2, %0, %1
+ *              bound_local n               return_value %2
+ *              bound_literal 2
+ *
+ * THE FRAME. Slot 0 is `self` for a function that has an object, then come
+ * the parameters and locals in the order `sharp_function.locals` lists them
+ * (`local_variable.slot`), then the generator's own slots (codegen.md 4.4, 5.3).
+ *
+ * WHAT IS GENERATED: every expression of the typed tree (codegen.md 13.2),
+ * every statement (13.3) - blocks, locals, expression statements, `return`,
+ * `if`, `when`, the loops, `foreach`, `break` / `continue`, `try` / `catch` /
+ * `finally`, `throw`, `lock`, the jumps out of a lock or a finally, `asm`
+ * blocks - and what the generator writes itself (the constructor's prologue,
+ * init<C>, static_init<C>, the platform's start-up functions), and since
+ * stage 4 (13.4) closure records and the variables they hold, `localized`
+ * locals and components. A node met without a lowering - only what a program
+ * without errors cannot contain - stops the function (`not_generated`, at the
+ * end of this file) and is an internal error, E0970.
+ *
+ * The packages of code generation's second step, each a family of nodes
+ * (they call each other in a circle - a family's node contains nodes of
+ * other families - which is the nature of a recursive walk):
+ *
+ *      generation/             this front door; expressions.sharp: `value_of`, the dispatcher of expressions,
+ *                              and the order-of-evaluation helpers (`held_over`)
+ *      generation/values       constants, fields, enum values, `self`, conversions, `is`, `sizeof`
+ *      generation/operators    + - * / % ** & | ^ << >> on numbers, == on references, && ||, ? :, -a, !a
+ *      generation/assignment   =, op=, ++, --: storage places (locals, fields, elements, properties)
+ *      generation/null_safety  ?. and its receivers, ?:, !!
+ *      generation/calls        calls of every dispatch, `new`, function values and their calls
+ *      generation/collections  elements and new arrays, string templates, dictionaries
+ *      generation/statements   blocks, locals, return, if, when, loops, foreach, break, continue, try,
+ *                              throw, lock, the ways out of a lock or a finally, asm
+ *      generation/closures     closure records: made per call, found by depth; a local read and stored
+ *                              wherever it lives (frame, record, fiber); `self` inside a lambda
+ *      generation/setup        the constructor's prologue, init<C>, static_init<C>, the start-up, components
+ *
+ * The files of this package (module `backend.finalizer.generation`):
+ *
+ *      generation.sharp        this front door: generate_function, the generator (frame, slots, loops),
+ *                              the "not generated yet" stop and the names of node kinds
+ *      expressions.sharp       value_of; held_over (a local's slot standing for its value, 5.3)
+ *
+ *      C++ comparison: compiler/functions (the statement compilers) and
+ *      compiler/expressions, which do analysis and code at once there; here
+ *      the tree is finished before code generation starts.
+ */
+class generator {
+    layout : program_layout;
+    made : function_layout;
+    b : ir_builder;
+    loops : list<bound_statement>;          // the loops around the current statement, innermost last
+    break_labels : number_list;
+    continue_labels : number_list;
+    self_slot : _int64 = 0 - 1;             // 0 for a function that has an object
+    navigations : list<bound_safe_navigation>;  // the `?.` being generated, innermost last ...
+    receiver_slots : number_list;           // ... and the slot holding each one's receiver (null_safety)
+    finally_tries : list<try_exits>;        // the `try`s with a finally whose block or handlers are being generated,
+                                            // innermost last, with the ways out asked of them (statements/exits.sharp)
+    return_slot : _int64 = 0 - 1;           // where a `return v;` that passes a finally keeps v (made on first use)
+    // closure records (generation/closures, codegen.md 6.12):
+    records : list<closure_record>;         // the records this frame holds itself (its function's, an init block's,
+    record_slots : number_list;             // a field value's), and the slot of each
+    record_parameter : _int64 = 0 - 1;      // a lambda's hidden last parameter: the record it was handed
+    handed : closure_record?;               // ... and which record that is
+
+    generator(layout: program_layout, made: function_layout, b: ir_builder) {
+        self->layout = layout;
+        self->made = made;
+        self->b = b;
+        loops = new list<bound_statement>();
+        break_labels = new number_list();
+        continue_labels = new number_list();
+        navigations = new list<bound_safe_navigation>();
+        receiver_slots = new number_list();
+        finally_tries = new list<try_exits>();
+        records = new list<closure_record>();
+        record_slots = new number_list();
+    }
+
+    /** the hidden slot of the value a `return` carries through finally blocks (codegen.md 6.11), made on first use */
+    def return_slot_for(unit: source_unit, node: _int64) : _int64 {
+        if(return_slot < 0) {
+            if(made.of.result_type == null) { stop("a `return` with a value in a function without a result", unit, node); }
+            return_slot = b.temp(slot_kind_of(made.of.result_type!!));
+        }
+        return return_slot;
+    }
+
+    /** stop the function: this node has no lowering yet */
+    def stop(what: string, unit: source_unit, node: _int64) {
+        throw new not_generated(what, unit, node);
+    }
+
+    /** the source line of a node starts here */
+    def line_of_node(unit: source_unit, node: _int64) {
+        p := unit.parsed;
+        if(p == null || node < 0 || node >= p!!.tree.count) { return; }
+        b.line(line_of_token(p!!, p!!.tree.tokens!![node]));
+    }
+
+    /**
+     * The slots of a function's frame (codegen.md 4.4, 6.12): `self`, the
+     * parameters, a lambda's hidden record parameter (`calld` pushes it right
+     * after the written ones), the other locals, and the slot of the
+     * function's own closure record when lambdas capture from it.
+     */
+    def lay_out_frame(function: sharp_function, has_self: _int64) {
+        if(has_self == 1) { self_slot = b.fixed_slot(SLOT_REF); }
+        if(function.locals == null) {
+            add_record_parameter(function);
+        } else {
+            locals : list<local_variable> = function.locals!!;
+            parameters : _int64 = function.parameters.size();
+            for(i : _int64 = 0; i < locals.size() && i < parameters; i++) { add_local(locals.at(i)); }
+            add_record_parameter(function);
+            for(i : _int64 = parameters; i < locals.size(); i++) { add_local(locals.at(i)); }
+        }
+        add_own_record(function.closure);
+        made.record_parameter_slot = record_parameter;
+        if(function.closure != null) { made.own_record_slot = record_slots.at(record_slots.count - 1); }
+    }
+
+    /** the hidden record parameter of a lambda that is handed one */
+    def add_record_parameter(function: sharp_function) {
+        if(function.takes_record == 0) { return; }
+        record_parameter = b.fixed_slot(SLOT_REF);
+        handed = handed_record(function);
+    }
+
+    /** a record this frame makes itself (null: none) gets a fixed slot */
+    def add_own_record(record: closure_record?) {
+        if(record == null) { return; }
+        records.add(record!!);
+        record_slots.add(b.fixed_slot(SLOT_REF));
+    }
+
+    /** the locals of a function get the next fixed slots, in their order (an init { } block's, inside init<C>) */
+    def add_locals(function: sharp_function) {
+        if(function.locals == null) { return; }
+        locals : list<local_variable> = function.locals!!;
+        for(i : _int64 = 0; i < locals.size(); i++) { add_local(locals.at(i)); }
+    }
+
+    /**
+     * One local gets the next fixed slot. A captured or `localized` local
+     * lives elsewhere (its record, its fiber: `local_variable.storage`) and
+     * takes none.
+     */
+    def add_local(variable: local_variable) {
+        // a captured PARAMETER still arrives in its frame slot; the prologue copies it into the record
+        if(variable.storage != null && variable.is_parameter == 0) { return; }
+        variable.slot = b.fixed_slot(slot_kind_of(variable.type));
+    }
+
+    /** the slot of a local that lives in the frame; stops when the local is not one this frame has */
+    def slot_of(variable: local_variable, unit: source_unit, node: _int64) : _int64 {
+        if(variable.is_captured == 1) { stop("a captured variable where only a frame slot will do", unit, node); }
+        if(variable.is_localized == 1) { stop("a `localized` variable where only a frame slot will do", unit, node); }
+        if(variable.slot < 0) { stop("a variable of another function", unit, node); }
+        return variable.slot;
+    }
+
+    /** a new slot for a value of this type */
+    def temp_for(type: resolved_type) : _int64 {
+        return b.temp(slot_kind_of(type));
+    }
+}
+
+/** the kind of slot a value of this type lives in */
+def slot_kind_of(type: resolved_type) : _int64 {
+    if(type.is_array == 0 && type.kind == RT_INTEGER) { return SLOT_INT; }
+    if(type.is_array == 0 && type.kind == RT_DECIMAL) { return SLOT_DEC; }
+    return SLOT_REF;
+}
+
+/** how a store into a place of this type narrows an integer (NARROW_...; codegen.md 4.3) */
+def narrowing_of(type: resolved_type?) : _int64 {
+    if(type == null) { return NARROW_NONE; }
+    found : resolved_type = type!!;
+    if(found.is_array == 1 || found.kind != RT_INTEGER || found.bits >= 64) { return NARROW_NONE; }
+    if(found.is_signed == 1) {
+        if(found.bits == 8) { return NARROW_I8; }
+        if(found.bits == 16) { return NARROW_I16; }
+        return NARROW_I32;
+    }
+    if(found.bits == 8) { return NARROW_U8; }
+    if(found.bits == 16) { return NARROW_U16; }
+    return NARROW_U32;
+}
+
+/**
+ * Generate the IR of one function. Returns null when it was generated
+ * (`made.ir` holds it), or the first node this stage cannot generate.
+ *
+ * The walk is recursive: a statement inside a statement, an expression
+ * inside an expression, each one level deeper on the VM's stack, which is
+ * small (codegen.md 11.8). Chains - `a + b + c ...`, `if .. else if ..` -
+ * are followed in loops and cost nothing; real NESTING that goes deeper than
+ * the stack holds ends here as `is_too_deep`, reported as E0978.
+ */
+def generate_function(made: function_layout, layout: program_layout) : not_generated? {
+    if(made.made_from == MADE_NOTHING) { return null; }
+    code := new ir_function(made.full_name);
+    g := new generator(layout, made, new ir_builder(code));
+    try {
+        if(made.made_from == MADE_FROM_BODY) { generate_body(g, made.of); }
+        else if(made.made_from == MADE_OBJECT_INIT) { generate_object_init(g); }
+        else if(made.made_from == MADE_STATIC_INIT) { generate_static_init(g); }
+        else if(made.made_from == MADE_PLATFORM_STATIC_INIT) { generate_platform_static_init(g); }
+        else if(made.made_from == MADE_PLATFORM_TLS_INIT) { generate_platform_tls_init(g); }
+        else if(made.made_from == MADE_COMPONENT) { generate_component_function(g); }
+    } catch(problem: not_generated) {
+        return problem;
+    } catch(overflow: stack_overflow_exception) {
+        // the walk went deeper than the VM's stack holds: a limit of this compiler, said as a
+        // message at the function (E0978) instead of the crash it would otherwise be
+        too_deep := new not_generated("a body nested too deeply", made.of.unit, made.of.node);
+        too_deep.is_too_deep = 1;
+        return too_deep;
+    }
+    made.ir = code;
+    return null;
+}
+
+/**
+ * A function written in the program: its frame, the prologue of a
+ * constructor, its body, and the `return` at the end of a body that can
+ * run off its end (every function's code ends in `ret`: codegen.md 11.2).
+ */
+def generate_body(g: generator, function: sharp_function) {
+    g.lay_out_frame(function, 1 - g.made.is_static);
+    // this call's closure record first: the base call of a constructor may already read a captured parameter
+    open_own_record(g, function);
+    if(function.kind == D_CONSTRUCTOR || (function.kind == D_INIT && function.parameters.size() > 0)) {
+        generate_constructor_prologue(g, function);
+    }
+    if(function.bound_body != null) {
+        generate_statement(g, function.bound_body!!);
+        if(function.bound_body!!.completes == 1 || !g.made.returns_value()) { g.b.emit(IR_RETURN); }
+    } else {
+        g.b.emit(IR_RETURN);
+    }
+}
+
+/**
+ * "NO CODE FOR THIS": a node the generator has no lowering for
+ *
+ * Code generation was built in stages (doc/codegen.md 2.1, 13); since stage 4
+ * every node of the typed tree has a lowering, and what is left of this are
+ * the guards for what cannot happen in a program without errors (an error
+ * node, a call of a function that was never kept ...). Meeting one must never
+ * give a file that does something wrong, so the generator stops the function
+ * at once by throwing this, naming the node and where it is written; the
+ * driver (finalizer.sharp) reports it as an internal error, E0970, and writes
+ * no file. Throwing (rather than passing a flag up through every call) keeps
+ * each lowering function about its node only.
+ */
+class not_generated base exception {
+    what : string;              // "string template", "try statement" ...
+    unit : source_unit;
+    node : _int64;
+    is_too_deep : _int64 = 0;   // 1: not a missing lowering - the function's body nests deeper than the
+                                // generator's walk can follow on the VM's stack (E0978); `node` is the function
+
+    not_generated(what: string, unit: source_unit, node: _int64) -> base("not generated yet: " + what) {
+        self->what = what;
+        self->unit = unit;
+        self->node = node;
+    }
+
+    /** "/path/file.sharp:20" */
+    def place() : string {
+        p := unit.parsed!!;
+        line : _int64 = 0;
+        if(node >= 0 && node < p.tree.count) { line = line_of_token(p, p.tree.tokens!![node]); }
+        return unit.file + ":" + line;
+    }
+}
+
+/** the source line of a token */
+def line_of_token(p: parse_state, token: _int64) : _int64 {
+    return line_of(p.table, p.start_of(token));
+}
+
+/** what a kind of expression is called in a "not generated yet" line */
+def expression_kind_text(kind: _int64) : string {
+    if(kind == BX_ERROR) { return "an expression with an error"; }
+    if(kind == BX_PENDING) { return "an argument that was never bound"; }
+    if(kind == BX_TYPE_NAME) { return "a type name used as a value"; }
+    if(kind == BX_FUNCTIONS) { return "a function name without a call"; }
+    if(kind == BX_GET_COMPONENT) { return "`get<t>()` of a component"; }
+    return "expression kind " + kind;
+}
+
+/** what a kind of statement is called in a "not generated yet" line */
+def statement_kind_text(kind: _int64) : string {
+    return statement_kind_name(kind) + " statement";
+}

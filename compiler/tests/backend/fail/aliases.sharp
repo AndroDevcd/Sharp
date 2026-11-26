@@ -1,0 +1,24 @@
+// expect: E0700 E0700 E0700 E0700
+mod alias_mistakes;
+
+import ( std.io )
+
+/**
+ * WHO MAY NAME AN ALIAS: decided by where it is declared, never by words.
+ * An alias in a class is private to that class (written with no word at
+ * all); one in a module is public. The C++ parser drops any word written in
+ * front of `alias`; such a word is the warning W1040 (tested in
+ * fail/alias_words.sharp, because the errors here stop the stage that
+ * reports it).
+ */
+
+class holder {
+    alias string as text;
+    first : text = "a";                                 // fine: the class itself
+    def again(t: text) : text { return t; }             // fine
+}
+
+label : holder.text = "g";                              // E0700: implied private
+def take(t: holder.text) { }                            // E0700
+def local_use() { t : holder.text = "x"; }              // E0700 in a body
+def array_use() { a := new holder.text[1]; }            // E0700 in `new`

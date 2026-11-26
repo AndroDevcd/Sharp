@@ -1,0 +1,104 @@
+mod std.data;
+
+import ( std.io )
+
+/**
+ * One section of an ini_file: a name and its "key = value" entries, in the
+ * order they were added. A key occurs once; putting it again replaces the
+ * value. Keys are compared exactly (case matters).
+ *
+ * Programs normally go through ini_file (find, put, ...); a section object
+ * is handy to walk over all entries of a section:
+ *
+ *     section := config.section("server");
+ *     for(i : decimal = 0; i < section.size(); i++) {
+ *         println(section.key_at(i) + " -> " + section.value_at(i));
+ *     }
+ */
+class ini_section {
+    private section_name : string;
+    private entry_keys := new list<string>();
+    private entry_values := new list<string>();
+
+    /** an empty section called `name` ("" is the section for entries before the first [header]) */
+    ini_section(name: string) {
+        section_name = name;
+    }
+
+    /** the name of the section, without the brackets */
+    def name() : string {
+        return section_name;
+    }
+
+    /** the number of entries */
+    def size() : decimal {
+        return entry_keys.size();
+    }
+
+    /** the position of `key`, or -1 */
+    private def index_of(key: string) : decimal {
+        total : decimal = entry_keys.size();
+        for(i : decimal = 0; i < total; i++) {
+            if(io_strings.equals(entry_keys.at(i), key)) {
+                return i;
+            }
+        }
+        return 0 - 1;
+    }
+
+    /** true when the section has an entry `key` */
+    def has(key: string) : bool {
+        return index_of(key) >= 0;
+    }
+
+    /** the value of the entry `key`, or null when there is none */
+    def find(key: string) : string? {
+        at : decimal = index_of(key);
+        if(at < 0) {
+            return null;
+        }
+        return entry_values.at(at);
+    }
+
+    /** set the entry `key` to `value`: an existing entry keeps its place, a new one goes to the end */
+    def put(key: string, value: string) {
+        at : decimal = index_of(key);
+        if(at >= 0) {
+            entry_values.put(at, value);
+        } else {
+            entry_keys.add(key);
+            entry_values.add(value);
+        }
+    }
+
+    /** remove the entry `key`; returns true when there was one */
+    def remove(key: string) : bool {
+        at : decimal = index_of(key);
+        if(at < 0) {
+            return false;
+        }
+        entry_keys.remove_at(at);
+        entry_values.remove_at(at);
+        return true;
+    }
+
+    /** the key of the entry at position `index` (0 is the first). Throws out_of_bounds_exception when there is no such entry. */
+    def key_at(index: decimal) : string {
+        return entry_keys.at(index);
+    }
+
+    /** the value of the entry at position `index`. Throws out_of_bounds_exception when there is no such entry. */
+    def value_at(index: decimal) : string {
+        return entry_values.at(index);
+    }
+
+    /** the keys of all entries in order (a new list) */
+    def keys() : list<string> {
+        result := new list<string>();
+        total : decimal = entry_keys.size();
+        for(i : decimal = 0; i < total; i++) {
+            result.add(entry_keys.at(i));
+        }
+        return result;
+    }
+}

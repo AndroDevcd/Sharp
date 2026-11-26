@@ -1,0 +1,146 @@
+mod std.guikit.core.tree;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * scope - what makes the nested, Compose-like way of writing a screen work:
+ *
+ *      gui.column {
+ *          gui.text("Hello");                       // lands in the column ...
+ *          gui.row {
+ *              gui.button("No") { answer(0); };     // ... these land in the row ...
+ *              gui.button("Yes") { answer(1); };
+ *          };
+ *          if(show_hint.value == 1) {
+ *              gui.text("ordinary `if` and `for` work in here").dim();
+ *          }
+ *      }
+ *
+ * Nobody calls .add(). A widget made INSIDE a container's block becomes a
+ * child of that container, in the order the lines run.
+ *
+ * HOW: there is one "open container" at any moment (`open`, below).
+ *
+ *   - A container given a block opens itself (remembering what was open
+ *     before), runs the block, and puts the previous one back. Blocks nest, so
+ *     this behaves like a stack - kept on the call stack by `fill`, with no
+ *     list to manage.
+ *   - Every widget, the moment it is made, asks the scope to adopt it
+ *     (widget.attach, and the composable's constructor). If a container is
+ *     open, the widget is added to it; if none is, nothing happens.
+ *
+ * That is all the "magic" there is. Compose does the equivalent in its
+ * compiler (every @Composable call gets a hidden `composer` argument that
+ * knows the current group); here it is one static field you can read.
+ *
+ * BOTH STYLES MIX. .add(child) still works everywhere, also inside a block: a
+ * widget that is already somewhere is MOVED, never duplicated (view.add_kid).
+ * So `gui.row().add(gui.text("a"))` written inside a column's block ends up
+ * as the column holding the row holding the text.
+ */
+stable class scope {
+    /** the container whose block is running right now (null: none) */
+    static open : view?;
+
+    /** a widget was just made: if a block is running, it belongs to that block's container */
+    static def adopt(fresh: view) {
+        if(open != null) {
+            open!!.add_kid(fresh);
+        }
+    }
+
+    /** run `block` with `container` as the open container, then put back whichever was open before */
+    static def fill(container: view, block: ()()) {
+        before : view? = open;
+        open = container;
+        block();
+        open = before;
+    }
+
+    /**
+     * Run `block` on its own, into a container that is part of nothing, and
+     * hand that container back: its kids are the widgets the block made.
+     *
+     * For functions whose block does not describe CHILDREN but something else
+     * they want to look at first - the first screen of a screen stack, the
+     * options of a dropdown. `as_kind` is the kind the container reports while
+     * the block runs ("dropdown"), so that things which only belong in such a
+     * block (option(...)) can check they are in the right place (inside, below).
+     */
+    static def collect(as_kind: string, block: ()()) : view {
+        before : view? = open;
+        open = null;                            // the holder itself must not land in whatever is open
+        gathered := new view(new holder(as_kind));
+        open = gathered;
+        block();
+        open = before;
+        return gathered;
+    }
+
+    /**
+     * Run `block` into a ROW of its own that belongs to nothing yet, and hand
+     * the row's box back: the widgets the block made sit in it side by side,
+     * `space` pixels apart.
+     *
+     * For a widget that takes a block for one PART of itself - the caption
+     * of a checkbox, the title of a tab: it makes the part with this, adds
+     * the box as its child and gives it a place in its own arrange().
+     */
+    static def lone_row(space: decimal, block: ()()) : view {
+        before : view? = open;
+        open = null;                            // the row itself must not land in whatever is open
+        made := new row();
+        made.gap(space);
+        open = before;
+        made.content(block);
+        return made.node();
+    }
+
+    /**
+     * SOME THINGS ONLY MAKE SENSE INSIDE ONE PARTICULAR PARENT: tab(...) inside
+     * tabs { }, item / items inside lazy_column { }, option(...) inside
+     * dropdown { }. Such a function calls this first. It hands back the open
+     * container when that is of the kind asked for - and otherwise stops the
+     * program with an error that says what was written and where it belongs:
+     *
+     *      illegal_state_exception: `tab(...)` only works inside `tabs { ... }`
+     *      (here it was used inside a `column`)
+     *
+     * (Compose catches the same mistake at compile time with scope types -
+     * RowScope, LazyListScope. Sharp has no receiver types for blocks, so it
+     * is checked when the line runs: the first time the screen is built.)
+     */
+    static def inside(wanted_kind: string, written: string, belongs_in: string) : view {
+        if(open != null && open!!.how.kind() == wanted_kind) {
+            return open!!;
+        }
+        found : string = "outside any block";
+        if(open != null) { found = "inside a `" + open!!.how.kind() + "`"; }
+        throw new illegal_state_exception("`" + written + "` only works inside `" + belongs_in + "` (here it was used " + found + ")");
+    }
+}
+
+/**
+ * The behavior of a container that is never shown: it only holds what a block
+ * made, for scope.collect.
+ */
+local stable class holder : behavior {
+    private name : string = "";
+
+    holder(as_kind: string) {
+        name = as_kind;
+    }
+
+    override def kind() : string { return name; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+    }
+}

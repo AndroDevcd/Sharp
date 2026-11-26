@@ -1,0 +1,420 @@
+mod std.compress;
+
+import ( std.io )
+
+/**
+ * DEFLATE: the compression inside gzip, zip, png and https
+ *
+ *      small := deflate.compress(bytes);
+ *      same := deflate.decompress(small);
+ *
+ * This is the bare compressed stream. Files and the network wrap it:
+ * gzip (gzip.sharp) adds a header and a checksum, zlib a shorter one, a zip
+ * archive (zip.sharp) keeps many files, each deflated. Use those unless a
+ * format asks for the bare stream.
+ *
+ * HOW IT WORKS, in two steps:
+ *
+ *   1. Repeats are replaced by "the same as <length> bytes, <distance> bytes
+ *      back" (LZ77): `abcabcabc` is `abc` and then "6 bytes from 3 back".
+ *      A repeat can reach 32768 bytes back and be 3 to 258 bytes long.
+ *   2. What is left - plain bytes, lengths and distances - is written in
+ *      codes of different lengths, the frequent ones short (Huffman codes).
+ *
+ * decompress() reads every stream the format allows (stored, fixed and
+ * dynamic codes). compress() finds repeats with a table of where each three
+ * bytes were last seen and writes the format's FIXED codes: a little larger
+ * than what zlib makes (it builds codes for each block), read by everything.
+ *
+ * Written in Sharp: nothing to install on any system. Megabytes take a
+ * moment; for a great deal of data call the system's zlib through extern.
+ *
+ * Throws compress_exception when data to decompress is damaged or cut off.
+ *
+ *      Java comparison: java.util.zip.Inflater / Deflater (with nowrap); Python: zlib with wbits=-15.
+ */
+class compress_exception base exception {
+    public compress_exception(message : string?) -> base(message) {}
+}
+
+class deflate {
+    static def decompress(data: _int8[]?) : _int8[] {
+        work := new inflater(data, 0);
+        return work.run();
+    }
+
+    static def compress(data: _int8[]?) : _int8[] {
+        work := new deflater(data);
+        return work.run();
+    }
+}
+
+/** the tables both directions share: the lengths and distances a code stands for, and how many more bits follow it */
+class deflate_tables {
+    static length_base : _int64[] = new _int64[] { 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31, 35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258 };
+    static length_extra : _int64[] = new _int64[] { 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0 };
+    static distance_base : _int64[] = new _int64[] { 1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193, 257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145, 8193, 12289, 16385, 24577 };
+    static distance_extra : _int64[] = new _int64[] { 0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13 };
+}
+
+/** a set of Huffman codes, as the format describes one: how many codes of each length, and the symbols in code order */
+class huffman_codes {
+    count := new _int64[16];
+    symbol : _int64[];
+
+    huffman_codes(symbols: _int64) {
+        symbol = new _int64[symbols];
+    }
+
+    /**
+     * Build the codes from the length of each symbol's code (0: the symbol
+     * is not used). Returns 0 for a complete set, a negative number for one
+     * that cannot be (more codes than the lengths allow), a positive one
+     * for an incomplete set.
+     */
+    def build(lengths: _int64[], from: _int64, symbols: _int64) : _int64 {
+        for(i : _int64 = 0; i < 16; i++) { count[i] = 0; }
+        for(i : _int64 = 0; i < symbols; i++) { count[lengths[from + i]]++; }
+        if(count[0] == symbols) { return 0; }
+        left : _int64 = 1;
+        for(length : _int64 = 1; length < 16; length++) {
+            left = left * 2 - count[length];
+            if(left < 0) { return left; }
+        }
+        offsets := new _int64[16];
+        for(length : _int64 = 1; length < 15; length++) { offsets[length + 1] = offsets[length] + count[length]; }
+        for(i : _int64 = 0; i < symbols; i++) {
+            length : _int64 = lengths[from + i];
+            if(length != 0) {
+                symbol[offsets[length]] = i;
+                offsets[length]++;
+            }
+        }
+        return left;
+    }
+}
+
+/** decompression: reads bits from `source`, writes bytes to a growing array */
+class inflater {
+    private source : _int8[];
+    private size : _int64 = 0;
+    private at : _int64 = 0;                // the next byte of source
+    private held : _int64 = 0;              // bits taken from source and not used yet ...
+    private held_bits : _int64 = 0;         // ... and how many
+    private out := new _int8[4096];
+    private made : _int64 = 0;
+
+    private static fixed_lengths : huffman_codes?;
+    private static fixed_distances : huffman_codes?;
+
+    inflater(data: _int8[]?, start: _int64) {
+        if(data == null) { source = new _int8[0]; }
+        else { source = data!!; }
+        size = sizeof(data);
+        at = start;
+    }
+
+    /** where reading stopped: the first byte after the stream (a container's checksum follows there) */
+    def position() : _int64 { return at; }
+
+    private def need(count: _int64) : _int64 {
+        value : _int64 = held;
+        while(held_bits < count) {
+            if(at >= size) { throw new compress_exception("the compressed data ends in the middle"); }
+            value = value | ((source[at] & 0xFF) << held_bits);
+            at++;
+            held_bits = held_bits + 8;
+        }
+        held = value >> count;
+        held_bits = held_bits - count;
+        return value & ((1 << count) - 1);
+    }
+
+    private def put(value: _int64) {
+        if(made >= sizeof(out)) { grow(made + 1); }
+        out[made] = value;
+        made++;
+    }
+
+    private def grow(least: _int64) {
+        bigger : _int64 = sizeof(out) * 2;
+        while(bigger < least) { bigger = bigger * 2; }
+        next := new _int8[bigger];
+        memcopy(out, next, 0, 0, made);
+        out = next;
+    }
+
+    /** the next symbol in these codes: one bit at a time until the bits read are a code */
+    private def decode(codes: huffman_codes) : _int64 {
+        code : _int64 = 0;
+        first : _int64 = 0;
+        index : _int64 = 0;
+        counts : _int64[] = codes.count;
+        for(length : _int64 = 1; length < 16; length++) {
+            code = code | need(1);
+            count : _int64 = counts[length];
+            if(code - count < first) { return codes.symbol[index + (code - first)]; }
+            index = index + count;
+            first = (first + count) * 2;
+            code = code * 2;
+        }
+        throw new compress_exception("the compressed data is damaged (a code that does not exist)");
+    }
+
+    def run() : _int8[] {
+        last : _int64 = 0;
+        while(last == 0) {
+            last = need(1);
+            kind : _int64 = need(2);
+            if(kind == 0) { stored(); }
+            else if(kind == 1) { fixed(); }
+            else if(kind == 2) { dynamic(); }
+            else { throw new compress_exception("the compressed data is damaged (a block of a kind that does not exist)"); }
+        }
+        if(made == sizeof(out)) { return out; }
+        return copy(out, 0, made) ?: new _int8[0];
+    }
+
+    /** a block that is not compressed: its length, the length again with every bit turned, the bytes */
+    private def stored() {
+        held = 0;
+        held_bits = 0;
+        if(at + 4 > size) { throw new compress_exception("the compressed data ends in the middle"); }
+        length : _int64 = (source[at] & 0xFF) | ((source[at + 1] & 0xFF) << 8);
+        turned : _int64 = (source[at + 2] & 0xFF) | ((source[at + 3] & 0xFF) << 8);
+        at = at + 4;
+        if(length != (turned ^ 0xFFFF)) { throw new compress_exception("the compressed data is damaged (a stored block's length)"); }
+        if(at + length > size) { throw new compress_exception("the compressed data ends in the middle"); }
+        if(made + length > sizeof(out)) { grow(made + length); }
+        memcopy(source, out, made, at, at + length);
+        at = at + length;
+        made = made + length;
+    }
+
+    private def fixed() {
+        if(fixed_lengths == null) {
+            lengths := new _int64[288];
+            for(i : _int64 = 0; i < 144; i++) { lengths[i] = 8; }
+            for(i : _int64 = 144; i < 256; i++) { lengths[i] = 9; }
+            for(i : _int64 = 256; i < 280; i++) { lengths[i] = 7; }
+            for(i : _int64 = 280; i < 288; i++) { lengths[i] = 8; }
+            a := new huffman_codes(288);
+            a.build(lengths, 0, 288);
+            for(i : _int64 = 0; i < 30; i++) { lengths[i] = 5; }
+            b := new huffman_codes(30);
+            b.build(lengths, 0, 30);
+            fixed_distances = b;
+            fixed_lengths = a;
+        }
+        codes(fixed_lengths!!, fixed_distances!!);
+    }
+
+    /** a block that brings its own codes: first the code lengths, themselves in a small code */
+    private def dynamic() {
+        literal_count : _int64 = need(5) + 257;
+        distance_count : _int64 = need(5) + 1;
+        code_count : _int64 = need(4) + 4;
+        if(literal_count > 286 || distance_count > 30) { throw new compress_exception("the compressed data is damaged (too many codes)"); }
+
+        order := new _int64[] { 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15 };
+        lengths := new _int64[320];
+        for(i : _int64 = 0; i < code_count; i++) { lengths[order[i]] = need(3); }
+        length_codes := new huffman_codes(19);
+        if(length_codes.build(lengths, 0, 19) != 0) { throw new compress_exception("the compressed data is damaged (the codes of the code lengths)"); }
+
+        for(i : _int64 = 0; i < 19; i++) { lengths[i] = 0; }
+        index : _int64 = 0;
+        while(index < literal_count + distance_count) {
+            found : _int64 = decode(length_codes);
+            if(found < 16) {
+                lengths[index] = found;
+                index++;
+            } else {
+                value : _int64 = 0;
+                times : _int64 = 0;
+                if(found == 16) {
+                    if(index == 0) { throw new compress_exception("the compressed data is damaged (a repeat with nothing before it)"); }
+                    value = lengths[index - 1];
+                    times = 3 + need(2);
+                } else if(found == 17) {
+                    times = 3 + need(3);
+                } else {
+                    times = 11 + need(7);
+                }
+                if(index + times > literal_count + distance_count) { throw new compress_exception("the compressed data is damaged (too many code lengths)"); }
+                for(i : _int64 = 0; i < times; i++) { lengths[index] = value; index++; }
+            }
+        }
+        if(lengths[256] == 0) { throw new compress_exception("the compressed data is damaged (a block without an end)"); }
+
+        literals := new huffman_codes(286);
+        left : _int64 = literals.build(lengths, 0, literal_count);
+        if(left < 0 || (left > 0 && literal_count - literals.count[0] != 1)) { throw new compress_exception("the compressed data is damaged (the literal codes)"); }
+        distances := new huffman_codes(30);
+        left = distances.build(lengths, literal_count, distance_count);
+        if(left < 0 || (left > 0 && distance_count - distances.count[0] != 1)) { throw new compress_exception("the compressed data is damaged (the distance codes)"); }
+        codes(literals, distances);
+    }
+
+    /** the symbols of one block: plain bytes, and repeats as a length and a distance back */
+    private def codes(literals: huffman_codes, distances: huffman_codes) {
+        length_base : _int64[] = deflate_tables.length_base;
+        length_extra : _int64[] = deflate_tables.length_extra;
+        distance_base : _int64[] = deflate_tables.distance_base;
+        distance_extra : _int64[] = deflate_tables.distance_extra;
+        while(true) {
+            found : _int64 = decode(literals);
+            if(found < 256) {
+                if(made >= sizeof(out)) { grow(made + 1); }
+                out[made] = found;
+                made++;
+            } else if(found == 256) {
+                return;
+            } else {
+                found = found - 257;
+                if(found >= 29) { throw new compress_exception("the compressed data is damaged (a length that does not exist)"); }
+                length : _int64 = length_base[found] + need(length_extra[found]);
+                found = decode(distances);
+                if(found >= 30) { throw new compress_exception("the compressed data is damaged (a distance that does not exist)"); }
+                back : _int64 = distance_base[found] + need(distance_extra[found]);
+                if(back > made) { throw new compress_exception("the compressed data is damaged (a repeat from before the start)"); }
+                if(made + length > sizeof(out)) { grow(made + length); }
+                // byte by byte: a repeat may overlap what it writes ("1 back, 10 long" is ten times the last byte)
+                from : _int64 = made - back;
+                for(i : _int64 = 0; i < length; i++) { out[made + i] = out[from + i]; }
+                made = made + length;
+            }
+        }
+    }
+}
+
+/** compression: repeats found through a table of where each three bytes were seen, written in the fixed codes */
+class deflater {
+    private source : _int8[];
+    private size : _int64 = 0;
+    private out : _int8[];
+    private made : _int64 = 0;
+    private held : _int64 = 0;
+    private held_bits : _int64 = 0;
+
+    private static const TABLE : _int64 = 32768;            // places in the table of last positions
+    private static const WINDOW : _int64 = 32768;           // how far back a repeat may reach
+    private static const TRIES : _int64 = 48;               // earlier positions looked at for each repeat
+
+    deflater(data: _int8[]?) {
+        if(data == null) { source = new _int8[0]; }
+        else { source = data!!; }
+        size = sizeof(data);
+        out = new _int8[size / 2 + 64];
+    }
+
+    private def bits(value: _int64, count: _int64) {
+        held = held | (value << held_bits);
+        held_bits = held_bits + count;
+        while(held_bits >= 8) {
+            if(made >= sizeof(out)) {
+                next := new _int8[sizeof(out) * 2];
+                memcopy(out, next, 0, 0, made);
+                out = next;
+            }
+            out[made] = held & 0xFF;
+            made++;
+            held = held >> 8;
+            held_bits = held_bits - 8;
+        }
+    }
+
+    /** a code is written from its highest bit down: turn it round, then write it like any bits */
+    private def code(value: _int64, count: _int64) {
+        turned : _int64 = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            turned = (turned << 1) | (value & 1);
+            value = value >> 1;
+        }
+        bits(turned, count);
+    }
+
+    /** one symbol (a byte, the end, or a length) in the fixed codes */
+    private def symbol(value: _int64) {
+        if(value < 144) { code(0x30 + value, 8); }
+        else if(value < 256) { code(0x190 + (value - 144), 9); }
+        else if(value < 280) { code(value - 256, 7); }
+        else { code(0xC0 + (value - 280), 8); }
+    }
+
+    private def repeat(length: _int64, back: _int64) {
+        length_base : _int64[] = deflate_tables.length_base;
+        index : _int64 = 28;
+        if(length < 258) {
+            index = 0;
+            while(index < 27 && length_base[index + 1] <= length) { index++; }
+        }
+        symbol(257 + index);
+        extra : _int64 = deflate_tables.length_extra[index];
+        if(extra > 0) { bits(length - length_base[index], extra); }
+
+        distance_base : _int64[] = deflate_tables.distance_base;
+        index = 0;
+        while(index < 29 && distance_base[index + 1] <= back) { index++; }
+        code(index, 5);
+        extra = deflate_tables.distance_extra[index];
+        if(extra > 0) { bits(back - distance_base[index], extra); }
+    }
+
+    def run() : _int8[] {
+        bits(1, 1);         // the last block
+        bits(1, 2);         // in the fixed codes
+        head := new _int32[TABLE];              // the last position each three bytes were seen at, plus 1 (0: never)
+        earlier := new _int32[size + 1];        // for each position: the one before it with the same three bytes, plus 1
+        data : _int8[] = source;
+        at : _int64 = 0;
+        while(at < size) {
+            best : _int64 = 0;
+            best_back : _int64 = 0;
+            if(at + 3 <= size) {
+                key : _int64 = (((data[at] & 0xFF) << 10) ^ ((data[at + 1] & 0xFF) << 5) ^ (data[at + 2] & 0xFF)) & (TABLE - 1);
+                candidate : _int64 = head[key];
+                most : _int64 = size - at;
+                if(most > 258) { most = 258; }
+                tries : _int64 = 0;
+                while(candidate != 0 && tries < TRIES) {
+                    from : _int64 = candidate - 1;
+                    if(at - from > WINDOW) { break; }
+                    if(data[from + best] == data[at + best]) {
+                        same : _int64 = 0;
+                        while(same < most && data[from + same] == data[at + same]) { same++; }
+                        if(same > best) {
+                            best = same;
+                            best_back = at - from;
+                            if(same == most) { break; }
+                        }
+                    }
+                    candidate = earlier[from];
+                    tries++;
+                }
+                earlier[at] = head[key];
+                head[key] = at + 1;
+            }
+            if(best >= 3) {
+                repeat(best, best_back);
+                // the positions the repeat covers are remembered too, so later repeats can start inside it
+                stop : _int64 = at + best;
+                at++;
+                while(at < stop) {
+                    if(at + 3 <= size) {
+                        key : _int64 = (((data[at] & 0xFF) << 10) ^ ((data[at + 1] & 0xFF) << 5) ^ (data[at + 2] & 0xFF)) & (TABLE - 1);
+                        earlier[at] = head[key];
+                        head[key] = at + 1;
+                    }
+                    at++;
+                }
+            } else {
+                symbol(data[at] & 0xFF);
+                at++;
+            }
+        }
+        symbol(256);
+        if(held_bits > 0) { bits(0, 8 - held_bits); }
+        return copy(out, 0, made) ?: new _int8[0];
+    }
+}

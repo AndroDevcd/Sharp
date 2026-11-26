@@ -1,0 +1,185 @@
+mod std.time;
+
+/**
+ * Limits how often something may happen: at most `permits` times per
+ * `window`, e.g. 5 requests per second.
+ *
+ * It never waits and starts no thread. The caller asks `try_acquire()`
+ * before doing the thing; the answer is 1 ("go ahead", one permit is used
+ * up) or 0 ("not now"). `time_until_available()` says how long to wait.
+ *
+ * Algorithm: TOKEN BUCKET
+ * -----------------------
+ * Picture a bucket that holds at most `permits` tokens and starts full. Each
+ * allowed action takes one token out. Tokens drip back in at a steady rate
+ * of one every `window / permits` (5 per second = one every 200 ms) until
+ * the bucket is full again. So a burst of up to `permits` actions is allowed
+ * at once, and over a long time the rate cannot exceed permits per window.
+ *
+ * To stay exact the bucket does not store a fractional token count. It
+ * stores how many whole tokens it has and the moment `refilled_at` up to
+ * which dripping has been accounted for; on each call the whole number of
+ * drip intervals since then is added and `refilled_at` moves forward by
+ * exactly that many intervals, so no time is lost to rounding.
+ *
+ * The time comes from a `clock` (system clock by default, a `manual_clock`
+ * in tests). The class is not synchronised: share it between threads only
+ * under a lock.
+ *
+ *     limiter := new rate_limiter(5, duration.of_seconds(1));
+ *     if(limiter.try_acquire()) { send_request(); }
+ */
+class rate_limiter {
+    private source : clock;
+    /** bucket size: the most permits that can be saved up */
+    private capacity : decimal = 1;
+    /** time for one permit to come back: window / permits */
+    private drip_interval : duration;
+    /** whole permits in the bucket right now (as of `refilled_at`) */
+    private tokens : decimal = 0;
+    /** dripping has been accounted for up to this moment */
+    private refilled_at : instant;
+
+    /**
+     * At most `permits` per `window`, on the system clock. Starts full.
+     * @throws date_time_exception when `permits` is not a whole number of at
+     *         least 1, or `window` is not longer than zero, or the window is
+     *         so short that one permit would take less than a nanosecond
+     */
+    rate_limiter(permits: decimal, window: duration) {
+        setup(permits, window, system_clock.instance);
+    }
+
+    /** as above, reading the time from `time_source` */
+    rate_limiter(permits: decimal, window: duration, time_source: clock) {
+        setup(permits, window, time_source);
+    }
+
+    private def setup(permits: decimal, window: duration, time_source: clock) {
+        if(permits < 1 || !time_math.is_whole(permits)) {
+            throw new date_time_exception("permits must be a whole number of at least 1 but was "
+                + time_math.number_text(permits));
+        }
+        if(!window.is_positive()) {
+            throw new date_time_exception("the window of a rate limiter must be longer than zero");
+        }
+        source = time_source;
+        capacity = permits;
+        drip_interval = window.divided_by(permits);
+        if(drip_interval.is_zero()) {
+            throw new date_time_exception("the window is too short for that many permits");
+        }
+        tokens = permits;
+        refilled_at = time_source.now();
+    }
+
+    /**
+     * Adds the permits that have dripped in since `refilled_at`.
+     * intervals = floor(elapsed / drip_interval), computed with whole
+     * seconds and nanoseconds separately so it is exact.
+     */
+    private def refill() {
+        now : instant = source.now();
+        if(tokens >= capacity) {
+            // a full bucket does not save up time: the next interval starts when a permit is taken
+            refilled_at = now;
+            return;
+        }
+        elapsed : duration = duration.between(refilled_at, now);
+        if(!elapsed.is_positive()) {
+            return;                         // the clock stood still or went back: nothing to add
+        }
+        intervals : decimal = whole_intervals(elapsed);
+        if(intervals <= 0) {
+            return;
+        }
+        if(tokens + intervals >= capacity) {
+            tokens = capacity;
+            refilled_at = now;
+        } else {
+            tokens += intervals;
+            refilled_at = refilled_at.plus(drip_interval.multiplied_by(intervals));
+        }
+    }
+
+    /**
+     * floor(elapsed / drip_interval) as a whole number, capped at the bucket
+     * size (more than that many intervals makes no difference).
+     * The estimate from fractional seconds can be off by one near a
+     * boundary, so it is corrected by exact duration comparison.
+     */
+    private def whole_intervals(elapsed: duration): decimal {
+        estimate : decimal = time_math.trunc(elapsed.to_fractional_seconds() / drip_interval.to_fractional_seconds());
+        if(estimate > capacity) {
+            return capacity;
+        }
+        while(estimate > 0 && drip_interval.multiplied_by(estimate) > elapsed) {
+            estimate--;
+        }
+        while(estimate < capacity && drip_interval.multiplied_by(estimate + 1) <= elapsed) {
+            estimate++;
+        }
+        return estimate;
+    }
+
+    /** takes one permit when one is available; returns true when it did, false when the caller must not proceed */
+    def try_acquire(): bool {
+        return try_acquire(1);
+    }
+
+    /**
+     * Takes `count` permits at once when that many are available (all or
+     * nothing); returns true when it did.
+     * @throws date_time_exception when `count` is not a whole number in 1 .. the bucket size
+     */
+    def try_acquire(count: decimal): bool {
+        time_math.check_range("permit count", count, 1, capacity);
+        refill();
+        if(tokens < count) {
+            return false;
+        }
+        tokens -= count;
+        return true;
+    }
+
+    /** how many permits could be taken right now: 0 .. the bucket size */
+    def available(): decimal {
+        refill();
+        return tokens;
+    }
+
+    /** the most permits that can be saved up (the `permits` the limiter was created with) */
+    def permits_per_window(): decimal {
+        return capacity;
+    }
+
+    /** the time it takes for one permit to come back: window / permits */
+    def interval(): duration {
+        return drip_interval;
+    }
+
+    /** how long until one permit is available; `duration.zero` when one is available now */
+    def time_until_available(): duration {
+        return time_until_available(1);
+    }
+
+    /**
+     * How long until `count` permits are available at once; `duration.zero`
+     * when they are available now.
+     * @throws date_time_exception when `count` is not a whole number in 1 .. the bucket size
+     */
+    def time_until_available(count: decimal): duration {
+        time_math.check_range("permit count", count, 1, capacity);
+        refill();
+        if(tokens >= count) {
+            return duration.zero;
+        }
+        // the missing permits arrive one drip interval apart, counted from refilled_at
+        ready_at : instant = refilled_at.plus(drip_interval.multiplied_by(count - tokens));
+        wait : duration = duration.between(source.now(), ready_at);
+        if(wait.is_negative()) {
+            return duration.zero;
+        }
+        return wait;
+    }
+}

@@ -1,0 +1,429 @@
+mod backend.optimizer.passes.control;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * LOOP CLOSED FORM: a counting loop that only adds things up becomes the formula for the sum
+ *
+ *      total : _int64 = 0;
+ *      for(i : _int64 = 0; i < n; i++) { total += i * 2 + 1; }
+ *
+ * takes as long as `n` is large. But what it computes has a formula - the
+ * sum of 2i + 1 for i = 0 .. n-1 is n * n - and the formula takes the same
+ * few instructions for a million rounds as for ten. (Compilers call this
+ * "induction variable final value replacement"; the sums are Gauss's.)
+ *
+ * WHAT IS RECOGNIZED. A loop of exactly this shape (analysis/loops.sharp):
+ *
+ *      H:  int_compare lt %c, %i, %n        the header: only the test `i < n`
+ *          jump_unless %c, OUT                (and constants it needs), leaving the loop when it fails
+ *          ...                              the body: ONE straight run of whole-number arithmetic -
+ *          jump H                             no jump, no call, no field, no element, no decimal,
+ *                                             nothing cut to a smaller width
+ *
+ * The body is then run ONCE while compiling, symbolically: every slot
+ * holds not a number but an expression in what the slots held when the
+ * round began (`formula`, below: a polynomial in the counter of degree at
+ * most 2, plus at most one slot's old value). After the round every slot
+ * the loop writes must be one of
+ *
+ *      the counter         i = i + 1
+ *      an accumulator      s = s + f(i)      f a polynomial in i up to i * i, with constant coefficients
+ *      a scratch slot      anything else - provided nothing reads it after the loop
+ *
+ * and `n` must not change in the loop, and `i` must be known to start at 0
+ * or more (as for bounds checks: outside the loop it is only given
+ * constants that are not negative).
+ *
+ * THE FORMULAS. The loop is entered with i = e (whatever the slot holds
+ * then) and runs T = n - e rounds, with i = e + t in round t = 0 .. T-1:
+ *
+ *      f(e + t) = a2 t*t + (2 a2 e + a1) t + (a2 e*e + a1 e + a0)
+ *               =  p2 t*t  +      p1 t      +         p0
+ *
+ *      sum of 1    for t = 0 .. T-1  =  T
+ *      sum of t                      =  S1 = T (T-1) / 2
+ *      sum of t*t                    =  S2 = T (T-1) (2T-1) / 6
+ *
+ *      s = s + p0 * T + p1 * S1 + p2 * S2 ;   i = n
+ *
+ * WHY IT IS EXACTLY WHAT THE LOOP GIVES, FOR ANY n. Sharp's whole numbers
+ * are 64 bits and wrap around, and addition and multiplication that wrap
+ * around give the right 64 bits of the true result whatever happened in
+ * between: the loop's sum and the formula's are the same 64 bits as long as
+ * the formula uses only + and *. The two divisions are done so that they
+ * are:
+ *
+ *      T (T-1) / 2     one of T, T-1 is even - it is halved BEFORE the
+ *                      multiplication:  (T >> 1) * (T - 1 + (T & 1))
+ *      ... / 3         a number that IS divisible by 3 can be divided by
+ *                      multiplying with 0xAAAAAAAAAAAAAAAB, the number that
+ *                      times 3 gives 1 in 64-bit arithmetic
+ *
+ * So there is no "only when the numbers are small" and no copy of the loop
+ * kept for the other case (the C++ pass, working on doubles, needs both).
+ *
+ * WHAT THE CODE BECOMES. The header stays. The body is replaced by the
+ * formulas, ending with `i = n` and the jump back to the header - whose
+ * test now fails, so the loop leaves the way it always did. A loop that
+ * never runs (n <= e) still never touches anything.
+ *
+ * Run after loop unrolling (a loop of a few known rounds is better as
+ * straight code, which constant propagation then folds to one number) and
+ * before rotation.
+ *
+ *      C++ comparison: passes/pass_loop_closed_form.cpp (the same
+ *      recognition; exact only below 2^52, with the loop kept as the
+ *      fallback). LLVM's IndVarSimplify does it from "scalar evolution".
+ */
+def replace_loops_by_formulas(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    if(code.tries.size() > 0) { return 0; }
+    done : _int64 = 0;
+    // one loop at a time: replacing a body moves every instruction after it
+    for(round : _int64 = 0; round < 16; round++) {
+        if(!replace_one_loop(analyses)) { return done; }
+        done++;
+    }
+    return done;
+}
+
+/** one loop of the function that fits becomes its formula: 1 when one did */
+def replace_one_loop(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    graph := analyses.graph();
+    forest := find_loops(graph);
+    if(forest.valid == 0) { return 0; }
+    for(l : _int64 = 0; l < forest.count; l++) {
+        plan := plan_formula(code, graph, forest, l);
+        if(plan == null) { continue; }
+        // nothing but the counter and the accumulators may be read after the loop
+        if(!scratch_is_dead(analyses, graph, plan!!)) { continue; }
+        put_formula(code, graph, plan!!);
+        analyses.changed();
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * What a slot holds during the symbolic round: `var + c0 + c1 * i + c2 * i * i`,
+ * where i is what the counter held when the round began and `var` is the
+ * old value of one slot (-1: of none). `known` 0: something else - not
+ * usable for the counter or an accumulator.
+ */
+class formula {
+    known : _int64 = 1;
+    c0 : _int64 = 0;
+    c1 : _int64 = 0;
+    c2 : _int64 = 0;
+    var : _int64 = 0 - 1;
+
+    def unknown() : formula {
+        known = 0;
+        return self;
+    }
+}
+
+def formula_copy(a: formula) : formula {
+    made := new formula();
+    made.known = a.known; made.c0 = a.c0; made.c1 = a.c1; made.c2 = a.c2; made.var = a.var;
+    return made;
+}
+
+/** a + b, or a - b when `sign` is -1 */
+def formula_sum(a: formula, b: formula, sign: _int64) : formula {
+    made := new formula();
+    if(a.known == 0 || b.known == 0) { return made.unknown(); }
+    // an old value can be added once, and never subtracted
+    if(b.var >= 0 && (sign < 0 || a.var >= 0)) { return made.unknown(); }
+    made.c0 = a.c0 + sign * b.c0;
+    made.c1 = a.c1 + sign * b.c1;
+    made.c2 = a.c2 + sign * b.c2;
+    made.var = a.var;
+    if(b.var >= 0) { made.var = b.var; }
+    return made;
+}
+
+/** a * b: no old values, and nothing beyond i * i */
+def formula_product(a: formula, b: formula) : formula {
+    made := new formula();
+    if(a.known == 0 || b.known == 0 || a.var >= 0 || b.var >= 0) { return made.unknown(); }
+    if((a.c2 != 0 && (b.c1 != 0 || b.c2 != 0)) || (a.c1 != 0 && b.c2 != 0)) { return made.unknown(); }
+    made.c0 = a.c0 * b.c0;
+    made.c1 = a.c0 * b.c1 + a.c1 * b.c0;
+    made.c2 = a.c0 * b.c2 + a.c1 * b.c1 + a.c2 * b.c0;
+    return made;
+}
+
+/** what was found out about one loop that can become its formula */
+class formula_plan {
+    header : _int64 = 0;                // the header block
+    body_from : _int64 = 0;             // the body's instructions: body_from .. body_to - 1 (the last one is `jump H`)
+    body_to : _int64 = 0;
+    exit : _int64 = 0 - 1;              // the block the header's test leaves to
+    counter : _int64 = 0 - 1;           // %i
+    bound : _int64 = 0 - 1;             // %n
+    accumulators : number_list;         // the slots s with s = s + f(i) ...
+    sums : list<formula>;               // ... and their f
+    scratch : number_list;              // every other slot the loop writes
+
+    formula_plan() {
+        accumulators = new number_list();
+        sums = new list<formula>();
+        scratch = new number_list();
+    }
+}
+
+/** loop `l`, when it has the shape and its round is a counter, accumulators and scratch; else null */
+def plan_formula(code: ir_function, graph: flow_graph, forest: loop_forest, l: _int64) : formula_plan? {
+    header : _int64 = forest.headers.at(l);
+    // ---- the shape: the header first, the other blocks right behind it in the code, one after the other
+    if(forest.first_block(l) != header || forest.size(l) < 2) { return null; }
+    last_block : _int64 = forest.last_block(l);
+    if(forest.size(l) != last_block - header + 1) { return null; }
+    if(graph.ends[header] - graph.starts[header] < 2) { return null; }
+    leave := code.instructions.at(graph.ends[header] - 1);
+    if(leave.kind != IR_JUMP_UNLESS || graph.jumps_to[header] < 0 || forest.has(l, graph.jumps_to[header])) { return null; }
+    if(graph.falls_to[header] != header + 1) { return null; }
+    // the header: marks, constants, and the test - which must be the instruction right before the jump
+    test := code.instructions.at(graph.ends[header] - 2);
+    if(test.kind != IR_INT_COMPARE || test.number != CMP_LT || test.target != leave.first) { return null; }
+    plan := new formula_plan();
+    plan.header = header;
+    plan.exit = graph.jumps_to[header];
+    plan.counter = test.first;
+    plan.bound = test.second;
+    if(plan.counter == plan.bound || plan.counter == test.target || plan.bound == test.target) { return null; }
+    slots : _int64 = code.slot_count();
+    from_header := new _int64[slots + 1];       // per slot: 1 when the header gives it a constant every round
+    constant_of := new _int64[slots + 1];
+    for(i : _int64 = graph.starts[header]; i < graph.ends[header] - 2; i++) {
+        at := code.instructions.at(i);
+        if(at.kind == IR_LABEL || at.kind == IR_LINE || at.kind == IR_NOP) { continue; }
+        // (a constant the test compares with: `i < 100` puts 100 in a slot here each round)
+        if(at.kind != IR_INT_CONSTANT || at.target == plan.counter || at.target < 0) { return null; }
+        from_header[at.target] = 1;
+        constant_of[at.target] = at.number;
+    }
+    // the body: every block entered only from the one before it, the last one ends with the jump back
+    plan.body_from = graph.starts[header + 1];
+    plan.body_to = graph.ends[last_block];
+    for(b : _int64 = header + 1; b <= last_block; b++) {
+        if(graph.first_predecessor[b + 1] - graph.first_predecessor[b] != 1) { return null; }
+    }
+    back := code.instructions.at(plan.body_to - 1);
+    if(back.kind != IR_JUMP || graph.jumps_to[last_block] != header) { return null; }
+
+    // ---- which slots the loop writes
+    written := new _int64[slots + 1];
+    for(i : _int64 = graph.starts[header]; i < plan.body_to; i++) {
+        target : _int64 = slot_written(code.instructions.at(i));
+        if(target >= 0) { written[target] = 1; }
+    }
+    // the bound does not change - or only the header's constant writes it
+    if(written[plan.bound] == 1) {
+        for(i : _int64 = plan.body_from; i < plan.body_to; i++) {
+            if(slot_written(code.instructions.at(i)) == plan.bound) { return null; }
+        }
+    }
+    if(code.slot_kinds.at(plan.counter) != SLOT_INT || code.slot_kinds.at(plan.bound) != SLOT_INT) { return null; }
+    if(written[plan.counter] == 0) { return null; }
+
+    // ---- the counter starts at 0 or more: outside the loop it is only given such constants
+    definitions := new number_list();
+    if(!reaching_definitions(code, graph, graph.starts[header], plan.counter, definitions)) { return null; }
+    for(d : _int64 = 0; d < definitions.count; d++) {
+        at : _int64 = definitions.at(d);
+        if(forest.has(l, graph.block_of[at])) { continue; }
+        made := code.instructions.at(at);
+        if(made.kind != IR_INT_CONSTANT || made.number < 0) { return null; }
+    }
+
+    // ---- one round, symbolically
+    holds := new formula[slots + 1];
+    for(s : _int64 = 0; s < slots; s++) {
+        start := new formula();
+        if(s == plan.counter) { start.c1 = 1; }
+        else if(from_header[s] == 1) { start.c0 = constant_of[s]; }     // the header's constant, every round
+        else if(written[s] == 1) { start.var = s; }
+        else { start.known = 0; }               // a slot the loop only reads: not a constant, not usable
+        holds[s] = start;
+    }
+    for(i : _int64 = plan.body_from; i < plan.body_to - 1; i++) {
+        made := code.instructions.at(i);
+        kind : _int64 = made.kind;
+        if(kind == IR_LABEL || kind == IR_LINE || kind == IR_NOP) { continue; }
+        result := new formula();
+        if(kind == IR_INT_CONSTANT) {
+            result.c0 = made.number;
+        } else if(kind == IR_COPY) {
+            if(made.number != NARROW_NONE || code.slot_kinds.at(made.target) != SLOT_INT) { return null; }
+            result = formula_copy(holds[made.first]);
+        } else if(kind == IR_INT_BINARY) {
+            if(made.number == ARITH_ADD) { result = formula_sum(holds[made.first], holds[made.second], 1); }
+            else if(made.number == ARITH_SUB) { result = formula_sum(holds[made.first], holds[made.second], 0 - 1); }
+            else if(made.number == ARITH_MUL) { result = formula_product(holds[made.first], holds[made.second]); }
+            else if(made.number == ARITH_REM || made.number == ARITH_DIV) { return null; }   // (may raise: the loop must stay)
+            else { result.known = 0; }
+        } else if(kind == IR_INT_IMMEDIATE) {
+            constant := new formula();
+            constant.c0 = made.detail;
+            if(made.number == ARITH_ADD) { result = formula_sum(holds[made.first], constant, 1); }
+            else if(made.number == ARITH_SUB) { result = formula_sum(holds[made.first], constant, 0 - 1); }
+            else if(made.number == ARITH_MUL) { result = formula_product(holds[made.first], constant); }
+            else { result.known = 0; }
+        } else if(kind == IR_NEGATE && made.detail == 0) {
+            zero := new formula();
+            result = formula_sum(zero, holds[made.first], 0 - 1);
+        } else if(kind == IR_INT_COMPARE || (kind == IR_NOT && made.detail == 0)) {
+            result.known = 0;
+        } else {
+            return null;                        // a jump, a call, memory, a decimal: not a loop for a formula
+        }
+        if(made.target < 0) { return null; }
+        holds[made.target] = result;
+    }
+
+    // ---- after the round: the counter, the accumulators, the scratch
+    for(s : _int64 = 0; s < slots; s++) {
+        // (a slot the header gives its constant: the header runs last, so that is what it holds after the loop)
+        if(written[s] == 0 || from_header[s] == 1) { continue; }
+        after := holds[s];
+        if(s == plan.counter) {
+            if(after.known == 0 || after.var >= 0 || after.c0 != 1 || after.c1 != 1 || after.c2 != 0) { return null; }
+        } else if(after.known == 1 && after.var == s) {
+            if(after.c0 != 0 || after.c1 != 0 || after.c2 != 0) {
+                plan.accumulators.add(s);
+                plan.sums.add(after);
+            }
+            // (else: the slot ends each round as it began - nothing to do)
+        } else {
+            plan.scratch.add(s);
+        }
+    }
+    return plan;
+}
+
+/** is every scratch slot of the plan unread after the loop (not live where the header's test leaves to)? */
+def scratch_is_dead(analyses: function_analyses, graph: flow_graph, plan: formula_plan) : _int64 {
+    if(plan.scratch.count == 0) { return 1; }
+    live := analyses.live();
+    after := new slot_set(live.slots);
+    live.load_out(plan.exit, after);
+    step_back_over_block(live, plan.exit, after);
+    for(k : _int64 = 0; k < plan.scratch.count; k++) {
+        if(plan.scratch.at(k) >= live.slots || after.has(plan.scratch.at(k))) { return 0; }
+    }
+    return 1;
+}
+
+/** the builder of the formula's instructions: new slots, and `d = a op b` in one call */
+class formula_code {
+    code : ir_function;
+    out : list<ir_instruction>;
+
+    formula_code(code: ir_function, out: list<ir_instruction>) {
+        self->code = code;
+        self->out = out;
+    }
+
+    def slot() : _int64 {
+        made : _int64 = code.slot_kinds.count;
+        code.slot_kinds.add(SLOT_INT);
+        return made;
+    }
+
+    /** a new slot holding the constant */
+    def constant(value: _int64) : _int64 {
+        made := new ir_instruction(IR_INT_CONSTANT);
+        made.target = slot();
+        made.number = value;
+        out.add(made);
+        return made.target;
+    }
+
+    /** a new slot holding `a op b` */
+    def binary(op: _int64, a: _int64, b: _int64) : _int64 {
+        made := new ir_instruction(IR_INT_BINARY);
+        made.number = op;
+        made.target = slot();
+        made.first = a;
+        made.second = b;
+        out.add(made);
+        return made.target;
+    }
+
+    def copy(target: _int64, from: _int64) {
+        made := new ir_instruction(IR_COPY);
+        made.target = target;
+        made.first = from;
+        made.number = NARROW_NONE;
+        out.add(made);
+    }
+}
+
+/** the body of the plan's loop replaced by the formulas (the header and the jump back stay) */
+def put_formula(code: ir_function, graph: flow_graph, plan: formula_plan) {
+    total : _int64 = code.instructions.size();
+    made_list := new list<ir_instruction>();
+    for(i : _int64 = 0; i < plan.body_from; i++) { made_list.add(code.instructions.at(i)); }
+    // (the labels of the body stay where they were: nothing jumps to them, and nothing is lost by keeping them)
+    for(i : _int64 = plan.body_from; i < plan.body_to - 1; i++) {
+        if(code.instructions.at(i).kind == IR_LABEL) { made_list.add(code.instructions.at(i)); }
+    }
+    b := new formula_code(code, made_list);
+    counter : _int64 = plan.counter;
+    one : _int64 = b.constant(1);
+    // T = n - i ;  S1 = T (T-1) / 2 = (T >> 1) * (T - 1 + (T & 1))
+    rounds : _int64 = b.binary(ARITH_SUB, plan.bound, counter);
+    half : _int64 = b.binary(ARITH_SHR, rounds, one);
+    odd : _int64 = b.binary(ARITH_AND, rounds, one);
+    other : _int64 = b.binary(ARITH_SUB, b.binary(ARITH_ADD, rounds, odd), one);
+    sum_of_t : _int64 = b.binary(ARITH_MUL, half, other);
+    // S2 = S1 * (2T - 1) / 3, made when an accumulator has an i * i
+    sum_of_squares : _int64 = 0 - 1;
+    for(k : _int64 = 0; k < plan.sums.size(); k++) {
+        if(plan.sums.at(k).c2 != 0 && sum_of_squares < 0) {
+            two : _int64 = b.constant(2);
+            twice : _int64 = b.binary(ARITH_SUB, b.binary(ARITH_MUL, rounds, two), one);
+            third : _int64 = b.constant(third_in_64_bits());
+            sum_of_squares = b.binary(ARITH_MUL, b.binary(ARITH_MUL, sum_of_t, twice), third);
+        }
+    }
+    for(k : _int64 = 0; k < plan.accumulators.count; k++) {
+        f : formula = plan.sums.at(k);
+        target : _int64 = plan.accumulators.at(k);
+        // p0 = (a2 i + a1) i + a0 ;  p1 = 2 a2 i + a1 ;  p2 = a2      (i: what the counter holds now, on entry)
+        a2 : _int64 = b.constant(f.c2);
+        a1 : _int64 = b.constant(f.c1);
+        a0 : _int64 = b.constant(f.c0);
+        inner : _int64 = b.binary(ARITH_ADD, b.binary(ARITH_MUL, a2, counter), a1);
+        p0 : _int64 = b.binary(ARITH_ADD, b.binary(ARITH_MUL, inner, counter), a0);
+        sum : _int64 = b.binary(ARITH_MUL, p0, rounds);
+        if(f.c1 != 0 || f.c2 != 0) {
+            p1 : _int64 = b.binary(ARITH_ADD, b.binary(ARITH_MUL, b.binary(ARITH_ADD, a2, a2), counter), a1);
+            sum = b.binary(ARITH_ADD, sum, b.binary(ARITH_MUL, p1, sum_of_t));
+        }
+        if(f.c2 != 0) { sum = b.binary(ARITH_ADD, sum, b.binary(ARITH_MUL, a2, sum_of_squares)); }
+        b.copy(target, b.binary(ARITH_ADD, target, sum));
+    }
+    b.copy(counter, plan.bound);
+    for(i : _int64 = plan.body_to - 1; i < total; i++) { made_list.add(code.instructions.at(i)); }
+    code.instructions = made_list;
+}
+
+/**
+ * The number that times 3 is 1 in 64-bit arithmetic, 0xAAAAAAAAAAAAAAAB:
+ * multiplying by it divides a multiple of 3 by 3. (Built from halves: the
+ * literal does not fit a signed number.)
+ */
+def third_in_64_bits() : _int64 {
+    high : _int64 = 2863311530;             // 0xAAAAAAAA
+    low : _int64 = 2863311531;              // 0xAAAAAAAB
+    return (high << 32) | low;
+}

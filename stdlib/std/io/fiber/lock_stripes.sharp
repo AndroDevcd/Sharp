@@ -1,0 +1,89 @@
+mod std.io.fiber;
+
+/**
+ * lock_stripes - a small, fixed set of lock objects shared by all the short
+ * lived synchronisation objects of the library (jobs, deferreds, futures, ...).
+ *
+ * USAGE
+ *     class job {
+ *         private lk : object = lock_stripes.next();    // picked once, never changes
+ *         def is_active() : bool { lock(lk) { return state == 1; } }
+ *     }
+ *
+ * WHY NOT lock(self)
+ * The runtime keeps one entry for every object that was ever used in a
+ * lock() statement, in ONE linked list, and every lock and unlock walks that
+ * list to find its entry. A program that starts 10,000 coroutines and locks
+ * each job once would make that list 10,000 long and every lock in the whole
+ * program 10,000 steps slow. With stripes the list stays at STRIPE_COUNT
+ * entries however many jobs exist. Objects that share a stripe only share the
+ * lock, not their data; the critical sections are a few field reads and writes,
+ * so the extra contention is small.
+ *
+ * C++ / Java equivalent: lock striping, e.g. the segments of the old
+ * java.util.concurrent.ConcurrentHashMap or Guava's Striped<Lock>.
+ *
+ * THE RULE THAT COMES WITH IT
+ *   Never take a second library lock while holding a stripe.
+ *   Two different objects may have been given the SAME stripe, and the runtime
+ *   lock is not counted: lock(a) { lock(a) { } ...here the lock is already
+ *   released... }. A nested lock on the same stripe would silently end the
+ *   outer critical section early. Every class that uses a stripe states in its
+ *   own comment that it follows this rule.
+ *
+ * LOCKING DISCIPLINE
+ *   stripes  is filled once by setup(), which the start-up code runs on the
+ *            main thread before any other thread or fiber exists
+ *            (std.io.coroutines start_scheduler(), called by platform.srt_init),
+ *            and is only read afterwards.
+ *   cursor   is advanced without a lock on purpose: two fibers that race only
+ *            get the same stripe, which is harmless.
+ *
+ * Nothing here suspends.
+ */
+class lock_stripes {
+
+    /** how many lock objects there are */
+    private static const STRIPE_COUNT : decimal = 64;
+
+    private static stripes : object[]?;
+    private static cursor : decimal = 0;
+
+    /**
+     * Create the lock objects. Safe to call more than once. Must run for the
+     * first time while the program still has a single fiber (see above).
+     */
+    static def setup() {
+        if(stripes == null) {
+            created := new object[64];
+            for(i : decimal = 0; i < 64; i++) {
+                created[i] = new _object_();
+            }
+
+            stripes = created;
+        }
+    }
+
+    /**
+     * The lock object for a new synchronisation object: the stripes are handed
+     * out in turn. Keep the result in a field; do not call next() per lock.
+     */
+    static def next() : object {
+        if(stripes == null) {
+            setup();
+        }
+
+        cursor++;
+        if(cursor >= 64) {
+            cursor = 0;
+        }
+
+        // a racing fiber may have moved the cursor between the two statements above
+        index : decimal = cursor;
+        if(index < 0 || index >= 64) {
+            index = 0;
+        }
+
+        return stripes[index];
+    }
+}

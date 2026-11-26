@@ -1,0 +1,78 @@
+mod backend.finalizer.generation.setup;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation,
+    backend.finalizer.generation.calls
+)
+
+/**
+ * THE START-UP OF A PROGRAM (doc/codegen.md 6.15, 5.8)
+ *
+ * platform.static_init() and platform.tls_init() are EMPTY in the library;
+ * the generator writes them: every enum's static part first, then the `main`
+ * value (a function value of `main` in platform.main .. main4, by the form
+ * of main), then every other static part in the initialisation order
+ * (layout/program_order.sharp); tls_init gives every kept `localized` field
+ * its value in a new fiber.
+ */
+
+/** platform.static_init(): every static part, and the `main` value (6.15) */
+def generate_platform_static_init(g: generator) {
+    call_static_parts(g, 1);
+    set_main_value(g);
+    call_static_parts(g, 0);
+    g.b.emit(IR_RETURN);
+}
+
+/**
+ * platform.main (or main2 .. main4, by the form of `main`) = a function value
+ * of `main`: a `platform.kernel#function_value` object whose `address` is
+ * main's address (codegen.md 6.12). srt_init calls the one that is set.
+ */
+def set_main_value(g: generator) {
+    analysed := g.layout.analysed;
+    main_of := analysed.main_function;
+    platform := analysed.platform_class;
+    if(main_of == null || platform == null || main_of!!.address < 0) { return; }
+    field_name := "main";
+    if(analysed.main_form == MAIN_ARGS) { field_name = "main2"; }
+    if(analysed.main_form == MAIN_NO_ARGS) { field_name = "main3"; }
+    if(analysed.main_form == MAIN_NO_ARGS_INT) { field_name = "main4"; }
+    main_field := field_named(platform!!, field_name);
+    if(main_field == null || main_field!!.address < 0) { return; }
+    made : _int64 = make_function_value(g, main_of!!);
+    if(made < 0) { return; }
+    g.b.set_static(platform!!.address, main_field!!, made, NARROW_NONE);
+    g.b.release(made);
+}
+
+/** platform.tls_init(): every kept `localized` field's value, for a new fiber (6.15, 6.17) */
+def generate_platform_tls_init(g: generator) {
+    set_fiber_local_values(g);
+    g.b.emit(IR_RETURN);
+}
+
+/** every kept `localized` field gets its start value in the fiber that runs this */
+def set_fiber_local_values(g: generator) {
+    order := g.layout.initialization_order;
+    for(i : _int64 = 0; i < order.size(); i++) {
+        made := order.at(i);
+        entries : list<sharp_declaration>? = made.of.fiber_initializers;
+        if(made.is_module_globals == 1) { entries = made.module.fiber_initializers; }
+        if(entries == null) { continue; }
+        for(j : _int64 = 0; j < entries!!.size(); j++) {
+            entry := entries!!.at(j);
+            if(entry.kind != D_FIELD || entry.kept == 0) { continue; }
+            field := entry as sharp_field;
+            value : _int64 = field_start_value(g, field);
+            if(value < 0) { continue; }
+            g.b.set_static(made.address, field, value, narrowing_of(field.value_type));
+            g.b.release(value);
+        }
+    }
+}

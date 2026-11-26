@@ -1,0 +1,422 @@
+mod backend.postprocessor.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.postprocessor.imports,
+    backend.types.declarations,
+    backend.types.program,
+    backend.preprocessor,
+    backend.types.type_system
+)
+
+/**
+ * STAGE 3 OF THE BACKEND: RESOLVING TYPE NAMES
+ * (part of what the C++ compiler does in its post-processing stage)
+ *
+ * Every place a type is written -
+ *
+ *      name : string;      def area(s: shape) : decimal      class circle base shape : printable
+ *
+ * - is a N_TYPE_NAME node in the syntax tree. This stage finds, for each one,
+ * the declaration it means, and says so when there is none.
+ *
+ * WHERE A NAME IS LOOKED FOR, nearest first (the textbook "scope chain"):
+ *
+ *      1. the type parameters of the function it is in       def first<T>(items: list<T>) : T
+ *      2. the class it is in, and the classes around that:   their type parameters and the
+ *         types declared inside them (also the ones inherited from their base classes)
+ *      3. the module of the file
+ *      4. the modules the file imports (std and std.io.console always)
+ *
+ * `std.io#file` skips all of that: the module is named, the type is looked
+ * for there and nowhere else. A dotted name, `outer.inner`, finds `outer` by
+ * the rules above and `inner` among the types declared inside it.
+ *
+ * WHEN IT IS NOT FOUND
+ * The message does the looking the programmer would have to do next:
+ *
+ *      error[E0301]: there is no type named `strng`
+ *        = help: did you mean `string`?                              names that are close (similar_names.sharp)
+ *        = help: `strng` is declared in module `text.tools` ...      it exists, the import is missing
+ *        = help: ... is written `decimal` in Sharp                   it is another language's name for something
+ */
+
+/** resolve every type name of the program; what is wrong goes to `problems` */
+def resolve_type_names(prog: sharp_program, problems: list<diagnostic>) {
+    // members added with `mutate` are members like any other: add them first
+    apply_mutations(prog, problems);
+
+    // 1. the types written in declarations: each sharp_type learns what it means
+    //    (declared_types.sharp)
+    resolve_declared_types(prog, problems);
+
+    // 2. every other type name - the ones inside function bodies and field
+    //    values (`new point()`, `x as shape`, `local : list<int>`). There is no
+    //    object for those yet; they are checked so a wrong name is reported now.
+    for(i : _int64 = 0; i < prog.files.size(); i++) {
+        file := prog.files.at(i);
+        tree : syntax_tree = file.unit.parsed!!.tree;
+        kinds : _uint8[] = tree.kinds!!;
+        checked : _int8[] = file.checked!!;
+
+        // the tree is a flat array: "every type name" is one loop over it
+        for(node : _int64 = 0; node < tree.count; node++) {
+            if(kinds[node] == N_TYPE_NAME && checked[node] == 0 && !inside_obfuscate(tree, node)) {
+                resolve_type_name(prog, file, node, problems, 1, null);
+            }
+        }
+    }
+
+    // no more classes can appear now: list them all for the stages that follow
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        list_classes(prog, prog.module_list.at(i).classes);
+    }
+}
+
+/** add the classes of the list, and the classes declared inside them, to `prog.all_classes` */
+def list_classes(prog: sharp_program, classes: list<sharp_class>) {
+    for(i : _int64 = 0; i < classes.size(); i++) {
+        prog.all_classes.add(classes.at(i));
+        list_classes(prog, classes.at(i).classes);
+    }
+}
+
+/** `obfuscate { a.b, c }` lists names of any kind, not types: they are not checked here */
+def inside_obfuscate(tree: syntax_tree, node: _int64) : _int64 {
+    up : _int64 = tree.parents!![node];
+    while(up >= 0) {
+        if(tree.kinds!![up] == N_OBFUSCATE) { return 1; }
+        up = tree.parents!![up];
+    }
+    return 0;
+}
+
+/** is the type name written as an operand of an asm instruction (`movi adx, $name`)? */
+def is_asm_operand(tree: syntax_tree, node: _int64) : _int64 {
+    up : _int64 = tree.parents!![node];
+    while(up >= 0 && tree.kinds!![up] == N_TYPE) { up = tree.parents!![up]; }
+    return up >= 0 && tree.kinds!![up] == N_ASM_TYPE;
+}
+
+/** a class, an interface or an enum: the declarations that are a sharp_class */
+def is_class_kind(kind: _int64) : _int64 {
+    return kind == D_CLASS || kind == D_INTERFACE || kind == D_ENUM;
+}
+
+/**
+ * The declaration a type name means, or null.
+ *
+ * @param problems  where to report a name that is not found; null: do not report
+ * @param in_scope  1: look in the classes and functions around the name first.
+ *                  0: only in the modules (used for the target of `mutate`,
+ *                  which is not inside the class it names)
+ * @param inside    the function whose declaration the name is part of, when
+ *                  that is known: its type parameters are then the function's
+ *                  own sharp_type_parameter objects. null: not known
+ */
+def resolve_type_name(prog: sharp_program, file: sharp_file, node: _int64, problems: list<diagnostic>?,
+                      in_scope: _int64, inside: sharp_function?) : sharp_declaration? {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    part : _int64 = tree.first_child!![node];
+    if(part < 0) { return null; }
+
+    found : sharp_declaration? = null;
+    if(tree.kinds!![part] == N_MODULE_PATH) {
+        // std.io#file: the module is named
+        module_name := dotted_name(unit, part);
+        module := prog.find_module(module_name);
+        part = tree.next_sibling!![part];
+        if(part < 0) { return null; }
+
+        // gfx#circle where `import ( ... ) as gfx`: the modules of that group, in order
+        group := file.import_group_named(module_name);
+        if(group != null) {
+            name := node_text(unit, part);
+            for(i : _int64 = 0; i < group!!.modules.size() && found == null; i++) {
+                found = group!!.modules.at(i).declared.find_type(name);
+            }
+            if(found == null) {
+                if(problems != null) { report_not_in_group(file, part, name, group!!, problems!!); }
+                return null;
+            }
+        } else if(module == null) {
+            if(problems != null) {
+                report_unknown_module_in_type(prog, file, node, module_name, problems!!);
+            }
+            return null;
+        } else {
+            name := node_text(unit, part);
+            if(is_asm_operand(tree, node) && name == "__srt_global") {
+                // $module#__srt_global: everything a module declares outside any
+                // class. Only asm blocks name it ($std.io#__srt_global[function]);
+                // it is the module itself, not a class with a declaration
+                // (statements/assembly/asm_globals.sharp gives it its meaning).
+                return null;
+            }
+
+            found = module!!.declared.find_type(name);
+            if(found == null) {
+                if(problems != null) {
+                    report_not_in_module(prog, file, part, name, module!!, problems!!);
+                }
+                return null;
+            }
+        }
+    } else {
+        name := node_text(unit, part);
+        if(is_asm_operand(tree, node) && name == "__srt_global") {
+            return null;        // $__srt_global[name]: the globals of the module the code is in
+        }
+        if(in_scope == 1) {
+            found = find_in_enclosing_scopes(prog, file, node, name, inside);
+        }
+        if(found == null) {
+            found = find_in_modules(file, name);
+        }
+        if(found == null && in_scope == 1) {
+            // def box<X>.first() : X  - `X` is the extension function's own name for box's `T`
+            found = renamed_type_parameter(prog, file, node, name);
+        }
+        if(found == null) {
+            if(problems != null) {
+                report_unknown_type(prog, file, part, name, problems!!);
+            }
+            return null;
+        }
+    }
+
+    // outer.inner.innermost: each further name is a type declared inside the one before
+    named_at : _int64 = part;
+    part = tree.next_sibling!![part];
+    while(part >= 0 && tree.kinds!![part] == N_TYPE_PART) {
+        if(found!!.members == null) {
+            return found;       // an alias or a type parameter: what it has inside is not known here
+        }
+
+        name := node_text(unit, part);
+        inner := find_member_type(prog, found!!, name);
+        if(inner == null) {
+            if(problems != null) {
+                report_no_inner_type(unit, part, name, found!!, problems!!);
+            }
+            return null;
+        }
+        found = inner;
+        named_at = part;
+        part = tree.next_sibling!![part];
+    }
+
+    // found - but may it be named from here? (private / protected / local: type_access.sharp)
+    if(problems != null) { check_type_access(prog, file, named_at, found!!, problems!!); }
+    return found;
+}
+
+/** rule 4 and 3: the file's own module, then the modules it imports */
+def find_in_modules(file: sharp_file, name: string) : sharp_declaration? {
+    for(i : _int64 = 0; i < file.imports.size(); i++) {
+        found := file.imports.at(i).declared.find_type(name);
+        if(found != null) { return found; }
+    }
+    return null;
+}
+
+/**
+ * Rules 1 and 2: walk outwards from the name through the tree. A function on
+ * the way may have a type parameter with this name; a class on the way may
+ * have a type parameter or a type declared inside it.
+ */
+def find_in_enclosing_scopes(prog: sharp_program, file: sharp_file, node: _int64, name: string,
+                             inside: sharp_function?) : sharp_declaration? {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    up : _int64 = tree.parents!![node];
+    while(up >= 0) {
+        kind : _int64 = tree.kinds!![up];
+
+        if(kind == N_FUNCTION) {
+            if(inside != null && inside!!.node == up) {
+                // the function is known: the answer is its own type parameter object
+                for(i : _int64 = 0; i < inside!!.type_parameters.size(); i++) {
+                    candidate := inside!!.type_parameters.at(i);
+                    if(candidate.name == name) { return candidate; }
+                }
+            } else {
+                // a name inside a function body: only whether it exists matters here
+                parameter : _int64 = type_parameter_named(unit, up, name);
+                if(parameter >= 0) {
+                    return new sharp_type_parameter(name, unit, parameter, null, file.module);
+                }
+            }
+
+            // def box<T>.second() : T  - an extension function is a member of
+            // the class it names, so it sees what that class sees: its type
+            // parameters and the types declared inside it
+            extended : _int64 = tree.child_of_kind(up, N_TYPE_NAME);
+            if(extended >= 0 && tree.parents!![up] >= 0 && tree.kinds!![tree.parents!![up]] == N_FILE) {
+                target := resolve_type_name(prog, file, extended, null, 0, null);
+                if(target != null) {
+                    found := find_member_type(prog, target!!, name);
+                    if(found != null) { return found; }
+                }
+            }
+        } else if(kind == N_CLASS || kind == N_INTERFACE || kind == N_ENUM) {
+            enclosing := class_at_node(file, up);
+            if(enclosing != null) {
+                found := find_member_type(prog, enclosing!!, name);
+                if(found != null) { return found; }
+            }
+        } else if(kind == N_MUTATE) {
+            target := mutate_target(prog, file, up);
+            if(target != null) {
+                found := find_member_type(prog, target!!, name);
+                if(found != null) { return found; }
+            }
+        } else if(kind == N_BLOCK) {
+            // `alias list<int> as numbers;` written earlier in a block around
+            // the name: a local alias. This stage only has to know that the
+            // name EXISTS (it answers with a stand-in that has no target);
+            // what the alias stands for is worked out when the body is
+            // analysed, where local scopes exist
+            // (backend/compiler/context/body_types.sharp).
+            alias_node : _int64 = local_alias_before(unit, up, node, name);
+            if(alias_node >= 0) { return new sharp_alias(name, unit, alias_node, null, file.module); }
+        }
+        up = tree.parents!![up];
+    }
+    return null;
+}
+
+/** the `alias ... as name;` statement of `block` that stands before `node`; -1 when there is none */
+def local_alias_before(unit: source_unit, block: _int64, node: _int64, name: string) : _int64 {
+    tree : syntax_tree = unit.parsed!!.tree;
+    statement : _int64 = tree.first_child!![block];
+    while(statement >= 0 && tree.tokens!![statement] < tree.tokens!![node]) {
+        if(tree.kinds!![statement] == N_ALIAS && node_text(unit, statement) == name) { return statement; }
+        statement = tree.next_sibling!![statement];
+    }
+    return 0 - 1;
+}
+
+/** the node of the type parameter `name` of the class or function at `declaration` (`<T, U>`); -1 when it has none of that name */
+def type_parameter_named(unit: source_unit, declaration: _int64, name: string) : _int64 {
+    tree : syntax_tree = unit.parsed!!.tree;
+    parameters : _int64 = tree.child_of_kind(declaration, N_GENERIC_PARAMETERS);
+    if(parameters < 0) { return 0 - 1; }
+
+    parameter : _int64 = tree.first_child!![parameters];
+    while(parameter >= 0) {
+        if(node_text(unit, parameter) == name) { return parameter; }
+        parameter = tree.next_sibling!![parameter];
+    }
+    return 0 - 1;
+}
+
+/**
+ * The class declared at `class_node`. Found by name, from the outermost
+ * class inwards: the module knows the outermost, each class knows the ones
+ * declared inside it.
+ */
+def class_at_node(file: sharp_file, class_node: _int64) : sharp_declaration? {
+    if(file.recent_class_node == class_node) {
+        return file.recent_class;
+    }
+
+    found := look_up_class_node(file, class_node);
+    file.recent_class_node = class_node;
+    file.recent_class = found;
+    return found;
+}
+
+/** the declaration of the class written at `class_node`: found through the class around it, or in the module of the file */
+def look_up_class_node(file: sharp_file, class_node: _int64) : sharp_declaration? {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    // is there a class around this one?
+    outer : _int64 = tree.parents!![class_node];
+    while(outer >= 0) {
+        kind : _int64 = tree.kinds!![outer];
+        if(kind == N_CLASS || kind == N_INTERFACE || kind == N_ENUM) { break; }
+        outer = tree.parents!![outer];
+    }
+
+    name := node_text(unit, class_node);
+    if(outer < 0) {
+        return same_declaration(file.module.declared.find(name), unit, class_node);
+    }
+
+    around := class_at_node(file, outer);
+    if(around == null || around!!.members == null) { return null; }
+    return same_declaration(around!!.members!!.find(name), unit, class_node);
+}
+
+/** of the declarations with one name, the one declared at exactly this node */
+def same_declaration(candidates: list<sharp_declaration>?, unit: source_unit, node: _int64) : sharp_declaration? {
+    if(candidates == null) { return null; }
+    for(i : _int64 = 0; i < candidates!!.size(); i++) {
+        candidate := candidates!!.at(i);
+        if(candidate.node == node && candidate.unit == unit) { return candidate; }
+    }
+    return null;
+}
+
+/**
+ * A type called `name` declared inside `owner` - or inside a class `owner`
+ * inherits from: a class sees the nested types of its base classes.
+ */
+def find_member_type(prog: sharp_program, owner: sharp_declaration, name: string) : sharp_declaration? {
+    current : sharp_declaration? = owner;
+    depth : _int64 = 0;
+
+    while(current != null && depth < 64) {      // 64: a base chain that goes round in a circle must end
+        if(current!!.members != null) {
+            found := current!!.members!!.find_type(name);
+            if(found != null) { return found; }
+        }
+        if(is_class_kind(current!!.kind)) {
+            current = base_class_of(prog, current as sharp_class);
+        } else {
+            current = null;
+        }
+        depth++;
+    }
+    return null;
+}
+
+/**
+ * The class `declared` inherits from (sharp_class.base_class), or null.
+ * Worked out the first time it is asked for and remembered in the class.
+ */
+def base_class_of(prog: sharp_program, declared: sharp_class) : sharp_class? {
+    if(declared.base_known == 0) {
+        declared.base_known = 1;        // set first: a class that names itself as its base must not loop
+        // A generic instance whose real base has been worked out already (resolve_bases,
+        // inheritance/class_bases.sharp: base_number<bool> for number<_int8, bool>) keeps it:
+        // looking the written name up again would give the BLUEPRINT (`base_number<NT>`), and a
+        // constructor of the instance would then call the blueprint's constructor - found by code
+        // generation, which has to call a real function (doc/codegen.md 13.1).
+        if(declared.bases_resolved == 0) { declared.base_class = look_up_base_class(prog, declared); }
+    }
+    return declared.base_class;
+}
+
+/** the class the `base` of `declared` names, looked up from the file it is written in; null when there is none or it is not a class */
+def look_up_base_class(prog: sharp_program, declared: sharp_class) : sharp_class? {
+    if(declared.base_type == null) { return null; }
+
+    // (the file the base is WRITTEN in: a `mutate` block in another file may have given the class its base)
+    file := prog.file_of(declared.base_type!!.unit);
+    if(file == null) { return null; }
+    // only the modules: looking inside `declared` for its own base would never end
+    found := resolve_type_name(prog, file!!, declared.base_type!!.node, null, 0, null);
+    if(found != null && is_class_kind(found!!.kind)) {
+        return found as sharp_class;
+    }
+    return null;        // (a base that is an alias is followed in a later stage)
+}

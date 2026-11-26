@@ -1,0 +1,54 @@
+mod backend.compiler.expressions.operators;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * THE NOT-NULL ASSERTION:  value!!
+ *
+ *      name : string? = find();
+ *      size := name!!.size();      "I know it is not null here"
+ *
+ * `x!!` has the type of `x` without the `?`. Nothing is proved: when the
+ * value IS null the program throws at that point.
+ *
+ *      E0723   `!!` on a plain number (a number is never null; the C++ compiler refuses it too)
+ *      W1004   `!!` on a type that cannot be null anyway
+ *
+ *      C++ comparison: `compile_force_non_null_expression` in
+ *      primary/primary_expression.cpp.
+ */
+def analyse_not_null(context: analysis_context, node: _int64) : bound_expression {
+    value_node : _int64 = context.tree.first_child!![node];
+    if(value_node < 0) { return new bound_error(context.unit, node, context.session.types.error_type); }
+    value := analyse_value(context, value_node, null);
+    type : resolved_type = value.type;
+    if(type.kind == RT_ERROR) { return value; }
+
+    if(type.is_number()) {
+        d := problem_at(context, "E0723", "`!!` cannot be used on " + described_type(type), node);
+        d.with_label("a plain number is never null");
+        d.with_help("remove the `!!`");
+        report(context, d);
+        return new bound_error(context.unit, node, context.session.types.error_type);
+    }
+    if(!type.can_be_null()) {
+        d := problem_at(context, "W1004", "`!!` is not needed: `" + source_text_of(context, value_node) + "` is never null", node);
+        d.with_label("`" + type.to_text() + "` cannot be null");
+        d.with_help("remove the `!!`");
+        report(context, d);
+        return value;
+    }
+    return new bound_not_null(context.unit, node, value, type.as_non_null());
+}

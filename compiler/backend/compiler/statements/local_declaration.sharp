@@ -1,0 +1,196 @@
+mod backend.compiler.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.preprocessor,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions,
+    backend.compiler.components
+)
+
+/**
+ * LOCAL VARIABLES
+ *
+ *      count : _int64 = 0;         a type and a value: the value must convert to the type
+ *      name : string;              a type only: the variable starts with its default (below)
+ *      total := price * 2;         a value only: the type is the value's
+ *                                  (conversions/inferred_types.sharp: `x := 5` is an `int` object)
+ *      a : int = 1, b = 2;         several at once: the later ones share the first one's type
+ *      const limit : _int64 = 10;  `const` and `excuse` are the only words allowed in front
+ *                                  (checked with every other declaration's words: postprocessor/checks)
+ *      inject log : logger;        the value comes from a component (components/injections.sharp)
+ *
+ * A variable exists from the END of its declaration to the end of its block:
+ * the value of `x := ...` cannot use `x` (E0407, names/not_found.sharp).
+ *
+ * START VALUES (doc/backend.md 7.3). Without a value a number is 0 and a
+ * nullable variable null. A number class (`int`, `double` ...) or `string`
+ * that is neither nullable nor an array gets a NEW object from its
+ * constructor without parameters - `n : int;` holds an `int` 0, `s : string;`
+ * an empty string; checked with the C++ compiler, which does the same
+ * (`pre_initialize_class`). Any other object variable written without a
+ * value holds null until it is given one (the C++ compiler does not check
+ * this either).
+ *
+ * Shadowing. A local may have the name of a field or a global - the local
+ * wins and the field is `self->name`. It may NOT have the name of another
+ * local or parameter of the same function that is still in scope (E0600);
+ * a name from a block that has ended is free again.
+ *
+ *      E0600   the name is already a local or parameter of this function
+ *      E0617   an injected variable given a value as well
+ *      E0618   neither a type nor a value says what the variable is
+ *      W1023   `x := <whole number>` where the number does not fit the `int` it becomes
+ *
+ *      C++ comparison: compiler/functions/statements/local_variable_decl.cpp
+ *      ("local field is already defined in function", "injected field cannot
+ *      be assigned a value").
+ */
+
+/**
+ * Declare the variable at `node` (an N_VARIABLE) and the ones chained to it.
+ *
+ * @param shared_type   for `b` in `a : int = 1, b = 2;`: the type of `a`
+ * @param shared_flags  for `d` in `const c : _int64 = 1, d = 2;`: the words written in front
+ *                      of the first name. `const` applies to every name of the statement, as
+ *                      it does for fields and globals and in the C++ compiler, which passes the
+ *                      flags on to each following variable (local_variable_decl.cpp).
+ *                      (`localized` is not passed on there either.)
+ */
+def declare_locals(context: analysis_context, node: _int64, into: list<bound_statement>, shared_type: resolved_type?, shared_flags: _int64) {
+    tree : syntax_tree = context.tree;
+    name := name_at(context, node);
+    type_node : _int64 = tree.child_of_kind(node, N_TYPE);
+    initializer : _int64 = tree.child_of_kind(node, N_INITIALIZER);
+    injected : _int64 = tree.child_of_kind(node, N_INJECT) >= 0;
+
+    type : resolved_type? = shared_type;
+    if(type_node >= 0) { type = resolve_type_at(context, type_node); }
+
+    value : bound_expression? = null;
+    if(initializer >= 0 && tree.first_child!![initializer] >= 0) {
+        value_node : _int64 = tree.first_child!![initializer];
+        if(injected == 1) {
+            report_injected_with_value(context, name, value_node);
+            analyse_value(context, value_node, type);          // its names are still checked
+        } else if(type != null) {
+            // a declaration runs `init(x)` before a constructor (with_init_block_preferred)
+            value = with_init_block_preferred(context, analyse_converted(context, value_node, type!!, "the value of `" + name + "`"));
+        } else {
+            found := analyse_value(context, value_node, null);
+            type = inferred_type_of(context.session, found);
+            warn_if_too_big_for_int(context, found, name);
+            value = convert(context, found, type!!, "the value of `" + name + "`");
+        }
+    }
+    if(type == null) {
+        report_no_type_and_no_value(context, name, node, injected);
+        type = context.session.types.error_type;
+    }
+
+    report_if_already_local(context, name, node);
+    variable := new local_variable(name, type!!, context.unit, node);
+    flags : _int64 = shared_flags & FLAG_CONST;
+    if(tree.child_of_kind(node, N_MODIFIERS) >= 0 || tree.child_of_kind(node, N_MODIFIER) >= 0) { flags = flags | flags_of(context.unit, node); }
+    variable.is_const = (flags & FLAG_CONST) != 0;
+    variable.is_localized = (flags & FLAG_LOCALIZED) != 0;
+    variable.value_refused = written_type_refused(value);
+    if(value != null) { variable.writes++; }
+    context.declare(variable);
+
+    declared := new bound_local_declaration(context.unit, node, variable, value);
+    declared.is_injected = injected;
+    if(injected == 1 && initializer < 0 && type!!.kind != RT_ERROR) {      // (with a value as well: E0617 above)
+        declared.injected_from = definition_to_inject(context, type!!, tree.child_of_kind(node, N_INJECT));
+    }
+    if(value == null && injected == 0) { declared.default_constructor = start_object_constructor(context, type!!); }
+    into.add(declared);
+
+    // `, b = 2, c = 3`: the further names of the same statement hang below the first
+    next : _int64 = tree.first_child!![node];
+    while(next >= 0) {
+        if(tree.kinds!![next] == N_VARIABLE) { declare_locals(context, next, into, type, flags); }
+        next = tree.next_sibling!![next];
+    }
+}
+
+/**
+ * `n : int;` `s : string;` - the constructor that makes the start value of a
+ * variable written without one: the one without parameters of a number class
+ * or of `string`, when the type is neither nullable nor an array. Null for
+ * every other type (a number starts at 0, anything else at null).
+ */
+def start_object_constructor(context: analysis_context, type: resolved_type) : sharp_function? {
+    if(type.kind != RT_CLASS || type.is_array == 1 || type.is_nullable == 1) { return null; }
+    made : sharp_class = type.class_of!!;
+    if(!context.session.known.is_box(made) && made != context.session.known.string_class) { return null; }
+    return made.default_constructor;
+}
+
+/** E0600: a second local of that name in the same function, while the first is still in scope */
+def report_if_already_local(context: analysis_context, name: string, node: _int64) {
+    if(context.scope == null) { return; }
+    earlier := context.scope!!.find_in_same_function(name);
+    if(earlier == null) { return; }
+
+    if(earlier!!.unit == context.unit && context.tree.parents!![earlier!!.node] == context.tree.parents!![node]
+       && context.tree.kinds!![context.tree.parents!![node]] == N_PARAMETERS) {
+        // `{ a: _int64, a: _int64 -> ... }`: both are parameters of ONE list (of a lambda)
+        d := problem_at(context, "E0600", "`" + name + "` is already a parameter of this lambda", node);
+        d.with_label("a second parameter named `" + name + "`");
+        d.with_related_place(place_of_node(earlier!!.unit, earlier!!.node, "the first `" + name + "` is here"));
+        d.with_note("inside the body a name means one variable; with two parameters of one name the first could never be read");
+        d.with_help("give each parameter its own name, for example `" + name + "2`");
+        report(context, d);
+        return;
+    }
+
+    what := "local variable";
+    if(earlier!!.is_parameter == 1) { what = "parameter"; }
+    d := problem_at(context, "E0600", "`" + name + "` is already a " + what + " of this function", node);
+    d.with_label("declared a second time");
+    d.with_related_place(place_of_node(earlier!!.unit, earlier!!.node, "the first `" + name + "` is declared here and is still in scope"));
+    d.with_note("a block cannot declare a name that a block around it (or the parameter list) already declares");
+    d.with_help("to give the existing variable a new value write `" + name + " = ...;`; otherwise pick another name");
+    report(context, d);
+}
+
+/** E0617: `inject log : logger = new logger();` - the component gives the value, so none may be written */
+def report_injected_with_value(context: analysis_context, name: string, value_node: _int64) {
+    d := problem_over(context, "E0617", "`" + name + "` is injected, so it cannot be given a value as well", value_node);
+    d.with_label("a value for an injected variable");
+    d.with_note("`inject` means the value comes from a component (`component c { single { ... } }`), when the variable is declared");
+    d.with_help("remove `inject` to give the value here, or remove `= ...` to have it injected");
+    report(context, d);
+}
+
+/** E0618: `inject log;` - nothing says what the variable is */
+def report_no_type_and_no_value(context: analysis_context, name: string, node: _int64, injected: _int64) {
+    d := problem_at(context, "E0618", "the type of `" + name + "` cannot be worked out", node);
+    d.with_label("neither a type nor a value");
+    if(injected == 1) {
+        d.with_note("an injected variable is matched with what a component provides BY ITS TYPE, so the type must be written");
+        d.with_help("write `inject " + name + " : <type>;`");
+    } else {
+        d.with_help("write `" + name + " : <type>;` or `" + name + " := <value>;`");
+    }
+    report(context, d);
+}
+
+/** W1023: `big := 3000000000;` becomes an `int` object, which holds 32 bits */
+def warn_if_too_big_for_int(context: analysis_context, value: bound_expression, name: string) {
+    if(value.literal != LIT_INTEGER || value.type != context.session.types.int64) { return; }
+    d := problem_over(context, "W1023", "this number does not fit the `int` that `" + name + "` becomes", value.node);
+    d.with_label("needs more than 32 bits");
+    d.with_note("`name := <whole number>` makes an `int` object, and an `int` holds 32 bits: the number is cut down");
+    d.with_help("write `" + name + " : _int64 = " + source_text_of(context, value.node) + ";` or `" + name + " := new long("
+                + source_text_of(context, value.node) + ");`");
+    report(context, d);
+}

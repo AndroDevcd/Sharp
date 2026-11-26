@@ -1,0 +1,234 @@
+mod main;
+
+import (
+    std.io,
+    std.io.*,
+    platform,
+    platform.kernel,
+    configuration
+)
+
+/*
+ * PROJECTS, THE OUTPUT FILE, AND RUNNING IT
+ *
+ * A compile is asked for in one of two ways:
+ *
+ *      sharpc main.sharp util.sharp -o app -L <library>      FILE MODE: the files named
+ *      sharpc -p        (or  -P <folder>)                    PROJECT MODE: a folder
+ *
+ * A project is a folder laid out like this (`sharpc --new-project demo`
+ * makes one):
+ *
+ *      demo/
+ *          settings.json           the options of the build (settings_processor.sharp)
+ *          src/main.sharp          the sources: every .sharp file anywhere in the folder
+ *          build/outputs/<output>  the executable the compile writes
+ *          build/cache/            the build cache (cache/)
+ *
+ * Where the executable goes (`output_path`):
+ *
+ *      file mode       the name `-o` gave, as it was given; without `-o`: `out`
+ *      project mode    <project>/build/outputs/<name>, where <name> is the
+ *                      "output" of settings.json (or `-o`), else `out`
+ *
+ * `-run` then starts the program: the runtime `sharp` is looked up on the
+ * PATH and handed the file that was just written; the compiler ends with the
+ * program's exit code.
+ *
+ *      C++ comparison: create_project() in lib/grammar/main.cpp; the output
+ *      path is worked out where the file is written
+ *      (backend/finalizer/generation/file_generator.cpp, the end of
+ *      generate_exe()). The C++ compiler has no -run.
+ *
+ * THE TESTS OF A PROJECT. A folder `tests` in the project (another name:
+ * "tests_folder" of settings.json) holds the project's tests - Sharp files
+ * with a `main` of their own, written with std.testing:
+ *
+ *      demo/
+ *          src/main.sharp              the program, and its main
+ *          tests/basket_tests.sharp    the tests, and their main
+ *
+ *      sharpc -P demo           the PROGRAM: the tests folder is left out
+ *      sharpc -P demo -tests -run                          builds the tests and runs them all
+ *      sharpc -P demo -tests -run -test-only "prices"      ... one group of them
+ *      sharpc -P demo -tests -run -test-only "prices > two cost six"      ... one test
+ *
+ *      sharpc -P demo -tests    the TESTS: the program's files and the tests folder together.
+ *                               The `main` in the tests folder is where it starts; the
+ *                               program's own `main` is an ordinary function there (a test
+ *                               may call it). Written to build/outputs/<output>_tests.
+ *
+ * `-testdir <folder>` says the same about the entry point for a build that is
+ * not a project (an editor that checks the program and its tests together).
+ * backend/compiler/program/main_function.sharp picks the `main`.
+ *
+ * In this file:
+ *      output_path             where the executable is written
+ *      apply_tests_folder      the tests folder: left out, or what the build starts in
+ *      create_project          --new-project <folder>
+ *      run_program             -run
+ */
+
+/**
+ * The path the executable is written to. In project mode the folder
+ * build/outputs is made when it is not there (the C++ compiler does the
+ * same); when it cannot be made the compiler stops and says so.
+ */
+def output_path() : string {
+    if(options.compile_mode != compilation_mode.project_mode) {
+        return options.out;
+    }
+
+    outputs := new file(options.project_dir + "/build/outputs");
+    if(!outputs.mkdirs()) {
+        error("could not create the output folder of the project: " + outputs.path);
+    }
+    return options.project_dir + "/build/outputs/" + options.out;
+}
+
+/**
+ * After settings.json is read: the project's tests folder is left out of the
+ * program, or - with -tests - is where the build starts (see the top).
+ */
+def apply_tests_folder() {
+    folder := new file(options.project_dir + "/" + options.tests_folder_name);
+    there : decimal = folder.exists() && folder.is_directory();
+    if(options.tests) {
+        if(!there) {
+            error_with_help("the project has no tests: there is no folder `" + options.tests_folder_name + "` in " + options.project_dir,
+                            "put the tests there, with a `main` that runs them; or name another folder: \"tests_folder\" in settings.json");
+        }
+        options.tests_dir = folder.absolute_path();
+        options.out = options.out + "_tests";
+    } else if(there && sizeof(options.tests_dir.data) == 0) {
+        options.ignored_directories.add(folder.absolute_path());
+    }
+}
+
+/**
+ * --new-project <folder>: make the folder, its sub-folders, a first
+ * main.sharp, a first test of it (tests/main_tests.sharp: `sharpc -P <folder>
+ * -tests -run` runs it) and a settings.json, then stop. Nothing is
+ * overwritten: a file or folder of that name is an error.
+ */
+def create_project() {
+    dir := new file(options.new_project_dir);
+
+    try{
+       if(dir.exists()) {
+             println("could not create project, a ${dir.is_directory() ? "directory" : "file"} with the name ${options.new_project_dir} already exists!");
+             exit(1);
+       }
+
+       if(!dir.mkdir()) {
+          println("failed to create project directory: ${options.new_project_dir}");
+          exit(1);
+       }
+
+       src_dir := new file(options.new_project_dir + "/src/");
+       build_dir := new file(options.new_project_dir + "/build/");
+       cache_dir := new file(options.new_project_dir + "/build/cache/");
+       outputs_dir := new file(options.new_project_dir + "/build/outputs/");
+       files_dir := new file(options.new_project_dir + "/build/cache/files/");
+       tests_dir := new file(options.new_project_dir + "/tests/");
+
+       if(!src_dir.mkdir() || !build_dir.mkdir() || !cache_dir.mkdir()
+          || !outputs_dir.mkdir() || !files_dir.mkdir() || !tests_dir.mkdir()) {
+          println("failed to create all necessary directories for project: ${options.new_project_dir}");
+          exit(1);
+       }
+
+       main_template_file : file;
+       settings_template_file : file;
+       main_file := new file(options.new_project_dir + "/src/main.sharp");
+       settings_file := new file("${options.new_project_dir}/$settings_file_name");
+
+       if(build.is_windows()) {
+          main_template_file = new file("C:\\Program Files\\Sharp\\proj-template\\main.sharp");
+          settings_template_file = new file("C:\\Program Files\\Sharp\\proj-template\\$settings_file_name");
+       } else {
+          main_template_file = new file("/usr/include/sharp/proj-template/main.sharp");
+          settings_template_file = new file("/usr/include/sharp/proj-template/$settings_file_name");
+       }
+
+       data : string = "";
+       if(main_template_file.exists()) {
+          data = file_natives.read(main_template_file.path) ?: "";
+       } else {
+         data = "mod main;\n\n/** what the program says (tests/main_tests.sharp checks it) */\n"
+              + "def greeting() : string {\n  return \"hello, world!\";\n}\n\n"
+              + "def main() {\n  println(greeting());\n}\n";
+       }
+
+       main_file.create_new();
+       if(file_natives.write(main_file.path, data) != 0) {
+          println("failed to create the main file for project: ${dir.name()}");
+          exit(1);
+       }
+
+       if(settings_template_file.exists()) {
+           data = file_natives.read(settings_template_file.path) ?: "";
+       } else {
+           // JSON: the names in quotes, as the C++ compiler writes the file
+           data = "{\n  \"name\": \"${dir.name()}\",\n  \"version\": \"1.0\",\n  \"output\": \"${dir.name()}\",\n"
+              + "  \"ignore_folders\": [\n     \"build\"\n  ]\n}\n";
+       }
+
+       settings_file.create_new();
+       if(file_natives.write(settings_file.path, data) != 0) {
+          println("failed to create the settings file for project: ${dir.name()}");
+          exit(1);
+       }
+
+       // a first test: the tests folder has a main of its own, which the tests build starts at
+       tests_file := new file(options.new_project_dir + "/tests/main_tests.sharp");
+       data = "mod main_tests;\n\nimport ( std.testing, main )\n\n"
+            + "def main() {\n"
+            + "    tests(\"hello world\") {\n"
+            + "        test(\"the program greets the world\") {\n"
+            + "            expect(greeting()).should_be(\"hello, world!\");\n"
+            + "        };\n"
+            + "    };\n\n"
+            + "    finish_tests();\n"
+            + "}\n";
+       tests_file.create_new();
+       if(file_natives.write(tests_file.path, data) != 0) {
+          println("failed to create the first test for project: ${dir.name()}");
+          exit(1);
+       }
+    } catch(t: throwable) {
+          println("failed to create all necessary directories for project: ${options.new_project_dir}. Error: ${t.get_message()}");
+          exit(1);
+    }
+
+    println("Project: \"${dir.name()}\" successfully created!");
+}
+
+/**
+ * -run: start the program that was just written, wait for it, and give back
+ * its exit code. The runtime is the one that runs this compiler
+ * (`runtime_path()`): the same on Linux and Windows, wherever Sharp was
+ * installed and whatever is on the PATH.
+ *
+ * The exit code is what the program ended with: what `def main() : int`
+ * returns, the n of `exit(n)`, 1 after an exception nobody caught (the
+ * runtime sets these; before this build it ended every program with 0).
+ */
+def run_program(executable: string) : _int64 {
+    // the runtime is the one that is running this compiler (the compiler is a Sharp program):
+    // it is there, it fits the program just written, and nothing has to be found on the PATH
+    command := io_strings.shell_quote(runtime_path()) + " " + io_strings.shell_quote(executable);
+    // the tests of a project, started for a person: which of them, when that was said
+    if(options.tests) {
+        foreach(which in options.tests_only) {
+            command = command + " -test-only " + io_strings.shell_quote(which);
+        }
+    }
+    // (Windows: cmd.exe takes the first and the last quote of a line off when the line starts
+    //  with one - so the whole line is put into a pair of its own)
+    if(build.is_windows()) { command = "\"" + command + "\""; }
+    status : _int64 = sys(command).value as _int64;
+    // (the operating system hands back the status of the command shifted left by 8 on unix)
+    if(status > 255) { status = status / 256; }
+    return status;
+}

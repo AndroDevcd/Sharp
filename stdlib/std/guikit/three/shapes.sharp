@@ -1,0 +1,187 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.math,
+    std.guikit.*
+)
+
+/**
+ * shapes - the meshes behind the words cube, sphere, cylinder, ground ...
+ *
+ * Each function makes a NEW mesh, with facings and texture points, which you
+ * may change like any mesh before it is shown: stretch it, turn it, tint its
+ * corners, add it into a bigger one.
+ *
+ *      roof := shapes.cylinder(2.2, 0, 1.2, 4).turned(45, 0, 0).moved(0, 3, 0);    // a pyramid
+ *      hut := shapes.cube(3, 2.4, 3).moved(0, 1.2, 0).add(roof);
+ *      scene { add(hut).texture("assets/planks.png"); };
+ *
+ * (The words - cube(1), sphere(0.5) - keep one copy of each size on the
+ * graphics card and hand out things that show it: for the same shape many
+ * times, use the words.)
+ */
+stable class shapes {
+    /** a box `w` wide, `h` high and `d` deep round (0, 0, 0); the texture is on every side */
+    static def cube(w: decimal, h: decimal, d: decimal) : mesh {
+        m := new mesh();
+        x : decimal = w / 2;
+        y : decimal = h / 2;
+        z : decimal = d / 2;
+        side(m, 0 - x, 0 - y, z,      x, 0 - y, z,          x, y, z,          0 - x, y, z,       0, 0, 1);         // front
+        side(m, x, 0 - y, 0 - z,      0 - x, 0 - y, 0 - z,  0 - x, y, 0 - z,  x, y, 0 - z,       0, 0, 0 - 1);     // back
+        side(m, x, 0 - y, z,          x, 0 - y, 0 - z,      x, y, 0 - z,      x, y, z,           1, 0, 0);         // right
+        side(m, 0 - x, 0 - y, 0 - z,  0 - x, 0 - y, z,      0 - x, y, z,      0 - x, y, 0 - z,   0 - 1, 0, 0);     // left
+        side(m, 0 - x, y, z,          x, y, z,              x, y, 0 - z,      0 - x, y, 0 - z,   0, 1, 0);         // top
+        side(m, 0 - x, 0 - y, 0 - z,  x, 0 - y, 0 - z,      x, 0 - y, z,      0 - x, 0 - y, z,   0, 0 - 1, 0);     // bottom
+        return m;
+    }
+
+    /** one flat side: its corners from the lower left, counter-clockwise, all facing (nx, ny, nz) */
+    private static def side(m: mesh, x1: decimal, y1: decimal, z1: decimal, x2: decimal, y2: decimal, z2: decimal,
+                            x3: decimal, y3: decimal, z3: decimal, x4: decimal, y4: decimal, z4: decimal,
+                            nx: decimal, ny: decimal, nz: decimal) {
+        a : _int64 = m.corner(x1, y1, z1, nx, ny, nz, 0, 1);
+        b : _int64 = m.corner(x2, y2, z2, nx, ny, nz, 1, 1);
+        c : _int64 = m.corner(x3, y3, z3, nx, ny, nz, 1, 0);
+        d : _int64 = m.corner(x4, y4, z4, nx, ny, nz, 0, 0);
+        m.quad(a, b, c, d);
+    }
+
+    /**
+     * a ball round (0, 0, 0): `around` pieces round its middle and `down`
+     * bands from top to bottom. 24 and 16 look round; fewer, and faceted(),
+     * make a rock.
+     */
+    static def sphere(radius: decimal, around: _int64, down: _int64) : mesh {
+        m := new mesh();
+        if(around < 3) { around = 3; }
+        if(down < 2) { down = 2; }
+        for(i : _int64 = 0; i <= down; i++) {
+            tilt : decimal = PI_VALUE * i / down;
+            for(j : _int64 = 0; j <= around; j++) {            // the first column again at the end: the texture's seam
+                turn : decimal = PI_VALUE * 2 * j / around;
+                nx : decimal = sin(tilt) * cos(turn);
+                ny : decimal = cos(tilt);
+                nz : decimal = sin(tilt) * sin(turn);
+                m.corner(nx * radius, ny * radius, nz * radius, nx, ny, nz, 1 - 1.0 * j / around, 1.0 * i / down);
+            }
+        }
+        row : _int64 = around + 1;
+        for(i : _int64 = 0; i < down; i++) {
+            for(j : _int64 = 0; j < around; j++) {
+                upper : _int64 = i * row + j;
+                lower : _int64 = upper + row;
+                if(i > 0) { m.triangle(upper, upper + 1, lower + 1); }
+                if(i < down - 1) { m.triangle(upper, lower + 1, lower); }
+            }
+        }
+        return m;
+    }
+
+    /**
+     * a cylinder standing on the y axis, `height` high round (0, 0, 0), with
+     * `sides` flat sides: `bottom` its radius at the bottom, `top` at the top.
+     * A cone when one of them is 0; four sides make a pyramid or a pillar.
+     */
+    static def cylinder(bottom: decimal, top: decimal, height: decimal, sides: _int64) : mesh {
+        m := new mesh();
+        if(sides < 3) { sides = 3; }
+        lean : decimal = bottom - top;                          // how much the side leans in: its facing tips up by this
+        long : decimal = sqrt(height * height + lean * lean);
+        if(long <= 0) { long = 1; }
+        for(j : _int64 = 0; j <= sides; j++) {
+            turn : decimal = PI_VALUE * 2 * j / sides;
+            cx : decimal = cos(turn);
+            cz : decimal = sin(turn);
+            u : decimal = 1 - 1.0 * j / sides;
+            m.corner(top * cx, height / 2, top * cz, cx * height / long, lean / long, cz * height / long, u, 0);
+            m.corner(bottom * cx, 0 - height / 2, bottom * cz, cx * height / long, lean / long, cz * height / long, u, 1);
+        }
+        for(j : _int64 = 0; j < sides; j++) {
+            if(top > 0) { m.triangle(j * 2, j * 2 + 2, j * 2 + 3); }
+            if(bottom > 0) { m.triangle(j * 2, j * 2 + 3, j * 2 + 1); }
+        }
+        if(top > 0) { lid(m, top, height / 2, sides, 1); }
+        if(bottom > 0) { lid(m, bottom, 0 - height / 2, sides, 0 - 1); }
+        return m;
+    }
+
+    /** a flat round end at height y, facing up (1) or down (-1) */
+    private static def lid(m: mesh, radius: decimal, y: decimal, sides: _int64, up: decimal) {
+        middle : _int64 = m.corner(0, y, 0, 0, up, 0, 0.5, 0.5);
+        first : _int64 = m.corner_count;
+        for(j : _int64 = 0; j <= sides; j++) {
+            turn : decimal = PI_VALUE * 2 * j / sides;
+            m.corner(radius * cos(turn), y, radius * sin(turn), 0, up, 0, 0.5 + cos(turn) / 2, 0.5 + sin(turn) / 2);
+        }
+        for(j : _int64 = 0; j < sides; j++) {
+            if(up > 0) { m.triangle(middle, first + j + 1, first + j); }
+            else { m.triangle(middle, first + j, first + j + 1); }
+        }
+    }
+
+    /**
+     * flat ground: `w` by `d` metres round (0, 0, 0), facing up, cut into
+     * `across` by `along` squares (1 and 1 is enough for a floor; more lets
+     * light from lamps fall off smoothly across it).
+     */
+    static def plane(w: decimal, d: decimal, across: _int64, along: _int64) : mesh {
+        m := new mesh();
+        if(across < 1) { across = 1; }
+        if(along < 1) { along = 1; }
+        for(j : _int64 = 0; j <= along; j++) {
+            for(i : _int64 = 0; i <= across; i++) {
+                m.corner(w * i / across - w / 2, 0, d * j / along - d / 2, 0, 1, 0, 1.0 * i / across, 1.0 * j / along);
+            }
+        }
+        row : _int64 = across + 1;
+        for(j : _int64 = 0; j < along; j++) {
+            for(i : _int64 = 0; i < across; i++) {
+                here : _int64 = j * row + i;
+                m.triangle(here, here + row, here + 1);
+                m.triangle(here + 1, here + row, here + row + 1);
+            }
+        }
+        return m;
+    }
+
+    /** an upright sheet `w` wide and `h` high, standing on (0, 0, 0) and facing you: for a picture, a sign, a leaf */
+    static def card(w: decimal, h: decimal) : mesh {
+        m := new mesh();
+        a : _int64 = m.corner(0 - w / 2, 0, 0, 0, 0, 1, 0, 1);
+        b : _int64 = m.corner(w / 2, 0, 0, 0, 0, 1, 1, 1);
+        c : _int64 = m.corner(w / 2, h, 0, 0, 0, 1, 1, 0);
+        d : _int64 = m.corner(0 - w / 2, h, 0, 0, 0, 1, 0, 0);
+        m.quad(a, b, c, d);
+        return m;
+    }
+
+    /**
+     * a ring lying flat round (0, 0, 0): `radius` from the middle to the middle
+     * of the tube, the tube `thickness` in radius, `around` pieces round the
+     * ring and `sides` round the tube.
+     */
+    static def ring(radius: decimal, thickness: decimal, around: _int64, sides: _int64) : mesh {
+        m := new mesh();
+        if(around < 3) { around = 3; }
+        if(sides < 3) { sides = 3; }
+        for(i : _int64 = 0; i <= around; i++) {
+            turn : decimal = PI_VALUE * 2 * i / around;
+            for(j : _int64 = 0; j <= sides; j++) {
+                tube : decimal = PI_VALUE * 2 * j / sides;
+                out : decimal = radius + thickness * cos(tube);
+                m.corner(out * cos(turn), thickness * sin(tube), out * sin(turn),
+                         cos(tube) * cos(turn), sin(tube), cos(tube) * sin(turn), 1.0 * i / around, 1.0 * j / sides);
+            }
+        }
+        row : _int64 = sides + 1;
+        for(i : _int64 = 0; i < around; i++) {
+            for(j : _int64 = 0; j < sides; j++) {
+                here : _int64 = i * row + j;
+                m.quad(here + 1, here + row + 1, here + row, here);
+            }
+        }
+        return m;
+    }
+}

@@ -1,0 +1,460 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.math,
+    std.guikit.*
+)
+
+/**
+ * terrain - land: ground whose height you give as a function of where it is.
+ *
+ *      land := terrain(320, { x: decimal, z: decimal -> return hills(x, z); });
+ *      land.texture("assets/grass.png", 60);
+ *
+ *      scene {
+ *          add(land);
+ *          camera().walk(land);                        // the eye stays above it
+ *          model("assets/cabin.obj").at(160, land.height_at(160, 150), 150);
+ *      }
+ *
+ * The land is a square of `size` metres with one corner at (0, 0, 0), running
+ * towards +x and +z. It is made ONCE, when terrain(...) is called - keep it in
+ * a variable outside the screen's build, and add(...) it in the scene: making
+ * land asks your function for a height at every corner of its grid (129 x 129
+ * of them unless you say how finely to cut it).
+ *
+ * height_at(x, z) answers from the grid, quickly, so it can be asked every
+ * frame for a character's feet. (Outside the land it answers the nearest edge.)
+ *
+ * colored(...) paints the land by what it is - height and steepness - with no
+ * texture at all, or together with one:
+ *
+ *      land.colored({ height: decimal, steep: decimal ->
+ *          if(steep > 0.6) { return 0x6D675FFF; }      // rock
+ *          if(height > 40) { return 0xE4E8ECFF; }      // snow
+ *          return 0x5E7740FF;                          // grass
+ *      });
+ *
+ * (Godot: HeightMapShape3D / a terrain plugin. three.js: PlaneGeometry with
+ * its heights moved.)
+ */
+class terrain base thing {
+    side : decimal = 0;             // metres along one edge
+    squares : _int64 = 0;           // squares along one edge
+    heights : decimal[];            // the height at every corner of the grid, row after row along z
+
+    terrain(size: decimal, cells: _int64, rise: (decimal, decimal)(decimal)) {
+        stage.adopt(self);
+        if(cells < 1) { cells = 1; }
+        side = size;
+        squares = cells;
+        heights = new decimal[(cells + 1) * (cells + 1)];
+
+        land := new mesh();
+        step : decimal = size / cells;
+        for(j : _int64 = 0; j <= cells; j++) {
+            for(i : _int64 = 0; i <= cells; i++) {
+                high : decimal = rise(i * step, j * step);
+                heights[j * (cells + 1) + i] = high;
+                at : _int64 = land.corner(i * step, high, j * step);
+                land.texture_point(at, 1.0 * i / cells, 1.0 * j / cells);
+            }
+        }
+        row : _int64 = cells + 1;
+        for(j : _int64 = 0; j < cells; j++) {
+            for(i : _int64 = 0; i < cells; i++) {
+                here : _int64 = j * row + i;
+                land.triangle(here, here + row, here + 1);
+                land.triangle(here + 1, here + row, here + row + 1);
+            }
+        }
+        land.smooth();
+        shape = land;
+    }
+
+    /**
+     * Land whose heights are already worked out. `around` holds them for the
+     * grid AND for one more corner beyond it on every side - (cells + 3) by
+     * (cells + 3) of them, row after row along z - so that the land's edge
+     * faces the way the land beyond it does: two such pieces side by side show
+     * no seam. (What endless land is made of. It is not put into the scene
+     * being written: add(...) it.)
+     */
+    terrain(size: decimal, cells: _int64, around: decimal[]) {
+        side = size;
+        squares = cells;
+        heights = new decimal[(cells + 1) * (cells + 1)];
+
+        land := new mesh();
+        step : decimal = size / cells;
+        wide : _int64 = cells + 3;
+        for(j : _int64 = 0; j <= cells; j++) {
+            for(i : _int64 = 0; i <= cells; i++) {
+                here : _int64 = (j + 1) * wide + i + 1;
+                high : decimal = around[here];
+                heights[j * (cells + 1) + i] = high;
+                // (it faces away from the way it rises, to the east and to the south)
+                nx : decimal = (around[here - 1] - around[here + 1]) / (step * 2);
+                nz : decimal = (around[here - wide] - around[here + wide]) / (step * 2);
+                length : decimal = sqrt(nx * nx + 1 + nz * nz);
+                land.corner(i * step, high, j * step, nx / length, 1 / length, nz / length, 1.0 * i / cells, 1.0 * j / cells);
+            }
+        }
+        row : _int64 = cells + 1;
+        for(j : _int64 = 0; j < cells; j++) {
+            for(i : _int64 = 0; i < cells; i++) {
+                here : _int64 = j * row + i;
+                land.triangle(here, here + row, here + 1);
+                land.triangle(here + 1, here + row, here + row + 1);
+            }
+        }
+        shape = land;
+    }
+
+    /** how high the land is at (px, pz) of the scene */
+    def land_height(px: decimal, pz: decimal) : decimal {
+        step : decimal = side / squares;
+        gx : decimal = (px - x) / step;
+        gz : decimal = (pz - z) / step;
+        if(gx < 0) { gx = 0; }
+        if(gz < 0) { gz = 0; }
+        if(gx > squares) { gx = squares; }
+        if(gz > squares) { gz = squares; }
+        i : _int64 = gx;
+        j : _int64 = gz;
+        if(i >= squares) { i = squares - 1; }
+        if(j >= squares) { j = squares - 1; }
+        fx : decimal = gx - i;
+        fz : decimal = gz - j;
+        row : _int64 = squares + 1;
+        a : decimal = heights[j * row + i];
+        b : decimal = heights[j * row + i + 1];
+        c : decimal = heights[(j + 1) * row + i];
+        d : decimal = heights[(j + 1) * row + i + 1];
+        return y + a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz;
+    }
+
+    /** how steep the land is at (px, pz): 0 flat, 1 rising a metre for every metre across, more for a cliff */
+    def steep_at(px: decimal, pz: decimal) : decimal {
+        step : decimal = side / squares;
+        east : decimal = (land_height(px + step, pz) - land_height(px - step, pz)) / (step * 2);
+        south : decimal = (land_height(px, pz + step) - land_height(px, pz - step)) / (step * 2);
+        return sqrt(east * east + south * south);
+    }
+
+    /**
+     * paint the land: your function is asked for a colour (0xRRGGBBAA) at
+     * every corner of the grid, given the height there and how steep it is
+     * (as steep_at). Returns the land.
+     */
+    def colored(paint: (decimal, decimal)(_int64)) : terrain {
+        land := shape!!;
+        step : decimal = side / squares;
+        row : _int64 = squares + 1;
+        for(j : _int64 = 0; j <= squares; j++) {
+            for(i : _int64 = 0; i <= squares; i++) {
+                land.tint(j * row + i, paint(heights[j * row + i], steep_at(x + i * step, z + j * step)));
+            }
+        }
+        land.changed();
+        return self;
+    }
+}
+
+/**
+ * scattering - many copies of one thing, strewn about: a forest, rocks on a
+ * slope, grass, a crowd of crates.
+ *
+ *      pine := tree(7);
+ *      scene {
+ *          add(land);
+ *          scatter(pine, 3000).on(land).between(1, 40);       // where the land is 1 to 40 metres high
+ *          scatter(rock, 200).within(0, 0, 100, 100);         // or just over an area
+ *      }
+ *
+ * However many there are, the scene hands them to the graphics card as ONE
+ * thing, and only the copies in view are drawn. Each copy stands at a place of
+ * its own, turned its own way and at its own size - always the same ones for
+ * the same seed, so a forest does not move when the screen is rebuilt.
+ *
+ *      on(land)                on this land, each copy at the land's height
+ *      between(low, high)      only where the land is between these heights
+ *      slopes(most)            only where it is no steeper than this (trees do not stand on cliffs)
+ *      steeper(least)          only where it is at least this steep (rocks on a cliff's face, moss on a bank)
+ *      within(x0, z0, x1, z1)  only inside this area (else: the whole land)
+ *      clear_of(x, z, radius)  none within this far of a point: a clearing, a path, where the player starts
+ *      sizes(smallest, largest)    each copy's size, picked between these (1: the thing's own)
+ *      seed(n)                 another arrangement
+ *      far(cheaper, 80)        beyond 80 metres draw this simpler thing in its place
+ *
+ * On endless land say within(...) too: it has no edges to stand in for it.
+ *
+ * (three.js: InstancedMesh. Godot: MultiMeshInstance3D.)
+ */
+class scattering base thing {
+    original : thing;
+    wanted : _int64 = 0;
+    land : thing? = null;
+    lowest : decimal = 0 - 1000000;
+    highest : decimal = 1000000;
+    steepest : decimal = 1000000;
+    least_steep : decimal = 0;
+    area_set : bool = false;
+    x0 : decimal = 0;
+    z0 : decimal = 0;
+    x1 : decimal = 100;
+    z1 : decimal = 100;
+    smallest : decimal = 0.8;
+    largest : decimal = 1.25;
+    arrangement : decimal = 1;
+    cheaper : thing? = null;
+    private clearings : decimal[] = new decimal[3 * 16];       // x z radius of each place kept clear
+    private clearing_count : _int64 = 0;
+    private placed : bool = false;
+
+    scattering(of: thing, how_many: _int64) {
+        stage.adopt(self);
+        original = of;
+        wanted = how_many;
+        if(of.parent != null) { of.parent!!.remove(of); }       // the original is the pattern, not one more copy
+        tinted = of.tinted;
+        picture = of.picture;
+        repeats = of.repeats;
+        shine = of.shine;
+        light = of.light;
+    }
+
+    // ---- a thing's own settings again, handing back a `scattering`: so that they chain in any order -
+    //      scattering(...).at(1, 2, 3).on(land) - until Sharp has a way to say "returns what it was called on"
+    def at(px: decimal, py: decimal, pz: decimal) : scattering { x = px; y = py; z = pz; thing.changes = thing.changes + 1; return self; }
+    def turn(degrees: decimal) : scattering { heading = degrees; thing.changes = thing.changes + 1; return self; }
+    def color(packed: _int64) : scattering { tinted = packed; thing.changes = thing.changes + 1; return self; }
+    def glow(amount: decimal) : scattering { light = amount; thing.changes = thing.changes + 1; return self; }
+    def sway(amount: decimal) : scattering { sway_amount = amount; thing.changes = thing.changes + 1; return self; }
+    def rough(amount: decimal) : scattering { roughness = amount; thing.changes = thing.changes + 1; return self; }
+    def no_shadow() : scattering { shadowless = true; thing.changes = thing.changes + 1; return self; }
+    def circling(radius: decimal, seconds: decimal) : scattering { circle_radius = radius; circle_seconds = seconds; thing.changes = thing.changes + 1; return self; }
+
+    def on(ground: thing) : scattering {
+        land = ground;
+        placed = false;
+        return self;
+    }
+
+    def between(low: decimal, high: decimal) : scattering {
+        lowest = low;
+        highest = high;
+        placed = false;
+        return self;
+    }
+
+    def slopes(most: decimal) : scattering {
+        steepest = most;
+        placed = false;
+        return self;
+    }
+
+    /** only where the land is at least this steep (as steep_at): what stands on a cliff's face */
+    def steeper(least: decimal) : scattering {
+        least_steep = least;
+        placed = false;
+        return self;
+    }
+
+    def within(from_x: decimal, from_z: decimal, to_x: decimal, to_z: decimal) : scattering {
+        area_set = true;
+        x0 = from_x;
+        z0 = from_z;
+        x1 = to_x;
+        z1 = to_z;
+        placed = false;
+        return self;
+    }
+
+    /** keep the ground within `radius` metres of (px, pz) clear (up to sixteen such places) */
+    def clear_of(px: decimal, pz: decimal, radius: decimal) : scattering {
+        if(clearing_count < 16) {
+            clearings[clearing_count * 3] = px;
+            clearings[clearing_count * 3 + 1] = pz;
+            clearings[clearing_count * 3 + 2] = radius;
+            clearing_count = clearing_count + 1;
+        }
+        placed = false;
+        return self;
+    }
+
+    def sizes(least: decimal, most: decimal) : scattering {
+        smallest = least;
+        largest = most;
+        placed = false;
+        return self;
+    }
+
+    def seed(n: decimal) : scattering {
+        arrangement = n;
+        placed = false;
+        return self;
+    }
+
+    /** beyond `from` metres draw `simpler` in the original's place */
+    def far(simpler: thing, from: decimal) : scattering {
+        cheaper = simpler;
+        far_from = from;
+        if(simpler.parent != null) { simpler.parent!!.remove(simpler); }
+        placed = false;
+        return self;
+    }
+
+    /** a number from 0 to 1 that looks random and is always the same for the same n */
+    private static def chance(n: decimal) : decimal {
+        v : decimal = sin(n * 12.9898) * 43758.5453;
+        return v - floor(v);
+    }
+
+    /** work out where the copies stand (once), and which models they show */
+    def place_copies() {
+        if(original.shape != null) { original.model = original.shape!!.ready(); }
+        model = original.model;
+        if(cheaper == null && original is plant) {
+            // a tree brings its own simple version for far away
+            grown := original as plant;
+            if(grown.simple != null) {
+                cheaper = grown.simple;
+                if(far_from <= 0) { far_from = 60; }
+            }
+        }
+        if(cheaper != null) {
+            if(cheaper!!.shape != null) { cheaper!!.model = cheaper!!.shape!!.ready(); }
+            far_model = cheaper!!.model;
+        }
+        if(placed) { return; }
+        placed = true;
+
+        if(!area_set && land != null && land is terrain) {
+            ground := land as terrain;
+            x0 = ground.x;
+            z0 = ground.z;
+            x1 = ground.x + ground.side;
+            z1 = ground.z + ground.side;
+        }
+
+        // the same question answered before (the screen was rebuilt): the same places, already on the card
+        key : string = "" + wanted + " " + arrangement + " " + x0 + " " + z0 + " " + x1 + " " + z1 + " " + lowest + " "
+            + highest + " " + steepest + " " + least_steep + " " + smallest + " " + largest;
+        if(land != null) { key = key + " on " + land!!.model + " " + land!!.x + " " + land!!.y + " " + land!!.z; }
+        for(c : _int64 = 0; c < clearing_count * 3; c++) { key = key + " " + clearings[c]; }
+        known : _int64 = copies_store.find(key);
+        if(known != 0) {
+            copies = known;
+            return;
+        }
+
+        places := new decimal[wanted * 5];
+        found : _int64 = 0;
+        tries : _int64 = 0;
+        steps_ground : terrain? = null;
+        if(land != null && land is terrain) { steps_ground = land as terrain; }
+        wide_ground : endless? = null;
+        if(land != null && land is endless) { wide_ground = land as endless; }
+        ask_steep : bool = steepest < 1000 || least_steep > 0;
+        while(found < wanted && tries < wanted * 30) {
+            n : decimal = arrangement * 7919 + tries * 3;
+            tries = tries + 1;
+            px : decimal = x0 + (x1 - x0) * chance(n);
+            pz : decimal = z0 + (z1 - z0) * chance(n + 1);
+            py : decimal = 0;
+            kept_clear : bool = false;
+            for(c : _int64 = 0; c < clearing_count; c++) {
+                cx : decimal = px - clearings[c * 3];
+                cz : decimal = pz - clearings[c * 3 + 1];
+                if(cx * cx + cz * cz < clearings[c * 3 + 2] * clearings[c * 3 + 2]) { kept_clear = true; }
+            }
+            if(kept_clear) { continue; }
+            if(land != null) {
+                // (on endless land the piece that is made there answers, from its grid: far quicker than
+                //  asking the land's own function thousands of times)
+                part : terrain? = steps_ground;
+                if(wide_ground != null) { part = wide_ground!!.piece_under(px, pz); }
+                py = part != null ? part!!.land_height(px, pz) : land!!.height_at(px, pz);
+                if(py < lowest || py > highest) { continue; }
+                if(ask_steep && (part != null || wide_ground != null)) {
+                    steep : decimal = part != null ? part!!.steep_at(px, pz) : wide_ground!!.steep_at(px, pz);
+                    if(steep > steepest || steep < least_steep) { continue; }
+                }
+            }
+            at : _int64 = found * 5;
+            places[at] = px;
+            places[at + 1] = py;
+            places[at + 2] = pz;
+            places[at + 3] = chance(n + 2) * 360;
+            places[at + 4] = smallest + (largest - smallest) * chance(n + 3);
+            found = found + 1;
+        }
+        if(found > 0) {
+            copies = g3_copies(places, found);
+            copies_store.keep(key, copies, x0, z0, x1, z1);
+        }
+    }
+
+    /**
+     * Forget where the copies of every scattering stand whose area - its
+     * within(...) - lies inside this one. Their places are worked out again if
+     * they are shown again. (Endless land does this for each piece it leaves
+     * far behind, so that a long journey does not fill the machine.)
+     */
+    static def forget_within(from_x: decimal, from_z: decimal, to_x: decimal, to_z: decimal) {
+        copies_store.drop_within(from_x, from_z, to_x, to_z);
+    }
+}
+
+/** the places of scattered copies that are already on the graphics card, by the question that made them */
+local stable class copies_store {
+    private static keys : list<string> = new list<string>();
+    private static ids : list<long> = new list<long>();
+    private static areas : decimal[] = new decimal[4 * 64];     // the area each was scattered over: x0 z0 x1 z1
+
+    static def find(key: string) : _int64 {
+        count : _int64 = keys.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(keys.at(i) == key) { return ids.at(i).value; }
+        }
+        return 0;
+    }
+
+    static def keep(key: string, id: _int64, x0: decimal, z0: decimal, x1: decimal, z1: decimal) {
+        at : _int64 = keys.size() * 4;
+        if(at + 4 > sizeof(areas)) {
+            more := new decimal[sizeof(areas) * 2];
+            for(i : _int64 = 0; i < at; i++) { more[i] = areas[i]; }
+            areas = more;
+        }
+        areas[at] = x0;
+        areas[at + 1] = z0;
+        areas[at + 2] = x1;
+        areas[at + 3] = z1;
+        keys.add(key);
+        ids.add(new long(id));
+    }
+
+    /** forget every one whose area lies inside this one */
+    static def drop_within(x0: decimal, z0: decimal, x1: decimal, z1: decimal) {
+        count : _int64 = keys.size();
+        kept_keys := new list<string>();
+        kept_ids := new list<long>();
+        kept : _int64 = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            at : _int64 = i * 4;
+            if(areas[at] >= x0 && areas[at + 1] >= z0 && areas[at + 2] <= x1 && areas[at + 3] <= z1) {
+                g3_drop(0, ids.at(i).value);
+                continue;
+            }
+            for(k : _int64 = 0; k < 4; k++) { areas[kept * 4 + k] = areas[at + k]; }
+            kept_keys.add(keys.at(i));
+            kept_ids.add(ids.at(i));
+            kept = kept + 1;
+        }
+        keys = kept_keys;
+        ids = kept_ids;
+    }
+}

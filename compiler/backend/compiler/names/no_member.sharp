@@ -1,0 +1,205 @@
+mod backend.compiler.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context
+)
+
+/**
+ * "... HAS NO MEMBER NAMED ..." - a name that is not found in ONE place
+ *
+ *      E0402   a class has no member of that name          point.z     color.blue
+ *      E0403   a module has no such name                   std.io#prnt
+ *      E0508   the class's own name used as a member       p.point(1, 2)
+ *
+ * Here the programmer said where to look (`point.`, `std.io#`), so the
+ * message can be exact about it:
+ *
+ *   - the closest names that place has (did-you-mean);
+ *   - when nothing is close, what the place does have (`color` has: `red`,
+ *     `green`), so the right name can be picked without opening the file;
+ *   - for a module: the module that DOES declare the name;
+ *   - `length` / `count` on a collection is `size()` in Sharp.
+ *
+ *      C++ comparison: "could not resolve symbol `z` in field `p`" in
+ *      dependency.cpp.
+ */
+
+/**
+ * E0402: `owner` has no member called `name`.
+ *
+ * @param through_type  1: written `point.z` (through the class name); 0: through a value
+ */
+def report_no_member(context: analysis_context, owner: sharp_class, name: string, node: _int64, through_type: _int64) {
+    if(already_reported(context, "E0402", node)) { return; }
+    if(members_are_uncertain(owner)) { return; }
+    // `base->f()` in a class whose base was not found: `base` is only `_object_` for want of the real one
+    if(is_asked_of_base(context, node) && context.class_of != null && context.class_of!!.written.members_uncertain == 1) { return; }
+    if(name == owner.written.name) {
+        report_constructor_as_member(context, owner, node);
+        return;
+    }
+    owner_name := shortened(owner.qualified_name(), 72);
+    d := problem_at(context, "E0402", "`" + owner_name + "` has no member named `" + name + "`", node);
+    if(owner.is_enum()) { d.with_label("not a value of the enum `" + shortened(owner.name, 40) + "`"); }
+    else { d.with_label("not a field or function of `" + shortened(owner.name, 40) + "` or of a class above it"); }
+    d.with_related_place(place_of_declaration(owner.written, "`" + owner.written.name + "` is declared here"));
+
+    known := new list<string>();
+    add_member_names(context.prog, owner, known, through_type);
+    close := closest_names(name, known, 3);
+    if(close.size() > 0) { d.with_help(did_you_mean(close)); }
+    else if(owner.is_enum() && through_type == 0 && owner.base_class != null) {
+        // `state.idle.get_name()`: asked of an enum VALUE, whose members are those every enum value has
+        d.with_note("a value of an enum has the members of `" + owner.base_class!!.name + "`, the class of every enum value");
+        d.with_help(what_it_has(owner.base_class!!, 0, name));
+    } else { d.with_help(what_it_has(owner, through_type, name)); }
+    add_base_without_base_class(context, d, owner, node);
+    if(name == "length" || name == "len" || name == "count") {
+        d.with_help("the number of items of a collection is `size()`; of an array, `sizeof(the_array)`");
+    }
+    report(context, d);
+}
+
+/**
+ * Is "no member named ..." about `owner` a follow-on of a declaration error?
+ * It is when the class, or a class above it, is declared twice or names a
+ * base class or interface that was not found (sharp_class.members_uncertain):
+ * the member may well be in the part of the class the compiler could not see.
+ */
+def members_are_uncertain(owner: sharp_class) : _int64 {
+    up : sharp_class? = owner;
+    for(depth : _int64 = 0; up != null && depth < 256; depth++) {
+        if(up!!.members_uncertain == 1 || up!!.written.members_uncertain == 1) { return 1; }
+        up = up!!.base_class;
+    }
+    return 0;
+}
+
+/**
+ * `base->f()` in a class that declares no base class: `base` is then the
+ * root class every class has, `_object_`, which is rarely what was meant.
+ * Says so, and how to give the class the base it was written for.
+ */
+def add_base_without_base_class(context: analysis_context, d: diagnostic, owner: sharp_class, node: _int64) {
+    if(!is_asked_of_base(context, node) || context.class_of == null) { return; }
+    tree : syntax_tree = context.tree;
+    user : sharp_class = context.class_of!!;
+    if(user.base_class != null && user.base_class!! != owner) { return; }
+    if(user.written.unit != context.unit || tree.child_of_kind(user.written.node, N_BASE) >= 0) { return; }
+    d.with_note("`" + user.written.name + "` declares no base class, so `base` is `" + owner.name + "`, the class every class comes from");
+    d.with_help("give `" + user.written.name + "` the class it builds on: `class " + user.written.name + " base <class> { ... }`");
+}
+
+/** is the member name at `node` written after `base`: `base->f`, `base.f`? */
+def is_asked_of_base(context: analysis_context, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    parent : _int64 = tree.parents!![node];
+    if(parent < 0 || tree.kinds!![parent] != N_MEMBER) { return 0; }
+    receiver : _int64 = tree.first_child!![parent];
+    return receiver >= 0 && tree.kinds!![receiver] == N_BASE_VALUE;
+}
+
+/**
+ * E0508: `p.point(1, 2)` - the class's own name used as a member. That name
+ * is the CONSTRUCTOR, which runs once, when the object is made; it is not a
+ * function of the finished object. (C++: "cannot explicitly call constructor".)
+ */
+def report_constructor_as_member(context: analysis_context, owner: sharp_class, node: _int64) {
+    name := owner.written.name;
+    d := problem_at(context, "E0508", "`" + name + "` is the constructor of `" + name + "`: it cannot be used on an object", node);
+    d.with_label("a constructor runs once, when the object is made");
+    d.with_related_place(place_of_declaration(owner.written, "`" + name + "` is declared here"));
+    d.with_note("an object that exists is changed through its fields and functions, not made a second time");
+    d.with_help("to make another object write `new " + name + "(...)`; to set this one up again, move that code into a function and call it");
+    report(context, d);
+}
+
+/**
+ * "`color` has: `red`, `green`" - when no name is close enough to guess,
+ * show what the class itself declares (the first eight names).
+ *
+ * @param only_static  1: only what can be reached through the class name
+ */
+def what_it_has(owner: sharp_class, only_static: _int64, wanted: string) : string {
+    text := new string_builder("`" + shortened(owner.name, 40) + "` has: ");
+    shown : _int64 = 0;
+    seen := new hash_map<string, string>();
+    ordered := owner.members!!.ordered;
+    // `to_decimal` with nothing close: the members that start the same way (`to_double`,
+    // `to_int` ...) are the ones the reader is after, so they come first; then the rest
+    // - and of those, the most like the name written first (`to_double` before `to_lower`)
+    prefix := written_prefix(wanted);
+    listed := new list<sharp_declaration>();
+    distances := new list<int>();
+    for(round : _int64 = 0; round < 2; round++) {
+        first_of_round : _int64 = listed.size();
+        for(i : _int64 = 0; i < ordered.size(); i++) {
+            member := ordered.at(i);
+            if(!can_be_named(member.kind) || seen.at(member.name) != null) { continue; }
+            if(only_static == 1 && (member.kind == D_FIELD || member.kind == D_FUNCTION) && !member.has(FLAG_STATIC)) { continue; }
+            if(round == 0 && (sizeof(prefix.data) == 0 || !member.name.starts_with(prefix))) { continue; }
+            seen.put(member.name, member.name);
+            distance : _int64 = 0;
+            if(round == 0) { distance = name_distance(wanted, member.name, 64); }
+            place : _int64 = listed.size();
+            while(place > first_of_round && distances.at(place - 1).value > distance) { place--; }
+            listed.insert(place, member);
+            distances.insert(place, new int(distance));
+        }
+    }
+    for(i : _int64 = 0; i < listed.size(); i++) {
+        member := listed.at(i);
+        if(shown == 8) { text.append(", ..."); break; }
+        if(shown > 0) { text.append(", "); }
+        if(member.kind == D_FUNCTION) { text.append("`" + member.name + "()`"); }
+        else { text.append("`" + member.name + "`"); }
+        shown++;
+    }
+    if(shown == 0) {
+        if(only_static == 1) { return "`" + shortened(owner.name, 40) + "` declares nothing that is reached through the class name (no static member, no enum value)"; }
+        return "`" + shortened(owner.name, 40) + "` declares no members of its own";
+    }
+    return text.build();
+}
+
+/**
+ * The start of a name that says what KIND of member was meant: up to and
+ * with the first `_` (`to_` of `to_decimal`, `is_` of `is_blank`), or the
+ * first three letters of a name without one. "" for a name too short.
+ */
+def written_prefix(name: string) : string {
+    chars : _int8[]? = name.data;
+    length : _int64 = sizeof(chars);
+    for(i : _int64 = 1; i < length - 1 && i < 6; i++) {
+        if(chars!![i] == '_') { return new string(chars!!, 0, i + 1); }
+    }
+    if(length < 4) { return ""; }
+    return new string(chars!!, 0, 3);
+}
+
+/** E0403: `module#name` where the module declares no such name */
+def report_not_in_module(context: analysis_context, module: sharp_module, name: string, node: _int64) {
+    d := problem_at(context, "E0403", "module `" + module.name + "` declares nothing named `" + name + "`", node);
+    d.with_label("not in `" + module.name + "`");
+    known := new list<string>();
+    add_declared_names(module.declared, known);
+    close := closest_names(name, known, 3);
+    if(close.size() > 0) { d.with_help(did_you_mean(close)); }
+    for(i : _int64 = 0; i < context.prog.module_list.size(); i++) {
+        other := context.prog.module_list.at(i);
+        if(other != module && other.declared.find(name) != null) {
+            d.with_help("`" + name + "` is declared in module `" + other.name + "`: write `" + other.name + "#" + name + "`");
+            break;
+        }
+    }
+    report(context, d);
+}

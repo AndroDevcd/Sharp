@@ -1,0 +1,67 @@
+mod backend.finalizer.ir;
+
+import (
+    std.io
+)
+
+/**
+ * A GROWING LIST OF WHOLE NUMBERS
+ *
+ * Code generation keeps many lists of plain numbers: the words of a
+ * function's code, the kind of every slot, the position of every label, the
+ * bytes of the file being written. The library's `list<T>` holds objects, so a
+ * list of numbers there is a list of `int` OBJECTS - one allocation per
+ * number. This is the plain version: one `_int64[]` that doubles when it is
+ * full (the textbook "dynamic array": adding is constant time on average).
+ *
+ *      words := new number_list();
+ *      words.add(0x2f);            words.at(0)  ->  0x2f
+ *      words.replace(0, 0x30);         words.count  ->  1
+ *
+ *      C++ comparison: std::vector<int64_t>.
+ */
+class number_list {
+    items : _int64[];
+    count : _int64 = 0;
+
+    number_list() {
+        items = new _int64[16];
+    }
+
+    /** add one number at the end */
+    def add(value: _int64) {
+        if(count >= sizeof(items)) {
+            grown := new _int64[sizeof(items) * 2];
+            for(i : _int64 = 0; i < count; i++) { grown[i] = items[i]; }
+            items = grown;
+        }
+        items[count] = value;
+        count++;
+    }
+
+    /** the number at `index` (0 is the first) */
+    def at(index: _int64) : _int64 {
+        return items[index];
+    }
+
+    /** replace the number at `index` */
+    def replace(index: _int64, value: _int64) {
+        items[index] = value;
+    }
+
+    /** the last number, taken off the list */
+    def pop_last() : _int64 {
+        count--;
+        return items[count];
+    }
+
+    /** does the list hold nothing? */
+    def is_empty() : _int64 {
+        return count == 0;
+    }
+
+    /** every number of `other`, added at the end */
+    def add_all(other: number_list) {
+        for(i : _int64 = 0; i < other.count; i++) { add(other.items[i]); }
+    }
+}

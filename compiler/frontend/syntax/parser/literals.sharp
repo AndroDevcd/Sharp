@@ -1,0 +1,294 @@
+mod frontend.syntax.parser;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.tree
+)
+
+/**
+ * LITERALS: THE VALUES WRITTEN OUT IN THE SOURCE
+ *
+ *      12      1_000_000       0xff        1.5     2.5e-3      'c'     '\n'        "text\n"
+ *
+ * Two jobs, both done from the characters of the token:
+ *
+ *   CHECKING  (check_literal, called by the parser for every literal)
+ *      a hex number that does not fit in 64 bits; `0x` with no digits;
+ *      letters stuck to a number (10L); a character literal that is empty or
+ *      holds more than one character; a backslash followed by something that
+ *      is not an escape. Each with what to write instead.
+ *
+ *   VALUES    (integer_value, decimal_value, character_value, string_value)
+ *      the number, character or text a literal stands for. The tree stores
+ *      no values - a literal node only knows its token - so whoever needs the
+ *      value asks here.
+ *
+ * THE ESCAPES, the same in characters and strings:
+ *
+ *      \n  new line        \t  tab             \r  carriage return     \0  the character 0
+ *      \b  backspace       \v  vertical tab    \f  form feed           \a  bell
+ *      \\  a backslash     \"  a double quote  \'  a single quote
+ *
+ * In a string, `$$` is one dollar sign (a single `$` starts an interpolation).
+ */
+
+/** the character an escape letter stands for; -1 when `letter` is not an escape */
+def escape_value(letter: _int64) : _int64 {
+    if(letter == 'n') { return 10; }
+    if(letter == 't') { return 9; }
+    if(letter == 'r') { return 13; }
+    if(letter == '0') { return 0; }
+    if(letter == 'b') { return 8; }
+    if(letter == 'v') { return 11; }
+    if(letter == 'f') { return 12; }
+    if(letter == 'a') { return 7; }
+    if(letter == '\\' || letter == '"' || letter == '\'') { return letter; }
+    return 0 - 1;
+}
+
+/**
+ * Check the literal token at the current position (see the top of this file).
+ * @return 1 when the token AFTER the literal is letters stuck to a number
+ *         (10L): they were reported and the caller should step over them
+ */
+def check_literal(p: parse_state) : _int64 {
+    kind : _int64 = p.kind();
+
+    if(kind == T_INTEGER || kind == T_HEX || kind == T_DECIMAL) {
+        return check_number(p, kind);
+    } else if(kind == T_CHAR) {
+        check_character(p);
+    } else if(kind == T_STRING || kind == T_STRING_BEGIN || kind == T_STRING_MIDDLE || kind == T_STRING_END) {
+        check_escapes(p, text_from(p, p.position), text_to(p, p.position));
+    }
+    return 0;
+}
+
+def check_number(p: parse_state, kind: _int64) : _int64 {
+    from : _int64 = p.start_of(p.position);
+    to : _int64 = p.end_of(p.position);
+
+    if(kind == T_HEX) {
+        digits : _int64 = 0;
+        for(i : _int64 = from + 2; i < to; i++) {
+            if(p.source[i] != '_') { digits++; }
+        }
+        if(digits == 0) {
+            p.report("E0110", "a hex number needs at least one digit after `0x`")
+             .with_label("no digits")
+             .with_help("for example `0x1f`; the digits are 0-9 and a-f");
+        } else if(digits > 16) {
+            p.report("E0111", "this hex number does not fit in 64 bits")
+             .with_label("" + digits + " hex digits; 16 is the most a number can hold")
+             .with_note("a whole number is stored in 64 bits, which is 16 hex digits");
+        }
+    }
+    // (A whole number too large for 64 bits is not an error: it is a decimal,
+    //  as in `double.max_value > 1000000000000000000000`. fits_in_64_bits()
+    //  tells the two apart for whoever needs the value.)
+
+    // 10L   1.5f   0X1F   12abc: letters stuck to the number
+    following : _int64 = p.position + 1;
+    if(following < p.count && p.start_of(following) == to
+       && (p.kinds[following] == T_IDENTIFIER || p.kinds[following] >= T_KEYWORD)) {
+        letters := token_text(p.source, p.table, following);
+        d := p.report_at(following, "E0112", "`" + letters + "` is stuck to the number in front of it",
+                         p.start_of(following), p.end_of(following))
+              .with_label("a number ends where its digits end");
+
+        if(letters == "L" || letters == "l" || letters == "f" || letters == "F" || letters == "u" || letters == "U"
+           || letters == "d" || letters == "D" || letters == "ul" || letters == "UL") {
+            d.with_help("numbers have no suffix in Sharp: write the number alone, and give the variable the type you want (count : _int64 = 10;)");
+        } else if(p.source[from] == '0' && to - from == 1 && (p.source[to] == 'X' || p.source[to] == 'b' || p.source[to] == 'o')) {
+            d.with_help("hex numbers start with a lower-case `0x` (0x1f); there are no binary or octal numbers");
+        } else {
+            d.with_help("put a space or an operator between them, or remove the letters");
+        }
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * Does the whole number written in source[from..to) fit in a signed 64-bit
+ * integer? When it does not, the literal is a decimal (see decimal_value).
+ */
+def fits_in_64_bits(source: _int8[], from: _int64, to: _int64) : _int64 {
+    // skip zeros in front, then count the digits: fewer than 19 always fit
+    while(from < to && (source[from] == '0' || source[from] == '_')) { from++; }
+    digits : _int64 = 0;
+    for(i : _int64 = from; i < to; i++) {
+        if(source[i] != '_') { digits++; }
+    }
+    if(digits < 19) { return 1; }
+    if(digits > 19) { return 0; }
+
+    // exactly 19 digits: compare with the largest one, digit by digit
+    largest : _int8[] = "9223372036854775807".data!!;
+    place : _int64 = 0;
+    for(i : _int64 = from; i < to; i++) {
+        c : _int64 = source[i];
+        if(c == '_') { continue; }
+        if(c < largest[place]) { return 1; }
+        if(c > largest[place]) { return 0; }
+        place++;
+    }
+    return 1;
+}
+
+/** 'c' and '\n' are fine; '' and 'ab' are not */
+def check_character(p: parse_state) {
+    from : _int64 = p.start_of(p.position) + 1;     // after the opening quote
+    to : _int64 = p.end_of(p.position) - 1;         // before the closing quote
+
+    if(to <= from) {
+        p.report("E0113", "this character literal is empty")
+         .with_label("nothing between the quotes")
+         .with_help("a character literal holds exactly one character ('a'); for \"no text\" use an empty string: \"\"");
+        return;
+    }
+
+    if(p.source[from] == '\\') {
+        if(to - from != 2) {
+            p.report("E0113", "a character literal holds one character, this one holds more")
+             .with_label("more than one character")
+             .with_help("for text of any length use double quotes: \"...\"");
+        } else {
+            check_escapes(p, from, to);
+        }
+    } else if(to - from != 1) {
+        p.report("E0113", "a character literal holds one character, this one holds " + (to - from))
+         .with_label("more than one character")
+         .with_help("for text of any length use double quotes: \"" + new string(p.source, from, to) + "\"");
+    }
+}
+
+/** every backslash in source[from..to) must be followed by an escape letter */
+def check_escapes(p: parse_state, from: _int64, to: _int64) {
+    for(i : _int64 = from; i < to; i++) {
+        if(p.source[i] != '\\') { continue; }
+
+        i++;
+        if(i >= to) { return; }
+        if(escape_value(p.source[i]) < 0) {
+            p.report_at(p.position, "E0114", "`\\" + new string(p.source, i, i + 1) + "` is not an escape",
+                        i - 1, i + 1)
+             .with_label("unknown escape")
+             .with_note("the escapes are  \\n \\t \\r \\0 \\b \\v \\f \\a  and  \\\\  \\\"  \\'")
+             .with_help("to have a backslash in the text itself, write two: \\\\");
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// values
+// ---------------------------------------------------------------------------
+
+/** where the TEXT of a string or character token starts: after the opening quote, when it has one */
+def text_from(p: parse_state, token: _int64) : _int64 {
+    kind : _int64 = p.kinds[token];
+    if(kind == T_STRING || kind == T_STRING_BEGIN || kind == T_CHAR) {
+        return p.start_of(token) + 1;
+    }
+    return p.start_of(token);
+}
+
+/** one past where the text of a string or character token ends: before the closing quote, when it has one */
+def text_to(p: parse_state, token: _int64) : _int64 {
+    kind : _int64 = p.kinds[token];
+    if(kind == T_STRING || kind == T_STRING_END || kind == T_CHAR) {
+        return p.end_of(token) - 1;
+    }
+    return p.end_of(token);
+}
+
+/** the value of a whole-number token: 12, 1_000, 0xff */
+def integer_value(p: parse_state, token: _int64) : _int64 {
+    from : _int64 = p.start_of(token);
+    to : _int64 = p.end_of(token);
+    value : _int64 = 0;
+
+    if(p.kinds[token] == T_HEX) {
+        for(i : _int64 = from + 2; i < to; i++) {
+            c : _int64 = p.source[i];
+            if(c == '_') { continue; }
+            digit : _int64 = c - '0';
+            if(c >= 'a' && c <= 'f') { digit = c - 'a' + 10; }
+            if(c >= 'A' && c <= 'F') { digit = c - 'A' + 10; }
+            value = value * 16 + digit;
+        }
+        return value;
+    }
+
+    for(i : _int64 = from; i < to; i++) {
+        c : _int64 = p.source[i];
+        if(c == '_') { continue; }
+        value = value * 10 + (c - '0');
+    }
+    return value;
+}
+
+/** the value of a number token as a decimal: 1.5, 2.5e-3, and whole numbers too */
+def decimal_value(p: parse_state, token: _int64) : decimal {
+    if(p.kinds[token] == T_HEX
+       || (p.kinds[token] == T_INTEGER && fits_in_64_bits(p.source, p.start_of(token), p.end_of(token)))) {
+        return integer_value(p, token);
+    }
+
+    // the digits without the underscores, handed to the runtime's own conversion
+    from : _int64 = p.start_of(token);
+    to : _int64 = p.end_of(token);
+    digits := new _int8[to - from];
+    count : _int64 = 0;
+    for(i : _int64 = from; i < to; i++) {
+        if(p.source[i] != '_') {
+            digits[count] = p.source[i];
+            count++;
+        }
+    }
+    return strtod(new string(digits, 0, count)).value;
+}
+
+/** the character a character token stands for: 'a' -> 97, '\n' -> 10 */
+def character_value(p: parse_state, token: _int64) : _int64 {
+    from : _int64 = text_from(p, token);
+    to : _int64 = text_to(p, token);
+    if(to <= from) { return 0; }
+
+    if(p.source[from] == '\\' && to - from >= 2) {
+        value : _int64 = escape_value(p.source[from + 1]);
+        if(value < 0) { value = p.source[from + 1]; }
+        return value;
+    }
+    return p.source[from];
+}
+
+/**
+ * The text a string token (or one piece of a string with interpolation)
+ * stands for: the quotes removed, the escapes turned into their characters,
+ * `$$` into `$`.
+ */
+def string_value(p: parse_state, token: _int64) : string {
+    from : _int64 = text_from(p, token);
+    to : _int64 = text_to(p, token);
+    if(to <= from) { return ""; }
+
+    characters := new _int8[to - from];
+    count : _int64 = 0;
+    for(i : _int64 = from; i < to; i++) {
+        c : _int64 = p.source[i];
+        if(c == '\\' && i + 1 < to) {
+            i++;
+            c = escape_value(p.source[i]);
+            if(c < 0) { c = p.source[i]; }
+        } else if(c == '$' && i + 1 < to && p.source[i + 1] == '$') {
+            i++;
+        }
+        characters[count] = c;
+        count++;
+    }
+    if(count == 0) { return ""; }
+    return new string(characters, 0, count);
+}

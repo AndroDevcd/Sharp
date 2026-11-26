@@ -1,0 +1,135 @@
+mod backend.postprocessor.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * THE TYPES WRITTEN IN DECLARATIONS
+ *
+ * The preprocessor made a sharp_type for every type a declaration mentions -
+ *
+ *      class circle base shape : printable     base_type, interface_types
+ *      radius : decimal;                       sharp_field.type
+ *      def scale(by: number) : circle          sharp_parameter.type, return_type
+ *      alias list<circle> as circles;          sharp_alias.target
+ *
+ * - but only wrote down the NAME ("shape"). Here every one of them is looked
+ * up, and its `declaration` is set to the class, interface, enum, alias or
+ * type parameter the name means (how a name is looked up: type_names.sharp).
+ * After this, code that holds a sharp_field can go from field.type straight
+ * to the sharp_class of that type, with everything in it.
+ *
+ * A name that means nothing is reported; its sharp_type keeps
+ * declaration = null, which later stages take as "already reported".
+ */
+def resolve_declared_types(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+
+        resolve_types_of_classes(prog, module.classes, problems);
+        resolve_types_of_fields(prog, module.fields, problems);
+        resolve_types_of_functions(prog, module.functions, problems);
+        resolve_types_of_aliases(prog, module.aliases, problems);
+    }
+}
+
+/** the classes of a list, and everything declared inside each */
+def resolve_types_of_classes(prog: sharp_program, classes: list<sharp_class>, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < classes.size(); i++) {
+        declared := classes.at(i);
+
+        for(j : _int64 = 0; j < declared.type_parameters.size(); j++) {
+            resolve_type(prog, declared.type_parameters.at(j).constraint, null, problems);
+        }
+        resolve_type(prog, declared.base_type, null, problems);
+        for(j : _int64 = 0; j < declared.interface_types.size(); j++) {
+            resolve_type(prog, declared.interface_types.at(j), null, problems);
+        }
+
+        resolve_types_of_fields(prog, declared.fields, problems);
+        resolve_types_of_functions(prog, declared.functions, problems);
+        resolve_types_of_functions(prog, declared.constructors, problems);
+        resolve_types_of_functions(prog, declared.init_blocks, problems);
+        resolve_types_of_aliases(prog, declared.aliases, problems);
+        resolve_types_of_classes(prog, declared.classes, problems);
+    }
+}
+
+def resolve_types_of_fields(prog: sharp_program, fields: list<sharp_field>, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < fields.size(); i++) {
+        // (the getter and setter of a field use the field's own type object)
+        resolve_type(prog, fields.at(i).type, null, problems);
+    }
+}
+
+def resolve_types_of_functions(prog: sharp_program, functions: list<sharp_function>, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        declared := functions.at(i);
+
+        for(j : _int64 = 0; j < declared.type_parameters.size(); j++) {
+            resolve_type(prog, declared.type_parameters.at(j).constraint, declared, problems);
+        }
+        resolve_type(prog, declared.extends, declared, problems);
+        for(j : _int64 = 0; j < declared.parameters.size(); j++) {
+            resolve_type(prog, declared.parameters.at(j).type, declared, problems);
+        }
+        resolve_type(prog, declared.return_type, declared, problems);
+    }
+}
+
+def resolve_types_of_aliases(prog: sharp_program, aliases: list<sharp_alias>, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < aliases.size(); i++) {
+        resolve_type(prog, aliases.at(i).target, null, problems);
+    }
+}
+
+/**
+ * Look up one sharp_type, and the types inside it (the string of list<string>,
+ * the parameter types of a function type). Null - "no type was written" - is
+ * allowed, so the callers need not ask.
+ *
+ * @param inside  the function the type belongs to (a parameter, the return
+ *                type ...), so `T` finds that function's own type parameter
+ */
+def resolve_type(prog: sharp_program, written: sharp_type?, inside: sharp_function?, problems: list<diagnostic>) {
+    if(written == null) { return; }
+    type : sharp_type = written!!;
+
+    if(type.form == TYPE_NAMED) {
+        file := prog.file_of(type.unit);
+        name_node : _int64 = name_node_of(type);
+        if(file != null && name_node >= 0 && file!!.checked!![name_node] == 0) {
+            // marked before the lookup: a type two fields share (`a, b : shape`)
+            // is looked up, and a mistake in it reported, once
+            file!!.checked!![name_node] = 1;
+            type.declaration = resolve_type_name(prog, file!!, name_node, problems, 1, inside);
+        }
+        for(i : _int64 = 0; i < type.arguments.size(); i++) {
+            resolve_type(prog, type.arguments.at(i), inside, problems);
+        }
+    } else if(type.form == TYPE_FUNCTION) {
+        for(i : _int64 = 0; i < type.parameters.size(); i++) {
+            resolve_type(prog, type.parameters.at(i), inside, problems);
+        }
+        resolve_type(prog, type.result, inside, problems);
+    }
+}
+
+/**
+ * The N_TYPE_NAME node of a named type. A sharp_type points at the whole type
+ * (N_TYPE: the name with its `[]` and `?`) or, for a base class or interface,
+ * directly at the name.
+ */
+def name_node_of(type: sharp_type) : _int64 {
+    if(type.node < 0) { return 0 - 1; }
+    tree : syntax_tree = type.unit.parsed!!.tree;
+    if(tree.kinds!![type.node] == N_TYPE_NAME) { return type.node; }
+    return tree.child_of_kind(type.node, N_TYPE_NAME);
+}

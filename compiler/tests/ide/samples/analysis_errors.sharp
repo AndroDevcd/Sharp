@@ -1,0 +1,39 @@
+mod analysis_errors;
+
+import ( std.io )
+
+// A program with a DECLARATION error (the type `strng` of a field does not exist), an error in a body
+// (`missing_name`), a WARNING in a body (a cast that does nothing, in `noisy`), and one function that is
+// sound. The editor must still get the index and the locals and uses of the sound function (level `full`,
+// doc/ide.md 4.2), and the warning with the severity "warning".
+
+class ledger {
+    title : strng;
+    entries : _int64 = 0;
+
+    def count() : _int64 {
+        return entries + 1;
+    }
+}
+
+def sound(first: _int64, second: _int64) : _int64 {
+    sum := first + second;
+    book := new ledger();
+    return sum + book.count();
+}
+
+def broken() : _int64 {
+    total := missing_name + 1;
+    unused_number := 5;
+    return total;
+}
+
+def noisy(text: string) : string {
+    same := text as string;
+    return same;
+}
+
+def main(args: string[]) : int {
+    println("sound: " + sound(1, 2));
+    return 0;
+}

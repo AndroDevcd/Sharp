@@ -1,0 +1,309 @@
+mod backend.optimizer.analysis;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * THE EXPRESSIONS OF A FUNCTION: which instructions compute "the same thing"
+ *
+ * Common subexpression elimination and loop-invariant code motion both ask
+ * of an instruction: is what you compute decided by the slots you read (and
+ * perhaps by the fields, statics and elements as they are now)? Then two
+ * such instructions that read the same slots compute the same value, and one
+ * whose slots do not change inside a loop computes the same value in every
+ * round. This file gives the answer, and numbers the DIFFERENT expressions
+ * of a function so that sets of them are sets of bits:
+ *
+ *      int_binary add %5, %1, %2       expression 0: %1 + %2
+ *      get_field     %6, %0.count      expression 1: %0.count        (reads a field)
+ *      int_binary add %7, %2, %1       expression 0 again (+ may be turned round)
+ *
+ * WHAT COUNTS. Arithmetic, comparisons, conversions, the tests (`is`, is
+ * null, same object), an array's length, a field / static / element read,
+ * and a call of a function that changes nothing and gives a NUMBER
+ * (pure_functions.sharp; two calls that each make a new object must stay two
+ * objects, so a call that gives a reference never counts). Not: constants
+ * (constant propagation's), copies, anything that makes an object.
+ *
+ * WHAT ENDS ONE ("kills" it, in the textbook's word): a write of a slot it
+ * reads; and for the ones that read memory, a write that may have changed
+ * what they read -
+ *
+ *      a field read            a `set_field` of a field at the same place in its object
+ *                              (two classes can each have a field there: both end)
+ *      a static read           any `set_static`; a call that may run a static part
+ *      an element read         any `set_element`
+ *      an array's length       nothing a program writes directly; a call that may
+ *                              change anything, because `realloc` makes the SAME
+ *                              array longer or shorter
+ *      a call that reads       any of the three
+ *      all of them             a call that may change anything, a call of a
+ *                              function value, `lock` / `unlock` (another fiber runs)
+ *
+ * (What ANOTHER fiber or thread writes meanwhile, without a lock, is not
+ * counted: a program that depends on that is wrong with or without -O. Every
+ * optimizing compiler takes this position.)
+ *
+ *      C++ comparison: the C++ optimizer has no such table (its passes match
+ *      instruction patterns). In a textbook compiler this is the numbering
+ *      behind "available expressions" (the dragon book 9.2.6, Muchnick 13.1).
+ */
+
+// what an expression reads besides its slots
+const READS_NO_MEMORY : _int64 = 0;
+const READS_A_FIELD   : _int64 = 1;
+const READS_A_STATIC  : _int64 = 2;
+const READS_AN_ELEMENT : _int64 = 3;
+const READS_ANYTHING  : _int64 = 4;        // a call of a function that reads fields, statics or elements
+const READS_A_LENGTH  : _int64 = 5;        // an array's length: only `realloc` changes it, so only a call that may change anything ends it
+
+// what an instruction may change in memory
+const WRITES_NO_MEMORY : _int64 = 0;
+const WRITES_A_FIELD   : _int64 = 1;       // `set_field` (which: the instruction's declaration)
+const WRITES_STATICS   : _int64 = 2;       // `set_static`, or a call that only initializes
+const WRITES_ELEMENTS  : _int64 = 3;       // `set_element`
+const WRITES_ANYTHING  : _int64 = 4;
+
+/** may this instruction be treated as an expression (the header says which are)? */
+def is_expression(code: ir_function, made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    if(made.target < 0) { return 0; }
+    if(kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY || kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE
+       || kind == IR_NEGATE || kind == IR_NOT || kind == IR_CONVERT || kind == IR_INT_IMMEDIATE || kind == IR_SAME_OBJECT
+       || kind == IR_MATH
+       || kind == IR_IS_NULL || kind == IR_IS || kind == IR_LENGTH || kind == IR_GET_FIELD || kind == IR_GET_STATIC
+       || kind == IR_GET_ELEMENT) {
+        return 1;
+    }
+    if(kind == IR_CALL) {
+        facts : _int64 = facts_of_call(made);
+        if((facts & (FACT_WRITES_NOTHING | FACT_ONLY_INITIALIZES)) == 0) { return 0; }
+        return code.slot_kinds.at(made.target) != SLOT_REF;
+    }
+    return 0;
+}
+
+/** what the expression reads besides its slots (READS_...) */
+def memory_read_by(made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    if(kind == IR_GET_FIELD) { return READS_A_FIELD; }
+    if(kind == IR_GET_STATIC) { return READS_A_STATIC; }
+    if(kind == IR_GET_ELEMENT) { return READS_AN_ELEMENT; }
+    if(kind == IR_LENGTH) { return READS_A_LENGTH; }
+    if(kind == IR_CALL) {
+        if((facts_of_call(made) & FACT_READS_NOTHING) != 0) { return READS_NO_MEMORY; }
+        return READS_ANYTHING;
+    }
+    return READS_NO_MEMORY;
+}
+
+/** what the instruction may change in memory (WRITES_...) */
+def memory_written_by(made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    if(kind == IR_SET_FIELD) { return WRITES_A_FIELD; }
+    if(kind == IR_SET_STATIC) { return WRITES_STATICS; }
+    if(kind == IR_SET_ELEMENT) { return WRITES_ELEMENTS; }
+    if(kind == IR_CALL) {
+        facts : _int64 = facts_of_call(made);
+        if((facts & FACT_WRITES_NOTHING) != 0) { return WRITES_NO_MEMORY; }
+        if((facts & FACT_ONLY_INITIALIZES) != 0) { return WRITES_STATICS; }
+        return WRITES_ANYTHING;
+    }
+    if(kind == IR_CALL_VALUE || kind == IR_LOCK || kind == IR_UNLOCK || kind == IR_ASM) { return WRITES_ANYTHING; }
+    return WRITES_NO_MEMORY;
+}
+
+/** does a write of kind `written` (by instruction `writer`) end an expression that reads `read` (as `reader` does)? */
+def write_ends_read(written: _int64, writer: ir_instruction, read: _int64, reader: ir_instruction) : _int64 {
+    if(written == WRITES_NO_MEMORY || read == READS_NO_MEMORY) { return 0; }
+    if(written == WRITES_ANYTHING || read == READS_ANYTHING) { return 1; }
+    if(written == WRITES_A_FIELD) {
+        if(read != READS_A_FIELD) { return 0; }
+        if(writer.declaration == null || reader.declaration == null) { return 1; }
+        // (a `localized` field - no object - lives in the fiber: only another localized field can be it)
+        if((writer.first < 0) != (reader.first < 0)) { return 0; }
+        return writer.declaration!!.address == reader.declaration!!.address;
+    }
+    if(written == WRITES_STATICS) { return read == READS_A_STATIC; }
+    return read == READS_AN_ELEMENT;
+}
+
+/** do two expression instructions compute the same thing from the same slots? */
+def same_expression(code: ir_function, a: ir_instruction, b: ir_instruction) : _int64 {
+    if(a.kind != b.kind || a.number != b.number) { return 0; }
+    if(code.slot_kinds.at(a.target) != code.slot_kinds.at(b.target)) { return 0; }
+    kind : _int64 = a.kind;
+    if(kind == IR_CALL) {
+        if(a.declaration != b.declaration || a.arguments == null || b.arguments == null) { return 0; }
+        if(a.arguments!!.count != b.arguments!!.count) { return 0; }
+        for(k : _int64 = 0; k < a.arguments!!.count; k++) {
+            if(a.arguments!!.at(k) != b.arguments!!.at(k)) { return 0; }
+        }
+        return 1;
+    }
+    if(kind == IR_GET_STATIC) { return a.declaration == b.declaration && a.detail == b.detail; }
+    if(kind == IR_GET_FIELD) {
+        if(a.first != b.first || a.declaration == null || b.declaration == null) { return 0; }
+        if(a.declaration == b.declaration) { return 1; }
+        // (one field named through two declarations - a generic base class and one of its uses: box_elimination.sharp)
+        return a.declaration!!.address >= 0 && a.declaration!!.address == b.declaration!!.address
+               && a.declaration!!.name == b.declaration!!.name;
+    }
+    if(a.detail != b.detail) { return 0; }
+    if(kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY || kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE
+       || kind == IR_SAME_OBJECT || kind == IR_GET_ELEMENT || kind == IR_MATH) {
+        if(a.first == b.first && a.second == b.second) { return 1; }
+        return can_be_turned_round(a) && a.first == b.second && a.second == b.first;
+    }
+    return a.first == b.first;
+}
+
+/** `a op b` is `b op a`: + * and or xor on whole numbers, + * on decimals, == and !=, same object */
+def can_be_turned_round(made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    op : _int64 = made.number;
+    if(kind == IR_INT_BINARY) { return op == ARITH_ADD || op == ARITH_MUL || op == ARITH_AND || op == ARITH_OR || op == ARITH_XOR; }
+    if(kind == IR_DECIMAL_BINARY) { return op == ARITH_ADD || op == ARITH_MUL; }
+    if(kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE) { return op == CMP_EQ || op == CMP_NE; }
+    return kind == IR_SAME_OBJECT;
+}
+
+/** a number that is the same for two instructions `same_expression` calls the same */
+def hash_of_expression(made: ir_instruction) : _int64 {
+    hash : _int64 = made.kind * 31 + made.number;
+    if(made.kind == IR_CALL) {
+        hash = hash * 31 + made.declaration!!.address;
+        for(k : _int64 = 0; k < made.arguments!!.count; k++) { hash = hash * 31 + made.arguments!!.at(k); }
+    } else if(made.kind == IR_GET_STATIC) {
+        hash = hash * 31 + made.detail;
+        if(made.declaration != null) { hash = hash * 31 + made.declaration!!.address; }
+    } else if(made.kind == IR_GET_FIELD) {
+        hash = hash * 31 + made.first;
+        if(made.declaration != null) { hash = hash * 31 + made.declaration!!.address; }
+    } else {
+        // (a sum and a product: the same whichever way round the two slots are)
+        second : _int64 = made.second;
+        if(slot_read(made, 1) < 0) { second = 0 - 7; }
+        hash = (hash * 31 + made.detail) * 31 + (made.first + second) * 17 + made.first * second;
+    }
+    // kept to 30 bits: the caller takes a remainder of it, and a compiler built by the C++ compiler does
+    // not divide large 64-bit numbers exactly (doc/backend.md D13)
+    return hash & 1073741823;
+}
+
+/**
+ * The expressions of one function, numbered. Only an expression that at
+ * least `least` instructions compute gets a number (2 for common
+ * subexpressions: one that is computed once has nothing to share).
+ */
+class expression_table {
+    code : ir_function;
+    count : _int64 = 0;                 // how many expressions
+    of : _int64[];                      // per instruction: the expression it computes, -1 when none
+    first_one : number_list;            // per expression: the first instruction that computes it
+    reads_memory : number_list;         // per expression: READS_...
+    with_memory : number_list;          // the expressions that read memory
+    first_reader : _int64[];            // per slot (and one more): where the expressions that read it begin in `readers`
+    readers : _int64[];
+
+    expression_table(code: ir_function, least: _int64) {
+        self->code = code;
+        first_one = new number_list();
+        reads_memory = new number_list();
+        with_memory = new number_list();
+        total : _int64 = code.instructions.size();
+        of = new _int64[total + 1];
+
+        // ---- every expression instruction gets the number of the first one like it (a hash table of instructions)
+        size : _int64 = 16;
+        while(size < total * 2) { size = size * 2; }
+        table := new _int64[size];                  // 1 + an instruction index; 0: free
+        times := new _int64[total + 1];             // per first instruction: how many compute its expression
+        for(i : _int64 = 0; i < total; i++) {
+            made := code.instructions.at(i);
+            of[i] = 0 - 1;
+            if(!is_expression(code, made)) { continue; }
+            at : _int64 = hash_of_expression(made) % size;
+            while(table[at] != 0 && !same_expression(code, code.instructions.at(table[at] - 1), made)) {
+                at = (at + 1) % size;
+            }
+            if(table[at] == 0) { table[at] = i + 1; }
+            of[i] = table[at] - 1;                  // (for now: the index of the first instruction)
+            times[table[at] - 1] = times[table[at] - 1] + 1;
+        }
+        // ---- the ones computed often enough are numbered 0, 1, ...
+        numbered_as := new _int64[total + 1];
+        for(i : _int64 = 0; i < total; i++) {
+            if(of[i] != i) { continue; }
+            if(times[i] < least) { numbered_as[i] = 0 - 1; continue; }
+            numbered_as[i] = count;
+            first_one.add(i);
+            reads : _int64 = memory_read_by(code.instructions.at(i));
+            reads_memory.add(reads);
+            if(reads != READS_NO_MEMORY) { with_memory.add(count); }
+            count++;
+        }
+        for(i : _int64 = 0; i < total; i++) {
+            if(of[i] >= 0) { of[i] = numbered_as[of[i]]; }
+        }
+        // ---- per slot: the expressions that read it
+        slots : _int64 = code.slot_count();
+        first_reader = new _int64[slots + 2];
+        for(e : _int64 = 0; e < count; e++) {
+            made := code.instructions.at(first_one.at(e));
+            k : _int64 = 0;
+            read : _int64 = slot_read(made, 0);
+            while(read >= 0) {
+                first_reader[read + 1] = first_reader[read + 1] + 1;
+                k++;
+                read = slot_read(made, k);
+            }
+        }
+        for(s : _int64 = 0; s < slots; s++) { first_reader[s + 1] = first_reader[s + 1] + first_reader[s]; }
+        readers = new _int64[first_reader[slots] + 1];
+        filled := new _int64[slots + 1];
+        for(e : _int64 = 0; e < count; e++) {
+            made := code.instructions.at(first_one.at(e));
+            k : _int64 = 0;
+            read : _int64 = slot_read(made, 0);
+            while(read >= 0) {
+                readers[first_reader[read] + filled[read]] = e;
+                filled[read] = filled[read] + 1;
+                k++;
+                read = slot_read(made, k);
+            }
+        }
+    }
+
+    /** the instruction that stands for expression `e` */
+    def example(e: _int64) : ir_instruction {
+        return code.instructions.at(first_one.at(e));
+    }
+
+    /**
+     * Instruction `i` runs: `known` - the expressions whose value is at hand
+     * just before it - becomes the set just after it. First what it ends
+     * (memory it may change, the slot it writes), then what it computes
+     * itself - unless it overwrites one of its own operands (`%1 = %1 + %2`
+     * computes a value that is no longer "%1 + %2" the moment it is stored).
+     */
+    def step(i: _int64, known: slot_set) {
+        made := code.instructions.at(i);
+        written_memory : _int64 = memory_written_by(made);
+        if(written_memory != WRITES_NO_MEMORY) {
+            for(m : _int64 = 0; m < with_memory.count; m++) {
+                e : _int64 = with_memory.at(m);
+                if(known.has(e) && write_ends_read(written_memory, made, reads_memory.at(e), example(e))) { known.remove(e); }
+            }
+        }
+        written : _int64 = slot_written(made);
+        if(written >= 0 && written + 1 < sizeof(first_reader)) {
+            for(r : _int64 = first_reader[written]; r < first_reader[written + 1]; r++) { known.remove(readers[r]); }
+        }
+        if(of[i] >= 0 && !reads_slot(made, written)) { known.add(of[i]); }
+    }
+}

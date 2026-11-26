@@ -1,0 +1,139 @@
+mod main;
+
+import ( std.testing, std.io, std.crypto )
+
+/**
+ * std.crypto: the hashes (sha256, sha1, md5), hmac, pbkdf2, crypto.same and
+ * secure_random - checked against the values the standards publish
+ * (FIPS 180-4, RFC 1321, RFC 2202, RFC 4231, RFC 6070 and RFC 7914).
+ */
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_crypto") {
+        // ---------------------------------------------------------------- sha256
+        test("sha256: nothing") { expect(sha256.hex("")).should_be("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"); };
+        test("sha256: abc") { expect(sha256.hex("abc")).should_be("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"); };
+        test("sha256: two blocks") {
+            expect(sha256.hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq")).should_be("248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1");
+        };
+        test("sha256: hello") { expect(sha256.hex("hello")).should_be("2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"); };
+        test("sha256: 32 bytes") { expect(sizeof(sha256.bytes("abc"))).should_be(32); };
+        many := new _int8[1000];
+        for(i : _int64 = 0; i < 1000; i++) { many[i] = 'a'; }
+        test("sha256: a thousand a") { expect(sha256.hex_of(many)).should_be("41edece42d63e8d9bf515a9ba6932e1c20cbc9f5a5d134645adb5db1b9737ea3"); };
+        pieces := new sha256();
+        pieces.add("abcdbcdecdefdefgefghfghighij").add("hijkijkljklmklmnlmn").add("").add("omnopnopq");
+        test("sha256: in pieces") { expect(pieces.hex()).should_be("248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"); };
+        used_up : decimal = 0;
+        try { pieces.add("more"); } catch(done: illegal_state_exception) { used_up = 1; }
+        test("sha256: a finished one refuses more") { expect_true(used_up); };
+        // lengths around the padding's edges: 55, 56, 63, 64, 65 bytes
+        edge : string = "";
+        for(i : _int64 = 0; i < 55; i++) { edge = edge + "a"; }
+        test("sha256: 55 bytes") { expect(sha256.hex(edge)).should_be("9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318"); };
+        edge = edge + "a";
+        test("sha256: 56 bytes") { expect(sha256.hex(edge)).should_be("b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a"); };
+        for(i : _int64 = 0; i < 8; i++) { edge = edge + "a"; }
+        test("sha256: 64 bytes") { expect(sha256.hex(edge)).should_be("ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb"); };
+
+        // ---------------------------------------------------------------- sha1
+        test("sha1: nothing") { expect(sha1.hex("")).should_be("da39a3ee5e6b4b0d3255bfef95601890afd80709"); };
+        test("sha1: abc") { expect(sha1.hex("abc")).should_be("a9993e364706816aba3e25717850c26c9cd0d89d"); };
+        test("sha1: two blocks") {
+            expect(sha1.hex("abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq")).should_be("84983e441c3bd26ebaae4aa1f95129e5e54670f1");
+        };
+        test("sha1: the fox") { expect(sha1.hex("The quick brown fox jumps over the lazy dog")).should_be("2fd4e1c67a2d28fced849ee1bb76e7391b93eb12"); };
+        test("sha1: 20 bytes") { expect(sizeof(sha1.bytes("abc"))).should_be(20); };
+
+        // ---------------------------------------------------------------- md5
+        test("md5: nothing") { expect(md5.hex("")).should_be("d41d8cd98f00b204e9800998ecf8427e"); };
+        test("md5: a") { expect(md5.hex("a")).should_be("0cc175b9c0f1b6a831c399e269772661"); };
+        test("md5: abc") { expect(md5.hex("abc")).should_be("900150983cd24fb0d6963f7d28e17f72"); };
+        test("md5: message digest") { expect(md5.hex("message digest")).should_be("f96b697d7cb7938d525a2f31aaf161d0"); };
+        test("md5: the alphabet") { expect(md5.hex("abcdefghijklmnopqrstuvwxyz")).should_be("c3fcd3d76192e4007dfb496cca67e13b"); };
+        test("md5: eighty digits") {
+            expect(md5.hex("12345678901234567890123456789012345678901234567890123456789012345678901234567890")).should_be("57edf4a22be3c955ac49da2e2107b67a");
+        };
+
+        // ---------------------------------------------------------------- hmac
+        test("hmac sha256: the fox") {
+            expect(hmac.sha256_hex("key", "The quick brown fox jumps over the lazy dog")).should_be("f7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8");
+        };
+        test("hmac sha256: RFC 4231, case 2") {
+            expect(hmac.sha256_hex("Jefe", "what do ya want for nothing?")).should_be("5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843");
+        };
+        long_key := new _int8[131];
+        for(i : _int64 = 0; i < 131; i++) { long_key[i] = 0xaa; }
+        long_message : string = "Test Using Larger Than Block-Size Key - Hash Key First";
+        test("hmac sha256: a key longer than a block (RFC 4231, case 6)") {
+            expect(crypto.hex(hmac.sha256(long_key, long_message.data))).should_be("60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54");
+        };
+        test("hmac sha1: the fox") {
+            expect(hmac.sha1_hex("key", "The quick brown fox jumps over the lazy dog")).should_be("de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9");
+        };
+        test("hmac md5: the fox") {
+            expect(hmac.md5_hex("key", "The quick brown fox jumps over the lazy dog")).should_be("80070713463e7749b90c2dc24911e275");
+        };
+        test("hmac sha256: an empty key and message") {
+            expect(hmac.sha256_hex("", "")).should_be("b613679a0814d9ec772f95d778c35fc5ff1697c493715653c6c712144292c5ad");
+        };
+
+        // ---------------------------------------------------------------- pbkdf2
+        salt : string = "salt";
+        test("pbkdf2: 1 round") {
+            expect(pbkdf2.sha256_hex("password", salt.data, 1, 32)).should_be("120fb6cffcf8b32c43e7225256c4f837a86548c92ccc35480805987cb70be17b");
+        };
+        test("pbkdf2: 2 rounds") {
+            expect(pbkdf2.sha256_hex("password", salt.data, 2, 32)).should_be("ae4d0c95af6b46d32d0adff928f06dd02a303f8ef3c251dfd6e2d85a95474c43");
+        };
+        test("pbkdf2: 4096 rounds") {
+            expect(pbkdf2.sha256_hex("password", salt.data, 4096, 32)).should_be("c5e478d59288c841aa530db6845c4c8d962893a001ce4e11a4963873aa98134a");
+        };
+        long_salt : string = "saltSALTsaltSALTsaltSALTsaltSALTsalt";
+        test("pbkdf2: more than one piece") {
+            expect(pbkdf2.sha256_hex("passwordPASSWORDpassword", long_salt.data, 4096, 40)).should_be("348c89dbcbd32b2f32d814b8116e84cf2b17347ebc1800181c4e2a1fb8dd53e1c635518c7dac47e9");
+        };
+
+        // ---------------------------------------------------------------- comparing
+        test("same: equal") { expect_true(crypto.same("abc", "abc")); };
+        test("same: a different byte") { expect_false(crypto.same("abc", "abd")); };
+        test("same: a different length") { expect_false(crypto.same("abc", "abcd")); };
+        test("same: both empty") { expect_true(crypto.same("", "")); };
+        test("hex") { expect(crypto.hex(md5.bytes("abc"))).should_be("900150983cd24fb0d6963f7d28e17f72"); };
+
+        // ---------------------------------------------------------------- random
+        first := secure_random.bytes(32);
+        second := secure_random.bytes(32);
+        test("random: the count") { expect(sizeof(first)).should_be(32); };
+        test("random: two draws differ") { expect_false(crypto.same(first, second)); };
+        zeros : decimal = 0;
+        for(i : _int64 = 0; i < 32; i++) { if(first[i] == 0) { zeros++; } }
+        test("random: not all zero") { expect_true(zeros < 16); };
+        test("random: a thousand bytes") { expect(sizeof(secure_random.bytes(1000))).should_be(1000); };
+        test("random: none") { expect(sizeof(secure_random.bytes(0))).should_be(0); };
+        test("random: hex") { expect(sizeof(secure_random.hex(16).data)).should_be(32); };
+        token := secure_random.token(24);
+        test("random: a token of 24 bytes is 32 characters") { expect(sizeof(token.data)).should_be(32); };
+        safe : decimal = 1;
+        for(i : _int64 = 0; i < sizeof(token.data); i++) {
+            ch : _int64 = token.data!![i];
+            if(!(character.is_letter(ch) || character.is_digit(ch) || ch == '-' || ch == '_')) { safe = 0; }
+        }
+        test("random: a token is letters, digits, - and _") { expect_true(safe); };
+        in_range : decimal = 1;
+        seen := new _int64[6];
+        for(i : _int64 = 0; i < 600; i++) {
+            roll : _int64 = secure_random.below(6);
+            if(roll < 0 || roll > 5) { in_range = 0; } else { seen[roll]++; }
+        }
+        test("random: below stays below") { expect_true(in_range); };
+        test("random: every face turns up") { expect_true(seen[0] > 0 && seen[1] > 0 && seen[2] > 0 && seen[3] > 0 && seen[4] > 0 && seen[5] > 0); };
+        test("random: below 1 is 0") { expect(secure_random.below(1)).should_be(0); };
+        id := secure_random.uuid();
+        test("random: a uuid's length") { expect(sizeof(id.data)).should_be(36); };
+        test("random: a uuid's version") { expect(id.data!![14]).should_be('4'); };
+        test("random: a uuid's dashes") { expect_true(id.data!![8] == '-' && id.data!![13] == '-' && id.data!![18] == '-' && id.data!![23] == '-'); };
+        test("random: two uuids differ") { expect_false(secure_random.uuid() == id); };
+    };
+    finish_tests("lib_crypto");
+}

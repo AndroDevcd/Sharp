@@ -1,0 +1,123 @@
+mod backend.compiler.expressions.calls;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.lambdas,
+    backend.compiler.expressions
+)
+
+/**
+ * CALLING A FUNCTION VALUE
+ *
+ *      on_click : (_int64)(nil)?;          a variable or field that holds a function
+ *      on_click(5);
+ *      handlers[i](event);                 any expression whose type is a function type
+ *      make_adder(2)(3);                   ... the result of a call included
+ *
+ * A function value has a function TYPE, `(p1, p2)(r)`: the call needs as
+ * many arguments as there are parameters (E0505), each converting to its
+ * parameter (constructions included); its value is `r`. There is nothing to
+ * choose - a function value has no overloads. A value that may be null is
+ * called without `!!` (the program throws when there is no function, as in
+ * the C++ compiler; doc/backend.md 7.11).
+ *
+ *      E0504   what is called is not a function: `count(3)` with `count : _int64`
+ *      E0505   the function value is called with the wrong arguments
+ *
+ *      C++ comparison: the `ast_dot_fn_e` branch of post_ast_expression.cpp
+ *      ("Too many parameters for function call", "Parameter type mismatch").
+ */
+def call_function_value(context: analysis_context, callee: bound_expression, arguments: list<call_argument>,
+                        node: _int64) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    type : resolved_type = callee.type;
+    if(type.kind == RT_ERROR) { return failed_call(context, node, callee, arguments); }
+    if(type.kind != RT_FUNCTION || type.is_array == 1) {
+        report_not_callable(context, callee, node);
+        return failed_call(context, node, callee, arguments);
+    }
+
+    parameters : list<resolved_type> = type.parameters!!;
+    if(parameters.size() != arguments.size()) {
+        d := problem_over(context, "E0505", called_text(context, callee) + " takes "
+                          + count_of(parameters.size(), "argument") + ", "
+                          + count_was(arguments.size(), "given"), node);
+        d.with_label("its type is `" + type.to_text() + "`");
+        d.with_note("a function value is called with exactly the arguments its type lists");
+        report(context, d);
+        return failed_call(context, node, callee, arguments);
+    }
+
+    converted := new list<bound_expression>();
+    failed : _int64 = 0;
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        argument := arguments.at(i);
+        if(argument.is_lambda == 1) {
+            converted.add(finish_argument(context, argument, parameters.at(i), "argument " + (i + 1) + " of "
+                                                  + called_text(context, callee)));
+            continue;
+        }
+        how := find_conversion(context.session, argument.value.type, parameters.at(i), 1);
+        if(!how.converts()) {
+            d := problem_over(context, "E0505", "argument " + (i + 1) + " of this call is `" + argument.value.type.to_text()
+                              + "`, but " + called_text(context, callee) + " takes a `" + parameters.at(i).to_text()
+                              + "` there", argument.node);
+            d.with_label("does not fit parameter " + (i + 1) + " of `" + type.to_text() + "`");
+            if(how.only_nullable_in_the_way == 1) { add_null_fixes(context, d, argument.node); }
+            else { explain_mismatch(context, d, argument.value, how); }
+            report(context, d);
+            failed = 1;
+            converted.add(argument.value);
+            continue;
+        }
+        converted.add(apply_conversion(context, argument.value, how));
+    }
+    if(failed == 1) { return new bound_error(context.unit, node, error_type); }
+    return new bound_value_call(context.unit, node, callee, converted, type.result!!);
+}
+
+/**
+ * How a message names what is called: the text as written, in backticks
+ * (`f`, `maker()`), or "this lambda" for a lambda called where it is
+ * written - its whole text would drown the message.
+ */
+def called_text(context: analysis_context, callee: bound_expression) : string {
+    if(callee.kind == BX_LAMBDA) { return "this lambda"; }
+    return "`" + source_text_of(context, callee.node) + "`";
+}
+
+/** E0504: something that is not a function stands in front of `(` */
+def report_not_callable(context: analysis_context, callee: bound_expression, node: _int64) {
+    written := source_text_of(context, callee.node);
+    d := problem_over(context, "E0504", "`" + written + "` is " + described_type(callee.type) + ": it cannot be called",
+                      callee.node);
+    d.with_label("not a function");
+    d.with_note("only a function, or a value of a function type such as `(_int64)(string)`, can be called with `( )`");
+    if(callee.type.kind == RT_CLASS && callee.type.is_array == 0) {
+        d.with_help("to call one of its functions write `" + written + ".<function>(...)`");
+    }
+    if(callee.kind == BX_FIELD || callee.kind == BX_LOCAL) {
+        // `counts.size()` where `size` is a field: the value is there to be read, not called
+        what := "a field";
+        if(callee.kind == BX_LOCAL) { what = "a variable"; }
+        d.with_help("`" + written + "` is " + what + ": read it without `( )`: `" + written + "`");
+    }
+    report(context, d);
+}
+
+/** what a call that went wrong becomes: an error node that keeps what was analysed (for -analysis) */
+def failed_call(context: analysis_context, node: _int64, callee: bound_expression?, arguments: list<call_argument>) : bound_expression {
+    failed := new bound_error(context.unit, node, context.session.types.error_type);
+    if(callee != null) { failed.inner = callee; }
+    return failed;
+}

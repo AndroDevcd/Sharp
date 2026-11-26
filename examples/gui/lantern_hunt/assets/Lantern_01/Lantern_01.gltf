@@ -1,0 +1,270 @@
+{
+  "asset": {
+    "generator": "Khronos glTF Blender I/O v1.6.16",
+    "version": "2.0"
+  },
+  "extensionsUsed": [
+    "KHR_materials_transmission"
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Lantern_01"
+    },
+    {
+      "mesh": 1,
+      "name": "Lantern_01_glass"
+    }
+  ],
+  "materials": [
+    {
+      "alphaMode": "OPAQUE",
+      "doubleSided": true,
+      "extensions": {
+        "KHR_materials_transmission": {
+          "transmissionFactor": 1
+        }
+      },
+      "name": "Lantern_01_brass",
+      "normalTexture": {
+        "index": 0
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 1
+        },
+        "metallicRoughnessTexture": {
+          "index": 2
+        }
+      }
+    },
+    {
+      "alphaMode": "BLEND",
+      "doubleSided": true,
+      "name": "Lantern_01_glass",
+      "normalTexture": {
+        "index": 3
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "index": 4
+        },
+        "metallicRoughnessTexture": {
+          "index": 5
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Mesh",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "Mesh.002",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "NORMAL": 5,
+            "TEXCOORD_0": 6
+          },
+          "indices": 7,
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    },
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 3
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/jpeg",
+      "name": "Lantern_01_brass_nor_gl",
+      "uri": "textures/Lantern_01_brass_nor_gl_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "Lantern_01_brass_diff",
+      "uri": "textures/Lantern_01_brass_diff_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "Lantern_01_brass_metallic-Lantern_01_brass_roughness",
+      "uri": "textures/Lantern_01_brass_arm_1k.jpg"
+    },
+    {
+      "mimeType": "image/jpeg",
+      "name": "Lantern_01_brass_diff-Lantern_01_brass_opacity",
+      "uri": "textures/Lantern_01_brass_diff_1k.jpg"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 18954,
+      "max": [
+        0.061072610318660736,
+        0.2942466139793396,
+        0.04859154298901558
+      ],
+      "min": [
+        -0.061013076454401016,
+        0,
+        -0.04859156534075737
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 18954,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 18954,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 92490,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 1716,
+      "max": [
+        0.035303886979818344,
+        0.12966422736644745,
+        0.035257816314697266
+      ],
+      "min": [
+        -0.0352444089949131,
+        0.06138340383768082,
+        -0.03529048711061478
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5126,
+      "count": 1716,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 1716,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5123,
+      "count": 9216,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 227448,
+      "byteOffset": 0
+    },
+    {
+      "buffer": 0,
+      "byteLength": 227448,
+      "byteOffset": 227448
+    },
+    {
+      "buffer": 0,
+      "byteLength": 151632,
+      "byteOffset": 454896
+    },
+    {
+      "buffer": 0,
+      "byteLength": 184980,
+      "byteOffset": 606528
+    },
+    {
+      "buffer": 0,
+      "byteLength": 20592,
+      "byteOffset": 791508
+    },
+    {
+      "buffer": 0,
+      "byteLength": 20592,
+      "byteOffset": 812100
+    },
+    {
+      "buffer": 0,
+      "byteLength": 13728,
+      "byteOffset": 832692
+    },
+    {
+      "buffer": 0,
+      "byteLength": 18432,
+      "byteOffset": 846420
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9729,
+      "minFilter": 9987
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 864852,
+      "uri": "Lantern_01.bin"
+    }
+  ]
+}

@@ -1,0 +1,491 @@
+mod std.guikit.navigation;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * navigator - where the app is: the screens that are open, and the ones
+ * underneath that "back" returns to.
+ *
+ *      class my_app base composable {
+ *          nav : navigator = navigator();
+ *
+ *          override def build() : element {
+ *              return column(modifier().fill()) {
+ *                  screens(nav, to_home(), modifier().grow(1)) {
+ *                      tab<to_home>("Home")       { home_screen(nav); };
+ *                      tab<to_library>("Library") { library_screen(nav); };
+ *                      screen<to_detail>()        { detail_screen(nav, it.id); };
+ *                  };
+ *                  nav_bar(nav);
+ *              };
+ *          }
+ *      }
+ *
+ * The screen list (screens.sharp) says what there is; the navigator says
+ * where you are. Screens are given the navigator and call it:
+ *
+ *      nav.go(to_detail(7))        open a screen on top of the one showing
+ *      nav.show(to_player())       the same - unless that screen is already on top
+ *                                  (a double tap must not open it twice)
+ *      nav.back()                  return to the screen below
+ *      nav.back_to<to_home>()      return to the nearest screen of that kind below
+ *      nav.reset()         return to the first screen of this tab
+ *      nav.replace(to_login())     swap the top screen; back will not return to the old one
+ *      nav.current()               the route that is showing
+ *
+ * A screen does not need to know any other screen - only the route to it.
+ *
+ * TABS
+ *
+ *   A screen written with tab<...>(...) is top-level: it is one of the places
+ *   the tab bar (nav_bar.sharp) switches between. EACH TAB HAS ITS OWN BACK
+ *   STACK. Open a detail screen in Library, switch to Home, switch back: the
+ *   detail screen is still there, exactly as it was left. Going to a tab that
+ *   is already showing returns it to its first screen.
+ *
+ *   nav.go(...) with a tab's route switches to that tab; with any other route
+ *   it opens that screen on top, in the tab you are in.
+ *
+ *   "Back" on a tab's first screen returns to the FIRST tab - and from there
+ *   has nowhere to go (back() gives 0).
+ *
+ * WHAT BACK KEEPS: a screen that is covered by another, or sits in a tab that
+ * is not showing, stays alive - its states, its scroll positions, its typed
+ * text - and is as it was left when it shows again. A screen that is popped
+ * off its stack is gone; opening it again makes a fresh one.
+ *
+ * (Compose: NavController + NavHost with typed routes, and the
+ * saveState / restoreState of bottom navigation. Android: fragments on back
+ * stacks. Here the bookkeeping those need - save, restore, launchSingleTop,
+ * popUpTo - is the default behaviour or one short word.)
+ *
+ * HOW IT WORKS
+ *
+ *   `kinds` is the screen list: one entry per screen<...>() / tab<...>(...)
+ *   line. It is written afresh every time the app's build() runs (the block of
+ *   screens(...) runs again), so the functions in it always belong to the
+ *   latest build.
+ *
+ *   `stacks` holds the back stacks: one per tab, in the order the tabs are
+ *   listed (an app without tabs just has the one). `showing` says which is in
+ *   front. Each entry of a stack is one open screen: its route and its host -
+ *   a small composable (screen_frame) that builds the screen by asking the
+ *   screen list for the line that matches the route.
+ *
+ *   Every move bumps a small state, `moves`. The widget that SHOWS the top
+ *   screen (screens.sharp) and the tab bar read that state while they are
+ *   built - so every move rebuilds them, like any other state change.
+ *   `last_move` tells the showing widget which way to slide.
+ *
+ * Keep the navigator where it lives as long as the app: a field of the root
+ * composable. (A field of a nested composable is made anew whenever its
+ * parent rebuilds.)
+ */
+stable class navigator {
+    /** the navigator whose screen list is being written right now (screens(...) sets it while its block runs) */
+    static listing : navigator?;
+
+    private kinds : list<screen_kind> = new list<screen_kind>();
+    private stacks : list<screen_stack> = new list<screen_stack>();
+    private showing : _int64 = 0;                           // which back stack is in front
+    private moves : state<_int64> = new state<_int64>(0);
+
+    /** which way the last move went: 1 forward (go), -1 back, 0 neither (a tab switch, replace, the first screen) */
+    last_move : _int64 = 0;
+
+    // ------------------------------------------------------------ going places
+
+    /**
+     * Open the screen for `where`. A tab's route switches to that tab (a tab
+     * that is already showing goes back to its first screen); any other route
+     * opens on top of the screen showing.
+     */
+    def go(where: route) {
+        kind : screen_kind = kind_for(where);
+        if(kind.is_tab() == 1) {
+            switch_to(tab_number(kind), where);
+            return;
+        }
+        front().entries.add(new nav_entry(self, where));
+        moved(1);
+    }
+
+    /**
+     * Make sure the screen for `where` is showing: like go(), except that
+     * nothing happens when a screen of that kind is already on top. For
+     * anything a quick double tap must not open twice.
+     */
+    def show(where: route) {
+        top : nav_entry? = front().top();
+        if(top != null && kind_for(where).accepts(top!!.where) == 1) {
+            return;
+        }
+        go(where);
+    }
+
+    /** put the screen for `where` in place of the one showing; "back" will not return to the old one */
+    def replace(where: route) {
+        kind_for(where);                                    // an unlisted route is refused before anything changes
+        pile : screen_stack = front();
+        count : _int64 = pile.entries.size();
+        if(count > 0) {
+            pile.entries.remove_at(count - 1);
+        }
+        pile.entries.add(new nav_entry(self, where));
+        moved(0);
+    }
+
+    /**
+     * Return to the screen below. On a tab's first screen, return to the first
+     * tab. Gives 1 when it went somewhere, 0 when there is nowhere to go back
+     * to (the first screen of the first tab).
+     */
+    def back() : _int64 {
+        pile : screen_stack = front();
+        count : _int64 = pile.entries.size();
+        if(count > 1) {
+            pile.entries.remove_at(count - 1);
+            moved(0 - 1);
+            return 1;
+        }
+        if(showing != 0 && stacks.at(0).entries.size() > 0) {
+            showing = 0;
+            moved(0);
+            return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * Return to the nearest screen of this kind below the one showing,
+     * dropping every screen above it: nav.back_to<to_home>(). Gives 1 when it
+     * got there, 0 when no such screen is open in this tab (nothing changes).
+     */
+    def back_to<t base route>() : _int64 {
+        pile : screen_stack = front();
+        count : _int64 = pile.entries.size();
+        for(i : _int64 = count - 2; i >= 0; i--) {
+            if(pile.entries.at(i).where is t) {
+                for(drop : _int64 = count - 1; drop > i; drop--) {
+                    forget(pile, drop, count - 1);
+                }
+                moved(0 - 1);
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    /** return to the first screen of the tab that is showing, dropping every screen above it */
+    def reset() {
+        pile : screen_stack = front();
+        count : _int64 = pile.entries.size();
+        if(count <= 1) {
+            return;
+        }
+        for(i : _int64 = count - 1; i >= 1; i--) {
+            forget(pile, i, count - 1);
+        }
+        moved(0 - 1);
+    }
+
+    // ------------------------------------------------------------ where the app is
+
+    /** the route of the screen that is showing (null before the first screen) */
+    def current() : route? {
+        top : nav_entry? = front().top();
+        if(top == null) {
+            return null;
+        }
+        return top!!.where;
+    }
+
+    /** is there a screen below this one to go back to, in this tab? */
+    def can_go_back() : _int64 {
+        if(front().entries.size() > 1) { return 1; }
+        return 0;
+    }
+
+    /** is a tab's own first screen showing (nothing opened on top of it)? The tab bar shows itself only then. */
+    def on_tab_root() : _int64 {
+        if(front().entries.size() <= 1) { return 1; }
+        return 0;
+    }
+
+    /** how many screens are open in the tab that is showing */
+    def depth() : _int64 {
+        return front().entries.size();
+    }
+
+    // ------------------------------------------------------------ tabs (for the tab bar)
+
+    /** how many tabs the screen list has */
+    def tab_count() : _int64 {
+        count : _int64 = 0;
+        for(i : _int64 = 0; i < kinds.size(); i++) {
+            if(kinds.at(i).is_tab() == 1) { count = count + 1; }
+        }
+        return count;
+    }
+
+    /** the words of tab number `index` (0 is the first) */
+    def tab_title(index: _int64) : string {
+        kind : screen_kind? = tab_kind(index);
+        if(kind == null) {
+            return "";
+        }
+        return kind!!.title();
+    }
+
+    /** the number of the tab that is showing */
+    def tab_showing() : _int64 {
+        return showing;
+    }
+
+    /** switch to tab number `index` (the tab bar calls this). The tab that is already showing goes back to its first screen. */
+    def open_tab(index: _int64) {
+        if(index < 0 || index >= tab_count()) {
+            return;
+        }
+        if(index == showing) {
+            reset();
+            return;
+        }
+        // a tab that was opened before is shown as it was left; one that never
+        // was gets its first screen now, from the route the tab makes for itself
+        if(stacks.size() > index && stacks.at(index).entries.size() > 0) {
+            showing = index;
+            moved(0);
+            return;
+        }
+        kind : screen_kind? = tab_kind(index);
+        if(kind != null) {
+            first : route? = kind!!.first_route();
+            if(first != null) {
+                switch_to(index, first!!);
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ the screen list (written by screens(...))
+
+    /** the screen list is about to be written again: forget the old one */
+    def begin_listing() {
+        kinds.clear();
+    }
+
+    /** one line of the screen list (screen<...>() and tab<...>(...) call this) */
+    def list_screen(kind: screen_kind) {
+        kinds.add(kind);
+    }
+
+    /** the app's first screen, once the screen list is written: only when nothing is open yet */
+    def start_at(where: route) {
+        if(stacks.size() > 0 && front().entries.size() > 0) {
+            return;
+        }
+        kind : screen_kind = kind_for(where);
+        index : _int64 = 0;
+        if(kind.is_tab() == 1) { index = tab_number(kind); }
+        stack_at(index).entries.add(new nav_entry(self, where));
+        showing = index;
+        last_move = 0;
+    }
+
+    /** the line of the screen list that shows `where` - or an error that names the route nobody listed */
+    def kind_for(where: route) : screen_kind {
+        for(i : _int64 = 0; i < kinds.size(); i++) {
+            if(kinds.at(i).accepts(where) == 1) {
+                return kinds.at(i);
+            }
+        }
+        throw new illegal_state_exception("there is no screen for this route: list it inside `screens(nav, ...) { ... }` with `screen<its_route>() { ... }` or `tab<its_route>(\"Title\") { ... }`");
+    }
+
+    // ------------------------------------------------------------ for the widget that shows the screens
+
+    /** the view of the screen on top of the stack in front (null while nothing is open) */
+    def top_view() : view? {
+        if(stacks.size() == 0) {
+            return null;
+        }
+        top : nav_entry? = front().top();
+        if(top == null) {
+            return null;
+        }
+        return top!!.frame.node();
+    }
+
+    /** is this screen (its view) still open somewhere - on any tab's stack? */
+    def holds(screen: view) : _int64 {
+        for(s : _int64 = 0; s < stacks.size(); s++) {
+            entries : list<nav_entry> = stacks.at(s).entries;
+            for(i : _int64 = 0; i < entries.size(); i++) {
+                if(entries.at(i).frame.node() == screen) { return 1; }
+            }
+        }
+        return 0;
+    }
+
+    /** "rebuild me when the app goes somewhere": read by whoever shows the navigator, while it is built */
+    def watch() {
+        seen : _int64 = moves.value;
+    }
+
+    // ------------------------------------------------------------ inside
+
+    /**
+     * Take one screen off a stack for good. The screen that was SHOWING
+     * (`on_screen`) is still on the screen for the length of the transition:
+     * the widget that shows it tells it that it is gone when it has left
+     * (screens.sharp). Any other screen was covered and is not shown by
+     * anybody, so it is told here - its timers stop, its when_gone runs.
+     */
+    private def forget(pile: screen_stack, index: _int64, on_screen: _int64) {
+        gone : nav_entry = pile.entries.at(index);
+        pile.entries.remove_at(index);
+        if(index != on_screen) {
+            reconciler.retire(gone.frame.node());
+        }
+    }
+
+    /** the back stack in front (made on first use) */
+    private def front() : screen_stack {
+        return stack_at(showing);
+    }
+
+    private def stack_at(index: _int64) : screen_stack {
+        while(stacks.size() <= index) {
+            stacks.add(new screen_stack());
+        }
+        return stacks.at(index);
+    }
+
+    /** the tab line number `index` of the screen list (null when there are fewer tabs) */
+    private def tab_kind(index: _int64) : screen_kind? {
+        seen : _int64 = 0;
+        for(i : _int64 = 0; i < kinds.size(); i++) {
+            if(kinds.at(i).is_tab() == 1) {
+                if(seen == index) { return kinds.at(i); }
+                seen = seen + 1;
+            }
+        }
+        return null;
+    }
+
+    /** which tab (0 is the first) this line of the screen list is */
+    private def tab_number(kind: screen_kind) : _int64 {
+        seen : _int64 = 0;
+        for(i : _int64 = 0; i < kinds.size(); i++) {
+            if(kinds.at(i) == kind) { return seen; }
+            if(kinds.at(i).is_tab() == 1) { seen = seen + 1; }
+        }
+        return 0;
+    }
+
+    /** bring a tab to the front; opened for the first time it gets its first screen, shown again it is as it was left */
+    private def switch_to(index: _int64, where: route) {
+        pile : screen_stack = stack_at(index);
+        if(index == showing && pile.entries.size() > 0) {
+            reset();                                // the tab that is showing: back to its first screen
+            return;
+        }
+        if(pile.entries.size() == 0) {
+            pile.entries.add(new nav_entry(self, where));
+        }
+        showing = index;
+        moved(0);
+    }
+
+    private def moved(direction: _int64) {
+        last_move = direction;
+        moves.value = moves.peek() + 1;
+    }
+}
+
+/** one back stack: the screens open in one tab, the first at the bottom */
+local stable class screen_stack {
+    entries : list<nav_entry> = new list<nav_entry>();
+
+    /** the screen on top (null when the stack is empty) */
+    def top() : nav_entry? {
+        count : _int64 = entries.size();
+        if(count == 0) {
+            return null;
+        }
+        return entries.at(count - 1);
+    }
+}
+
+/** one open screen: the route it was opened with, and the composable that builds and holds it */
+local stable class nav_entry {
+    where : route;
+    frame : screen_frame;
+
+    private static opened : _int64 = 0;         // how many screens were ever opened: the next one's number
+
+    nav_entry(owner: navigator, target: route) {
+        where = target;
+
+        // made with no container open: it belongs to the navigator, and is put
+        // on the screen by the widget that shows the navigator (screens.sharp)
+        open_before : view? = scope.open;
+        scope.open = null;
+        frame = new screen_frame(owner, target);
+        scope.open = open_before;
+
+        // Every open screen has a name of its own. When the app is built again,
+        // what a widget remembers is carried from the old tree to the new by
+        // matching things that sit at the same place - and all open screens sit
+        // at the same place (the one child of the widget that shows them). The
+        // name keeps a screen from being matched with a DIFFERENT screen that
+        // was showing a moment ago, and taking over that one's scroll positions
+        // and states instead of keeping its own. (reconciler.sharp: views with
+        // a key are only matched with the same key.)
+        opened = opened + 1;
+        frame.node().key = "screen#" + opened;
+    }
+}
+
+/**
+ * screen_frame - the composable around one open screen.
+ *
+ * Its build() asks the navigator's screen list for the line that matches its
+ * route and lets that line make the screen. Because it is a composable of its
+ * own, each open screen is rebuilt on its own, keeps what its widgets
+ * remember while it is covered, and has a life that begins when it is opened
+ * and ends when it is popped (composable.when_gone).
+ *
+ * It looks the line up AT BUILD TIME rather than keeping the one it was opened
+ * with: the screen list is written afresh on every build of the app, and the
+ * functions in the newest list are the ones that see the app's current state.
+ */
+local stable class screen_frame base composable {
+    private nav : navigator;
+    private where : route;
+
+    // the view models of this screen: made on first asking, dropped when the screen is popped
+    private models : model_store = new model_store();
+
+    screen_frame(owner: navigator, target: route) {
+        nav = owner;
+        where = target;
+        when_gone({ -> models.drop_all(); });
+    }
+
+    override def build() : element {
+        kind : screen_kind = nav.kind_for(where);
+
+        // while this screen's content is made, a model that is asked for is
+        // THIS screen's (model_of, view_model.sharp)
+        before : model_store? = model_store.current;
+        model_store.current = models;
+        made := stack(modifier().fill()) {
+            kind.fill(where);
+        };
+        model_store.current = before;
+        return made;
+    }
+}

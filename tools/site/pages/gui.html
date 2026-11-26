@@ -1,0 +1,75 @@
+<div class="gui">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">GUI development</p>
+      <h1>Desktop apps, built in.</h1>
+      <p><code>std.guikit</code> comes with Sharp. Describe the screen, keep your data in state, and the screen updates when the state changes. Widgets, charts and 3D scenes are all part of it.</p>
+      <div><a class="btn" href="{root}gui-guide.html">Read the full GUI guide</a></div>
+    </div>
+
+    <div class="pair">
+      <div class="col">
+        <h2>A counter in 20 lines</h2>
+        <p>Layouts are <code>column</code> and <code>row</code>. Changing <code>count.value</code> redraws the text.</p>
+        <div class="code"><pre class="sharp">mod app;
+
+import ( std.guikit.* )
+
+class counter base composable {
+    count := state(0);
+
+    override def build() : element {
+        return column(modifier().fill()) {
+            text("count: " + count.value).size(32);
+            row {
+                button("-") { count.value -= 1; }.outline();
+                button("Reset") { count.value = 0; }.plain();
+                button("+") { count.value += 1; };
+            }.gap(8);
+        }.center().gap(16);
+    }
+}
+
+def main() {
+    gui.run("Counter", 360, 240, counter());
+}</pre></div>
+      </div>
+      <figure class="shot small"><img src="{root}shots/counter.png" alt="The counter app: the text count: 0 above three buttons, minus, Reset and plus" width="376" height="279"><figcaption>The program on the left, running.</figcaption></figure>
+    </div>
+
+    <div class="pair">
+      <figure class="shot"><img src="{root}shots/charts.jpg" alt="A window of charts: revenue bars with a target line, two filled line charts of visitors, and grouped bars of sales by product" width="1000" height="752"><figcaption>The charts example from the repository.</figcaption></figure>
+      <div class="col">
+        <h2>Charts</h2>
+        <p>Bars, lines, axes, legends and animation. Mix series in one chart and style each label.</p>
+        <div class="code"><pre class="sharp">chart {
+    bars("Revenue", revenue).gradient(sky, deep).corner(6);
+    line("Target", target).color(amber).thickness(3).dots(4);
+
+    x_axis(months);
+    y_axis().ticks(5);
+    grid_lines().dashed();
+    legend().bottom();
+};</pre></div>
+      </div>
+    </div>
+
+    <div class="pair">
+      <div class="col">
+        <h2>3D scenes</h2>
+        <p>A <code>scene</code> is a widget like any other, drawn with OpenGL. It has meshes, lights, shadows, fog, a camera and your own shaders, and regular widgets go on top of it.</p>
+        <p>Sharpcraft is a block-building game written this way: the world is 3D, and the hotbar and hearts are ordinary widgets.</p>
+        <div class="code"><pre class="sharp">scene {
+    sky(0x3F86E8FF, 0xC6E4FFFF);
+    sun().from(0.5, 0.8, 0.3).shadows(60);
+
+    box := cube(1, 1, 1).at(0, 0.5, 0).color(0x6AA84FFF);
+    camera().at(0, 2, 4).look_at(0, 0.5, 0);
+
+    on_frame { f: frame -> box.turn(f.time * 40); };
+};</pre></div>
+      </div>
+      <figure class="shot"><img src="{root}shots/sharpcraft.jpg" alt="Sharpcraft: a first-person view of a blocky landscape with trees and sheep, a pickaxe in hand and a hotbar with hearts at the bottom" width="1000" height="586"><figcaption>Sharpcraft, running at 60 frames a second.</figcaption></figure>
+    </div>
+  </div>
+</div>

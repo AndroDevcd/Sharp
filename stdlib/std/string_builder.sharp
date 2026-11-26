@@ -1,0 +1,434 @@
+mod std;
+
+import(
+    std.io
+)
+
+/**
+* Created by bknun on 9/3/2022
+*
+* @class string_builder
+*
+* Description:
+* Builds a string piece by piece in a buffer that grows by doubling, so adding
+* n characters costs about n copies in total. Use it instead of `+=` on a
+* string inside a loop: every `+=` on a string copies the whole string again.
+*
+*     sb := new string_builder();
+*     sb.append("x = ").append_int(42).append_line();
+*     text := sb.build();
+*
+* The buffer (`data`) is usually larger than the text; only the first `size()`
+* characters are in use. Every append returns the builder itself so calls can
+* be chained.
+*
+* This file holds the core: creating, appending, comparing and reading back.
+* More operations are added to the class from std/text/builder/:
+*     string_builder_edit.sharp    insert, delete, replace_range, reverse, clear, set_length,
+*                                  append_line, append_int, append_number, append_repeat
+*     string_builder_query.sharp   length, capacity, char_at, index_of, contains, slice
+*
+* A builder is not safe to share between threads without a lock.
+*/
+class string_builder : loopable<_int8> {
+    /* the buffer; characters 0 .. cursor - 1 are the text, the rest is spare room */
+    data : _int8[]?;
+        private set value -> { data = value; }
+
+    /* size of the buffer a new builder starts with */
+    private static const default_capacity : decimal = 64;
+
+    /* the number of characters in use (also the position the next append writes to) */
+    private cursor : decimal = 0;
+
+    init {
+      data = new _int8[default_capacity];
+    }
+
+    /** A builder that starts with the characters of `str`. */
+    string_builder(str : _int8[]) { // todo: test for ambiguous call errors (with operator functions)
+        append(str);
+    }
+
+    /** A builder that starts with the one character `ch`. */
+    string_builder(ch: char) {
+        append(ch.value);
+    }
+
+    /** A builder that starts with the given characters. */
+    string_builder(str : char[]) {
+        reserve(sizeof(str));
+        foreach(ch in str) {
+            data[cursor++] = ch.value;
+        }
+    }
+
+    /** A builder that starts with the text of `str`. */
+    string_builder(str: string) {
+        append(str);
+    }
+
+    /** A builder that starts with a copy of the text of another builder. */
+    string_builder(str: string_builder) {
+        append_builder(str);
+    }
+
+    /** A builder that starts with the characters of `str` from position `offset` to its end. */
+    string_builder(str : _int8[], offset: int) {
+        count : decimal = sizeof(str) - offset.value;
+        if(offset.value < 0 || count < 0)
+            throw bounds_error(offset);
+        if(count > 0) {
+            reserve(count);
+            memcopy(str, data!!, 0, offset.value, sizeof(str));
+            cursor = count;
+        }
+    }
+
+    /**
+     * INTERNAL. Makes sure `extra` more characters fit after the text. The
+     * buffer at least doubles when it has to grow, which is what keeps a long
+     * series of appends cheap.
+     */
+    private def reserve(extra: decimal) {
+        needed : decimal = cursor + extra;
+        if(data == null) {
+            data = new _int8[needed > default_capacity ? needed : default_capacity];
+        } else if(needed > sizeof(data)) {
+            new_size : decimal = sizeof(data) * 2;
+            if(new_size < needed) new_size = needed;
+            realloc(data!!, new_size);
+        }
+    }
+
+    /** INTERNAL. Appends the first `len` characters of `chars` (which must not be this builder's own buffer). */
+    private def append_raw(chars: _int8[]?, len: decimal) {
+        if(len > 0) {
+            reserve(len);
+            memcopy(chars!!, data!!, cursor, 0, len);
+            cursor += len;
+        }
+    }
+
+    /** INTERNAL. Appends the text of another builder (or of this one: the text is then doubled). */
+    private def append_builder(other: string_builder) {
+        len : decimal = other.cursor;
+        if(len > 0) {
+            reserve(len);                               // (may move `data`, so read other.data after it)
+            memcopy(other.data!!, data!!, cursor, 0, len);
+            cursor += len;
+        }
+    }
+
+    /** true if `space_required` more characters fit in the buffer without growing it. */
+    def space_available(space_required : decimal) : bool {
+        return (cursor + space_required) <= sizeof(data);
+    }
+
+    /** Grows the buffer, if needed, so that `space_required` more characters fit. */
+    def expand(space_required : int) {
+        reserve(space_required.value);
+    }
+
+    /**
+     * Overwrites the character at `pos` with `ch`. Returns this builder.
+     * Throws out_of_bounds_exception if pos is not a position inside the text.
+     */
+    def replace(pos : decimal, ch: _int8) : string_builder {
+        if(pos >= cursor || pos < 0) {
+            throw bounds_error(pos);
+        }
+
+        data[pos] = ch;
+        return self;
+    }
+
+    /** Appends one character. Returns this builder. */
+    def append(ch: _int8) : string_builder
+    {
+        if(data == null || cursor >= sizeof(data))
+            reserve(1);
+
+        data[cursor++] = ch;
+        return self;
+    }
+
+    /**
+     * Appends one character given as a native number. Same as append(ch), for
+     * callers that hold the character in a `decimal` (where append(...) would be
+     * ambiguous between a character and a number object).
+     */
+    def append_char(ch: decimal) : string_builder
+    {
+        if(data == null || cursor >= sizeof(data))
+            reserve(1);
+
+        data[cursor++] = ch;
+        return self;
+    }
+
+    /** A copy of the text as raw characters, or null if the builder is empty. */
+    override def get_elements() := to_array();
+
+    /** Appends one character. Returns this builder. */
+    def append(c: char) := append(c.value);
+
+    /** the word `true` or `false` */
+    def append(flag: bool) : string_builder {
+        return append(flag ? "true" : "false");
+    }
+
+    /** Appends the text of `s` (nothing if it is empty). Returns this builder. */
+    def append(s: string) : string_builder {
+        append_raw(s.data, sizeof(s.data));
+        return self;
+    }
+
+    /** Appends the characters of `immstr`; null appends nothing. Returns this builder. */
+    def append(immstr: _int8[]?) : string_builder
+    {
+        if(immstr == null) return self;
+        if(immstr == data) {
+            // appending the builder's own buffer: only its text, not the spare room
+            append_builder(self);
+            return self;
+        }
+
+        append_raw(immstr, sizeof(immstr));
+        return self;
+    }
+
+    /**
+     * Appends the first `len` characters of `immstr`. Returns this builder.
+     * Throws error if len is negative or larger than the array.
+     */
+    def append(immstr: _int8[], len: int) : string_builder
+    {
+        if(immstr == null) return self;
+        if(len.value < 0)
+            throw new error("length cannot be less than zero");
+
+        if(len.value > sizeof(immstr))
+            throw new error("length of: $len is greater than the string: ${sizeof(immstr)}");
+
+        append_raw(immstr, len.value);
+        return self;
+    }
+
+    /**
+     * A NEW builder holding this text followed by `immstr`. This builder is not changed.
+     * (a null adds nothing: that is how an empty text in quotes, `builder + ""`, arrives)
+     */
+    def operator+(immstr : _int8[]?) : string_builder {
+        s := new string_builder(self);
+        return s.append(immstr);
+    }
+
+    /** A NEW builder holding this text followed by the text of `obj` ("null" if it is null). */
+    def operator+(obj : printable?) : string_builder {
+        s := new string_builder(self);
+        return s.append_printable(obj);
+    }
+
+    /** INTERNAL. Appends obj.to_string(), or "null" when the object or its text is null. */
+    private def append_printable(obj : printable?) : string_builder {
+        str := obj?.to_string();
+        // (reference comparison: `str == null` would also be true for an empty string)
+        if((str as object) == null) {
+            return append("null");
+        }
+        append_raw(str?.data, sizeof(str?.data));
+        return self;
+    }
+
+    /** The text as a new string ("" for an empty builder). The builder can be used further. */
+    override def to_string() : string? = build();
+
+    /** The text as a new string that is never null ("" for an empty builder). */
+    def build() : string {
+        if(cursor == 0) return new string();
+        return new string(data!!, 0, cursor);
+    }
+
+    /** true if the text equals the characters of `str`. */
+    def operator==(str : _int8[]) : bool {
+        if(cursor != sizeof(str))
+            return false;
+
+        for(i : decimal = 0; i < cursor; i++) {
+            if(str[i] != data[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** true if the text equals the text of `str`. */
+    def operator==(str : string) : bool {
+        if(cursor != sizeof(str.data))
+            return false;
+
+        for(i : decimal = 0; i < cursor; i++) {
+            if(str.data[i] != data[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+    def operator!=(str : _int8[]) := !operator==(str);
+
+    def operator!=(str : string) := !operator==(str);
+
+    /** Replaces the whole text with the characters of `immstr`; null (or nothing) empties the builder. */
+    def operator=( immstr: _int8[]? )
+    {
+        cursor = 0;
+        if(immstr != null) {
+            data = new _int8[sizeof(immstr) + default_capacity];
+            cursor = sizeof(immstr);
+            memcopy(immstr!!, data!!, 0, 0, sizeof(immstr));
+        }
+    }
+
+    /**
+     * The character at `pos` as a `char` object.
+     * Throws out_of_bounds_exception if pos is not a position inside the text.
+     */
+    def at(pos : int) : char {
+        if(pos.value >= cursor || pos.value < 0)
+            throw bounds_error(pos);
+        return data[pos.value];
+    }
+
+    def operator[](pos: int) : char {
+        return at(pos);
+    }
+
+    /** A copy of the text as raw characters, or null if the builder is empty. */
+    def to_array() : _int8[]?
+    {
+        if(data == null || cursor == 0) return null;
+        result := new _int8[cursor];
+        memcopy(data!!, result, 0, 0, cursor);
+        return result;
+    }
+
+    /** INTERNAL. true if `needle` (of `needle_size` characters) occurs in the text exactly at position `pos`. */
+    private def matches_at(pos: decimal, needle: _int8[]?, needle_size: decimal) : bool {
+        if(pos < 0 || pos + needle_size > cursor) return false;
+        for(j : decimal = 0; j < needle_size; j++) {
+            if(data[pos + j] != needle[j]) return false;
+        }
+        return true;
+    }
+
+    /** INTERNAL. Position of the first occurrence of `needle` at or after `from`, or -1. */
+    private def find_from(needle: _int8[]?, needle_size: decimal, from: decimal) : decimal {
+        if(from < 0) from = 0;
+        if(needle_size == 0) {
+            if(from > cursor) return cursor;
+            return from;
+        }
+
+        last_start : decimal = cursor - needle_size;
+        for(i : decimal = from; i <= last_start; i++) {
+            if(data[i] == needle[0] && matches_at(i, needle, needle_size)) return i;
+        }
+        return -1;
+    }
+
+    /** true if the text starts with `prefix` (every text starts with ""). */
+    def starts_with(prefix: string) : bool {
+        return matches_at(0, prefix.data, sizeof(prefix.data));
+    }
+
+    /** true if `str` occurs anywhere in the text. */
+    def find(str: string) : bool {
+        return find_from(str.data, sizeof(str.data), 0) >= 0;
+    }
+
+    /** true if the text of the builder `str` occurs anywhere in this text. */
+    def find(str: string_builder) : bool {
+        return find_from(str.data, str.cursor, 0) >= 0;
+    }
+
+    /** true if the text ends with `postfix` (every text ends with ""). */
+    def ends_with(postfix: string) : bool {
+        return matches_at(cursor - sizeof(postfix.data), postfix.data, sizeof(postfix.data));
+    }
+
+    /** The number of characters in the text. */
+    def size() : _int64 {
+        return cursor;
+    }
+
+    def operator+=( obj: printable? ) : string_builder
+    {
+        return append_printable(obj);
+    }
+
+    def operator+=( str: string ) : string_builder
+    {
+        return append(str);
+    }
+
+    def operator+=( str: string_builder ) : string_builder
+    {
+        append_builder(str);
+        return self;
+    }
+
+    def operator+=( flag: bool ) : string_builder
+    {
+        return append(flag);
+    }
+
+    def operator+=( str: _int8[] ) : string_builder
+    {
+        return append(str);
+    }
+
+    /**
+     * A NEW builder holding the characters from `start_pos` up to (not including) `end_pos`.
+     * Throws out_of_bounds_exception if start_pos is not inside the text or end_pos is beyond it,
+     * illegal_argument_exception if end_pos is less than start_pos.
+     */
+    public def substring(start_pos: int, end_pos: int) : string_builder {
+        if((start_pos.value >= cursor) || (start_pos.value < 0))
+            throw bounds_error(start_pos);
+        if(end_pos.value < start_pos.value)
+            throw new illegal_argument_exception(
+                "end_pos: $end_pos cannot be less than the start_pos: $start_pos");
+        if(end_pos.value > cursor)
+            throw bounds_error(end_pos);
+
+        str := new string_builder();
+        len : decimal = end_pos.value - start_pos.value;
+        if(len > 0) {
+            str.reserve(len);
+            memcopy(data!!, str.data!!, 0, start_pos.value, end_pos.value);
+            str.cursor = len;
+        }
+        return str;
+    }
+
+    private def bounds_error(pos : int) : out_of_bounds_exception {
+        return new out_of_bounds_exception("Index out of bounds exception at: $pos with size of: ${size()}");
+    }
+
+    /** A hash of the text: equal texts give equal hashes (the same formula as string.hash()). */
+    override def hash() : int {
+        const p := 31;
+        const m := 1e9 + 9;
+        hash_value := 0;
+        p_pow : decimal = 1;
+        for(i : decimal = 0; i < cursor; i++) {
+            hash_value = (hash_value + (data[i] - 'a' + 1) * p_pow) % m;
+            p_pow = (p_pow * p) % m;
+        }
+
+        return hash_value;
+    }
+}

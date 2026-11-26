@@ -1,0 +1,311 @@
+mod std.guikit.testing;
+
+import (
+    std,
+    std.testing,
+    std.guikit.*
+)
+
+/**
+ * CHECKING A WIDGET IN A UI TEST (ui_test.sharp has the overview)
+ *
+ *      should_exist()          there is such a widget on the screen
+ *      should_not_exist()      there is none
+ *      should_be_shown()       it is there and can be seen: not hidden, not scrolled out of sight
+ *      should_be_hidden()      it cannot be seen (or is not there at all)
+ *
+ *      should_be_enabled()     it can be used
+ *      should_be_disabled()    it is greyed out
+ *      should_be_on()          a checkbox is ticked, a switch on, a radio or a chip the chosen one
+ *      should_be_off()
+ *      should_be_selected()    the same as should_be_on(): for a radio, a chip
+ *      should_be_focused()     it has the keyboard
+ *
+ *      should_say("words")     it shows exactly these words (a text field: this is typed in it)
+ *      should_contain("part")  these words are somewhere in what it shows
+ *      should_have_value(0.5)  a slider or a progress bar stands at this number
+ *
+ * A check that does not hold fails the test THERE, like expect(...) of
+ * std.testing, and the message ends with the screen as text. One that holds
+ * answers the same ui_node, so more can follow:
+ *
+ *      on_tag("total").should_be_shown().should_say("Count: 1");
+ *
+ * TOASTS AND THE TOOLTIP are not widgets: the window paints them over
+ * everything itself. on_text(...) does not find them; these do:
+ *
+ *      should_show_toast("Saved")      a toast with exactly these words is up
+ *      should_show_no_toast()          none is (after advance(...) let its time pass)
+ *      should_show_tooltip("Delete")   the tooltip with these words is up (hover() a widget, advance(1))
+ *      should_show_no_tooltip()
+ *
+ *      (a dialog, a menu and a bottom sheet ARE widgets: on_tag and on_text find what is in them)
+ *
+ * WHAT IS PAINTED - a watched test only (-watch, or watch_ui_tests()):
+ *
+ *      should_have_color(gui.rgb(230, 90, 90))         the colour painted in the middle of it
+ *      should_have_color_at(4, 4, colour)              ... 4 pixels in from its top left corner
+ *      color_at(4, 4)                                  the colour there, to look at yourself
+ *
+ * A test that is not watched paints nothing, so there is no colour to check:
+ * these words then stop the test with an illegal_state_exception that says
+ * so. They do not pass quietly, and they are not skipped.
+ *
+ * (They are named should_... because they are checks. The words that only
+ * ASK - exists(), is_shown(), words() in finders.sharp - answer and never fail.)
+ */
+
+def ui_node.should_exist() : ui_node {
+    view_now("should_exist()");
+    return self;
+}
+
+def ui_node.should_not_exist() : ui_node {
+    if(matches().size() > 0) {
+        test_screen.fail("should_not_exist()", "there is a widget with " + asked() + " on the screen");
+    }
+    return self;
+}
+
+def ui_node.should_be_shown() : ui_node {
+    v : view = view_now("should_be_shown()");
+    if(!test_screen.visible_part(v)) {
+        test_screen.fail("should_be_shown()", asked() + " is there but cannot be seen: it is hidden, has no size, or is scrolled out of sight");
+    }
+    return self;
+}
+
+def ui_node.should_be_hidden() : ui_node {
+    v : view? = view_or_none("should_be_hidden()");
+    if(v != null && test_screen.visible_part(v!!)) {
+        test_screen.fail("should_be_hidden()", asked() + " can be seen");
+    }
+    return self;
+}
+
+def ui_node.should_be_enabled() : ui_node {
+    v : view = view_now("should_be_enabled()");
+    if(v.enabled == 0) {
+        test_screen.fail("should_be_enabled()", asked() + " is disabled");
+    }
+    return self;
+}
+
+def ui_node.should_be_disabled() : ui_node {
+    v : view = view_now("should_be_disabled()");
+    if(v.enabled == 1) {
+        test_screen.fail("should_be_disabled()", asked() + " is enabled");
+    }
+    return self;
+}
+
+/**
+ * Is the widget on? Asked of the widget itself or - words found inside a
+ * checkbox that was given a block - of the nearest widget around it that is
+ * on or off. Fails the test when there is no such widget.
+ */
+def on_now(node: ui_node, word: string) : bool {
+    at : view? = node.view_now(word);
+    while(at != null) {
+        if(at!!.how is on_or_off) {
+            flips := at!!.how as on_or_off;
+            return flips.is_on();
+        }
+        at = at!!.parent;
+    }
+    test_screen.fail(word, node.asked() + " is a `" + node.view_now(word).how.kind() + "`: not something that is on or off");
+    return false;
+}
+
+def ui_node.should_be_on() : ui_node {
+    if(!on_now(self, "should_be_on()")) {
+        test_screen.fail("should_be_on()", asked() + " is off");
+    }
+    return self;
+}
+
+def ui_node.should_be_off() : ui_node {
+    if(on_now(self, "should_be_off()")) {
+        test_screen.fail("should_be_off()", asked() + " is on");
+    }
+    return self;
+}
+
+def ui_node.should_be_selected() : ui_node {
+    if(!on_now(self, "should_be_selected()")) {
+        test_screen.fail("should_be_selected()", asked() + " is not the one chosen");
+    }
+    return self;
+}
+
+def ui_node.should_be_focused() : ui_node {
+    v : view = view_now("should_be_focused()");
+    h := test_screen.running("should_be_focused()");
+    if(h.focused() == null || h.focused()!! != v) {
+        test_screen.fail("should_be_focused()", asked() + " does not have the keyboard");
+    }
+    return self;
+}
+
+def ui_node.should_say(words: string) : ui_node {
+    v : view = view_now("should_say(...)");
+    if(!(v.how is shows_words)) {
+        test_screen.fail("should_say(\"" + words + "\")", asked() + " is a `" + v.how.kind() + "`: it shows no words of its own");
+    }
+    there : string = test_screen.words_of(v);
+    if(there != words) {
+        test_screen.fail("should_say(\"" + words + "\")", asked() + " says \"" + there + "\"");
+    }
+    return self;
+}
+
+def ui_node.should_contain(part: string) : ui_node {
+    v : view = view_now("should_contain(...)");
+    if(!(v.how is shows_words)) {
+        test_screen.fail("should_contain(\"" + part + "\")", asked() + " is a `" + v.how.kind() + "`: it shows no words of its own");
+    }
+    there : string = test_screen.words_of(v);
+    if(!there.find(part)) {
+        test_screen.fail("should_contain(\"" + part + "\")", asked() + " says \"" + there + "\"");
+    }
+    return self;
+}
+
+/** a slider or a progress bar stands at this number (to within a thousandth) */
+def ui_node.should_have_value(wanted: decimal) : ui_node {
+    v : view = view_now("should_have_value(...)");
+    if(!(v.how is has_value)) {
+        test_screen.fail("should_have_value(" + wanted + ")", asked() + " is a `" + v.how.kind() + "`: it does not stand at a number");
+    }
+    counted := v.how as has_value;
+    there : decimal = counted.value_shown();
+    apart : decimal = there - wanted;
+    if(apart < 0) { apart = 0 - apart; }
+    if(apart > 0.001) {
+        test_screen.fail("should_have_value(" + wanted + ")", asked() + " stands at " + there);
+    }
+    return self;
+}
+
+// ---------------------------------------------------------------- what is painted (a real window only)
+
+/** a word that looks at what is painted: stops with an exception unless the test runs in a real window */
+def needs_a_window(word: string) : ui_host {
+    h := test_screen.running(word);
+    if(h.win.is_pretend()) {
+        throw new illegal_state_exception("`" + word + "` looks at what is painted on the screen, and a UI test that is not watched "
+                + "paints nothing. Start the tests with the argument -watch, or call watch_ui_tests() before them: "
+                + "they then run in a real window, and this word works.");
+    }
+    return h;
+}
+
+/** the colour painted at a point of the widget, `dx` across and `dy` down from its top left corner */
+def painted(node: ui_node, word: string, dx: decimal, dy: decimal) : color {
+    h := needs_a_window(word);
+    v : view = node.view_now(word);
+    if(!test_screen.visible_part(v)) {
+        test_screen.fail(word, node.asked() + " cannot be seen: nothing of it is painted");
+    }
+    seen : _int64 = h.color_painted_at(v.x + dx, v.y + dy);
+    if(seen < 0) {
+        test_screen.fail(word, "the colour at that point could not be read (it is outside the window?)");
+    }
+    red : _int32 = (seen / 16777216) % 256;
+    green : _int32 = (seen / 65536) % 256;
+    blue : _int32 = (seen / 256) % 256;
+    return new color(red, green, blue, 255);
+}
+
+/** are two colours the same to the eye: every part within 4 of the other's (a card rounds colours a little) */
+def same_color(a: color, b: color) : bool {
+    apart : _int64 = a.red - b.red;
+    if(apart < 0) { apart = 0 - apart; }
+    if(apart > 4) { return false; }
+    apart = a.green - b.green;
+    if(apart < 0) { apart = 0 - apart; }
+    if(apart > 4) { return false; }
+    apart = a.blue - b.blue;
+    if(apart < 0) { apart = 0 - apart; }
+    return apart <= 4;
+}
+
+def color_words(c: color) : string {
+    return "rgb(" + c.red + ", " + c.green + ", " + c.blue + ")";
+}
+
+/** the colour painted `dx` across and `dy` down from the widget's top left corner. A watched test only. */
+def ui_node.color_at(dx: decimal, dy: decimal) : color {
+    return painted(self, "color_at(...)", dx, dy);
+}
+
+/** that colour must be this one. A watched test only: without a window this stops with an exception. */
+def ui_node.should_have_color_at(dx: decimal, dy: decimal, wanted: color) : ui_node {
+    there : color = painted(self, "should_have_color_at(...)", dx, dy);
+    if(!same_color(there, wanted)) {
+        test_screen.fail("should_have_color_at(" + dx + ", " + dy + ", " + color_words(wanted) + ")",
+                asked() + " is " + color_words(there) + " there");
+    }
+    return self;
+}
+
+/** the colour painted in the middle of the widget must be this one. A watched test only. */
+def ui_node.should_have_color(wanted: color) : ui_node {
+    v : view = view_now("should_have_color(...)");
+    there : color = painted(self, "should_have_color(...)", v.w / 2, v.h / 2);
+    if(!same_color(there, wanted)) {
+        test_screen.fail("should_have_color(" + color_words(wanted) + ")", asked() + " is " + color_words(there) + " in its middle");
+    }
+    return self;
+}
+
+// ---------------------------------------------------------------- toasts and the tooltip
+
+/** every toast that is up, as words for a message */
+def toasts_said(h: ui_host) : string {
+    up : list<string> = h.toast_words();
+    if(up.size() == 0) {
+        return "no toast is up";
+    }
+    said : string = "the toasts that are up say:";
+    for(i : _int64 = 0; i < up.size(); i++) {
+        said = said + " \"" + up.at(i) + "\"";
+    }
+    return said;
+}
+
+/** a toast (gui.toast) with exactly these words is up */
+def should_show_toast(words: string) {
+    h := test_screen.running("should_show_toast(...)");
+    up : list<string> = h.toast_words();
+    for(i : _int64 = 0; i < up.size(); i++) {
+        if(up.at(i) == words) { return; }
+    }
+    test_screen.fail("should_show_toast(\"" + words + "\")", toasts_said(h));
+}
+
+/** no toast is up */
+def should_show_no_toast() {
+    h := test_screen.running("should_show_no_toast()");
+    if(h.toast_words().size() > 0) {
+        test_screen.fail("should_show_no_toast()", toasts_said(h));
+    }
+}
+
+/** the tooltip with exactly these words is up */
+def should_show_tooltip(words: string) {
+    h := test_screen.running("should_show_tooltip(...)");
+    there : string = h.tip_words();
+    if(there != words) {
+        test_screen.fail("should_show_tooltip(\"" + words + "\")",
+                there == "" ? "no tooltip is up (hover() a widget that has one, then advance(1))" : "the tooltip says \"" + there + "\"");
+    }
+}
+
+/** no tooltip is up */
+def should_show_no_tooltip() {
+    h := test_screen.running("should_show_no_tooltip()");
+    if(h.tip_words() != "") {
+        test_screen.fail("should_show_no_tooltip()", "the tooltip says \"" + h.tip_words() + "\"");
+    }
+}

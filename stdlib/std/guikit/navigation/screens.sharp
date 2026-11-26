@@ -1,0 +1,250 @@
+mod std.guikit.navigation;
+
+import (
+    std.guikit.*
+)
+
+/** how one screen gives way to the next (screen_host.transition) */
+const TRANSITION_NONE  : _int64 = 0;    // the new screen is simply there
+const TRANSITION_SLIDE : _int64 = 1;    // forward: the new screen slides in from the right; back: it slides out again
+const TRANSITION_RISE  : _int64 = 2;    // forward: the new screen rises from the bottom; back: it drops away
+const TRANSITION_FADE  : _int64 = 3;    // the new screen fades in over the old one
+
+/**
+ * screen_host - shows the top screen of a navigator, and animates the change
+ * when the navigator moves. Made with screens(...).
+ *
+ *      screens(nav, to_home(), modifier().grow(1)) {
+ *          tab<to_home>("Home")       { home_screen(nav); };
+ *          tab<to_library>("Library") { library_screen(nav); };
+ *          screen<to_detail>()        { detail_screen(nav, it.id); };
+ *      }.transition(TRANSITION_SLIDE)
+ *
+ * The block is the app's SCREEN LIST: one line per kind of route, saying what
+ * is shown for it. It is read into the navigator every time the app is built;
+ * which screen is actually showing is the navigator's business
+ * (navigator.sharp), and this widget shows it.
+ *
+ * THE TRANSITION
+ *
+ *   When the navigator moves, whoever shows it is rebuilt (it read the
+ *   navigator's state). The NEW screen_host finds that the top screen is not
+ *   the one the OLD screen_host was showing - that is the moment a transition
+ *   starts. It keeps the old screen as `leaving` and, for a fraction of a
+ *   second, holds BOTH screens as children, placed side by side:
+ *
+ *      forward (go)              back
+ *      +--------+--------+       +--------+--------+
+ *      | old <- | new <- |       | -> new | -> old |
+ *      +--------+--------+       +--------+--------+
+ *      the new screen comes      the old screen leaves the way it came,
+ *      in over the old one       uncovering the one below
+ *
+ *   `progress` runs from 0 to 1 over the transition time. Each frame it is
+ *   moved on by the time that passed, the two screens are arranged again at
+ *   their new places, and another frame is asked for. At 1 the leaving screen
+ *   is dropped and the host goes back to holding one child.
+ *
+ *   The screen that is uncovered moves less than the one on top (a quarter of
+ *   the way): that small difference is what makes it read as "underneath".
+ *   The movement starts fast and settles gently (ease-out), which is how
+ *   things that come to rest look.
+ *
+ *   There is no transparency or scaling in the painter yet, so transitions
+ *   are movements. A screen with no background of its own is painted on
+ *   the theme's - a screen sliding over another must not be see-through.
+ *
+ * The host is a `clipper` (a sliding screen is cut off at the host's edges)
+ * and `stateful` (a rebuild in the middle of a transition carries the
+ * transition on instead of restarting it).
+ * (Compose: NavHost with enter / exit transitions. Android: fragment
+ * transactions with setCustomAnimations.)
+ */
+stable class screen_host base widget : behavior, clipper, stateful {
+    private nav : navigator;
+    private style : _int64 = TRANSITION_SLIDE;
+
+    private showing : view?;            // the screen on top of the stack
+    private leaving : view?;            // the screen being moved away (null: no transition running)
+    private progress : decimal = 1;     // 0 .. 1 through the transition
+    private direction : _int64 = 1;     // 1: forward, -1: back
+
+    private static const TIME : decimal = 0.24;         // seconds a transition takes
+
+    screen_host(stack: navigator) {
+        attach(self);
+        nav = stack;
+        nav.watch();                                    // rebuild whoever is building when the stack moves
+        showing = nav.top_view();
+        if(showing != null) {
+            take(showing!!);
+        }
+    }
+
+    /** how screens give way to each other: TRANSITION_NONE, TRANSITION_SLIDE (the default), TRANSITION_RISE */
+    def transition(how: _int64) : screen_host {
+        style = how;
+        return self;
+    }
+
+    /** make a screen a child of the host, marked as a whole page: it is painted on the theme's background (view.page) */
+    private def take(screen: view) {
+        screen.page = 1;
+        me.add_kid(screen);
+    }
+
+    override def clips() : _int64 { return 1; }
+
+    override def kind() : string { return "screens"; }
+
+    // ------------------------------------------------------------ layout: every screen is exactly the host's size
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        widest : decimal = 0;
+        tallest : decimal = 0;
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            kid.fill_w = 1;                             // a screen fills the host, whatever it says itself
+            kid.fill_h = 1;
+            kid.measure(min_w, max_w, min_h, max_h);
+            widest = num.larger(widest, kid.want_w);
+            tallest = num.larger(tallest, kid.want_h);
+        }
+        me.content_w = widest;
+        me.content_h = tallest;
+    }
+
+    override def arrange() {
+        if(ui_host.current != null) {
+            ui_host.current!!.set_back_stack(nav);      // Escape steps back in this stack
+        }
+
+        wide : decimal = me.inner_w();
+        tall : decimal = me.inner_h();
+
+        // how far through the movement: fast at first, settling at the end
+        left_to_go : decimal = 1 - progress;
+        moved : decimal = 1 - left_to_go * left_to_go * left_to_go;
+
+        count : _int64 = me.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            shift_x : decimal = 0;
+            shift_y : decimal = 0;
+            kid.opacity = 1;                            // fully there, unless a fade says otherwise just below
+
+            if(leaving != null) {
+                is_leaving : _int64 = 0;
+                if(kid == leaving!!) { is_leaving = 1; }
+
+                if(style == TRANSITION_FADE) {
+                    // the screen on top (painted last) fades: in when going forward, out when going back
+                    if(direction >= 0 && is_leaving == 0) { kid.opacity = num.larger(moved, 0.001); }
+                    if(direction < 0 && is_leaving == 1) { kid.opacity = num.larger(1 - moved, 0.001); }
+                }
+
+                if(style == TRANSITION_SLIDE) {
+                    if(direction >= 0) {
+                        // forward: the new screen comes in from the right over the old one, which drifts left
+                        if(is_leaving == 1) { shift_x = 0 - moved * wide * 0.25; }
+                        else { shift_x = (1 - moved) * wide; }
+                    } else {
+                        // back: the old screen leaves to the right, the one below drifts back into place
+                        if(is_leaving == 1) { shift_x = moved * wide; }
+                        else { shift_x = 0 - (1 - moved) * wide * 0.25; }
+                    }
+                } else if(style == TRANSITION_RISE) {
+                    if(direction >= 0) {
+                        if(is_leaving == 0) { shift_y = (1 - moved) * tall; }
+                    } else {
+                        if(is_leaving == 1) { shift_y = moved * tall; }
+                    }
+                }
+            }
+            kid.arrange(num.nearest(me.inner_x() + shift_x), num.nearest(me.inner_y() + shift_y), kid.want_w, kid.want_h);
+        }
+    }
+
+    // ------------------------------------------------------------ the transition, one frame at a time
+
+    override def paint(p: painter) {
+        if(leaving == null) {
+            return;
+        }
+        host := ui_host.current!!;
+
+        // the time since the last frame, but never a big jump: the first frame
+        // of a transition may come after the app had been asleep for a while
+        progress = progress + num.smaller(host.step, 0.05) / TIME;
+
+        if(progress >= 1) {
+            progress = 1;
+            gone : view = leaving!!;
+            me.remove_kid(gone);
+            leaving = null;
+            let_go(gone);
+        } else {
+            host.request_frame();
+        }
+        arrange();                                      // the screens at their places for this frame
+    }
+
+    // ------------------------------------------------------------ across rebuilds
+
+    override def adopt(old: behavior) {
+        if(!(old is screen_host)) {
+            return;
+        }
+        before := old as screen_host;
+
+        if(showing == null || before.showing == null) {
+            return;
+        }
+
+        if(before.showing!! != showing!!) {
+            // the stack moved: the screen the old host showed gives way to mine
+            if(style != TRANSITION_NONE && nav.last_move != 0) {
+                begin(before.showing!!, nav.last_move, 0);
+            } else {
+                let_go(before.showing!!);               // no transition: it is simply not shown any more
+            }
+        } else if(before.leaving != null && before.progress < 1) {
+            // rebuilt in the middle of a transition: carry it on from where it was
+            begin(before.leaving!!, before.direction, before.progress);
+        }
+    }
+
+    /**
+     * A screen stopped being shown. If the navigator still holds it (another
+     * screen was opened on top) it stays alive, waiting for "back". If not - it
+     * was popped or replaced - it is gone for good: its composables are told,
+     * so they can stop their timers (composable.when_gone).
+     */
+    private def let_go(screen: view) {
+        if(nav.holds(screen) == 0) {
+            reconciler.retire(screen);
+        }
+    }
+
+    /**
+     * Start (or carry on) a transition away from `away`. Both screens become
+     * children, the one that should be painted on top LAST: going forward the
+     * new screen covers the old one; going back the old one is on top and
+     * moves off the one below.
+     */
+    private def begin(away: view, which_way: _int64, from: decimal) {
+        leaving = away;
+        direction = which_way;
+        progress = from;
+
+        me.remove_kid(showing!!);
+        if(direction >= 0) {
+            take(away);
+            take(showing!!);
+        } else {
+            take(showing!!);
+            take(away);
+        }
+    }
+}

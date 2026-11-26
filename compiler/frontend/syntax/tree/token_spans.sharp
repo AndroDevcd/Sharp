@@ -1,0 +1,62 @@
+mod frontend.syntax.tree;
+
+import (
+    std.io,
+    frontend.lexer
+)
+
+/**
+ * THE TOKENS A PIECE OF THE TREE COVERS, AND THEIR TEXT
+ *
+ * A node of the syntax tree remembers ONE token (where the node "is"), not
+ * where its text begins and ends. A message that wants to show a whole
+ * expression as it was written - "write: `a == 1 && b == 2`" - needs the
+ * first and the last token of the subtree, and the source text between them:
+ *
+ *      first_token_in(tree, node)      the smallest token index in the subtree
+ *      last_token_in(tree, node)       the largest
+ *      tokens_text(p, first, last)     the source from token `first` to token `last`, as written
+ *
+ * Both walks use a work list, not recursion: an expression can be a chain
+ * hundreds of nodes deep.
+ */
+
+/** the source text from the start of token `first` to the end of token `last`, as written */
+def tokens_text(p: parse_state, first: _int64, last: _int64) : string {
+    if(first < 0 || last < first || last >= p.count) { return ""; }
+    return new string(p.source, p.start_of(first), p.end_of(last));
+}
+
+/** the first token of a subtree: the smallest token any node in it is at */
+def first_token_in(tree: syntax_tree, node: _int64) : _int64 {
+    least : _int64 = tree.tokens!![node];
+    work := new list<int>();
+    work.add(node);
+    while(work.size() > 0) {
+        current : _int64 = work.pop_last().value;
+        if(tree.tokens!![current] < least) { least = tree.tokens!![current]; }
+        child : _int64 = tree.first_child!![current];
+        while(child >= 0) {
+            work.add(child);
+            child = tree.next_sibling!![child];
+        }
+    }
+    return least;
+}
+
+/** the last token of a subtree: the largest token any node in it is at */
+def last_token_in(tree: syntax_tree, node: _int64) : _int64 {
+    most : _int64 = tree.tokens!![node];
+    work := new list<int>();
+    work.add(node);
+    while(work.size() > 0) {
+        current : _int64 = work.pop_last().value;
+        if(tree.tokens!![current] > most) { most = tree.tokens!![current]; }
+        child : _int64 = tree.first_child!![current];
+        while(child >= 0) {
+            work.add(child);
+            child = tree.next_sibling!![child];
+        }
+    }
+    return most;
+}

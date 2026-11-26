@@ -1,0 +1,49 @@
+mod main;
+
+import ( std.testing )
+
+/**
+ * KNOWN BUGS in the language that the collections library had to work
+ * around. This file is EXPECTED TO FAIL.
+ */
+
+class score {
+    points : int;
+    score(points: int) { self->points = points; }
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_collections_language") {
+        // ---- BUG 1: an empty string on the RIGHT of `+` appends the word "null"
+        // (an empty string literal has no character array). "" + "a" is fine.
+        // collections.join_to_string therefore skips empty pieces.
+        left := "a";
+        test("\"a\" + \"\"") { expect(left + "").should_be("a"); };
+
+        // ---- BUG 2: a local of a nullable NUMBER type that is declared without
+        // a value is not null (string?, class and decimal[]? locals are).
+        count : int?;
+        if(count == null) test("an int? local without a value is null") { };
+        else test("an int? local without a value is null") { fail_test("it is not null"); };
+        numbers : int[]?;
+        if(numbers == null) test("an int[]? local without a value is null") { };
+        else test("an int[]? local without a value is null") { fail_test("it is not null"); };
+
+        // ---- THE RULE (decided 2026-11-12): assigning a number to a field that
+        // holds a number object does not replace the object, it writes the number
+        // into it (the assignment calls the object's operator=) - so everybody who
+        // holds that same object sees the new number. To give one holder its own
+        // number, assign a new object: first.points = new int(500).
+        shared := new int(11);
+        first := new score(shared);
+        second := new score(shared);
+        first.points = 500;
+        test("the other holder of the same number object sees 500 too") { expect(second.points.value).should_be(500); };
+        third := new score(shared);
+        third.points = new int(7);
+        test("a new object replaces only that holder's number") { expect(second.points.value).should_be(500); };
+        test("...and the holder that got it has 7") { expect(third.points.value).should_be(7); };
+    };
+    finish_tests("lib_collections_language");
+}

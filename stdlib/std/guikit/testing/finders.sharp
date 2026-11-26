@@ -1,0 +1,493 @@
+mod std.guikit.testing;
+
+import (
+    std,
+    std.reflect,
+    std.testing,
+    std.guikit.*
+)
+
+/**
+ * FINDING WIDGETS ON THE SCREEN OF A UI TEST (ui_test.sharp has the overview)
+ *
+ *      on_tag("save")              the widget tagged modifier().tag("save")
+ *      on_text("Save")             the widget that shows exactly these words (or, a text field, is named by them)
+ *      on_kind<checkbox>()         the widget that is a checkbox: the CLASS of the widget, not a word for it
+ *      on_root()                   the whole screen
+ *
+ *      all_tags("row")             every widget with the tag - and all_text, all_kinds<...> likewise:
+ *          .count()                    how many there are
+ *          .at(2)  .first()  .last()   one of them, in the order they are on the screen (top to bottom, as written)
+ *          .should_have_count(3)
+ *
+ * on_tag, on_text and on_kind mean ONE widget: when a doing or a checking word
+ * is used on it and there is none, or more than one, the test fails and says
+ * which. (should_not_exist() is the word for "there must be none".)
+ *
+ * THE KIND IS A CLASS. on_kind<button>() finds what `button(...)` makes,
+ * on_kind<label>() what `text(...)` makes, on_kind<text_field>(), <checkbox>,
+ * <column>, <lazy_list> ... and on_kind<login_screen>() a screen or a widget
+ * of your own. A kind that does not exist does not compile.
+ *
+ * PUTTING THEM TOGETHER
+ *
+ *      on_tag("row_3").on_text("Delete")           the "Delete" INSIDE the widget tagged row_3
+ *      on_tag("form").on_kind<button>()            the button inside the form
+ *      on_tag("list").all_kinds<checkbox>()        every checkbox inside the list
+ *      all_tags("row").at(2).on_tag("price")       ... as deep as is needed
+ *
+ *      all_kinds<button>().with_text("Save")       of all the buttons, those that say Save
+ *      all_tags("row").of_kind<row>()              of everything tagged row, those that are rows
+ *      all_text("Delete").with_tag("danger")
+ *      all_kinds<checkbox>().that_are_on()         ... by what they are right now: that_are_on / _off /
+ *                                                  _enabled / _disabled / _shown
+ *
+ *      on_text("two").parent()                     the widget it is in
+ *      on_tag("list").children()                   the widgets right inside it
+ *
+ * A ui_node is not a widget: it is the QUESTION. It is asked again every time
+ * it is used, so one kept in a variable is still right after the screen was
+ * built again:
+ *
+ *      total := on_tag("total");
+ *      on_tag("add").click();
+ *      total.should_say("Count: 1");
+ *
+ * Only what is THERE is found: a widget taken away with show(0) is not, and
+ * neither is a row of a long list that has not been scrolled to yet - the
+ * list has not made it (actions.sharp: scroll_to(...) on the list makes it).
+ *
+ * (Android: onNodeWithTag, onAllNodesWithText, hasAnyAncestor, onChildren.)
+ */
+
+// what one step of a question does (query_step.how)
+const STEP_TAG       : _int64 = 0;      // find: the widgets with this tag
+const STEP_TEXT      : _int64 = 1;      // find: the widgets that show these words
+const STEP_KIND      : _int64 = 2;      // find: the widgets of a class
+const STEP_ROOT      : _int64 = 3;      // the whole screen
+const STEP_KIDS      : _int64 = 4;      // the widgets right inside those found so far
+const STEP_PARENT    : _int64 = 5;      // the widgets those found so far are in
+const STEP_ONLY_TAG  : _int64 = 6;      // of those found so far, the ones with this tag
+const STEP_ONLY_TEXT : _int64 = 7;      // ... that show these words
+const STEP_ONLY_KIND : _int64 = 8;      // ... of a class
+const STEP_PICK      : _int64 = 9;      // one of those found so far
+const STEP_ONLY_STATE : _int64 = 10;    // ... that are on, off, enabled, disabled or in sight (query_step.what says which)
+
+const THE_ONLY : _int64 = 0 - 1;        // query_step.place: there must be exactly one
+const THE_LAST : _int64 = 0 - 2;
+
+/** one step of a question: what to find, or what to keep of what was found */
+stable class query_step {
+    how : _int64 = STEP_TAG;
+    what : string = "";             // the tag, or the words
+    fits : (view)(bool)?;           // STEP_KIND, STEP_ONLY_KIND: is this view's widget of the class?
+    place : _int64 = THE_ONLY;      // STEP_PICK: which one
+
+    query_step(kind: _int64, words: string) {
+        how = kind;
+        what = words;
+    }
+
+    /** does this view fit a finding or a keeping step? */
+    def takes(v: view) : bool {
+        if(how == STEP_TAG || how == STEP_ONLY_TAG) { return v.tag == what; }
+        if(how == STEP_TEXT || how == STEP_ONLY_TEXT) { return test_screen.says(v, what); }
+        if(how == STEP_KIND || how == STEP_ONLY_KIND) { return fits!!(v); }
+        if(how == STEP_ONLY_STATE) {
+            if(what == "enabled") { return v.enabled == 1; }
+            if(what == "disabled") { return v.enabled == 0; }
+            if(what == "shown") { return test_screen.visible_part(v); }
+            if(v.how is on_or_off) {
+                flips := v.how as on_or_off;
+                return flips.is_on() == (what == "on");
+            }
+        }
+        return false;
+    }
+
+    /** what it looks for, as words */
+    def named() : string {
+        if(how == STEP_TAG || how == STEP_ONLY_TAG) { return "the tag `" + what + "`"; }
+        if(how == STEP_TEXT || how == STEP_ONLY_TEXT) { return "the words \"" + what + "\""; }
+        if(how == STEP_KIND || how == STEP_ONLY_KIND) {
+            if(what == "") { return "the kind asked for"; }
+            return "the kind `" + what + "`";
+        }
+        if(how == STEP_ONLY_STATE) { return "that are " + what; }
+        return "the screen";
+    }
+}
+
+/** a question about the screen: steps, each working on what the one before it found */
+stable class ui_query {
+    steps : list<query_step> = new list<query_step>();
+
+    /** this question with one more step (a new question: this one is not changed) */
+    def and_then(next: query_step) : ui_query {
+        longer := new ui_query();
+        longer.steps.add_all(steps);
+        longer.steps.add(next);
+        return longer;
+    }
+
+    /** ... the step that picks one of what was found */
+    def picked(which: _int64) : ui_query {
+        pick := new query_step(STEP_PICK, "");
+        pick.place = which;
+        return and_then(pick);
+    }
+
+    /** the question in words, for the messages: "the words "Delete" inside the tag `row_3`" */
+    def asked() : string {
+        said : string = "";
+        count : _int64 = steps.size();
+        for(i : _int64 = 0; i < count; i++) {
+            step : query_step = steps.at(i);
+            if(step.how == STEP_ROOT) {
+                said = "the screen";
+            } else if(step.how == STEP_TAG || step.how == STEP_TEXT || step.how == STEP_KIND) {
+                if(said == "") { said = step.named(); }
+                else { said = step.named() + " inside " + said; }
+            } else if(step.how == STEP_KIDS) {
+                said = "the children of " + said;
+            } else if(step.how == STEP_PARENT) {
+                said = "the parent of " + said;
+            } else if(step.how == STEP_PICK) {
+                if(step.place >= 0) { said = "number " + step.place + " of " + said; }
+                else if(step.place == THE_LAST) { said = "the last of " + said; }
+            } else if(step.how == STEP_ONLY_STATE) {
+                said = said + " " + step.named();
+            } else {
+                said = said + " with " + step.named();
+            }
+        }
+        return said;
+    }
+
+    /**
+     * Ask the question now: the views it finds, in the order they are in the
+     * tree. `word` is the word of the test that asks, for the message when a
+     * step that means ONE widget finds several.
+     */
+    def run(word: string) : list<view> {
+        now := new list<view>();
+        h := test_screen.running(word);
+        if(h.root() == null) {
+            return now;
+        }
+        count : _int64 = steps.size();
+        for(s : _int64 = 0; s < count; s++) {
+            step : query_step = steps.at(s);
+            next := new list<view>();
+            found_so_far : _int64 = now.size();
+
+            if(step.how == STEP_ROOT) {
+                next.add(h.root()!!);
+            } else if(step.how == STEP_TAG || step.how == STEP_TEXT || step.how == STEP_KIND) {
+                if(s == 0) {
+                    gather(h.root()!!, step, next);
+                } else {
+                    // INSIDE each of those found so far (not the widget itself)
+                    for(i : _int64 = 0; i < found_so_far; i++) {
+                        kids : _int64 = now.at(i).kid_count();
+                        for(k : _int64 = 0; k < kids; k++) {
+                            gather(now.at(i).kids.at(k), step, next);
+                        }
+                    }
+                }
+            } else if(step.how == STEP_KIDS) {
+                for(i : _int64 = 0; i < found_so_far; i++) {
+                    kids : _int64 = now.at(i).kid_count();
+                    for(k : _int64 = 0; k < kids; k++) {
+                        if(now.at(i).kids.at(k).shown == 1) { add_once(next, now.at(i).kids.at(k)); }
+                    }
+                }
+            } else if(step.how == STEP_PARENT) {
+                for(i : _int64 = 0; i < found_so_far; i++) {
+                    if(now.at(i).parent != null) { add_once(next, now.at(i).parent!!); }
+                }
+            } else if(step.how == STEP_PICK) {
+                if(step.place == THE_ONLY) {
+                    if(found_so_far > 1) {
+                        before := new ui_query();
+                        for(i : _int64 = 0; i < s; i++) { before.steps.add(steps.at(i)); }
+                        test_screen.fail(word, "" + found_so_far + " widgets fit " + before.asked() + ", and one was meant. "
+                                + "Give each a tag of its own, or say which: .at(n), .first(), .last()");
+                    }
+                    if(found_so_far == 1) { next.add(now.at(0)); }
+                } else if(step.place == THE_LAST) {
+                    if(found_so_far > 0) { next.add(now.at(found_so_far - 1)); }
+                } else if(step.place < found_so_far) {
+                    next.add(now.at(step.place));
+                }
+            } else {
+                for(i : _int64 = 0; i < found_so_far; i++) {
+                    if(step.takes(now.at(i))) { next.add(now.at(i)); }
+                }
+            }
+            now = next;
+        }
+        return now;
+    }
+
+    /** `from` and everything inside it that the step takes, into `into` (what is taken away - show(0) - is passed by) */
+    private def gather(from: view, step: query_step, into: list<view>) {
+        if(from.shown == 0) {
+            return;
+        }
+        if(step.takes(from)) {
+            add_once(into, from);
+        }
+        count : _int64 = from.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            gather(from.kids.at(i), step, into);
+        }
+    }
+
+    private def add_once(into: list<view>, v: view) {
+        count : _int64 = into.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(into.at(i) == v) { return; }
+        }
+        into.add(v);
+    }
+}
+
+/** one widget of the screen: a question, and which of its answers is meant */
+stable class ui_node {
+    asks : ui_query;
+    place : _int64 = THE_ONLY;      // a number from 0, THE_ONLY or THE_LAST
+
+    ui_node(question: ui_query, which: _int64) {
+        asks = question;
+        place = which;
+    }
+
+    /** what was looked for, in words: for the messages */
+    def asked() : string {
+        return asks.picked(place).asked();
+    }
+
+    /** every view that fits right now (where ONE is meant: all of them, so that "none" can be checked) */
+    def matches() : list<view> {
+        if(place == THE_ONLY) {
+            return asks.run("a finder");
+        }
+        return asks.picked(place).run("a finder");
+    }
+
+    /** the view, or null when there is none. More than one where one was meant fails the test. */
+    def view_or_none(word: string) : view? {
+        all : list<view> = asks.picked(place).run(word);
+        if(all.size() == 0) {
+            return null;
+        }
+        return all.at(0);
+    }
+
+    /** the view; none fails the test */
+    def view_now(word: string) : view {
+        v : view? = view_or_none(word);
+        if(v == null) {
+            test_screen.fail(word, "nothing on the screen fits " + asked());
+        }
+        return v!!;
+    }
+
+    // ---- inside this widget
+
+    /** the one widget with this tag INSIDE this one */
+    def on_tag(name: string) : ui_node {
+        return new ui_node(asks.picked(place).and_then(new query_step(STEP_TAG, name)), THE_ONLY);
+    }
+
+    /** the one widget that shows these words inside this one */
+    def on_text(words: string) : ui_node {
+        return new ui_node(asks.picked(place).and_then(new query_step(STEP_TEXT, words)), THE_ONLY);
+    }
+
+    /** the one widget of this class inside this one: on_tag("form").on_kind<button>() */
+    def on_kind<t>() : ui_node {
+        step := kind_step<t>(STEP_KIND);
+        return new ui_node(asks.picked(place).and_then(step), THE_ONLY);
+    }
+
+    /** every widget with this tag inside this one */
+    def all_tags(name: string) : ui_nodes {
+        return new ui_nodes(asks.picked(place).and_then(new query_step(STEP_TAG, name)));
+    }
+
+    /** every widget that shows these words inside this one */
+    def all_text(words: string) : ui_nodes {
+        return new ui_nodes(asks.picked(place).and_then(new query_step(STEP_TEXT, words)));
+    }
+
+    /** every widget of this class inside this one */
+    def all_kinds<t>() : ui_nodes {
+        step := kind_step<t>(STEP_KIND);
+        return new ui_nodes(asks.picked(place).and_then(step));
+    }
+
+    /** the widget this one is in */
+    def parent() : ui_node {
+        return new ui_node(asks.picked(place).and_then(new query_step(STEP_PARENT, "")), THE_ONLY);
+    }
+
+    /** the widgets right inside this one */
+    def children() : ui_nodes {
+        return new ui_nodes(asks.picked(place).and_then(new query_step(STEP_KIDS, "")));
+    }
+}
+
+/** several widgets of the screen: every answer to a question */
+stable class ui_nodes {
+    asks : ui_query;
+
+    ui_nodes(question: ui_query) {
+        asks = question;
+    }
+
+    /** how many there are right now */
+    def count() : _int64 {
+        return asks.run("count()").size();
+    }
+
+    /** one of them, counted from 0 in the order they are on the screen */
+    def at(n: _int64) : ui_node {
+        return new ui_node(asks, n);
+    }
+
+    def first() : ui_node {
+        return new ui_node(asks, 0);
+    }
+
+    def last() : ui_node {
+        return new ui_node(asks, THE_LAST);
+    }
+
+    /** of these, the ones with this tag */
+    def with_tag(name: string) : ui_nodes {
+        return new ui_nodes(asks.and_then(new query_step(STEP_ONLY_TAG, name)));
+    }
+
+    /** of these, the ones that show these words */
+    def with_text(words: string) : ui_nodes {
+        return new ui_nodes(asks.and_then(new query_step(STEP_ONLY_TEXT, words)));
+    }
+
+    /** of these, the ones of this class: all_tags("row").of_kind<row>() */
+    def of_kind<t>() : ui_nodes {
+        step := kind_step<t>(STEP_ONLY_KIND);
+        return new ui_nodes(asks.and_then(step));
+    }
+
+    /** of these, the ones that are on: ticked checkboxes, switches that are on, the radio or chip chosen */
+    def that_are_on() : ui_nodes {
+        return new ui_nodes(asks.and_then(new query_step(STEP_ONLY_STATE, "on")));
+    }
+
+    /** of these, the ones that are off (what is neither on nor off - a text - is in neither) */
+    def that_are_off() : ui_nodes {
+        return new ui_nodes(asks.and_then(new query_step(STEP_ONLY_STATE, "off")));
+    }
+
+    /** of these, the ones that can be used */
+    def that_are_enabled() : ui_nodes {
+        return new ui_nodes(asks.and_then(new query_step(STEP_ONLY_STATE, "enabled")));
+    }
+
+    /** of these, the ones that are greyed out */
+    def that_are_disabled() : ui_nodes {
+        return new ui_nodes(asks.and_then(new query_step(STEP_ONLY_STATE, "disabled")));
+    }
+
+    /** of these, the ones that can be seen: not hidden, not scrolled out of sight */
+    def that_are_shown() : ui_nodes {
+        return new ui_nodes(asks.and_then(new query_step(STEP_ONLY_STATE, "shown")));
+    }
+
+    /** there must be exactly this many */
+    def should_have_count(wanted: _int64) : ui_nodes {
+        there : _int64 = count();
+        if(there != wanted) {
+            test_screen.fail("should_have_count(" + wanted + ")", "" + there + " widgets fit " + asks.asked() + ", not " + wanted);
+        }
+        return self;
+    }
+}
+
+/**
+ * The step that finds, or keeps, the widgets of the class t. It carries the
+ * class's name, for the messages ("2 widgets fit the kind `button`").
+ */
+def kind_step<t>(how: _int64) : query_step {
+    name : string = "";
+    try {
+        name = reflect.of<t>().name;
+    } catch(unnamed: throwable) {
+        // (t is not a class reflection knows - an interface: the message says "the kind asked for")
+    }
+    step := new query_step(how, name);
+    step.fits = { v: view -> return v.how is t; };
+    return step;
+}
+
+/** a question of one step, asked of the whole screen */
+def asking(how: _int64, what: string) : ui_query {
+    return new ui_query().and_then(new query_step(how, what));
+}
+
+/** the one widget with this tag (modifier().tag(...)) */
+def on_tag(name: string) : ui_node {
+    return new ui_node(asking(STEP_TAG, name), THE_ONLY);
+}
+
+/** the one widget that shows exactly these words - or, a text field, whose caption they are */
+def on_text(words: string) : ui_node {
+    return new ui_node(asking(STEP_TEXT, words), THE_ONLY);
+}
+
+/** the one widget of this class: on_kind<checkbox>(), on_kind<login_screen>() */
+def on_kind<t>() : ui_node {
+    step := kind_step<t>(STEP_KIND);
+    return new ui_node(new ui_query().and_then(step), THE_ONLY);
+}
+
+/** the whole screen: the widget everything else is in */
+def on_root() : ui_node {
+    return new ui_node(asking(STEP_ROOT, ""), THE_ONLY);
+}
+
+/** every widget with this tag */
+def all_tags(name: string) : ui_nodes {
+    return new ui_nodes(asking(STEP_TAG, name));
+}
+
+/** every widget that shows exactly these words */
+def all_text(words: string) : ui_nodes {
+    return new ui_nodes(asking(STEP_TEXT, words));
+}
+
+/** every widget of this class: all_kinds<button>() */
+def all_kinds<t>() : ui_nodes {
+    step := kind_step<t>(STEP_KIND);
+    return new ui_nodes(new ui_query().and_then(step));
+}
+
+// ---------------------------------------------------------------- questions (they answer; they do not fail the test)
+
+/** is there such a widget on the screen right now? */
+def ui_node.exists() : bool {
+    return view_or_none("exists()") != null;
+}
+
+/** is it there AND can it be seen: not hidden, not scrolled out of sight, not off the screen? */
+def ui_node.is_shown() : bool {
+    v : view? = view_or_none("is_shown()");
+    return v != null && test_screen.visible_part(v!!);
+}
+
+/** the words it shows ("" when it shows none) */
+def ui_node.words() : string {
+    return test_screen.words_of(view_now("words()"));
+}

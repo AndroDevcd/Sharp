@@ -1,0 +1,166 @@
+mod backend.compiler.expressions.calls;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.lambdas,
+    backend.compiler.components,
+    backend.compiler.expressions
+)
+
+/**
+ * THE ARGUMENTS OF A CALL, AND ITS TYPE ARGUMENTS
+ *
+ *      print(total, "eur")             two arguments
+ *      items.each { println(it); }     a TRAILING lambda: the last argument, written after the `( )`
+ *      run { work(); }                 ... also when there are no `( )` at all
+ *      first_or<string>(names, "-")    one TYPE argument, written after the name
+ *
+ * The arguments are analysed before the function is chosen - their types are
+ * what chooses it. A lambda whose types are not all written WAITS: its
+ * parameters take their types from the parameter it is given to, so only
+ * its written form (how many parameters, the types and result written)
+ * takes part in overload resolution, and its body is analysed once the
+ * function is chosen (`argument_for`). A function name used as a value
+ * (`run(worker)`) waits the same way: the parameter decides which overload
+ * of it is meant. And so does a `get()` written in a component definition
+ * (`new worker(get())`): it asks for the type of the parameter it is given to.
+ */
+
+/** every argument of the call at `node`, analysed, the trailing lambda last */
+def arguments_of(context: analysis_context, node: _int64) : list<call_argument> {
+    tree : syntax_tree = context.tree;
+    found := new list<call_argument>();
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        kind : _int64 = tree.kinds!![child];
+        if(kind == N_ARGUMENTS) {
+            argument : _int64 = tree.first_child!![child];
+            while(argument >= 0) {
+                found.add(argument_at(context, argument));
+                argument = tree.next_sibling!![argument];
+            }
+        } else if(kind == N_LAMBDA && child != tree.first_child!![node]) {
+            found.add(argument_at(context, child));     // the trailing lambda
+        }
+        child = tree.next_sibling!![child];
+    }
+    return found;
+}
+
+/**
+ * One argument. A lambda whose types are not all written, and a function
+ * NAME (`run(worker)`), wait for the parameter they are given to: their
+ * value is a placeholder until the function is chosen, and what overload
+ * resolution can know of them is noted on the argument
+ * (lambdas/lambdas.sharp: describe_waiting_lambda, finish_waiting_argument).
+ * A lambda with every type written is analysed at once, like any value.
+ */
+def argument_at(context: analysis_context, node: _int64) : call_argument {
+    if(is_lambda_at(context, node)) {
+        form := read_lambda_form(context, lambda_node_of(context, node));
+        if(form.is_fully_typed() == 0) {
+            waiting := new call_argument(waiting_placeholder(context, node, N_LAMBDA), node);
+            describe_waiting_lambda(context, lambda_node_of(context, node), waiting);
+            return waiting;
+        }
+    }
+
+    request : _int64 = open_request_at(context, node);
+    if(request >= 0) {
+        // `new worker(get())` in a component definition: the parameter says which type is asked for
+        waiting := new call_argument(waiting_placeholder(context, node, N_GET_COMPONENT), node);
+        describe_waiting_request(context, request, waiting);
+        return waiting;
+    }
+
+    found := analyse_expression(context, node, null);
+    if(found.kind == BX_FUNCTIONS) {
+        named := new call_argument(waiting_placeholder(context, node, N_IDENTIFIER), node);
+        named.is_lambda = 1;
+        named.named = found as bound_functions;
+        return named;
+    }
+    return new call_argument(as_value(context, found), node);
+}
+
+/**
+ * The value a waiting argument has until its parameter is known: "not known
+ * yet", reported as nothing. It is replaced when the call is bound; it stays
+ * only in a call that failed for another reason (and was reported).
+ */
+def waiting_placeholder(context: analysis_context, node: _int64, what: _int64) : bound_expression {
+    return new bound_pending(context.unit, node, what, context.session.types.error_type);
+}
+
+/**
+ * The value of argument `position` for the chosen function: converted to
+ * its parameter, or - for a waiting lambda or function name - analysed
+ * against it now.
+ */
+def argument_for(context: analysis_context, argument: call_argument, how: conversion, wanted: resolved_type?,
+                 position: _int64, function_name: string) : bound_expression {
+    if(argument.is_lambda == 0) { return apply_conversion(context, argument.value, how); }
+    if(wanted == null) { return argument.value; }
+    return finish_argument(context, argument, wanted!!, "argument " + (position + 1) + " of `" + function_name + "`");
+}
+
+/**
+ * A waiting argument, now that its parameter is known: a `get()` asks the
+ * components for that type (components/get_expression.sharp); a lambda is
+ * analysed against it, a function name picks its overload (lambdas/lambdas.sharp).
+ *
+ * @param purpose  what the value is for, for a message: "argument 2 of `apply`"
+ */
+def finish_argument(context: analysis_context, argument: call_argument, wanted: resolved_type, purpose: string) : bound_expression {
+    if(argument.request_node >= 0) {
+        return convert(context, analyse_get(context, argument.request_node, wanted), wanted, purpose);
+    }
+    return finish_waiting_argument(context, argument, wanted, purpose);
+}
+
+/**
+ * The type arguments written after the name of the function called:
+ * `first_or<string>(...)`. Null when none are written.
+ *
+ * @param name_node  the N_IDENTIFIER of the name
+ */
+def type_arguments_at(context: analysis_context, name_node: _int64) : list<resolved_type>? {
+    if(name_node < 0) { return null; }
+    tree : syntax_tree = context.tree;
+    found : list<resolved_type>? = null;
+    child : _int64 = tree.first_child!![name_node];
+    while(child >= 0) {
+        if(tree.kinds!![child] == N_TYPE) {
+            if(found == null) { found = new list<resolved_type>(); }
+            found!!.add(resolve_type_at(context, child));
+        }
+        child = tree.next_sibling!![child];
+    }
+    return found;
+}
+
+/** does any type argument have the error type (reported where it is written)? */
+def has_error_type(types: list<resolved_type>?) : _int64 {
+    if(types == null) { return 0; }
+    for(i : _int64 = 0; i < types!!.size(); i++) {
+        if(types!!.at(i).kind == RT_ERROR) { return 1; }
+    }
+    return 0;
+}
+
+/** the analysed values of the arguments, for a node that keeps them (a pending call, a failed call) */
+def values_of(arguments: list<call_argument>) : list<bound_expression> {
+    values := new list<bound_expression>();
+    for(i : _int64 = 0; i < arguments.size(); i++) { values.add(arguments.at(i).value); }
+    return values;
+}

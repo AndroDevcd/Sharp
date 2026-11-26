@@ -1,0 +1,248 @@
+mod backend.postprocessor.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.generics,
+    backend.postprocessor.inheritance,
+    backend.postprocessor.names,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * EXTENSION FUNCTIONS: A FUNCTION ADDED TO A CLASS FROM OUTSIDE
+ * (the C++ compiler: process_extension_class in postprocessor/function_processor.cpp)
+ *
+ *      def string.shout() : string { return to_upper() + "!"; }
+ *
+ *      "hello".shout()
+ *
+ * Written at the top of a file, outside the class - but it BECOMES a member
+ * of the class it names: an instance function with `self`, found by member
+ * lookup like any other, able to see the class's private members.
+ *
+ * So this step moves each one: out of the names of its module, into the
+ * functions of its class (`sharp_function.owner`, `extension_of`). It stays
+ * in sharp_module.functions, which lists what the FILE declares.
+ *
+ * For a generic class the function is added to the blueprint -
+ * `def list<T>.second() : T` - and so every instance gets it, because
+ * instances copy the members of their blueprint (generic_classes.sharp).
+ * This runs before any instance is made.
+ *
+ *      E0373   the type before the dot is not a class      def decimal.half()   def T.show()
+ *      E0374   an extension function without a body        (it cannot be left for subclasses to define)
+ *      E0331   the class already has that function         (the usual "declared twice")
+ *      E0384   the type parameters of the class are mixed with other types, or out of
+ *              order:   def pair<B, A>.f()    def pair<string, B>.f()    for `class pair<A, B>`
+ *
+ * The type parameters may be given names of the function's own
+ * (`def box<X>.f() : X`: names/renamed_type_parameters.sharp).
+ *
+ * A function that is REFUSED here (E0331, E0384, or a type argument that was
+ * not found) is still tied to its class (`owner`, `extension_of`) but put in
+ * no list of the class: its body speaks of `self` and the fields of the
+ * class, and analysed as a global function every such word would be one more
+ * message about the one mistake. The body stages leave it alone until it is
+ * put right.
+ *
+ * NOTE: the C++ compiler's PARSER does not read these forms, so no library
+ * code uses them; the rule is taken from its backend.
+ */
+def attach_extension_functions(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+        for(j : _int64 = 0; j < module.functions.size(); j++) {
+            function := module.functions.at(j);
+            if(function.extends != null) { attach_extension(prog, module, function, problems); }
+        }
+    }
+}
+
+/** move one extension function from its module into the class it names, after checking that it can be one */
+def attach_extension(prog: sharp_program, module: sharp_module, function: sharp_function, problems: list<diagnostic>) {
+    written : sharp_type = function.extends!!;
+    seen := look_through(written, null);
+    if(seen.is_unknown()) { return; }       // the name was not found: reported by stage 3
+
+    named := seen.type.declaration;
+    if(seen.type.form != TYPE_NAMED || seen.is_array == 1 || !is_class_kind(named!!.kind)) {
+        d := error_at_node("E0373", "`" + written.to_text() + "` is not a class; a function cannot be added to it",
+                           written.unit, written.node)
+            .with_label("the name before the dot must be a class, an interface or an enum");
+        if(named != null && named!!.kind == D_TYPE_PARAMETER) {
+            d.with_note("`" + named!!.name + "` is a type parameter: which class it stands for is not known here");
+        }
+        d.with_help("make it an ordinary function that takes the value:  def " + function.name + "(value: " + written.to_text() + ", ...)");
+        problems.add(d);
+        return;
+    }
+    target : sharp_class = named as sharp_class;
+
+    // def box<string>.first(): for the one instance box<string>, not for every box.
+    // That class does not exist yet; the function waits until it can be asked for.
+    if(target.is_generic() && !names_its_own_parameters(seen.type, target)) {
+        if(has_unknown_argument(seen.type)) {
+            refuse_extension(module, function, target);     // `def pair<string, V>.f()`: `V` was reported by stage 3
+            return;
+        }
+        if(names_a_type_parameter(seen.type)) {
+            report_mixed_type_parameters(function, written, target, problems);
+            refuse_extension(module, function, target);
+            return;
+        }
+        prog.instance_extensions.add(function);
+        return;
+    }
+
+    if(!function.has_body() && !function.has(FLAG_NATIVE)) {
+        problems.add(error_at_node("E0374", "the extension function `" + target.name + "." + function.name + "` has no body",
+                                   function.unit, function.node)
+            .with_label("declared, but never says what it does")
+            .with_note("a function without a body is a promise for the classes below to keep; one added from outside the class has to do the work itself")
+            .with_help("give it a body:  def " + target.name + "." + function.name + "(...) { ... }"));
+        return;
+    }
+
+    // the class may have it already
+    same_name := target.members!!.find(function.name);
+    if(same_name != null) {
+        for(i : _int64 = 0; i < same_name!!.size(); i++) {
+            other := same_name!!.at(i);
+            if(other.kind == D_FUNCTION && same_parameters(other as sharp_function, function, null, 0)) {
+                problems.add(error_at_node("E0331", "`" + target.name + "` already has a function `" + function.signature() + "`",
+                                           function.unit, function.node)
+                    .with_label("the same name and the same parameter types as a function of the class")
+                    .with_related_place(place_of_node(other.unit, other.node, "the first one is here"))
+                    .with_help("give the extension function another name, or different parameters"));
+                refuse_extension(module, function, target);
+                return;
+            }
+        }
+    }
+
+    module.declared.remove(function);       // no longer a name of the module: it is called on an object
+    function.owner = target;
+    function.extension_of = target;
+    target.functions.add(function);
+    target.members!!.add(function);
+}
+
+/**
+ * A refused extension function: still a function OF its class, not of the
+ * module (so its body is not analysed as a global function, where `self`
+ * and every field would be E0421 / E0400 about the one mistake), but in no
+ * list of the class - nothing finds or calls it.
+ */
+def refuse_extension(module: sharp_module, function: sharp_function, target: sharp_class) {
+    module.declared.remove(function);
+    function.owner = target;
+    function.extension_of = target;
+}
+
+/** is one of the type arguments (at any depth) a name that was not found? */
+def has_unknown_argument(written: sharp_type) : _int64 {
+    for(i : _int64 = 0; i < written.arguments.size(); i++) {
+        argument := written.arguments.at(i);
+        if(argument.form == TYPE_NAMED && argument.declaration == null) { return 1; }
+        if(has_unknown_argument(argument)) { return 1; }
+    }
+    return 0;
+}
+
+/** is one of the type arguments (at any depth) a type parameter? */
+def names_a_type_parameter(written: sharp_type) : _int64 {
+    for(i : _int64 = 0; i < written.arguments.size(); i++) {
+        argument := written.arguments.at(i);
+        if(argument.form == TYPE_NAMED && argument.declaration != null && argument.declaration!!.kind == D_TYPE_PARAMETER) { return 1; }
+        if(names_a_type_parameter(argument)) { return 1; }
+    }
+    return 0;
+}
+
+/**
+ * E0384: `def pair<B, A>.f()` or `def pair<string, B>.f()` for `class pair<A, B>`.
+ * An extension function is either for the class as a whole - then its type
+ * parameters are written in their order, under the class's names or new
+ * ones - or for one instance, with real types. A mixture has no class to
+ * belong to: `pair<string, B>` is neither every pair nor one pair.
+ */
+def report_mixed_type_parameters(function: sharp_function, written: sharp_type, target: sharp_class, problems: list<diagnostic>) {
+    own := new string_builder(target.name + "<");
+    for(i : _int64 = 0; i < target.type_parameters.size(); i++) {
+        if(i > 0) { own.append(", "); }
+        own.append(target.type_parameters.at(i).name);
+    }
+    own.append(">");
+    problems.add(error_at_node("E0384", "`" + written.to_text() + "` is neither `" + target.name + "` as a whole nor one instance of it",
+                               written.unit, written.node)
+        .with_label("a type parameter of `" + target.name + "` mixed with other types, or out of its place")
+        .with_related_place(place_of_node(target.unit, target.node, "`" + own.build() + "` is declared here"))
+        .with_note("an extension function is added either to every `" + target.name + "` - its type parameters written in their order - or to one instance, with real types")
+        .with_help("for every `" + target.name + "`:  def " + own.build() + "." + function.name + "(...) { ... }   - for one instance write real types for all of them"));
+}
+
+/** `box<T>` written for `class box<T>`: every type argument is the class's own type parameter, in order */
+def names_its_own_parameters(written: sharp_type, target: sharp_class) : _int64 {
+    if(written.arguments.size() != target.type_parameters.size()) { return 0; }
+    for(i : _int64 = 0; i < written.arguments.size(); i++) {
+        argument := written.arguments.at(i);
+        if(argument.form != TYPE_NAMED || argument.declaration != target.type_parameters.at(i)
+           || argument.is_array == 1 || argument.is_nullable == 1) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/**
+ * The extension functions written for ONE instance of a generic class
+ * (`def box<string>.first()`): each becomes a member of that class only.
+ * Called once the types of the program can be resolved; the class is made
+ * here if nothing else named it.
+ */
+def attach_instance_extensions(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.instance_extensions.size(); i++) {
+        function := prog.instance_extensions.at(i);
+        resolved := resolve_written_type(prog, function.extends!!, null, problems);
+        target := resolved.class_or_null();
+        if(target == null) { continue; }       // reported: wrong number of arguments, a broken constraint ...
+
+        if(!function.has_body() && !function.has(FLAG_NATIVE)) {
+            problems.add(error_at_node("E0374", "the extension function `" + target!!.qualified_name() + "." + function.name
+                                       + "` has no body", function.unit, function.node)
+                .with_label("declared, but never says what it does")
+                .with_help("give it a body"));
+            continue;
+        }
+
+        instance : sharp_class = target!!;
+        ensure_members(prog, instance);
+        function.module.declared.remove(function);
+        function.owner = instance;
+        function.extension_of = instance;
+        resolve_function_types(prog, function, instance.environment, 0, problems);
+
+        // the class may have it already (with the real types)
+        is_new : _int64 = 1;
+        for(j : _int64 = 0; j < instance.functions.size(); j++) {
+            other := instance.functions.at(j);
+            if(other.name == function.name && same_resolved_parameters(other, function)) {
+                problems.add(error_at_node("E0331", "`" + instance.qualified_name() + "` already has a function `"
+                                           + resolved_signature(other) + "`", function.unit, function.node)
+                    .with_label("the same name and the same parameter types as a function of the class")
+                    .with_related_place(place_of_node(other.unit, other.node, "the first one is here"))
+                    .with_help("give the extension function another name, or different parameters"));
+                is_new = 0;
+                break;
+            }
+        }
+        if(is_new == 1) {
+            instance.functions.add(function);
+            instance.members!!.add(function);
+        }
+    }
+}

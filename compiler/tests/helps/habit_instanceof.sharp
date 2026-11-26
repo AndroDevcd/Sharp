@@ -1,0 +1,10 @@
+// expect: E0100
+// help: o is string
+// replace: o instanceof string
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    o : object = new string("x");
+    if(o instanceof string) { println("text"); }
+}

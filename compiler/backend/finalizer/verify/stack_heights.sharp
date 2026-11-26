@@ -1,0 +1,145 @@
+mod backend.finalizer.verify;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.bytecode
+)
+
+/**
+ * THE HEIGHT OF THE OPERAND STACK ALONG EVERY PATH (doc/codegen.md 5.7)
+ *
+ * Arguments are pushed onto the operand stack above the frame, and a call
+ * takes them away again (codegen.md 4.4). If two paths reach one instruction
+ * with different heights, or a `ret` is reached with values still on the
+ * stack, something the generator pushed is never taken - a frame that grows
+ * every round of a loop, or a caller that finds its result one slot off.
+ *
+ * The check is the textbook data-flow walk (a work list over the
+ * instructions): the height before the first instruction is 0, and so is the
+ * height at every catch handler and finally block the VM enters with an
+ * exception (it leaves whatever the failing instruction had pushed below, and
+ * the code there never reaches down to it: codegen.md 4.7); each
+ * instruction changes it by what it pushes and pops; the height is carried to
+ * the instructions that can come next (the next one, a jump's target). Each
+ * instruction is visited once, so it is linear in the size of the code.
+ *
+ *      pushl 2         +1        (a reference onto the stack)
+ *      ipushl 3        +1
+ *      call f          -2 +1     (f takes 2 slots - its object and one parameter - and returns a value)
+ *      ipopl 4         -1
+ */
+def check_stack_heights(words: number_list, starts: number_list, made: function_layout,
+                        layout: program_layout) : string? {
+    heights := new number_list();
+    for(i : _int64 = 0; i < words.count; i++) { heights.add(0 - 1); }
+    waiting := new number_list();
+    heights.replace(0, 0);
+    waiting.add(0);
+    tries := made.code!!.tries;
+    for(i : _int64 = 0; i < tries.size(); i++) {
+        record := tries.at(i);
+        for(j : _int64 = 0; j < record.handler_pcs.count; j++) {
+            problem := carry(heights, waiting, record.handler_pcs.at(j), 0, 0 - 1);
+            if(problem != null) { return problem; }
+        }
+        if(record.has_finally == 1) {
+            problem := carry(heights, waiting, record.finally_start, 0, 0 - 1);
+            if(problem != null) { return problem; }
+        }
+    }
+    while(waiting.count > 0) {
+        pc : _int64 = waiting.pop_last();
+        height : _int64 = heights.at(pc);
+        word : _int64 = words.at(pc);
+        opcode : _int64 = word & 0xff;
+        after : _int64 = height + stack_effect(words, pc, made, layout);
+        if(after < 0) { return "the operand stack goes below the frame at `" + opcode_name(opcode) + "` (word " + pc + ")"; }
+        if(opcode == OP_RET) {
+            if(height != 0) { return "`ret` at " + pc + " leaves " + height + " value(s) on the operand stack"; }
+            continue;
+        }
+        if(opcode == OP_HLT || opcode == 0x45) { continue; }        // hlt, throw: nothing comes after
+        next : _int64 = pc + 1;
+        if(is_two_words(opcode)) { next = pc + 2; }
+        if(opcode == OP_JMP || opcode == OP_JE || opcode == OP_JNE) {
+            problem := carry(heights, waiting, field_d(word), after, pc);
+            if(problem != null) { return problem; }
+            if(opcode == OP_JMP) { continue; }
+        }
+        if(is_slot_jump(opcode)) {      // the target is the second word; the instruction after it is reached too
+            problem := carry(heights, waiting, words.at(pc + 1), after, pc);
+            if(problem != null) { return problem; }
+        }
+        if(next < words.count) {
+            problem := carry(heights, waiting, next, after, pc);
+            if(problem != null) { return problem; }
+        }
+    }
+    return null;
+}
+
+/** the height `height` reaches instruction `target`: the first time it is noted, later it must be the same */
+def carry(heights: number_list, waiting: number_list, target: _int64, height: _int64, from: _int64) : string? {
+    known : _int64 = heights.at(target);
+    if(known < 0) {
+        heights.replace(target, height);
+        waiting.add(target);
+        return null;
+    }
+    if(known != height) {
+        return "word " + target + " is reached with " + known + " and with " + height + " value(s) on the operand stack (from "
+               + from + ")";
+    }
+    return null;
+}
+
+/** how many slots an instruction adds to the operand stack (negative: takes away) */
+def stack_effect(words: number_list, pc: _int64, made: function_layout, layout: program_layout) : _int64 {
+    word : _int64 = words.at(pc);
+    opcode : _int64 = word & 0xff;
+    if(opcode == OP_PUSHL || opcode == OP_IPUSHL || opcode == OP_PUSHNULL || opcode == OP_NEWSTRING || opcode == OP_NEWCLASS
+       || opcode == OP_NEWARRAY || opcode == OP_NEWOBJARRAY || opcode == OP_NEWCLASSARRAY || opcode == OP_PUSHOBJ
+       || opcode == OP_RSTORE || opcode == 0x5c || opcode == 0x91) {
+        return 1;
+    }
+    if(opcode == OP_POPL || opcode == OP_IPOPL || opcode == OP_POP || opcode == OP_POPOBJ || opcode == 0x3c || opcode == 0x45) {
+        return 0 - 1;
+    }
+    if(opcode == OP_ITEST) { return 0 - 2; }
+    if(opcode == OP_CALL) { return call_effect(layout.functions.at(field_d(word))); }
+    if(opcode == OP_CALLD) {
+        // the function value and the arguments are taken; the result, if the function has one, is left
+        taken : _int64 = field_d(word) + 1;
+        if(contains_pc(made.code!!.value_calls_returning, pc)) { return 1 - taken; }
+        return 0 - taken;
+    }
+    if(opcode == OP_INVOKE_DELEGATE) {
+        callee := layout.functions.at(field_d(word));
+        second : _int64 = words.at(pc + 1);
+        is_static : _int64 = field_ca(second);
+        arguments : _int64 = field_cb(second);
+        returned : _int64 = 0;
+        if(callee.returns_value()) { returned = 1; }
+        if(is_static == 1) { return returned - arguments; }
+        return returned - arguments - 1;
+    }
+    return 0;
+}
+
+/** is `pc` one of the pcs of the list? */
+def contains_pc(pcs: number_list, pc: _int64) : _int64 {
+    for(i : _int64 = 0; i < pcs.count; i++) {
+        if(pcs.at(i) == pc) { return 1; }
+    }
+    return 0;
+}
+
+/** a call takes the callee's object and parameters and leaves its result, if it has one */
+def call_effect(callee: function_layout) : _int64 {
+    taken : _int64 = callee.parameter_count();
+    if(callee.is_static == 0) { taken++; }
+    if(callee.returns_value()) { return 1 - taken; }
+    return 0 - taken;
+}

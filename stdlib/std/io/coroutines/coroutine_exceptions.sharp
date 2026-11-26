@@ -1,0 +1,93 @@
+mod std.io.coroutines;
+
+import (
+    std.io,
+    std.io.fiber
+)
+
+/**
+ * coroutine_exceptions - where uncaught coroutine exceptions go.
+ *
+ * USAGE
+ *     coroutine_exceptions.set_handler(my_handler);    // see coroutine_exception_handler
+ *     coroutine_exceptions.set_handler(null);          // back to printing them
+ *     coroutine_exceptions.count();                    // how many were reported so far
+ *
+ * WHICH EXCEPTIONS END UP HERE
+ *   - launch() in global_scope or in a supervisor (supervisor_scope { },
+ *     coroutine_scope.supervisor()) and the coroutine throws: reported here.
+ *   - launch() inside coroutine_scope { } / run_blocking { } / another
+ *     coroutine: NOT reported here. The failure cancels the parent and is
+ *     thrown again by the enclosing scope function.
+ *   - async: never reported here, deferred.await() throws it.
+ *   - cancellation_exception: never reported, being cancelled is not an error.
+ *
+ * Without a handler the exception is printed, like an uncaught exception of a
+ * thread. Kotlin equivalent: the default handler that calls
+ * Thread.uncaughtExceptionHandler.
+ *
+ * The handler is called on a fiber of its own, never inside the library code
+ * that noticed the failure (that code must not have user code on its stack,
+ * see NO RECURSION in job.sharp).
+ *
+ * LOCKING DISCIPLINE: `guard` protects handler and reported. The handler is
+ * called after the lock is released.
+ */
+class coroutine_exceptions {
+
+    private static guard : object = new _object_();
+    private static handler : coroutine_exception_handler?;
+    private static reported : decimal = 0;
+
+    /** Install the handler for uncaught coroutine exceptions; null prints them instead. */
+    static def set_handler(new_handler: coroutine_exception_handler?) {
+        lock(guard) {
+            handler = new_handler;
+        }
+    }
+
+    /** how many uncaught coroutine exceptions were reported since the program started */
+    static def count() : decimal {
+        total : decimal = 0;
+        lock(guard) {
+            total = reported;
+        }
+        return total;
+    }
+
+    /** Called by job when a coroutine failed and nobody else will see the exception. Never throws. */
+    static def report(failed: job, error: throwable) {
+        target : coroutine_exception_handler? = null;
+        lock(guard) {
+            reported++;
+            target = handler;
+        }
+
+        if(target == null) {
+            println("Exception in coroutine: ${error.get_message()}");
+            return;
+        }
+
+        args := new object[3];
+        args[0] = target;
+        args[1] = failed;
+        args[2] = error;
+
+        runner := new fiber("coroutine-exception-handler", thread.current(), coroutine_exceptions.handler_entry);
+        runner.start(args);
+    }
+
+    /** the function of the fiber that calls the handler */
+    static def handler_entry(args: object[]) : int {
+        receiver : coroutine_exception_handler = args[0] as coroutine_exception_handler;
+        failed := args[1] as job;
+        error := args[2] as throwable;
+
+        try {
+            receiver.handle_exception(failed, error);
+        } catch(t: throwable) {
+            // the handler itself failed: there is nobody left to tell
+        }
+        return 0;
+    }
+}

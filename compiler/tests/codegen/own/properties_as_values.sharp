@@ -1,0 +1,92 @@
+mod main;
+
+// output:
+// 11
+// 25
+// 26
+// 53
+// 53
+// 104
+// 120
+// -125
+// 75
+// 1
+// 6
+// 6
+// 6
+// 18
+// 5
+// 5
+// 777
+// 29
+// 777
+// 61
+
+/*
+ * Properties where the C++ compiler cannot be the oracle (doc/codegen.md
+ * 13.2, "C++ compiler bugs met"; section 10, G26 and G28), so the output
+ * block was worked out by hand from the rule "getter, add, setter, on the
+ * object evaluated once":
+ *
+ *   - `b.width++` / `++b.width` used as a VALUE (the C++ code generator
+ *     stops: "attempting to consume empty machine data!"): the old value for
+ *     the postfix form, the new one - as it was handed to the setter - for
+ *     the prefix form;
+ *   - `++`, `--`, `+=` and `*=` on a STATIC property (the C++ compiler stops
+ *     on `++`, and its program reads 1 after `+= 5`);
+ *   - `made().width += 3` and `made().width++`: made() runs ONCE (the
+ *     C++-built program calls it twice).
+ *
+ * `width` reads one more than is stored and stores twice what it is given,
+ * so every read and write through the accessors shows in the numbers.
+ */
+class box {
+    width : _int64 = 10;
+        get { return width + 1; }
+        set v -> { width = v * 2; }
+    small : _int8 = 120;
+        get { return small; }
+        set v -> { small = v; }
+    static count : _int64 = 0;
+        get { return count; }
+        set v -> { count = v; }
+    ratio : decimal = 1.5;
+        get { return ratio; }
+        set v -> { ratio = v; }
+}
+
+def made() : box {
+    show(777);
+    return the_box;
+}
+
+the_box : box = new box();
+
+def main() {
+    b := new box();
+    show(b.width++);
+    show(b.width);
+    show(++b.width);
+    show(b.width);
+    show(b.width--);
+    show(--b.width);
+    show(b.small++);
+    b.small += 10;
+    show(b.small);
+    show(b.small += 200);
+    box.count++;
+    show(box.count);
+    box.count += 5;
+    show(box.count);
+    show(box.count++);
+    show(--box.count);
+    show(box.count *= 3);
+    b.ratio++;
+    b.ratio *= 2;
+    show_decimal(b.ratio);
+    show_decimal(b.ratio--);
+    made().width += 3;
+    show(the_box.width);
+    made().width++;
+    show(the_box.width);
+}

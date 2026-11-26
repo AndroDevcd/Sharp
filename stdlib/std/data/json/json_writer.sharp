@@ -1,0 +1,264 @@
+mod std.data;
+
+import ( std.io )
+
+/**
+ * Turns a json_value into JSON text.
+ *
+ *     json_writer.to_compact(doc)        {"name":"Ada","tags":["a","b"]}
+ *     json_writer.to_pretty(doc)         one member / element per line, 2 spaces per level
+ *
+ *     w := new json_writer();
+ *     w.set_indent(4).set_sort_keys(true).set_ascii_only(true);
+ *     text := w.write(doc);
+ *     w.write_file(doc, new file("out.json"));
+ *
+ * Options (all off by default):
+ *   - set_indent(n): n > 0 writes for people - every member and element on
+ *     its own line, n spaces per level, a space after each colon; empty
+ *     arrays and objects stay "[]" and "{}". 0 writes compact text without
+ *     any white space.
+ *   - set_sort_keys(true): members are written sorted by name instead of in
+ *     the order they were added, so equal objects give equal text.
+ *   - set_ascii_only(true): characters outside ASCII are written as \uXXXX
+ *     escapes (the bytes of the string are read as UTF-8), so the text
+ *     survives any channel. Otherwise they are written as they are.
+ *
+ * Strings are always escaped as JSON demands: the double quote, the back
+ * slash and control characters.
+ *
+ * Numbers are written as short as possible while reading back as the same
+ * number (io_strings.number_to_string). NaN and infinite numbers cannot be
+ * written in JSON: write() throws json_exception for them.
+ *
+ * What a json_parser reads from the text written here is equal
+ * (json_value.equals_value) to the value that was written.
+ *
+ * The writer does not use recursion, so deeply nested values are fine. A
+ * writer object can be used again and again. Not thread safe.
+ */
+class json_writer {
+    private indent : decimal = 0;
+    private sort_keys : decimal = 0;
+    private ascii_only : decimal = 0;
+
+    /** `value` as compact JSON text. Throws json_exception for NaN or infinite numbers. */
+    static def to_compact(value: json_value) : string {
+        return new json_writer().write(value);
+    }
+
+    /** `value` as JSON text indented by 2 spaces per level. Throws json_exception for NaN or infinite numbers. */
+    static def to_pretty(value: json_value) : string {
+        return new json_writer().set_indent(2).write(value);
+    }
+
+    /** the JSON text for a single string, with the quotes: quote("a\"b") gives "a\"b" with the back slash in the text */
+    static def quote(text: string) : string {
+        buf := new char_buffer(sizeof(text.data) + 8);
+        new json_writer().write_string(buf, text);
+        return buf.build();
+    }
+
+    /**
+     * Indent by `spaces` spaces per level (0 = compact text). Returns this
+     * writer.
+     * Throws illegal_argument_exception when spaces is negative.
+     */
+    def set_indent(spaces: decimal) : json_writer {
+        if(spaces < 0) {
+            throw new illegal_argument_exception("set_indent: the indent cannot be negative");
+        }
+        indent = spaces;
+        return self;
+    }
+
+    /** write the members of objects sorted by name (true) or in the order they were added (false). Returns this writer. */
+    def set_sort_keys(enabled: bool) : json_writer {
+        if(enabled) { sort_keys = 1; } else { sort_keys = 0; }
+        return self;
+    }
+
+    /** write characters outside ASCII as \uXXXX escapes (true) or as they are (false). Returns this writer. */
+    def set_ascii_only(enabled: bool) : json_writer {
+        if(enabled) { ascii_only = 1; } else { ascii_only = 0; }
+        return self;
+    }
+
+    /**
+     * Replace the content of the file `target` with the JSON text of
+     * `value`, followed by a line end when the text is indented.
+     * Throws json_exception for NaN or infinite numbers, io_exception when
+     * the file cannot be written.
+     */
+    def write_file(value: json_value, target: file) {
+        text := write(value);
+        if(indent > 0) {
+            text = text + "\n";
+        }
+        target.write_text(text);
+    }
+
+    /**
+     * The JSON text of `value` with the options of this writer.
+     * Throws json_exception when a number in it is NaN or infinite.
+     */
+    def write(value: json_value) : string {
+        buf := new char_buffer(256);
+
+        /*
+        * Instead of a function that calls itself for nested values, the
+        * arrays and objects that are being written are kept in `open` (the
+        * innermost last). `next` holds for each of them how many of its
+        * entries are written already, and `orders` the order in which the
+        * members of an object are written (null for arrays).
+        */
+        open := new list<json_value>();
+        next := new list<int>();
+        orders := new list<json_member_order>();
+
+        current : json_value? = value;
+        while(current != null || open.size() > 0) {
+            if(current != null) {
+                v := current!!;
+                current = null;
+                kind : decimal = v.kind();
+                if(kind == json_value.kind_null) {
+                    buf.append("null");
+                } else if(kind == json_value.kind_bool) {
+                    if(v.as_bool()) { buf.append("true"); } else { buf.append("false"); }
+                } else if(kind == json_value.kind_number) {
+                    number : decimal = v.as_number();
+                    if(number - number != 0) {
+                        throw new json_exception("JSON cannot express the number " + io_strings.number_to_string(number));
+                    }
+                    buf.append(io_strings.number_to_string(number));
+                } else if(kind == json_value.kind_string) {
+                    write_string(buf, v.as_string());
+                } else if(v.size() == 0) {
+                    if(kind == json_value.kind_array) { buf.append("[]"); } else { buf.append("{}"); }
+                } else {
+                    if(kind == json_value.kind_array) { buf.append_char('['); } else { buf.append_char('{'); }
+                    open.add(v);
+                    next.add(new int(0));
+                    orders.add(new json_member_order(v, kind == json_value.kind_object && sort_keys));
+                }
+                continue;
+            }
+
+            // continue with the innermost open container
+            container := open.last();
+            done : decimal = next.last().value;
+            total : decimal = container.size();
+            if(done >= total) {
+                open.pop_back();
+                next.pop_back();
+                orders.pop_back();
+                new_line(buf, open.size());
+                if(container.is_array()) { buf.append_char(']'); } else { buf.append_char('}'); }
+                continue;
+            }
+
+            if(done > 0) {
+                buf.append_char(',');
+            }
+            new_line(buf, open.size());
+            next.put(next.size() - 1, new int(done + 1));
+
+            position : decimal = orders.last().position_of(done);
+            if(container.is_object()) {
+                write_string(buf, container.shared_key_at(position));
+                buf.append_char(':');
+                if(indent > 0) {
+                    buf.append_char(' ');
+                }
+            }
+            current = container.value_at(position);
+        }
+        return buf.build();
+    }
+
+    /** in indented output: start a new line, indented for nesting depth `depth` */
+    private def new_line(buf: char_buffer, depth: decimal) {
+        if(indent > 0) {
+            buf.append_char('\n');
+            buf.append_repeated(' ', depth * indent);
+        }
+    }
+
+    /** append `text` in double quotes with everything escaped that has to be */
+    private def write_string(buf: char_buffer, text: string) {
+        n : decimal = sizeof(text.data);
+        buf.append_char('"');
+        i : decimal = 0;
+        while(i < n) {
+            ch : decimal = text.data[i] & 0xff;
+            if(ch == '"') {
+                buf.append_char(92);
+                buf.append_char('"');
+            } else if(ch == 92) {
+                buf.append_char(92);
+                buf.append_char(92);
+            } else if(ch == 10) {
+                buf.append_char(92);
+                buf.append_char('n');
+            } else if(ch == 13) {
+                buf.append_char(92);
+                buf.append_char('r');
+            } else if(ch == 9) {
+                buf.append_char(92);
+                buf.append_char('t');
+            } else if(ch == 8) {
+                buf.append_char(92);
+                buf.append_char('b');
+            } else if(ch == 12) {
+                buf.append_char(92);
+                buf.append_char('f');
+            } else if(ch < 32 || ch == 127) {
+                write_unicode_escape(buf, ch);
+            } else if(ch < 128 || !ascii_only) {
+                buf.append_char(ch);
+            } else {
+                // decode one UTF-8 character: how many bytes follow the first one?
+                extra : decimal = 0;
+                code : decimal = ch;
+                if(ch >= 0xF0 && ch < 0xF8) { extra = 3; code = ch & 0x07; }
+                else if(ch >= 0xE0) { extra = 2; code = ch & 0x0F; }
+                else if(ch >= 0xC0) { extra = 1; code = ch & 0x1F; }
+
+                valid : decimal = extra > 0 && i + extra < n;
+                for(k : decimal = 1; valid && k <= extra; k++) {
+                    following : decimal = text.data[i + k] & 0xff;
+                    if(following < 0x80 || following > 0xBF) {
+                        valid = 0;
+                    } else {
+                        code = code * 64 + (following & 0x3F);
+                    }
+                }
+
+                if(!valid) {
+                    // not UTF-8: write the single byte as the character with that number
+                    write_unicode_escape(buf, ch);
+                } else {
+                    i += extra;
+                    if(code >= 0x10000) {
+                        // outside the 16-bit range: a surrogate pair
+                        code -= 0x10000;
+                        write_unicode_escape(buf, 0xD800 + (code >> 10));
+                        write_unicode_escape(buf, 0xDC00 + (code & 0x3FF));
+                    } else {
+                        write_unicode_escape(buf, code);
+                    }
+                }
+            }
+            i++;
+        }
+        buf.append_char('"');
+    }
+
+    /** append a back slash, 'u' and the four hexadecimal digits of `code` */
+    private static def write_unicode_escape(buf: char_buffer, code: decimal) {
+        buf.append_char(92);
+        buf.append_char('u');
+        buf.append(io_strings.int_to_hex(code, 4));
+    }
+}

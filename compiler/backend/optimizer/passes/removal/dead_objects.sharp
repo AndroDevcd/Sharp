@@ -1,0 +1,141 @@
+mod backend.optimizer.passes.removal;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * DEAD OBJECTS: an object that is made and filled, and never read, is not made
+ *
+ *      new_object  %3, main#report
+ *      call        -, main#report.report(%3, %1)       its constructor
+ *      set_field   %3.main#report.title, %2
+ *      ...   (%3 is not used again)
+ *
+ * Nothing ever reads a field of this object, and no reference to it goes
+ * anywhere: whether it existed makes no difference to the program. All of
+ * it goes - the `new_object`, the stores into it, and the calls made on it.
+ *
+ * WHAT IS CHECKED for the object a `new_object` makes (in a function
+ * without a `try`), by walking the flow graph from there until its slot is
+ * written again (analysis/object_paths.sharp does the same walk for boxes):
+ *
+ *   - every use is a store INTO it (`set_field` through it), or a direct
+ *     call made ON it (it is the call's `self` and nowhere else among the
+ *     arguments) of a function that, by the facts of passes/calls -
+ *
+ *        writes only fields of its own object            (pure_functions.sharp)
+ *        cannot raise when its object is not null
+ *        always comes back
+ *        runs no static part of a class  (leaving the call out must not leave a class unprepared)
+ *        does not let its object escape                  (escape_analysis.sharp)
+ *
+ *     - and whose result nobody uses;
+ *   - each of those instructions can see no other object in the slot.
+ *
+ * A read of a field, a test, a copy, a call that passes it as anything but
+ * `self`: the object is needed (or may be), and stays.
+ *
+ * Run after the function facts are known, before the value passes run
+ * again (they then remove what was only computed to be stored into it).
+ *
+ *      C++ comparison: the C++ optimizer removes a dead `new` only for the
+ *      number boxes. This is the part of "scalar replacement" that needs no
+ *      replacement at all; HotSpot calls it dead allocation removal.
+ */
+def remove_dead_objects(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    if(code.tries.size() > 0) { return 0; }
+    total : _int64 = code.instructions.size();
+    any : _int64 = 0;
+    for(i : _int64 = 0; i < total && any == 0; i++) {
+        if(code.instructions.at(i).kind == IR_NEW_OBJECT) { any = 1; }
+    }
+    if(any == 0) { return 0; }
+    graph := analyses.graph();
+    goes := new _int64[total + 1];              // per instruction: 1 when it is removed
+    uses := new number_list();
+    found := new number_list();
+    objects : _int64 = 0;
+    for(i : _int64 = 0; i < total; i++) {
+        made := code.instructions.at(i);
+        if(made.kind != IR_NEW_OBJECT || made.target < 0) { continue; }
+        slot : _int64 = made.target;
+        uses.count = 0;
+        if(!object_is_only_filled(code, graph, i, slot, uses)) { continue; }
+        alone : _int64 = 1;
+        for(u : _int64 = 0; u < uses.count && alone == 1; u++) {
+            found.count = 0;
+            if(!reaching_definitions(code, graph, uses.at(u), slot, found) || found.count != 1 || found.at(0) != i) { alone = 0; }
+        }
+        if(alone == 0) { continue; }
+        goes[i] = 1;
+        for(u : _int64 = 0; u < uses.count; u++) { goes[uses.at(u)] = 1; }
+        objects++;
+    }
+    if(objects == 0) { return 0; }
+    removed := new number_list();
+    for(i : _int64 = 0; i < total; i++) {
+        if(goes[i] == 1) { removed.add(i); }
+    }
+    remove_instructions(code, removed);
+    analyses.changed();
+    return objects;
+}
+
+/**
+ * From the `new_object` at `made_at` until `slot` is written again, on every
+ * path: is every read of the slot a store into the object or a call on it
+ * that may be left out (the header says which)? The instructions that use it
+ * are collected in `uses`.
+ */
+def object_is_only_filled(code: ir_function, graph: flow_graph, made_at: _int64, slot: _int64, uses: number_list) : _int64 {
+    seen := new _int64[graph.blocks + 1];
+    waiting := new number_list();
+    block : _int64 = graph.block_of[made_at];
+    from : _int64 = made_at + 1;
+    more : _int64 = 1;
+    while(more == 1) {
+        overwritten : _int64 = 0;
+        for(i : _int64 = from; i < graph.ends[block] && overwritten == 0; i++) {
+            made := code.instructions.at(i);
+            times : _int64 = times_read(made, slot);
+            if(times > 0) {
+                if(times != 1 || slot_read(made, 0) != slot) { return 0; }
+                if(made.kind == IR_CALL) {
+                    if(!call_may_be_left_out(made)) { return 0; }
+                } else if(made.kind != IR_SET_FIELD) {
+                    return 0;
+                }
+                uses.add(i);
+            }
+            if(slot_written(made) == slot) { overwritten = 1; }
+        }
+        if(overwritten == 0) {
+            for(k : _int64 = 0; k < 2; k++) {
+                next : _int64 = graph.successor(block, k);
+                if(next >= 0 && seen[next] == 0) { seen[next] = 1; waiting.add(next); }
+            }
+        }
+        if(waiting.count == 0) {
+            more = 0;
+        } else {
+            block = waiting.pop_last();
+            from = graph.starts[block];
+        }
+    }
+    return 1;
+}
+
+/** a direct call on an object (its first argument) that does nothing but fill that object, and whose result is unused */
+def call_may_be_left_out(call: ir_instruction) : _int64 {
+    if(call.number != CALL_HOW_DIRECT || call.declaration == null || call.target >= 0) { return 0; }
+    callee : sharp_declaration = call.declaration!!;
+    if((callee.flags & FLAG_STATIC) != 0) { return 0; }
+    needed : _int64 = FACT_WRITES_ONLY_SELF | FACT_SAFE_WITH_SELF | FACT_ALWAYS_ENDS | FACT_NO_STATIC_PART;
+    if((callee.optimizer_facts & needed) != needed) { return 0; }
+    return (callee.optimizer_kept_in & 1) != 0;
+}

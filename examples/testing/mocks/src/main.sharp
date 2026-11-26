@@ -1,0 +1,265 @@
+mod app;
+
+import (
+    std.testing
+)
+
+/**
+ * MOCKS, STEP BY STEP - a real class, and a mock standing in for it.
+ *
+ * THE STORY: a `notebook` keeps notes. It does not store them itself - it
+ * asks a `note_store` to. A test of the notebook wants to know two things:
+ *
+ *      A. does it give the right RESULT?           ->  the real store is fine
+ *      B. does it USE the store the right way?     ->  that needs a mock
+ *         ("it saves exactly once", "it never saves a note that is already there")
+ *
+ * Question B cannot be answered by looking at the result: a notebook that
+ * saved the same note twice would still show one note. Only something that
+ * WATCHES the calls can tell - and that is what a mock is: a stand-in that
+ * does no real work, writes down every call, and gives back what the test
+ * told it to.
+ *
+ * NOTHING IS WRITTEN FOR THE MOCK. `mock<note_store>()` is a built-in: the
+ * compiler writes a class that implements note_store and hands you one.
+ */
+
+// ============================================================================ 1. the contract
+
+/**
+ * What the notebook needs from a store. The notebook only ever sees THIS -
+ * so anything that implements it can be handed to the notebook. (A mock can
+ * only stand in for an INTERFACE: that is the reason to write the edges of a
+ * program - files, the network, the clock - as interfaces.)
+ */
+interface note_store {
+    def load() : list<string>;              // every note that was saved
+    def save(note: string);                 // keep one more
+    def remove(note: string) : _int64;      // take one out; 1 when it was there
+}
+
+// ============================================================================ 2. THE REAL CLASS - it operates normally
+
+/**
+ * A store that really works: it keeps the notes in a list. (A real program
+ * would write them to a file or a database; a list keeps the example short,
+ * and the point is the same - it DOES the job.)
+ */
+class memory_store : note_store {
+    private kept : list<string> = new list<string>();
+
+    override def load() : list<string> {
+        return kept;
+    }
+
+    override def save(note: string) {
+        kept.add(note);
+    }
+
+    override def remove(note: string) : _int64 {
+        for(i : _int64 = 0; i < kept.size(); i++) {
+            if(kept.at(i) == note) {
+                kept.remove_at(i);
+                return 1;
+            }
+        }
+        return 0;
+    }
+}
+
+/*
+ * 3. THE MOCK VERSION is not in this file - the compiler writes it when it
+ *    sees mock<note_store>(). What it writes is, in effect:
+ *
+ *      class mock_of_note_store base mock : note_store {
+ *          override def load() : list<string>          "load was called"; give back what a given { } said,
+ *                                                      or an empty list when nothing was said
+ *          override def save(note: string)             "save was called with <note>"
+ *          override def remove(note: string) : _int64  "remove was called with <note>"; give back what a
+ *                                                      given { } said, or 0
+ *      }
+ *
+ *    The same three functions as memory_store - so the notebook cannot tell
+ *    them apart - but none of them stores anything.
+ */
+
+// ============================================================================ 4. the logic under test
+
+/** The notebook. It is GIVEN its store; it never builds one. */
+class notebook {
+    private store : note_store;
+
+    notebook(keeps: note_store) {
+        store = keeps;
+    }
+
+    /** add a note - but never an empty one, and never the same note twice */
+    def add(note: string) : _int64 {
+        if(note.size() == 0) {
+            return 0;
+        }
+        existing : list<string> = store.load();
+        for(i : _int64 = 0; i < existing.size(); i++) {
+            if(existing.at(i) == note) {
+                return 0;                       // already there: nothing to save
+            }
+        }
+        store.save(note);
+        return 1;
+    }
+
+    /** how many notes there are */
+    def count() : _int64 {
+        return store.load().size();
+    }
+
+    /** remove a note; the words say what happened */
+    def remove(note: string) : string {
+        if(store.remove(note) == 1) {
+            return "removed";
+        }
+        return "no such note";
+    }
+}
+
+/** a class that needs a notebook but, in the test below, never uses its store */
+class cover {
+    private inside : notebook;
+    cover(book: notebook) { inside = book; }
+    def title() : string { return "My notebook"; }
+}
+
+def one_note() : list<string> {
+    made := new list<string>();
+    made.add("milk");
+    return made;
+}
+
+// ============================================================================ 5. the tests
+
+def main() {
+    // ------------------------------------------------------------------------
+    // A. RESULTS - with the REAL store. Nothing is mocked: the notes really go
+    //    in and really come out.
+    // ------------------------------------------------------------------------
+    tests("the notebook with the real store: does it give the right result?") {
+        test("a note that was added is counted") {
+            book := notebook(memory_store());
+            book.add("milk");
+            book.add("bread");
+            expect(book.count()).should_be(2);
+        };
+
+        test("the same note twice is kept once") {
+            book := notebook(memory_store());
+            expect(book.add("milk")).should_be(1);
+            expect(book.add("milk")).should_be(0);
+            expect(book.count()).should_be(1);
+        };
+
+        test("removing a note that is there says so") {
+            book := notebook(memory_store());
+            book.add("milk");
+            expect(book.remove("milk")).should_be("removed");
+            expect(book.count()).should_be(0);
+        };
+    };
+
+    // ------------------------------------------------------------------------
+    // B. BEHAVIOUR - with a MOCK. Read each test as three steps:
+    //
+    //        set up      what should the mock answer?          given { ... }.returns(...)
+    //        act         run the code under test
+    //        check       what was the mock asked to do?         verify { ... }.once()
+    // ------------------------------------------------------------------------
+    tests("the notebook with a mock store: does it USE the store the right way?") {
+        test("a mock just to fill a parameter needs no set-up at all") {
+            // the cover needs a notebook, the notebook needs a store - and this
+            // test cares about neither. One word fills the gap.
+            front := cover(notebook(mock<note_store>()));
+            expect(front.title()).should_be("My notebook");
+        };
+
+        test("with nothing set up, the mock's functions give harmless answers") {
+            store := mock<note_store>();
+            book := notebook(store);
+
+            expect(book.count()).should_be(0);              // load() gave an empty list
+            expect(book.remove("x")).should_be("no such note");     // remove() gave 0
+        };
+
+        test("adding a new note saves it, once") {
+            store := mock<note_store>();
+            book := notebook(store);
+
+            book.add("milk");
+
+            verify { store.save("milk"); }.once();
+        };
+
+        test("a note that is already stored is NOT saved again") {
+            // set up the ONE function this test cares about: load() says milk is there
+            store := mock<note_store>();
+            given { store.load(); }.returns(one_note());
+
+            book := notebook(store);
+            book.add("milk");
+
+            // the real store could not have shown this - the result looks the
+            // same either way. The mock saw that save was never called.
+            verify { store.save("milk"); }.never();
+        };
+
+        test("an empty note does not touch the store at all") {
+            store := mock<note_store>();
+            book := notebook(store);
+
+            book.add("");
+
+            verify_nothing_else(store);                     // not one call reached it
+        };
+
+        test("the notebook reports what the store says about a removal") {
+            // the store will claim "ghost" was there, whatever is really stored
+            store := mock<note_store>();
+            given { store.remove("ghost"); }.returns(1);
+
+            book := notebook(store);
+
+            expect(book.remove("ghost")).should_be("removed");
+            expect(book.remove("other")).should_be("no such note");      // not set up: 0
+        };
+
+        test("any_text() stands for whatever text is passed") {
+            store := mock<note_store>();
+            book := notebook(store);
+
+            book.add("milk");
+            book.add("bread");
+
+            verify { store.save(any_text()); }.times(2);
+            verify { store.remove(any_text()); }.never();
+        };
+
+        test("a mock can be made to fail, to test what the code does then") {
+            store := mock<note_store>();
+            given { store.load(); }.throws(new illegal_state_exception("the disk is full"));
+
+            book := notebook(store);
+
+            expect_throws<illegal_state_exception>() { book.count(); };
+        };
+
+        test("the story of a mock is every call, in order") {
+            store := mock<note_store>();
+            book := notebook(store);
+
+            book.add("milk");
+            book.count();
+
+            expect((store as mock).story()).should_be("load(), save(\"milk\"), load()");
+        };
+    };
+
+    finish_tests();
+}

@@ -1,0 +1,78 @@
+mod std.guikit.testing;
+
+import (
+    std,
+    std.testing,
+    std.guikit.*
+)
+
+/**
+ * TIME IN A UI TEST (ui_test.sharp has the overview)
+ *
+ * The screen of a UI test has a clock of its own, and it stands still. A
+ * timer does not ring, an animation does not move and a toast does not go
+ * away until the test lets time pass:
+ *
+ *      idle()                  no time passes: everything waiting to be built again or laid out finishes
+ *      advance(0.5)            half a second passes, a sixtieth at a time: animations move, timers ring
+ *      wait_until { ... }      time passes until the block answers true; the test fails when five
+ *                              seconds of the clock have gone and it still does not
+ *      wait_until(30) { ... }  ... with another limit, in seconds
+ *
+ * So a test of something that takes two seconds takes no time to run, and it
+ * runs the same on a fast machine and a slow one:
+ *
+ *      on_tag("save").click();
+ *      should_show_toast("Saved");                 // the toast is up
+ *      advance(4);
+ *      should_show_no_toast();                     // ... and gone
+ *
+ * The doing words (click(), type(...)) already wait for the screen to be
+ * built again: idle() is for a test that changes a state itself.
+ *
+ *      back()                  the back key (Escape): closes the topmost dialog or menu, or goes
+ *                              back one screen
+ */
+
+/** let everything that is waiting to be built again or laid out finish; no time passes */
+def idle() {
+    test_screen.settle();
+}
+
+/** this many seconds pass on the test's clock, a sixtieth of a second at a time */
+def advance(seconds: decimal) {
+    left : decimal = seconds;
+    while(left > 0) {
+        step : decimal = 1.0 / 60;
+        if(left < step) { step = left; }
+        test_screen.pass(step);
+        left = left - step;
+    }
+    test_screen.settle();
+}
+
+/** time passes until the block answers true; fails the test after five seconds of the clock */
+def wait_until(condition: ()(bool)) {
+    wait_until(5, condition);
+}
+
+/** the same, giving up after `most` seconds of the test's clock */
+def wait_until(most: decimal, condition: ()(bool)) {
+    test_screen.settle();
+    passed : decimal = 0;
+    while(!condition()) {
+        if(passed >= most) {
+            test_screen.fail("wait_until", "after " + most + " seconds of the test's clock the block still does not answer true");
+        }
+        advance(1.0 / 60);
+        passed = passed + 1.0 / 60;
+    }
+}
+
+/** the back key: closes the topmost dialog or menu; with none open, goes back one screen */
+def back() {
+    test_screen.send(test_screen.event_key(EVENT_KEY_DOWN, KEY_ESCAPE));
+    test_screen.send(test_screen.event_key(EVENT_KEY_UP, KEY_ESCAPE));
+    test_screen.settle();
+    test_screen.linger();
+}

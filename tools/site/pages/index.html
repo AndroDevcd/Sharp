@@ -1,0 +1,170 @@
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow">The Sharp programming language</p>
+        <h1>Dependency injection, mocks, tests and GUI apps, <em>all built in.</em></h1>
+        <p class="lede">Sharp ships with the tools most projects have to piece together from third-party libraries. Programs compile with <code>sharpc</code> and run on the Sharp VM.</p>
+        <div class="actions">
+          <a class="btn primary" href="{root}install.html">Download Sharp {version}</a>
+          <a class="btn" href="{root}guide/index.html">Read the guide</a>
+        </div>
+        <div class="runs"><span>Runs on <b>Windows</b></span><span><b>Linux x86-64</b></span><span><b>Raspberry Pi</b> (ARM)</span></div>
+      </div>
+
+      <div class="code" id="tour">
+        <div class="bar" role="tablist" aria-label="Examples">
+          <button role="tab" id="tab-hello" aria-selected="true" data-show="hello">hello.sharp</button>
+          <button role="tab" id="tab-di" aria-selected="false" data-show="di">inject.sharp</button>
+          <button role="tab" id="tab-mock" aria-selected="false" data-show="mock">mocks.sharp</button>
+          <button role="tab" id="tab-c" aria-selected="false" data-show="c">call_c.sharp</button>
+        </div>
+        <pre data-sample="di" class="sharp" hidden>mod app;
+
+interface greeting {
+    def words() : string;
+}
+
+class friendly : greeting {
+    override def words() : string { return "Good morning"; }
+}
+
+class door {
+    inject hello : greeting;            // the door asks for a greeting; it never makes one
+
+    def open(name: string) { println("${hello.words()}, $name!"); }
+}
+
+component app {
+    single { friendly() as greeting }   // this one line decides which greeting everyone gets
+}
+
+def main() {
+    door().open("ada");
+}</pre>
+        <pre data-sample="c" class="sharp" hidden>mod app;
+
+import ( std.c )
+
+extern "c" {                                // C's own library, under its C names
+    def strlen(text: string) : c_size;
+    def abs(number: c_int) : c_int;
+}
+
+def main() {
+    println("strlen says " + strlen("hello, C"));
+    println("abs says " + abs(0 - 42));
+}</pre>
+        <pre data-sample="mock" class="sharp" hidden>mod app;
+
+import ( std.testing )
+
+interface weather {
+    def today() : string;
+}
+
+def advice(sky: weather) : string {
+    if(sky.today() == "rain") { return "take an umbrella"; }
+    return "enjoy the sun";
+}
+
+def main() {
+    tests("what to take") {
+        test("a rainy day needs an umbrella") {
+            sky := mock&lt;weather&gt;();                     // no fake class to write
+            given { sky.today(); }.returns("rain");     // pretend it is raining
+
+            expect(advice(sky)).should_be("take an umbrella");
+        };
+    };
+    finish_tests();
+}</pre>
+        <pre data-sample="hello" class="sharp">mod app;
+
+def main() {
+    name := "world";
+    println("hello, $name!");
+}</pre>
+        <div class="out">
+          <span class="label">Output</span>
+          <pre data-out="hello">hello, world!</pre>
+          <pre data-out="di" hidden>Good morning, ada!</pre>
+          <pre data-out="mock" hidden>what to take
+  ok    a rainy day needs an umbrella
+
+all 1 tests passed</pre>
+          <pre data-out="c" hidden>strlen says 8
+abs says 42</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Why Sharp</p>
+        <h2>Everything you'd normally install is already here.</h2>
+      </div>
+      <div class="why">
+        <article><h3>Dependency injection</h3><p>Write <code>inject</code>, bind it in a <code>component</code>, and you're done. No framework, no container.</p></article>
+        <article><h3>Mocks without boilerplate</h3><p><code>mock&lt;mailer&gt;()</code> is all it takes. The compiler writes the class.</p></article>
+        <article><h3>Testing out of the box</h3><p><code>std.testing</code> comes with the language, so there's nothing to install or configure.</p></article>
+        <article><h3>GUI apps in about 30 lines</h3><p><code>std.guikit</code> is ready when you are. Change the state and the screen follows.</p></article>
+        <article><h3>Concurrency that scales</h3><p>Coroutines and channels run thousands of tasks on just a few threads.</p></article>
+        <article><h3>Modern by default</h3><p>Null safety, generics, closures and type inference from line one.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section class="plain">
+    <div class="wrap">
+      <div class="fast">
+        <div class="big">2.2&times;</div>
+        <div class="col">
+          <p class="eyebrow">Performance</p>
+          <h2>About as fast as LuaJIT.</h2>
+          <p>On six Benchmarks Game programs, Sharp with <code>-O</code> takes 2.2 times as long as the fastest language. That is ahead of PyPy and Mono, and up to 160 times faster than Sharp was in 2020.</p>
+          <div><a class="btn" href="{root}performance.html">See the numbers</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="wrap">
+      <div class="split">
+        <div>
+          <div class="section-head">
+            <p class="eyebrow">Get started</p>
+            <h2>Up and running in three steps.</h2>
+          </div>
+          <div class="steps">
+            <div class="step"><span class="num">1</span><div><h3>Install</h3><p>Unzip the release and run the installer. You don't need admin rights.</p></div></div>
+            <div class="step"><span class="num">2</span><div><h3>Compile</h3><p><code>sharpc</code> compiles your code.</p></div></div>
+            <div class="step"><span class="num">3</span><div><h3>Run</h3><p><code>sharp</code> runs it. It works the same on Windows and Linux.</p></div></div>
+          </div>
+        </div>
+        <div class="code">
+          <div class="bar"><button aria-selected="true" tabindex="-1">terminal</button></div>
+          <pre><span class="c"># compile, then run</span>
+$ sharpc hello.sharp -o hello
+$ sharp hello
+<span class="n">hello, world!</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="plain">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">In the box</p>
+        <h2>Tools included.</h2>
+      </div>
+      <div class="tools">
+        <article><h3>sdb, the debugger</h3><p>Breakpoints, threads and data inspection in the terminal.</p><a href="{root}debugger.html">See the debugger</a></article>
+        <article><h3>Benchmarks</h3><p>Time and memory for every test. Run them yourself with one script.</p><a href="{root}performance.html">See the numbers</a></article>
+        <article><h3>CLion plugin</h3><p>Syntax highlighting, project settings and run configurations for CLion.</p><a href="{github}/tree/{branch}/tools/clion-plugin">Get the plugin</a></article>
+      </div>
+    </div>
+  </section>

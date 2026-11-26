@@ -1,0 +1,55 @@
+mod main;
+
+import (std.io.coroutines)
+
+// output:
+// 103
+// 3
+// 101
+// 4
+// 105
+// 5
+// start x
+// 4
+// start y
+
+/*
+ * `localized` variables (doc/codegen.md 6.17): one value per fiber. A
+ * `localized` local is a fiber-local slot of its own (not a slot of the
+ * frame); it gets its value where it is declared, every time the
+ * declaration runs - here on each call - and the same name in another fiber
+ * is another variable. A `localized` global keeps its value across calls in
+ * one fiber and starts again at its value in a new fiber
+ * (platform.tls_init). A number and a `string`.
+ */
+localized hits : _int64 = 0;
+
+def count_up(times: _int64) : _int64 {
+    localized mine : _int64 = 100;
+    for(i : _int64 = 0; i < times; i++) {
+        mine++;
+        hits++;
+    }
+    return mine;
+}
+
+def keep_text(t: string) : string {
+    localized held : string = "start ";
+    held += t;
+    return held;
+}
+
+def main() {
+    show(count_up(3));
+    show(hits);
+    show(count_up(1));
+    show(hits);
+    j := launch({ ->
+        show(count_up(5));
+        show(hits);
+        println(keep_text("x"));
+    });
+    j.join();
+    show(hits);
+    println(keep_text("y"));
+}

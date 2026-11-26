@@ -1,0 +1,56 @@
+mod backend.finalizer.generation.statements;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.finalizer.ir,
+    backend.finalizer.generation,
+    backend.finalizer.generation.closures
+)
+
+/**
+ * `with(value) as name { A } else { B }`  /  `apply(value) { A } else { B }`
+ *
+ *      %holder = value                         (once)
+ *      missing = is_null %holder               (only when the value may be null)
+ *      jump_unless missing, present
+ *      B                                       (the else block; nothing when there is none)
+ *      jump end
+ *   present:
+ *      inside = %holder                        (the name of the `with`, the hidden variable of the `apply`)
+ *      A
+ *   end:
+ *      the value of the expression is %holder
+ *
+ * The blocks are generated as the statements they are, in the middle of the
+ * expression that holds them. That is safe because the parts of an expression
+ * live in slots, not on a stack: a `return` or a `break` inside a block
+ * leaves nothing half built behind.
+ */
+def with_value(g: generator, e: bound_with) : _int64 {
+    holder : _int64 = g.slot_of(e.holder, e.unit, e.node);
+    subject : _int64 = value_of(g, e.subject);
+    g.b.copy(holder, subject, NARROW_NONE);
+    g.b.release(subject);
+
+    finish : _int64 = g.b.new_label();
+    if(e.may_be_null == 1 && g.b.kind_of(holder) == SLOT_REF) {
+        present : _int64 = g.b.new_label();
+        missing : _int64 = g.b.temp(SLOT_INT);
+        test := g.b.emit(IR_IS_NULL);
+        test.target = missing;
+        test.first = holder;
+        g.b.jump_unless(missing, present);
+        g.b.release(missing);
+        if(e.else_part != null) { generate_statement(g, e.else_part!!); }
+        g.b.jump(finish);
+        g.b.place(present);
+    }
+    store_local(g, e.inside, holder, e.unit, e.node);
+    generate_statement(g, e.then_part);
+    g.b.place(finish);
+    return holder;
+}

@@ -1,0 +1,194 @@
+mod std.time;
+
+/**
+ * The raw result of parsing text with a `date_time_formatter`: the fields
+ * that were found in the text, before they are combined into a value.
+ *
+ * A pattern decides which fields exist. "yyyy-MM-dd" produces year, month
+ * and day and nothing else; "HH:mm" produces hour and minute. This class
+ * records which fields were present (`has_...`) and builds the value types
+ * from them (`to_date`, `to_time`, `to_date_time`, `to_offset_date_time`),
+ * throwing a clear date_time_exception when a needed field is missing or the
+ * fields contradict each other.
+ *
+ * Most code never sees this class: date_time_formatter.parse_date(text) and
+ * its siblings call it internally. Use `date_time_formatter.parse(text)` to
+ * get the fields themselves, e.g. to accept input that may or may not carry
+ * a time.
+ *
+ * Resolution rules
+ * ----------------
+ * date    year + month + day of month, or year + day of year.
+ *         When the text also contained a day of the week (E, e), an ISO week
+ *         (w), a week-based year (Y) or a quarter (Q), it must agree with
+ *         the date ("Mon 2024-02-29" is rejected: that day was a Thursday).
+ * time    hour of day (H); or hour 1-12 (h) together with AM/PM (a).
+ *         Minute, second and fraction default to 0 when the pattern has none.
+ * offset  as written (X, x or Z).
+ */
+class date_time_fields {
+    /** what was parsed, for error messages */
+    private original : string;
+
+    has_year : decimal = 0;
+    year : decimal = 0;
+    has_month : decimal = 0;
+    month_value : decimal = 0;
+    has_day : decimal = 0;
+    day : decimal = 0;
+    has_day_of_year : decimal = 0;
+    day_of_year : decimal = 0;
+    /** ISO day of week 1 (Monday) .. 7 (Sunday), from E or e */
+    has_day_of_week : decimal = 0;
+    day_of_week_value : decimal = 0;
+    has_iso_week : decimal = 0;
+    iso_week : decimal = 0;
+    has_iso_week_year : decimal = 0;
+    iso_week_year : decimal = 0;
+    has_quarter : decimal = 0;
+    quarter : decimal = 0;
+
+    /** hour 0 .. 23, from H */
+    has_hour : decimal = 0;
+    hour : decimal = 0;
+    /** hour 1 .. 12, from h */
+    has_hour_12 : decimal = 0;
+    hour_12 : decimal = 0;
+    /** from a: 0 = AM, 1 = PM */
+    has_am_pm : decimal = 0;
+    pm : decimal = 0;
+    has_minute : decimal = 0;
+    minute : decimal = 0;
+    has_second : decimal = 0;
+    second : decimal = 0;
+    has_nano : decimal = 0;
+    nano : decimal = 0;
+
+    has_offset : decimal = 0;
+    offset : zone_offset;
+
+    /** an empty field set for a parse of `text` */
+    date_time_fields(text: string) {
+        original = text;
+        offset = zone_offset.utc;
+    }
+
+    private def failure(reason: string): date_time_exception {
+        return new date_time_exception("cannot parse \"" + original + "\": " + reason);
+    }
+
+    /** true when the fields are enough to build a date */
+    def has_date(): bool {
+        return has_year && ((has_month && has_day) || has_day_of_year);
+    }
+
+    /** true when the fields are enough to build a time of day */
+    def has_time(): bool {
+        return has_hour || (has_hour_12 && has_am_pm);
+    }
+
+    /**
+     * The date the fields describe.
+     * @throws date_time_exception when year/month/day (or year/day of year)
+     *         are not all present, name a day that does not exist, or
+     *         disagree with a parsed day of week, week number or quarter
+     */
+    def to_date(): date {
+        if(!has_year) {
+            throw failure("the text has no year");
+        }
+        result : date = date.epoch;
+        if(has_month && has_day) {
+            result = date.of(year, month_value, day);
+            if(has_day_of_year && result.day_of_year() != day_of_year) {
+                throw failure("the day of the year does not match the date");
+            }
+        } else if(has_day_of_year) {
+            result = date.of_year_day(year, day_of_year);
+            if(has_month && result.month_value() != month_value) {
+                throw failure("the month does not match the day of the year");
+            }
+            if(has_day && result.day() != day) {
+                throw failure("the day of the month does not match the day of the year");
+            }
+        } else {
+            throw failure("the text has no complete date (month and day, or day of year)");
+        }
+
+        if(has_day_of_week && result.day_of_week().value() != day_of_week_value) {
+            throw failure("the day of the week does not match the date, which is a " + result.day_of_week().name());
+        }
+        if(has_iso_week && result.iso_week() != iso_week) {
+            throw failure("the week number does not match the date");
+        }
+        if(has_iso_week_year && result.iso_week_year() != iso_week_year) {
+            throw failure("the week-based year does not match the date");
+        }
+        if(has_quarter && result.quarter() != quarter) {
+            throw failure("the quarter does not match the date");
+        }
+        return result;
+    }
+
+    /**
+     * The time of day the fields describe.
+     * @throws date_time_exception when there is no hour, a 12-hour value
+     *         without AM/PM, H and h/a that disagree, or a field out of range
+     */
+    def to_time(): time_of_day {
+        hour_of_day : decimal = 0;
+        if(has_hour_12) {
+            if(!has_am_pm) {
+                throw failure("an hour on the 12-hour clock (h) needs AM or PM (a)");
+            }
+            time_math.check_range("hour (1-12)", hour_12, 1, 12);
+            hour_of_day = hour_12 % 12;
+            if(pm) {
+                hour_of_day += 12;
+            }
+            if(has_hour && hour != hour_of_day) {
+                throw failure("the 24-hour and the 12-hour value disagree");
+            }
+        } else if(has_hour) {
+            hour_of_day = hour;
+            if(has_am_pm && (hour >= 12) != (pm != 0)) {
+                throw failure("AM/PM does not match the hour");
+            }
+        } else {
+            throw failure("the text has no hour");
+        }
+        return time_of_day.of(hour_of_day, minute, second, nano);
+    }
+
+    /**
+     * Date and time together. When the pattern had no time fields at all the
+     * time is 00:00:00, so a date-only text can be read as a date_time.
+     * @throws date_time_exception as `to_date` and `to_time`
+     */
+    def to_date_time(): date_time {
+        day_part : date = to_date();
+        if(!has_hour && !has_hour_12 && !has_minute && !has_second && !has_nano) {
+            return day_part.at_start_of_day();
+        }
+        return date_time.of(day_part, to_time());
+    }
+
+    /**
+     * Date, time and offset together.
+     * @throws date_time_exception when the text had no offset, or as `to_date_time`
+     */
+    def to_offset_date_time(): offset_date_time {
+        if(!has_offset) {
+            throw failure("the text has no offset from UTC");
+        }
+        return offset_date_time.of(to_date_time(), offset);
+    }
+
+    /**
+     * The moment on the time line.
+     * @throws date_time_exception as `to_offset_date_time`
+     */
+    def to_instant(): instant {
+        return to_offset_date_time().to_instant();
+    }
+}

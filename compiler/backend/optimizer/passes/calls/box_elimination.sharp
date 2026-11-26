@@ -1,0 +1,255 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * BOX ELIMINATION: an object that never leaves the function becomes plain slots
+ *
+ * Sharp's number objects (`int`, `long`, `bool` ...: "boxes") are made all the
+ * time - `list.size()` gives one, `x := 0` makes one, an operator of `int`
+ * takes and gives them. Once inlining has brought the making of a box and
+ * the reading of its number into one function, what is left looks like
+ *
+ *      new_object    %4, std#int                   int_constant  %9, 0         (the field's start value)
+ *      set_field     %4.value, %3 (as _int32)  ->  copy          %9, %3 (as _int32)
+ *      get_field     %5, %4.value                  copy          %5, %9
+ *
+ * an object made, filled and read, and nothing else ever sees it. Then it
+ * need not exist: each of its fields becomes a slot of the function, and the
+ * value passes turn the copies into nothing. The textbook name is "scalar
+ * replacement of aggregates" (Muchnick 12.2), based on the simplest
+ * "escape analysis": an object escapes when a reference to it goes anywhere
+ * but the receiver of its own field reads and writes.
+ *
+ * The rules, for a slot %b:
+ *
+ *  - exactly one instruction writes %b, and it is `new_object` (so %b always
+ *    holds that new object, never null: its field reads can never raise);
+ *  - %b is not a parameter or `self` (written by the caller), nor a slot a
+ *    `try` names (written by the VM);
+ *  - every instruction that reads %b is a `get_field` or `set_field` with %b
+ *    as the OBJECT - never as a value stored, an argument, a returned value,
+ *    a copy, a lock, a test.
+ *
+ * Then `new_object` becomes the start value of every field used (0, 0.0 or
+ * null: what `newclass` gives them, codegen.md 4.5), `set_field %b.f, %v`
+ * becomes `copy %f, %v` (with the same narrowing) and `get_field %t, %b.f`
+ * becomes `copy %t, %f`. No constructor runs in between - a constructor that
+ * was not inlined is a call that reads %b, so %b escapes.
+ *
+ * A SLOT THAT HOLDS A BOX AND, AT OTHER TIMES, OTHER THINGS. The rules are
+ * about a slot, but slots are reused: the inliner gives every body it copies
+ * in the same extra slots and copy coalescing merges slots, so in a function
+ * of any size the slot of a box is written by other instructions too, and the
+ * first rule would turn almost every box down. So first each `new_object`
+ * whose object provably stays here is moved to a slot of its own
+ * (give_boxes_their_own_slots, below) - after that the rules fit.
+ *
+ *      C++ comparison: passes/pass_box_elimination.cpp, which does the same
+ *      for the boxes of numbers only, matching the constructor's code; here
+ *      any object qualifies, since the rule is about where the reference goes.
+ */
+def eliminate_boxes(analyses: function_analyses, parameters: _int64) : _int64 {
+    code := analyses.code;
+    if(code.tries.size() == 0) { give_boxes_their_own_slots(analyses); }
+    count : _int64 = code.instructions.size();
+    made_at := new _int64[code.slot_count() + 1];      // per slot: the index of its one new_object, -1 none, -2 not a box
+    for(s : _int64 = 0; s < sizeof(made_at); s++) { made_at[s] = 0 - 1; }
+    candidates : _int64 = 0;
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        written : _int64 = slot_written(made);
+        if(written < 0) { continue; }
+        if(made.kind == IR_NEW_OBJECT && made_at[written] == 0 - 1) {
+            made_at[written] = i;
+            candidates++;
+        } else {
+            if(made_at[written] >= 0) { candidates--; }
+            made_at[written] = 0 - 2;
+        }
+    }
+    if(candidates <= 0) { return 0; }
+    for(s : _int64 = 0; s < parameters && s < sizeof(made_at); s++) { made_at[s] = 0 - 2; }
+    tries_count : _int64 = code.tries.size();
+    for(t : _int64 = 0; t < tries_count; t++) {
+        region := code.tries.at(t);
+        for(h : _int64 = 0; h < region.catch_slots.count; h++) { if(region.catch_slots.at(h) >= 0) { made_at[region.catch_slots.at(h)] = 0 - 2; } }
+        if(region.has_finally == 1 && region.finally_slot >= 0) { made_at[region.finally_slot] = 0 - 2; }
+    }
+    // ---- a box escapes when any instruction reads it other than as the object of its own field
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        k : _int64 = 0;
+        read : _int64 = slot_read(made, 0);
+        while(read >= 0) {
+            if(made_at[read] >= 0 && !(k == 0 && (made.kind == IR_GET_FIELD || made.kind == IR_SET_FIELD))) {
+                made_at[read] = 0 - 2;
+            }
+            k++;
+            read = slot_read(made, k);
+        }
+    }
+    // ---- the boxes left: each field used gets a slot, and the instructions are rewritten
+    // From the last box made to the first: replacing a box puts its start values where it was made,
+    // which moves every instruction after that place - a box made earlier keeps its index.
+    replaced : _int64 = 0;
+    for(i : _int64 = count - 1; i >= 0; i--) {
+        made := code.instructions.at(i);
+        if(made.kind != IR_NEW_OBJECT || made.target < 0 || made_at[made.target] != i) { continue; }
+        replace_box(code, made.target, i);
+        replaced++;
+    }
+    if(replaced > 0) { analyses.changed(); }
+    return replaced;
+}
+
+/**
+ * Every `new_object` into a slot that other instructions write too: when the
+ * object it makes is only ever the object of field reads and writes
+ * (object_stays_here), and each of those reads and writes can see no other
+ * value in the slot than this object (reaching_definitions gives this
+ * `new_object` alone), the object is moved to a new slot nothing else uses:
+ *
+ *      new_object %6, std#bool                 new_object %21, std#bool
+ *      set_field  %6.value, %9             ->  set_field  %21.value, %9
+ *      get_field  %20, %6.value                get_field  %20, %21.value
+ *      get_field  %6, %0.data     (reused)     get_field  %6, %0.data
+ *
+ * What the program does is the same; the slot now fits the rules above. (The
+ * textbook name is "live range splitting": one slot that carried two values
+ * that never meet becomes two slots.) Not for functions with a `try`: the
+ * walks do not follow the edges into handlers.
+ */
+def give_boxes_their_own_slots(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    count : _int64 = code.instructions.size();
+    writes := new _int64[code.slot_count() + 1];
+    news : _int64 = 0;
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        written : _int64 = slot_written(made);
+        if(written < 0) { continue; }
+        writes[written]++;
+        if(made.kind == IR_NEW_OBJECT) { news++; }
+    }
+    if(news == 0) { return 0; }
+    uses := new number_list();
+    found := new number_list();
+    moved : _int64 = 0;
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        if(made.kind != IR_NEW_OBJECT || made.target < 0) { continue; }
+        slot : _int64 = made.target;
+        // (a slot written once is looked at by the rules as it is - unless the caller writes it too)
+        if(slot >= sizeof(writes) || (writes[slot] < 2 && slot >= analyses.parameters)) { continue; }
+        graph := analyses.graph();          // (only slots change below: the blocks stand)
+        uses.count = 0;
+        if(!object_stays_here(code, graph, i, slot, 0, uses)) { continue; }
+        alone : _int64 = 1;
+        for(u : _int64 = 0; u < uses.count && alone == 1; u++) {
+            found.count = 0;
+            if(!reaching_definitions(code, graph, uses.at(u), slot, found) || found.count != 1 || found.at(0) != i) { alone = 0; }
+        }
+        if(alone == 0) { continue; }
+        own : _int64 = code.slot_kinds.count;
+        code.slot_kinds.add(SLOT_REF);
+        made.target = own;
+        for(u : _int64 = 0; u < uses.count; u++) { code.instructions.at(uses.at(u)).first = own; }
+        moved++;
+    }
+    if(moved > 0) { analyses.changed_reads(); }
+    return moved;
+}
+
+/**
+ * The box in slot `box`, made at instruction `made_at`, replaced by one slot
+ * per field: its start value where the object was made, copies where the
+ * fields were written and read.
+ */
+def replace_box(code: ir_function, box: _int64, made_at: _int64) {
+    fields := new list<sharp_declaration>();
+    slots := new number_list();
+    total : _int64 = code.instructions.size();
+    for(i : _int64 = 0; i < total; i++) {
+        made := code.instructions.at(i);
+        if((made.kind == IR_GET_FIELD || made.kind == IR_SET_FIELD) && made.first == box) {
+            slot_of_field(code, fields, slots, made.declaration!!);
+        }
+    }
+    // the start values, in the place of the new_object (the first one takes its instruction over)
+    starts := new list<ir_instruction>();
+    for(f : _int64 = 0; f < fields.size(); f++) { starts.add(start_value(code, slots.at(f))); }
+    made_list := new list<ir_instruction>();
+    for(i : _int64 = 0; i < total; i++) {
+        made := code.instructions.at(i);
+        if(i == made_at) {
+            for(f : _int64 = 0; f < starts.size(); f++) { made_list.add(starts.at(f)); }
+            continue;
+        }
+        if((made.kind == IR_GET_FIELD || made.kind == IR_SET_FIELD) && made.first == box) {
+            field_slot : _int64 = slot_of_field(code, fields, slots, made.declaration!!);
+            if(made.kind == IR_SET_FIELD) {
+                narrowing : _int64 = made.number;
+                made.kind = IR_COPY;
+                made.target = field_slot;
+                made.first = made.second;
+                made.second = 0 - 1;
+                made.number = narrowing;
+            } else {
+                made.kind = IR_COPY;
+                made.first = field_slot;
+                made.number = NARROW_NONE;
+            }
+            made.declaration = null;
+        }
+        made_list.add(made);
+    }
+    code.instructions = made_list;
+}
+
+/** the slot that stands for `field` of the box: found, or made (of the kind the field holds) */
+def slot_of_field(code: ir_function, fields: list<sharp_declaration>, slots: number_list, field: sharp_declaration) : _int64 {
+    // The same field can be named by two declaration objects (a field of a generic base class,
+    // reached once through the class and once through one of its uses). What decides is where it
+    // lives in the object: the same place (`address`, given by layout) holding the same kind of
+    // value is the same field - two slots for it would be two values where the object has one.
+    for(i : _int64 = 0; i < fields.size(); i++) {
+        known := fields.at(i);
+        if(known == field) { return slots.at(i); }
+        if(known.address >= 0 && known.address == field.address && kind_of_field(known) == kind_of_field(field)) {
+            return slots.at(i);
+        }
+    }
+    slot : _int64 = code.slot_kinds.count;
+    code.slot_kinds.add(kind_of_field(field));
+    fields.add(field);
+    slots.add(slot);
+    return slot;
+}
+
+/** the kind of slot a field's value lives in: a whole number, a decimal or a reference (the verifier's rule) */
+def kind_of_field(field: sharp_declaration) : _int64 {
+    if(field.kind != D_FIELD) { return SLOT_REF; }
+    type := (field as sharp_field).value_type;
+    if(type == null || type!!.is_array == 1) { return SLOT_REF; }
+    if(type!!.kind == RT_INTEGER) { return SLOT_INT; }
+    if(type!!.kind == RT_DECIMAL) { return SLOT_DEC; }
+    return SLOT_REF;
+}
+
+/** `slot = ` what a field of a new object holds: 0, 0.0 or null (codegen.md 4.5) */
+def start_value(code: ir_function, slot: _int64) : ir_instruction {
+    kind : _int64 = code.slot_kinds.at(slot);
+    made : ir_instruction? = null;
+    if(kind == SLOT_INT) { made = new ir_instruction(IR_INT_CONSTANT); }
+    else if(kind == SLOT_DEC) { made = new ir_instruction(IR_DECIMAL_CONSTANT); }
+    else { made = new ir_instruction(IR_NULL); }
+    made!!.target = slot;
+    return made!!;
+}

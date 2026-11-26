@@ -1,0 +1,130 @@
+mod std.collections;
+
+/**
+ * @class queue
+ *
+ * A first-in first-out queue: elements are added at the back (enqueue) and
+ * taken from the front (dequeue), so they leave in the order they arrived.
+ *
+ *     q := new queue<string>();
+ *     q.enqueue("first");
+ *     q.enqueue("second");
+ *     q.dequeue();            // "first"
+ *     q.peek();               // "second" (stays in the queue)
+ *
+ * It is a thin layer over `deque` (an array used as a ring buffer), so
+ * enqueue, dequeue and peek are all O(1) and no elements are ever shifted.
+ *
+ * This class is NOT thread safe. For passing work between threads use the
+ * concurrent collections instead.
+ *
+ * Limitation: the element type has to be an object type; native types such
+ * as `decimal` cannot be used as T.
+ */
+class queue<T> : loopable<T>, iterable<T> {
+    /** the ring buffer that holds the elements, front of the queue first */
+    private items : deque<T>;
+
+    /** Create an empty queue. */
+    queue() {
+        items = new deque<T>();
+    }
+
+    /** Number of waiting elements. O(1). */
+    def size() : decimal {
+        return items.size();
+    }
+
+    /** true when the queue has no elements. O(1). */
+    def is_empty() : bool {
+        return items.is_empty();
+    }
+
+    /** Add an element at the back of the queue. O(1) on average. */
+    def enqueue(element: T) {
+        items.add_last(element);
+    }
+
+    /** Add an element at the back of the queue (same as enqueue). O(1) on average. */
+    def add(element: T) {
+        items.add_last(element);
+    }
+
+    /**
+     * Remove the element at the front of the queue and return it. O(1).
+     *
+     * @throws no_such_element_exception when the queue is empty
+     */
+    def dequeue() : T {
+        if(items.is_empty())
+            throw new no_such_element_exception("queue: dequeue called on an empty queue");
+        return items.remove_first();
+    }
+
+    /** Remove and return the front element, or return null when the queue is empty. O(1). */
+    def dequeue_or_null() : T? {
+        if(items.is_empty()) return null;
+        return items.remove_first();
+    }
+
+    /**
+     * The element at the front of the queue (the next one dequeue() would
+     * return). It stays in the queue. O(1).
+     *
+     * @throws no_such_element_exception when the queue is empty
+     */
+    def peek() : T {
+        if(items.is_empty())
+            throw new no_such_element_exception("queue: peek called on an empty queue");
+        return items.first();
+    }
+
+    /** The front element, or null when the queue is empty. O(1). */
+    def peek_or_null() : T? {
+        return items.first_or_null();
+    }
+
+    /**
+     * The element that was added most recently (the back of the queue). O(1).
+     *
+     * @throws no_such_element_exception when the queue is empty
+     */
+    def back() : T {
+        if(items.is_empty())
+            throw new no_such_element_exception("queue: back called on an empty queue");
+        return items.last();
+    }
+
+    /** true when an element equals `element` (compared with `==`). O(n). */
+    def contains(element: T) : bool {
+        return items.contains(element);
+    }
+
+    /** Remove every element. O(1). */
+    def clear() {
+        items.clear();
+    }
+
+    /** A new array with the elements in the order they would be dequeued. O(n). */
+    def to_array() : T[] {
+        return items.to_array();
+    }
+
+    /** A new `list` with the elements in the order they would be dequeued. O(n). */
+    def to_list() : list<T> {
+        return items.to_list();
+    }
+
+    /**
+     * The elements in dequeue order, or null when the queue is empty. This
+     * is what `foreach` uses; looping does not remove anything. O(n).
+     */
+    override def get_elements() : T[]? {
+        return items.get_elements();
+    }
+
+    /** An iterator over a snapshot of the elements, in dequeue order. O(n) to create. */
+    override def iterator() : iterator<T> {
+        return items.iterator();
+    }
+}

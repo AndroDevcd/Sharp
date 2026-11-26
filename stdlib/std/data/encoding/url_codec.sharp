@@ -1,0 +1,229 @@
+mod std.data;
+
+import ( std.io )
+
+/**
+ * Percent encoding for URLs, and building and taking apart query strings.
+ *
+ *     url_codec.encode("a b&c=d/e")          "a%20b%26c%3Dd%2Fe"
+ *     url_codec.decode("a%20b%26c")          "a b&c"
+ *     url_codec.encode_form("a b")           "a+b"
+ *
+ *     keys := new list<string>();   values := new list<string>();
+ *     keys.add("q"); values.add("sharp lang");
+ *     keys.add("page"); values.add("2");
+ *     url_codec.build_query(keys, values)    "q=sharp+lang&page=2"
+ *
+ *     keys = new list<string>(); values = new list<string>();
+ *     url_codec.parse_query("q=sharp+lang&page=2", keys, values);
+ *     url_codec.query_value("q=sharp+lang&page=2", "q")    "sharp lang"
+ *
+ * Percent encoding (RFC 3986): letters, digits and - . _ ~ are written as
+ * they are, every other byte as '%' and two hexadecimal digits. Strings are
+ * sequences of bytes, so a character outside ASCII is encoded byte by byte
+ * (text in UTF-8 gives the usual result, e.g. "%C3%A9").
+ *
+ * The "form" variants are for query strings and HTML form data
+ * (application/x-www-form-urlencoded): a space is written as '+', and '+'
+ * is read as a space.
+ *
+ * A query string keeps its pairs in order and may repeat a key, so pairs
+ * are passed as two lists of the same length (keys and values) rather than
+ * a map.
+ *
+ * Everything is static. Malformed input ('%' without two hexadecimal
+ * digits) throws parse_exception.
+ */
+class url_codec {
+    /** true for the characters that never need encoding: A-Z a-z 0-9 - . _ ~ */
+    private static def is_unreserved(ch: decimal) : bool {
+        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
+            || ch == '-' || ch == '.' || ch == '_' || ch == '~';
+    }
+
+    private static def encode_with(text: string, keep_slash: decimal, plus_for_space: decimal) : string {
+        n : decimal = sizeof(text.data);
+        buf := new char_buffer(n * 3 + 1);
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = text.data[i] & 0xff;
+            if(is_unreserved(ch) || (keep_slash && ch == '/')) {
+                buf.append_char(ch);
+            } else if(plus_for_space && ch == ' ') {
+                buf.append_char('+');
+            } else {
+                buf.append_char('%');
+                buf.append_char(character.to_upper(character.for_digit(ch >> 4, 16)));
+                buf.append_char(character.to_upper(character.for_digit(ch & 15, 16)));
+            }
+        }
+        return buf.build();
+    }
+
+    /**
+     * `text` percent encoded so that it can be one piece of a URL (a path
+     * segment, a query key or value): everything but letters, digits and
+     * - . _ ~ becomes %XX (upper case digits). A space becomes "%20".
+     */
+    static def encode(text: string) : string {
+        return encode_with(text, 0, 0);
+    }
+
+    /**
+     * Like encode() but '/' is kept, for encoding a whole path at once:
+     * encode_path("/my files/a&b.txt") gives "/my%20files/a%26b.txt".
+     */
+    static def encode_path(text: string) : string {
+        return encode_with(text, 1, 0);
+    }
+
+    /** like encode() but a space becomes '+': the encoding of query strings and HTML form data */
+    static def encode_form(text: string) : string {
+        return encode_with(text, 0, 1);
+    }
+
+    private static def decode_with(text: string, plus_is_space: decimal) : string {
+        n : decimal = sizeof(text.data);
+        buf := new char_buffer(n + 1);
+        i : decimal = 0;
+        while(i < n) {
+            ch : decimal = text.data[i];
+            if(ch == '%') {
+                high : decimal = 0 - 1;
+                low : decimal = 0 - 1;
+                if(i + 2 < n) {
+                    high = character.digit_value(text.data[i + 1], 16);
+                    low = character.digit_value(text.data[i + 2], 16);
+                }
+                if(high < 0 || low < 0) {
+                    throw new parse_exception("url: '%' without two hexadecimal digits at position "
+                        + io_strings.int_to_string(i));
+                }
+                buf.append_char(high * 16 + low);
+                i += 3;
+            } else if(ch == '+' && plus_is_space) {
+                buf.append_char(' ');
+                i++;
+            } else {
+                buf.append_char(ch);
+                i++;
+            }
+        }
+        return buf.build();
+    }
+
+    /**
+     * The text with every %XX replaced by the byte it stands for. A '+'
+     * stays a '+' (see decode_form). Characters that would not have needed
+     * encoding are accepted as they are.
+     * Throws parse_exception for a '%' that is not followed by two
+     * hexadecimal digits.
+     */
+    static def decode(text: string) : string {
+        return decode_with(text, 0);
+    }
+
+    /**
+     * Like decode() but a '+' becomes a space: for query strings and HTML
+     * form data.
+     * Throws parse_exception for a '%' that is not followed by two
+     * hexadecimal digits.
+     */
+    static def decode_form(text: string) : string {
+        return decode_with(text, 1);
+    }
+
+    /**
+     * A query string from pairs: "key=value&key2=value2", keys and values
+     * form-encoded, in the order of the lists. The result has no '?' in
+     * front. Empty lists give "".
+     * Throws illegal_argument_exception when the two lists do not have the
+     * same length.
+     */
+    static def build_query(keys: list<string>, values: list<string>) : string {
+        if(keys.size() != values.size()) {
+            throw new illegal_argument_exception("build_query: " + io_strings.int_to_string(keys.size())
+                + " keys but " + io_strings.int_to_string(values.size()) + " values");
+        }
+        buf := new char_buffer(128);
+        total : decimal = keys.size();
+        for(i : decimal = 0; i < total; i++) {
+            if(i > 0) {
+                buf.append_char('&');
+            }
+            buf.append(encode_form(keys.at(i)));
+            buf.append_char('=');
+            buf.append(encode_form(values.at(i)));
+        }
+        return buf.build();
+    }
+
+    /**
+     * Take a query string apart: for every "key=value" piece (pieces are
+     * separated by '&' or ';') the decoded key is added to `keys` and the
+     * decoded value to `values`. A piece without '=' is a key with the
+     * value ""; empty pieces ("a=1&&b=2") are skipped. One '?' at the very
+     * beginning is skipped, and when the text is a whole URL only the part
+     * behind its first '?' and before a '#' is read (a '?' that comes after
+     * the first '=' or '&' belongs to a value). Returns the number of
+     * pairs added.
+     * Throws parse_exception for a malformed %XX.
+     */
+    static def parse_query(query: string, keys: list<string>, values: list<string>) : decimal {
+        n : decimal = sizeof(query.data);
+        start : decimal = 0;
+        // (a `?` after the first `=` or `&` is part of a value - "next=/a?b=1" - not where a query begins)
+        mark : decimal = io_strings.index_of(query, '?', 0);
+        first_equals : decimal = io_strings.index_of(query, '=', 0);
+        first_and : decimal = io_strings.index_of(query, '&', 0);
+        if(mark >= 0 && (first_equals < 0 || mark < first_equals) && (first_and < 0 || mark < first_and)) {
+            start = mark + 1;
+        }
+        end : decimal = io_strings.index_of(query, '#', start);
+        if(end < 0) {
+            end = n;
+        }
+
+        added : decimal = 0;
+        piece_start : decimal = start;
+        for(i : decimal = start; i <= end; i++) {
+            if(i == end || query.data[i] == '&' || query.data[i] == ';') {
+                if(i > piece_start) {
+                    eq_at : decimal = 0 - 1;
+                    for(k : decimal = piece_start; k < i; k++) {
+                        if(query.data[k] == '=') {
+                            eq_at = k;
+                            break;
+                        }
+                    }
+                    if(eq_at < 0) {
+                        keys.add(decode_form(io_strings.slice(query, piece_start, i)));
+                        values.add("");
+                    } else {
+                        keys.add(decode_form(io_strings.slice(query, piece_start, eq_at)));
+                        values.add(decode_form(io_strings.slice(query, eq_at + 1, i)));
+                    }
+                    added++;
+                }
+                piece_start = i + 1;
+            }
+        }
+        return added;
+    }
+
+    /**
+     * The decoded value of the first pair with the key `key` in a query
+     * string (or URL, see parse_query), or null when there is no such key.
+     * Throws parse_exception for a malformed %XX.
+     */
+    static def query_value(query: string, key: string) : string? {
+        keys := new list<string>();
+        values := new list<string>();
+        total : decimal = parse_query(query, keys, values);
+        for(i : decimal = 0; i < total; i++) {
+            if(io_strings.equals(keys.at(i), key)) {
+                return values.at(i);
+            }
+        }
+        return null;
+    }
+}

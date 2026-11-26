@@ -1,0 +1,46 @@
+mod platform;
+
+/**
+* Created by bknun on 9/2/2022
+* 
+* @class build
+*
+* Description:
+* This file represents basic build information about the current running
+* program and os
+*/
+class build {
+    /**
+     * The operating system the program runs on: "win" or "posix".
+     *
+     * It is asked of the VM right here, when this class is set up - NOT left for the program's
+     * start function to fill in (platform.srt_init). Other classes decide things by it in their
+     * own static parts, which run before `main`: the file class picks the file system of the
+     * operating system. Until November 2026 `os` was still empty at that moment, every program on
+     * Windows got the unix file rules, and a path written with `/` was not understood there.
+     */
+    static os: string = os_name();
+
+    private static def os_name() : string {
+        name : _int8[];
+
+        asm {
+            int 0x54
+            popl [name]
+        };
+
+        return "$name";
+    }
+
+    static app_name: string;
+    static platform: string;
+    static version: string;
+
+    static def is_windows() : bool {
+        return os == "win";
+    }
+
+    static def is_linux() : bool {
+        return os == "posix";
+    }
+}

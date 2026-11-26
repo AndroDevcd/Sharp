@@ -1,0 +1,110 @@
+mod std.guikit.layout.flow;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * row - children side by side, left to right.
+ *
+ *      gui.row().gap(8)
+ *          .add(gui.text("Name"))
+ *          .add(gui.spacer())                       // pushes the button to the right edge
+ *          .add(gui.button("Edit", { -> edit(); }))
+ *
+ *   .gap(n)          room between the children
+ *   .align(how)      how children sit ACROSS the row: ALIGN_START (top),
+ *                    ALIGN_CENTER (the default: things on a line look right
+ *                    centred), ALIGN_END (bottom), ALIGN_STRETCH
+ *   .justify(how)    where the children go when the row is wider than they
+ *                    need: JUSTIFY_START (left, the default), JUSTIFY_CENTER,
+ *                    JUSTIFY_END, JUSTIFY_BETWEEN
+ *   .center()        both in the middle
+ *
+ * A child takes leftover width with modifier().grow(1) or .fill_width(). All the
+ * placing is done by the shared algorithm in flex.sharp; a row is that
+ * algorithm going SIDEWAYS. (Compose: Row. CSS: flex-direction: row. Android:
+ * a horizontal LinearLayout.)
+ */
+stable class row base widget : behavior {
+    private space : decimal = 0;
+    private across : _int64 = ALIGN_CENTER;
+    private along : _int64 = JUSTIFY_START;
+
+    row() {
+        attach(self);
+    }
+
+    /** put a widget (or one of your composables) at the right end of the row */
+    def add(child: element) : row {
+        me.add_kid(child.node());
+        return self;
+    }
+
+    /**
+     * The nested way to fill the row: every widget made inside the block
+     * becomes a child, left to right, in the order the lines run.
+     *
+     *      gui.row().gap(8).content {
+     *          gui.text("Name");
+     *          gui.spacer();
+     *          gui.button("Edit") { edit(); };
+     *      }
+     *
+     * gui.row { ... } is the short form when no settings come first.
+     * (How a widget "knows" it belongs here: scope.sharp.)
+     */
+    def content(block: ()()) : row {
+        scope.fill(me, block);
+        return self;
+    }
+
+    /** room between the children, in pixels */
+    /**
+     * When children are added, removed or change places, the others GLIDE to
+     * where they now belong, and a new child fades in. Give the children keys
+     * (modifier().key(...)) so the framework knows which is which.
+     * (glide.sharp. Compose: Modifier.animateItem.)
+     */
+    def animate_items() : row {
+        me.glides = 1;
+        return self;
+    }
+
+    def gap(pixels: decimal) : row {
+        space = pixels;
+        return self;
+    }
+
+    /** how children sit across the row: ALIGN_START, ALIGN_CENTER, ALIGN_END, ALIGN_STRETCH */
+    def align(how: _int64) : row {
+        across = how;
+        return self;
+    }
+
+    /** where children go when there is width to spare: JUSTIFY_START, _CENTER, _END, _BETWEEN */
+    def justify(how: _int64) : row {
+        along = how;
+        return self;
+    }
+
+    /** children in the middle, both ways */
+    def center() : row {
+        across = ALIGN_CENTER;
+        along = JUSTIFY_CENTER;
+        return self;
+    }
+
+    override def kind() : string { return "row"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        flex.measure(me, 1, space, across, min_w, max_w, min_h, max_h);
+    }
+
+    override def arrange() {
+        flex.arrange(me, 1, space, across, along);
+    }
+
+    override def paint(p: painter) {
+    }
+}

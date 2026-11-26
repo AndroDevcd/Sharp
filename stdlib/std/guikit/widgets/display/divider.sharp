@@ -1,0 +1,45 @@
+mod std.guikit.widgets.display;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * divider - a thin line between things. Made with gui.divider().
+ *
+ *      gui.column().add(header).add(gui.divider()).add(body)
+ *
+ * In a column it is a level line across the full width; in a row, call
+ * .upright() for a line from top to bottom. It is drawn in the theme's border
+ * colour. (Compose: HorizontalDivider. HTML: hr.)
+ */
+stable class divider base widget : behavior {
+    private standing : _int64 = 0;
+
+    divider() {
+        attach(self);
+        me.fill_w = 1;
+    }
+
+    /** a line from top to bottom (for a row) instead of across */
+    def upright() : divider {
+        standing = 1;
+        me.fill_w = 0;
+        me.fill_h = 1;
+        return self;
+    }
+
+    override def kind() : string { return "divider"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        me.content_w = 1;
+        me.content_h = 1;
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        p.rect(me.x, me.y, me.w, me.h, ui_host.current!!.look.border);
+    }
+}

@@ -1,0 +1,369 @@
+mod std.text;
+
+/**
+ * string_reader
+ *
+ * A cursor over a string, for writing parsers by hand: look at the next
+ * character without taking it (peek), take it (next), skip or collect runs of
+ * characters, and try to match fixed pieces of text.
+ *
+ *     r := new string_reader("width = 42;");
+ *     name := r.read_identifier();        // "width"
+ *     r.skip_whitespace();
+ *     r.expect("=");                      // throws parse_exception if something else is there
+ *     r.skip_whitespace();
+ *     digits := r.read_digits();          // "42"
+ *     r.match(";");                       // 1, and the reader is at the end
+ *
+ * Characters are returned as native numbers; -1 means "end of the text", so
+ * `while((c = r.next()) >= 0)` style loops need no separate end test.
+ * Nothing here throws at the end of the text except expect() and the `mark`
+ * misuse described below: reading past the end simply gives -1 or "".
+ *
+ * The position can be saved and restored (mark / reset, or position /
+ * seek) to try one way of reading and go back if it does not work out.
+ * line() and column() say where the cursor is for error messages.
+ */
+class string_reader {
+    private text : string = "";
+
+    /* number of characters in text */
+    private size : decimal = 0;
+
+    /* index of the next character to read: 0 .. size */
+    private cursor : decimal = 0;
+
+    /* position saved by mark(), -1 = no mark set */
+    private marked : decimal = -1;
+
+    /** A reader at the start of `text`. */
+    string_reader(text: string) {
+        self->text = text;
+        size = sizeof(text.data);
+    }
+
+    // ------------------------------------------------------------------ position
+
+    /** Index of the next character to read: 0 at the start, length() at the end. */
+    def position(): decimal {
+        return cursor;
+    }
+
+    /** The number of characters in the whole text. */
+    def length(): decimal {
+        return size;
+    }
+
+    /** How many characters are left to read. */
+    def remaining(): decimal {
+        return size - cursor;
+    }
+
+    /** true if every character has been read. */
+    def at_end(): bool {
+        return cursor >= size;
+    }
+
+    /** true if there is at least one more character to read. */
+    def has_next(): bool {
+        return cursor < size;
+    }
+
+    /**
+     * Moves the cursor to `new_position` (0 .. length()).
+     * Throws out_of_bounds_exception if it is outside of that range.
+     */
+    def seek(new_position: int): string_reader {
+        if(new_position.value < 0 || new_position.value > size)
+            throw new out_of_bounds_exception("seek: position $new_position is outside of a text of ${new int(size)} characters");
+        cursor = new_position.value;
+        return self;
+    }
+
+    /** Remembers the current position; reset() goes back to it. A new mark replaces the old one. */
+    def mark(): string_reader {
+        marked = cursor;
+        return self;
+    }
+
+    /**
+     * Goes back to the position remembered by mark(). The mark stays set.
+     * Throws illegal_state_exception if mark() was never called.
+     */
+    def reset(): string_reader {
+        if(marked < 0) throw new illegal_state_exception("reset: no position was marked");
+        cursor = marked;
+        return self;
+    }
+
+    /** Goes back to the start of the text and forgets the mark. */
+    def rewind(): string_reader {
+        cursor = 0;
+        marked = -1;
+        return self;
+    }
+
+    /** The line the cursor is on, counting from 1 (a line ends at "\n"). */
+    def line(): decimal {
+        result : decimal = 1;
+        for(i : decimal = 0; i < cursor; i++) {
+            if(text.data[i] == '\n') result++;
+        }
+        return result;
+    }
+
+    /** The column the cursor is at within its line, counting from 1. */
+    def column(): decimal {
+        result : decimal = 1;
+        for(i : decimal = cursor - 1; i >= 0; i--) {
+            if(text.data[i] == '\n') return result;
+            result++;
+        }
+        return result;
+    }
+
+    // ------------------------------------------------------------------ single characters
+
+    /** The next character without taking it, or -1 at the end. */
+    def peek(): decimal {
+        if(cursor >= size) return -1;
+        return text.data[cursor];
+    }
+
+    /**
+     * The character `offset` places ahead without taking anything
+     * (peek(0) is peek(), peek(1) the one after it). -1 if that is beyond the
+     * end or before the start.
+     */
+    def peek(offset: int): decimal {
+        at : decimal = cursor + offset.value;
+        if(at < 0 || at >= size) return -1;
+        return text.data[at];
+    }
+
+    /** Takes the next character and returns it, or returns -1 at the end (and stays there). */
+    def next(): decimal {
+        if(cursor >= size) return -1;
+        return text.data[cursor++];
+    }
+
+    /** Skips up to `count` characters (fewer if the end comes first). Returns how many were skipped. */
+    def skip(count: int): decimal {
+        step : decimal = count.value;
+        if(step < 0) step = 0;
+        if(step > size - cursor) step = size - cursor;
+        cursor += step;
+        return step;
+    }
+
+    /** Steps one character back (so the last next() is undone). Does nothing at the start. */
+    def back(): string_reader {
+        if(cursor > 0) cursor--;
+        return self;
+    }
+
+    // ------------------------------------------------------------------ matching fixed text
+
+    /** true if the text continues with `expected` at the cursor. Takes nothing. "" always matches. */
+    def looking_at(expected: string): bool {
+        m : decimal = sizeof(expected.data);
+        if(cursor + m > size) return false;
+        for(j : decimal = 0; j < m; j++) {
+            if(text.data[cursor + j] != expected.data[j]) return false;
+        }
+        return true;
+    }
+
+    /**
+     * If the text continues with `expected`, takes it and returns 1;
+     * otherwise takes nothing and returns 0.
+     */
+    def match(expected: string): bool {
+        if(!looking_at(expected)) return false;
+        cursor += sizeof(expected.data);
+        return true;
+    }
+
+    /** If the next character is `c`, takes it and returns 1; otherwise returns 0. */
+    def match_char(c: char): bool {
+        if(cursor < size && text.data[cursor] == c.value) {
+            cursor++;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Takes `expected`, which must be what the text continues with.
+     * Throws parse_exception, with line and column, if something else is there.
+     */
+    def expect(expected: string): string_reader {
+        if(!match(expected)) {
+            found : string = "the end of the text";
+            if(!at_end()) found = "'" + new string(text.data[cursor]) + "'";
+            throw new parse_exception("expected \"" + expected + "\" but found " + found
+                + " at line " + number_format.integer(line()) + ", column " + number_format.integer(column()));
+        }
+        return self;
+    }
+
+    // ------------------------------------------------------------------ runs of characters
+
+    /** true if the character `c` is one of the characters of `chars`. */
+    private static def one_of(c: decimal, chars: string): bool {
+        m : decimal = sizeof(chars.data);
+        for(j : decimal = 0; j < m; j++) {
+            if(chars.data[j] == c) return true;
+        }
+        return false;
+    }
+
+    /** The characters from `start` up to the cursor as a string. */
+    private def taken_since(start: decimal): string {
+        if(cursor <= start) return new string();
+        return new string(text.data!!, start, cursor);
+    }
+
+    /** Skips whitespace (space, tab, \n, \r, vertical tab, form feed). Returns how many characters were skipped. */
+    def skip_whitespace(): decimal {
+        start : decimal = cursor;
+        while(cursor < size && (text.data[cursor] == ' ' || (text.data[cursor] >= 9 && text.data[cursor] <= 13))) {
+            cursor++;
+        }
+        return cursor - start;
+    }
+
+    /** Skips characters as long as they are one of `chars`. Returns how many were skipped. */
+    def skip_while_in(chars: string): decimal {
+        start : decimal = cursor;
+        while(cursor < size && one_of(text.data[cursor], chars)) {
+            cursor++;
+        }
+        return cursor - start;
+    }
+
+    /**
+     * Skips characters as long as `accept` says yes for them, e.g.
+     * `r.skip_while({ c: char -> (bool) return c.value != ';'; })`.
+     * Returns how many were skipped.
+     */
+    def skip_while(accept: (char)(bool)): decimal {
+        start : decimal = cursor;
+        while(cursor < size && accept(text.data[cursor])) {
+            cursor++;
+        }
+        return cursor - start;
+    }
+
+    /** Takes characters as long as they are one of `chars` and returns them ("" if the first one already is not). */
+    def read_while_in(chars: string): string {
+        start : decimal = cursor;
+        while(cursor < size && one_of(text.data[cursor], chars)) {
+            cursor++;
+        }
+        return taken_since(start);
+    }
+
+    /** Takes characters as long as `accept` says yes for them and returns them ("" if none). */
+    def read_while(accept: (char)(bool)): string {
+        start : decimal = cursor;
+        while(cursor < size && accept(text.data[cursor])) {
+            cursor++;
+        }
+        return taken_since(start);
+    }
+
+    /**
+     * Takes everything up to, not including, the next occurrence of
+     * `delimiter` and returns it; the cursor stops AT the delimiter (use
+     * match(delimiter) to step over it). If the delimiter does not occur,
+     * everything up to the end is taken.
+     * Throws illegal_argument_exception if the delimiter is empty.
+     */
+    def read_until(delimiter: string): string {
+        if(sizeof(delimiter.data) == 0)
+            throw new illegal_argument_exception("read_until: the delimiter cannot be empty");
+
+        start : decimal = cursor;
+        while(cursor < size && !looking_at(delimiter)) {
+            cursor++;
+        }
+        return taken_since(start);
+    }
+
+    /**
+     * Takes everything up to, not including, the next character that is one
+     * of `chars`; the cursor stops at that character. Without such a
+     * character everything up to the end is taken.
+     */
+    def read_until_any(chars: string): string {
+        start : decimal = cursor;
+        while(cursor < size && !one_of(text.data[cursor], chars)) {
+            cursor++;
+        }
+        return taken_since(start);
+    }
+
+    /** Takes up to `count` characters (fewer at the end) and returns them. */
+    def read(count: int): string {
+        start : decimal = cursor;
+        skip(count);
+        return taken_since(start);
+    }
+
+    /** Takes a run of digits 0-9 and returns it ("" if the next character is not a digit). */
+    def read_digits(): string {
+        start : decimal = cursor;
+        while(cursor < size && text.data[cursor] >= '0' && text.data[cursor] <= '9') {
+            cursor++;
+        }
+        return taken_since(start);
+    }
+
+    /**
+     * Takes a name as used in programs: a letter or underscore followed by
+     * letters, digits and underscores. Returns "" (and takes nothing) if the
+     * next character cannot start a name.
+     */
+    def read_identifier(): string {
+        start : decimal = cursor;
+        if(cursor < size && character.is_identifier_start(text.data[cursor])) {
+            cursor++;
+            while(cursor < size && character.is_identifier_part(text.data[cursor])) {
+                cursor++;
+            }
+        }
+        return taken_since(start);
+    }
+
+    /**
+     * Takes the rest of the current line and returns it without the line end;
+     * the cursor moves past the line end ("\n", "\r\n" or "\r"). At the end of
+     * the text it returns "".
+     */
+    def read_line(): string {
+        start : decimal = cursor;
+        while(cursor < size && text.data[cursor] != '\n' && text.data[cursor] != '\r') {
+            cursor++;
+        }
+        result := taken_since(start);
+        if(cursor < size) {
+            if(text.data[cursor] == '\r' && cursor + 1 < size && text.data[cursor + 1] == '\n') cursor += 2;
+            else cursor++;
+        }
+        return result;
+    }
+
+    /** Takes everything that is left and returns it ("" at the end). */
+    def read_rest(): string {
+        start : decimal = cursor;
+        cursor = size;
+        return taken_since(start);
+    }
+
+    /** Everything that is left, without taking it. */
+    def rest(): string {
+        if(cursor >= size) return new string();
+        return new string(text.data!!, cursor, size);
+    }
+}

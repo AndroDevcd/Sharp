@@ -1,0 +1,70 @@
+// options: -wextra
+mod app;
+
+// Whole-program checks (stage 10): every correct form. Compiled with -wextra,
+// so the warnings that are off by default must stay quiet here too.
+
+class node { n : int; }
+
+class shape {
+    def area() : decimal;                           // a promise: every class below gives a body
+    def describe() : string { return "a shape"; }
+}
+class square base shape {
+    side : decimal = 2;
+    override def area() : decimal { return side * side; }
+    def describe() : string { return "a square, " + base->describe(); }    // base-> to a function WITH a body
+}
+
+class holder {
+    first : node;                   // assigned first in every constructor
+    second : node;                  // assigned by the init block
+    third : node = new node();      // a value where it is declared
+    maybe : node?;                  // nullable: starts as null
+    excuse later : node;            // excuse: set some other way
+    count : int;                    // a number class starts as int()
+    label : string;                 // a string starts as ""
+    items : _int64[] = new _int64[4];
+    static shared : node;           // assigned by the static init block
+    static init { shared = new node(); }
+    init { second = new node(); }
+    holder(x: _int64) { first = new node(); println(x); }
+    holder() { if(true) { first = new node(); } }   // the first use in the written order is an assignment
+    private def helper() : _int64 { return 1; }     // used by run
+    def run() : _int64 {
+        _ignored := 3;
+        foreach(i in items) { }
+        slot : _int64 = 4;
+        asm {
+            loadl ebx, [slot]                       // used by an instruction: not an unused local
+        }
+        try { helper(); } catch(e: exception) { }   // the variable of a catch may go unused
+        return helper() + first.n.value + second.n.value;
+    }
+}
+
+// a generic class nothing makes an instance of: its bodies are analysed per
+// instance, so nothing is said about its private members
+class spare<t> {
+    private kept : t;
+    private def inner() : t { return kept; }
+    spare(x: t) { kept = x; }
+    def take() : t { return inner(); }
+}
+
+// a local may have the name of a field it could not have meant
+class upper { private hidden_one : _int64 = 0; def touch() { hidden_one = 1; } }
+class lower base upper {
+    count : _int64 = 0;
+    static def make() : _int64 { count : _int64 = 3; return count; }           // static code cannot name the instance field
+    def low() : _int64 { hidden_one : _int64 = 2; return hidden_one + count; }  // private to the class above
+}
+
+def main(args: string[]) : int {
+    s : shape = new square();
+    h := new holder(1);
+    l := new lower();
+    l.touch();
+    println("" + s.area() + s.describe() + h.run() + lower.make() + l.low());
+    return 0;
+}

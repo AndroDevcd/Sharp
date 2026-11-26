@@ -1,0 +1,238 @@
+mod backend.compiler.overloads;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * PICKING THE BEST OF THE APPLICABLE CANDIDATES
+ *
+ * The steps of doc/backend.md 7.6, in order; the first that leaves one
+ * candidate decides:
+ *
+ *   3. EXACT. A candidate that takes every argument as it is (the same type,
+ *      or the same type with a `?`, or `null` for something that may be null)
+ *      wins; of several, the first in candidate order (the nearest class
+ *      first). This is "the first exact match" of the C++ compiler.
+ *   4. ONLY ONE applicable candidate: it wins.
+ *   5. THE PLAIN-NUMBER RULE. One candidate takes every plain-number argument
+ *      as a plain number (not as an object built from it): it wins.
+ *
+ *      Steps 3 to 5 are everything the C++ compiler does; where they do not
+ *      decide, it says "ambiguous". So every call it resolves gets the same
+ *      function here, and ranking only decides where it gave up.
+ *
+ *   6. RANKING. Candidate A is better than B when no argument of A needs a
+ *      worse conversion than the same argument of B and at least one needs a
+ *      better one (the rule of C++ and Java). The ranks, best first:
+ *
+ *          0 identical, t to t?        1 number to number, null     2 to a base class / interface
+ *          3 to object                 4 base to derived (W1017)     5 through a constructor
+ *
+ *   7. TIES among the candidates no other candidate beats:
+ *      a. the GRADES of number conversions: keeping the kind of number and
+ *         losing nothing (an _int32 to an _int64), before a whole number to a
+ *         decimal, before a conversion that may lose something (to a
+ *         narrower whole number, a decimal to a whole number);
+ *      b. the NEARER class: declared nearer the object's class wins.
+ *
+ *   Still more than one: ambiguous (E0503, reported by the caller).
+ *
+ *      dd(2)    with dd(_int64) and dd(decimal): both rank 1; 7a picks dd(_int64)
+ *      obj(d)   with obj(object) and obj(animal), d a dog: rank 2 beats rank 3
+ *      bx('c')  with bx(int) and bx(string): both rank 5, no grade - ambiguous
+ *
+ *      C++ comparison: `resolve_function` in dependency/dependency.cpp and
+ *      `prefer_plain_number_overload` in dependency/overload_preference.cpp.
+ */
+def choose_overload(session: analysis_session, functions: list<sharp_function>, arguments: list<call_argument>,
+                    receiver: sharp_class?, result: overload_result) {
+    // First without building objects from arguments: when some candidate takes
+    // every argument as it is (step 3), that is the answer, and the costly
+    // question "could a constructor of the parameter class take it?" is never
+    // asked of the others. (The library calls `number.operator==` with its
+    // twenty overloads thousands of times.)
+    count : _int64 = functions.size();
+    argument_count : _int64 = arguments.size();
+    has_lambda : _int64 = lambda_argument_in(arguments);
+    tried := new call_candidate[count];         // what the quick pass found, by position; null: the count is wrong
+    for(i : _int64 = 0; i < count; i++) {
+        if(functions.at(i).parameters.size() != argument_count) { continue; }
+        quick := fit_candidate(session, functions.at(i), arguments, 0);
+        if(quick.applicable == 1 && has_lambda == 0 && is_exact(quick)) {
+            quick.distance = distance_of(session.prog, receiver, quick.function);
+            result.best = quick;
+            result.applicable_count = 1;
+            return;
+        }
+        tried[i] = quick;
+    }
+
+    // Step 2 in full. A candidate the quick pass found applicable is taken as
+    // it is (allowing constructions changes nothing for an argument that
+    // already converts); only the others are asked again, with constructions.
+    applicable := new list<call_candidate>();
+    for(i : _int64 = 0; i < count; i++) {
+        candidate : call_candidate? = tried[i];
+        if(candidate == null || candidate!!.applicable == 0) { candidate = fit_candidate(session, functions.at(i), arguments, 1); }
+        candidate!!.distance = distance_of(session.prog, receiver, candidate!!.function);
+        if(candidate!!.applicable == 1) { applicable.add(candidate!!); }
+        else { result.rejected.add(candidate!!); }
+    }
+    applicable = sure_of_their_requests(applicable);
+    result.applicable_count = applicable.size();
+    if(applicable.size() == 0) { return; }
+    if(applicable.size() == 1) {
+        result.best = applicable.at(0);
+        return;
+    }
+
+    // 3. the first exact candidate. A lambda that waits for its types (or a
+    // function name) counts as exact for every candidate it fits, as in the
+    // C++ compiler, where an untyped lambda is a "direct match" for any
+    // function type with its number of parameters: among candidates that
+    // differ only in the function type they want from it, the first wins.
+    // (Its written parameter types and result already removed the ones it
+    // cannot be: applicability.sharp.)
+    for(i : _int64 = 0; i < applicable.size(); i++) {
+        if(is_exact(applicable.at(i))) {
+            result.best = applicable.at(i);
+            return;
+        }
+    }
+
+    // 5. the plain-number rule
+    preferred := takes_numbers_as_numbers(arguments, applicable);
+    if(preferred != null) {
+        result.best = preferred;
+        return;
+    }
+
+    // 6. and 7. ranking
+    remaining := undominated(applicable, 0);
+    if(remaining.size() > 1) { remaining = undominated(remaining, 1); }
+    if(remaining.size() > 1) { remaining = nearest(remaining); }
+    if(remaining.size() == 1) {
+        result.best = remaining.at(0);
+        return;
+    }
+    result.tied = remaining;
+}
+
+/** step 3: does the candidate take every argument as it is? */
+def is_exact(candidate: call_candidate) : _int64 {
+    for(i : _int64 = 0; i < candidate.conversions.size(); i++) {
+        kind : _int64 = candidate.conversions.at(i).kind;
+        if(kind != CONV_IDENTITY && kind != CONV_TO_NULLABLE && kind != CONV_NULL && kind != CONV_ERROR) { return 0; }
+    }
+    return 1;
+}
+
+/**
+ * Step 5: the one candidate that takes every plain-number argument as a
+ * plain number; null when none or several do (or no argument is a number).
+ */
+def takes_numbers_as_numbers(arguments: list<call_argument>, applicable: list<call_candidate>) : call_candidate? {
+    has_number : _int64 = 0;
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        if(arguments.at(i).value.type.is_number()) { has_number = 1; }
+    }
+    if(has_number == 0) { return null; }
+
+    preferred : call_candidate? = null;
+    for(i : _int64 = 0; i < applicable.size(); i++) {
+        candidate := applicable.at(i);
+        keeps_numbers : _int64 = 1;
+        for(j : _int64 = 0; j < arguments.size(); j++) {
+            if(!arguments.at(j).value.type.is_number()) { continue; }
+            wanted := candidate.function.parameters.at(j).value_type;
+            if(wanted == null || !wanted!!.is_number()) { keeps_numbers = 0; }
+        }
+        if(keeps_numbers == 0) { continue; }
+        if(preferred != null) { return null; }      // two of them: the rule does not decide
+        preferred = candidate;
+    }
+    return preferred;
+}
+
+/**
+ * Steps 6 and 7a: the candidates no other candidate is better than.
+ *
+ * @param by_grade  0: compare the ranks of the conversions (step 6);
+ *                  1: compare the grades of number conversions (step 7a)
+ */
+def undominated(candidates: list<call_candidate>, by_grade: _int64) : list<call_candidate> {
+    kept := new list<call_candidate>();
+    for(i : _int64 = 0; i < candidates.size(); i++) {
+        beaten : _int64 = 0;
+        for(j : _int64 = 0; j < candidates.size() && beaten == 0; j++) {
+            if(i != j && is_better(candidates.at(j), candidates.at(i), by_grade)) { beaten = 1; }
+        }
+        if(beaten == 0) { kept.add(candidates.at(i)); }
+    }
+    if(kept.size() == 0) { return candidates; }
+    return kept;
+}
+
+/** is `a` better than `b`: no argument worse, at least one better? */
+def is_better(a: call_candidate, b: call_candidate, by_grade: _int64) : _int64 {
+    better_somewhere : _int64 = 0;
+    for(i : _int64 = 0; i < a.conversions.size(); i++) {
+        score_a : _int64 = score_of(a.conversions.at(i), by_grade);
+        score_b : _int64 = score_of(b.conversions.at(i), by_grade);
+        if(score_a > score_b) { return 0; }
+        if(score_a < score_b) { better_somewhere = 1; }
+    }
+    return better_somewhere;
+}
+
+/** how good one conversion is; lower is better */
+def score_of(how: conversion, by_grade: _int64) : _int64 {
+    if(by_grade == 0 || how.kind != CONV_NUMERIC) { return how.rank * 100; }
+    return 100 + number_grade(how.from, how.to);
+}
+
+/** step 7b: the candidates declared nearest to the object's class */
+def nearest(candidates: list<call_candidate>) : list<call_candidate> {
+    least : _int64 = candidates.at(0).distance;
+    for(i : _int64 = 1; i < candidates.size(); i++) {
+        if(candidates.at(i).distance < least) { least = candidates.at(i).distance; }
+    }
+    kept := new list<call_candidate>();
+    for(i : _int64 = 0; i < candidates.size(); i++) {
+        if(candidates.at(i).distance == least) { kept.add(candidates.at(i)); }
+    }
+    return kept;
+}
+
+/**
+ * `new worker(get())` with worker(d: database) and worker(l: logger), in a
+ * component that provides a logger: both take one argument, but only the
+ * second has a parameter the components are KNOWN to provide. A candidate
+ * that was let through because a definition could not be asked yet
+ * (`request_unsure`, applicability.sharp) gives way to the ones that needed
+ * no such benefit of the doubt. When there are none, they all stay.
+ */
+def sure_of_their_requests(applicable: list<call_candidate>) : list<call_candidate> {
+    sure := new list<call_candidate>();
+    for(i : _int64 = 0; i < applicable.size(); i++) {
+        if(applicable.at(i).request_unsure == 0) { sure.add(applicable.at(i)); }
+    }
+    if(sure.size() == 0 || sure.size() == applicable.size()) { return applicable; }
+    return sure;
+}
+
+/** is any argument a lambda (or function name) that waits for its parameter? */
+def lambda_argument_in(arguments: list<call_argument>) : _int64 {
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        if(arguments.at(i).is_lambda == 1) { return 1; }
+    }
+    return 0;
+}

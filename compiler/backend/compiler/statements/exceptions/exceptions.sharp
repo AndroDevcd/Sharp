@@ -1,0 +1,45 @@
+mod backend.compiler.statements.exceptions;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.postprocessor.inheritance,
+    backend.compiler.context
+)
+
+/**
+ * EXCEPTIONS, AND THE STATEMENTS THAT GUARD A BLOCK
+ *
+ *      throw new io_exception("disk full");        hand a problem to whoever catches it
+ *
+ *      try {                                       run a block ...
+ *          save(file);
+ *      } catch(e: io_exception) {                  ... and take what it throws (by class)
+ *          retry();
+ *      } finally {                                 ... and always run this at the end
+ *          file.close();
+ *      }
+ *
+ *      lock(table) { ... }                         one fiber at a time in the block
+ *
+ * What can be thrown and caught is an object of a class that is
+ * `std#throwable` or below it (`exception`, `error` and their subclasses).
+ * `try` and `lock` are together here because both must be UNDONE however
+ * their block is left: a `return` out of a `lock` unlocks, a `break` out of a
+ * `try` runs its finally (jumps/ reads the frames these leave on the context).
+ *
+ * The files of this package (module `backend.compiler.statements.exceptions`):
+ *
+ *      exceptions.sharp        this front door; is_throwable
+ *      throw_statement.sharp   throw (E0612)
+ *      try_statement.sharp     try / finally: the frames that make jumps run the finally
+ *      catch_clause.sharp      one catch: its class and variable (E0613, E0614, W1019)
+ *      lock_statement.sharp    lock (E0615)
+ */
+
+/** can an object of `declared` be thrown and caught: is it `std#throwable` or below? (1 when the library has no throwable: nothing to check against) */
+def is_throwable(context: analysis_context, declared: sharp_class) : _int64 {
+    throwable := context.session.known.throwable_class;
+    if(throwable == null) { return 1; }
+    return inherits_from(context.prog, declared, throwable!!);
+}

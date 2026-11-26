@@ -1,0 +1,176 @@
+mod std.math;
+
+/**
+ * Powers, roots and logarithms on native numbers.
+ *
+ * pow(), sqrt(), exp(), log() and log10() in math.sharp return `double`
+ * objects; pow(), sqrt(), exp() and log() in native_math.sharp are
+ * their native twins. This file adds what was missing.
+ */
+
+/** v * v */
+def square(v: decimal): decimal {
+    return v * v;
+}
+
+/** v * v * v */
+def cube(v: decimal): decimal {
+    return v * v * v;
+}
+
+/**
+ * Cube root, also for negative numbers: cbrt(27) == 3, cbrt(-8) == -2.
+ *
+ * Algorithm: |v|^(1/3) with the runtime's pow, then one Newton step
+ * r = r - (r^3 - |v|) / (3 r^2) which removes the rounding error of the
+ * inexact exponent 1/3, so perfect cubes come out exact.
+ */
+def cbrt(v: decimal): decimal {
+    if(v == 0 || v != v) return v;
+
+    size : decimal = abs(v);
+    if((size - size) != 0) return v;        // +-infinity
+
+    root : decimal = pow(size, 1.0 / 3.0);
+    root = root - (root * root * root - size) / (3 * root * root);
+
+    if(v < 0) return 0 - root;
+    return root;
+}
+
+/**
+ * The n-th root of v: nth_root(32, 5) == 2. For an odd n a negative v is
+ * allowed (nth_root(-27, 3) == -3); for an even n it gives NaN.
+ *
+ * Throws illegal_argument_exception when n is 0.
+ */
+def nth_root(v: decimal, n: decimal): decimal {
+    if(n == 0)
+        throw new illegal_argument_exception("nth_root: n is 0");
+
+    if(v < 0 && (n % 2) != 0) {
+        return 0 - pow(0 - v, 1.0 / n);
+    }
+    return pow(v, 1.0 / n);
+}
+
+/**
+ * Length of the hypotenuse, sqrt(x^2 + y^2), without overflowing for large
+ * arguments: hypot(3, 4) == 5.
+ *
+ * Algorithm: with m the larger and s the smaller of |x| and |y|,
+ * m * sqrt(1 + (s / m)^2) - the intermediate values never exceed the result.
+ */
+def hypot(x: decimal, y: decimal): decimal {
+    ax : decimal = abs(x);
+    ay : decimal = abs(y);
+    large : decimal = ax;
+    small : decimal = ay;
+    if(ay > ax) {
+        large = ay;
+        small = ax;
+    }
+
+    if(large == 0) return 0;
+    ratio : decimal = small / large;
+    return large * sqrt(1 + ratio * ratio);
+}
+
+/** the 3D version of hypot: sqrt(x^2 + y^2 + z^2); hypot(2, 3, 6) == 7 */
+def hypot(x: decimal, y: decimal, z: decimal): decimal {
+    return hypot(hypot(x, y), z);
+}
+
+/**
+ * Base 2 logarithm: log2(8) == 3, log2(1) == 0.
+ * log2(0) is negative infinity, log2 of a negative number is NaN.
+ *
+ * Whole powers of two (and their reciprocals) are returned exactly: the
+ * result of log(v) / LN2 is rounded and kept when 2^rounded == v.
+ */
+def log2(v: decimal): decimal {
+    result : decimal = log(v) / LN2;
+    if((result - result) != 0) return result;       // infinite or NaN
+
+    nearest : decimal = round_half_away(result);
+    if(nearest != result && abs(nearest - result) < 0.000000001 && pow(2, nearest) == v) {
+        return nearest;
+    }
+    return result;
+}
+
+/**
+ * Logarithm of v in any base: log_base(81, 3) == 4.
+ * Formula: log(v) / log(base).
+ *
+ * Throws illegal_argument_exception when base is <= 0 or is 1 (no such
+ * logarithm exists).
+ */
+def log_base(v: decimal, base_value: decimal): decimal {
+    if(base_value <= 0 || base_value == 1)
+        throw new illegal_argument_exception("log_base: the base must be positive and not 1");
+    return log(v) / log(base_value);
+}
+
+/** 2 raised to the power v: exp2(10) == 1024 */
+def exp2(v: decimal): decimal {
+    return pow(2, v);
+}
+
+/**
+ * base^exponent for a whole, non-negative exponent, by repeated squaring
+ * (O(log exponent) multiplications, no call into the runtime). The result
+ * is exact whenever it fits in 53 bits: int_pow(3, 20) == 3486784401.
+ * int_pow(x, 0) == 1 for every x, including 0.
+ *
+ * Throws illegal_argument_exception when exponent is negative or not whole.
+ */
+def int_pow(base_value: decimal, exponent: decimal): decimal {
+    if(exponent < 0 || floor(exponent) != exponent)
+        throw new illegal_argument_exception("int_pow: the exponent must be a whole number >= 0");
+
+    result : decimal = 1;
+    factor : decimal = base_value;
+    remaining : decimal = exponent;
+
+    while(remaining > 0) {
+        if((remaining % 2) == 1) {
+            result = result * factor;
+        }
+        remaining = floor(remaining / 2);
+        if(remaining > 0) {
+            factor = factor * factor;
+        }
+    }
+    return result;
+}
+
+/**
+ * Whole number square root: the largest whole r with r * r <= n.
+ * isqrt(17) == 4, isqrt(16) == 4, isqrt(0) == 0. Exact for n up to 2^53.
+ *
+ * Algorithm: floor(sqrt(n)), then corrected by at most one step in either
+ * direction in case the floating point root was rounded across a whole number.
+ *
+ * Throws illegal_argument_exception when n is negative.
+ */
+def isqrt(n: decimal): decimal {
+    if(n < 0)
+        throw new illegal_argument_exception("isqrt: n is negative");
+
+    root : decimal = floor(sqrt(n));
+    while(root * root > n) {
+        root--;
+    }
+    while((root + 1) * (root + 1) <= n) {
+        root++;
+    }
+    return root;
+}
+
+/** true when n is the square of a whole number: 0, 1, 4, 9, 16 ... (false for negatives and fractions) */
+def is_perfect_square(n: decimal): bool {
+    if(n < 0 || floor(n) != n) return false;
+    root : decimal = isqrt(n);
+    return root * root == n;
+}

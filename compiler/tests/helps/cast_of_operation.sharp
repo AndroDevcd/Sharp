@@ -1,0 +1,12 @@
+// expect: E0412
+// help: (c - 32).value
+// replace: (c - 32) as _int8
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    s : string = "abc";
+    c := s.at(0);
+    b : _int8 = (c - 32) as _int8;
+    println("" + b);
+}

@@ -1,62 +1,98 @@
 cmake_minimum_required(VERSION 3.6)
 project(Sharp)
 
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-#set(POSIX "os")
-if (POSIX)
-
-    set(BUILD_SHARED_LIBS OFF)
-    set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-static")
-#-fsanitize=address -fno-omit-frame-pointer
-    set(CMAKE_CXX_FLAGS_DEBUG  " -std=c++11 -O0 -Werror -pthread -lstdc++ -g ${CMAKE_CXX_FLAGS_DEBUG}")
-    set(CMAKE_CXX_FLAGS_MINSIZEREL  "-Werror -lstdc++ -s -O3 -Ofast -ldl ${CMAKE_CXX_FLAGS_MINSIZEREL}")
-    set(CMAKE_CXX_FLAGS_RELEASE  " -pthread -lstdc++ -O3 -Ofast -ldl ${CMAKE_CXX_FLAGS_RELEASE}")
-    set(CMAKE_CXX_FLAGS_RELWITHDEBINFO   " -pthread -lstdc++ -O3 -Ofast -ldl ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
-    set(CMAKE_CXX_FLAGS_RELEASE   " -pthread -lstdc++ -O3 -Ofast -ldl ${CMAKE_CXX_FLAGS_RELEASE}")
+# Detect OS (matching build.sh logic)
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    # macOS-specific flags (no -lrt and no --no-as-needed)
+    set(CXX_COMPILER "g++-15")
+    set(PLATFORM_FLAGS "")
+    set(STDLIB_FLAG "")
+    set(REDZONE_FLAG "")
 else()
-
-    set(BUILD_SHARED_LIBS OFF)
+    # Default flags (Linux/other)
+    set(CXX_COMPILER "g++")
+    set(PLATFORM_FLAGS "-Wl,--no-as-needed -lrt -mno-red-zone -fsanitize=address")
+    set(STDLIB_FLAG "-lstdc++")
+    set(REDZONE_FLAG "-mno-red-zone")
     set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-static")
+endif()
 
-    set(CMAKE_CXX_FLAGS_DEBUG  "-std=c++11 -Werror -g -lstdc++ -O0  -gdwarf-2 ${CMAKE_C_FLAGS_DEBUG}")
-    set(CMAKE_CXX_FLAGS_MINSIZEREL  "-std=c++11  -Werror -lstdc++ -s -O3 -Ofast ${CMAKE_C_FLAGS_MINSIZEREL}")
-    set(CMAKE_CXX_FLAGS_RELEASE   "-std=c++11  -Werror -lstdc++  -O3 -g -Ofast ${CMAKE_C_FLAGS_RELEASE}")
-endif ()
+set(BUILD_SHARED_LIBS OFF)
 
-#set(SHARPC "build")
+# Set compiler flags using platform-specific variables
+set(CMAKE_CXX_FLAGS_DEBUG  "-fno-omit-frame-pointer -DASMJIT_STATIC ${REDZONE_FLAG} -std=c++17 -O0 -pthread ${STDLIB_FLAG} -g -gdwarf-4 ${CMAKE_CXX_FLAGS_DEBUG}")
+set(CMAKE_CXX_FLAGS_MINSIZEREL  "-Werror ${STDLIB_FLAG} ${REDZONE_FLAG} -s -O3 -Ofast ${CMAKE_CXX_FLAGS_MINSIZEREL}")
+set(CMAKE_CXX_FLAGS_RELWITHDEBINFO   "-fsanitize=address ${REDZONE_FLAG} -pthread ${STDLIB_FLAG} -O3 -Ofast ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+set(CMAKE_CXX_FLAGS_RELEASE   "${REDZONE_FLAG} -pthread ${STDLIB_FLAG} -O3 -Ofast ${CMAKE_CXX_FLAGS_RELEASE}")
 
-# compiler
-if (SHARPC)
-    add_definitions(-DMAKE_COMPILER)
-    file(GLOB old_src
-#            "lib/old_grammar/parser/Parser.cpp"
-#            "lib/old_grammar/parser/Parser.h"
-            )
+# For runtime builds, also set DASMJIT_STATIC flag
+#set(CMAKE_RUNTIME_CXX_FLAGS_DEBUG  "-std=c++17 -g ${STDLIB_FLAG} -DASMJIT_STATIC ${PLATFORM_FLAGS} ${CMAKE_C_FLAGS_DEBUG}")
+#set(CMAKE_RUNTIME_CXX_FLAGS_RELEASE   "-std=c++17 ${REDZONE_FLAG} -Werror ${STDLIB_FLAG} -DASMJIT_STATIC ${PLATFORM_FLAGS} -O3 -g ${CMAKE_C_FLAGS_RELEASE}")
 
-    set(SOURCE_FILES ${old_src} main.cpp stdimports.h lib/grammar/List.h lib/grammar/backend/data/Literal.cpp lib/grammar/backend/data/Literal.h lib/grammar/backend/Expression.h lib/grammar/backend/Expression.cpp lib/grammar/backend/code/CodeHolder.h lib/grammar/backend/data/Utype.h lib/grammar/backend/data/Utype.cpp lib/grammar/backend/ReferencePointer.h lib/grammar/backend/ReferencePointer.cpp lib/grammar/backend/Scope.h lib/grammar/main.cpp lib/grammar/main.h lib/grammar/options.h lib/util/zip/zcompress.cpp lib/util/zip/zcompress.h lib/util/zip/zcore.cpp lib/util/zip/zcore.h lib/util/zip/zdecompress.cpp lib/util/zip/zdecompress.h lib/util/zip/zinclude.h lib/grammar/backend/data/DataEntity.h lib/grammar/backend/data/DataEntity.cpp lib/grammar/DataType.h lib/grammar/AccessFlag.h lib/util/zip/zlib.cpp lib/util/zip/zlib.h lib/util/zip/zstream.cpp lib/util/zip/zstream.h lib/util/File.cpp lib/util/File.h lib/util/time.cpp lib/util/time.h lib/util/KeyPair.h lib/grammar/frontend/tokenizer/token.h lib/grammar/frontend/tokenizer/token.cpp lib/grammar/frontend/tokenizer/tokenizer.h lib/grammar/frontend/tokenizer/tokentype.h lib/grammar/frontend/tokenizer/tokenizer.cpp lib/grammar/frontend/ErrorManager.h lib/grammar/frontend/ErrorManager.cpp lib/grammar/frontend/parser/Ast.cpp lib/grammar/frontend/parser/Ast.h lib/grammar/frontend/parser/Parser.cpp lib/runtime/Opcode.h lib/runtime/Opcode.cpp lib/grammar/frontend/parser/Parser.h lib/grammar/backend/Compiler.cpp lib/grammar/backend/Compiler.h lib/grammar/backend/oo/Field.cpp lib/grammar/backend/oo/Field.h lib/grammar/backend/oo/Method.h lib/grammar/backend/oo/Method.cpp lib/grammar/backend/oo/ClassObject.h lib/grammar/backend/oo/ClassObject.cpp lib/grammar/backend/data/Alias.cpp lib/grammar/backend/data/Alias.h lib/runtime/InterruptFlag.h lib/grammar/main.cpp lib/grammar/main.h lib/runtime/ThreadStates.h lib/grammar/backend/Compiler2.cpp lib/grammar/backend/ofuscation/Obfuscater.cpp lib/grammar/backend/ofuscation/Obfuscater.h lib/grammar/generator/ExeBuilder.cpp lib/grammar/generator/ExeBuilder.h lib/grammar/optimizer/Optimizer.cpp lib/grammar/optimizer/Optimizer.h)
+# The VM. (The compiler is a Sharp program, in compiler/: build-scripts/build.sh builds both.)
+add_definitions(-DDEBUGGING)
 
-    add_executable(Sharpc ${SOURCE_FILES})
+file(GLOB runtime_SRC
+        "runtime/cffi/*.h"
+        "runtime/cffi/*.cpp"
+        "runtime/error/*.h"
+        "runtime/error/*.cpp"
+        "runtime/exe/*.h"
+        "runtime/exe/*.cpp"
+        "runtime/memory/*.h"
+        "runtime/memory/*.cpp"
+        "runtime/reflect/*.h"
+        "runtime/reflect/*.cpp"
+        "runtime/jit/*.h"
+        "runtime/jit/*.cpp"
+        "runtime/jit/arm/*.h"
+        "runtime/jit/arm/*.cpp"
+        "runtime/jit/arm/opcode/*.h"
+        "runtime/jit/arm/opcode/*.cpp"
+        "runtime/jit/arm/sections/*.h"
+        "runtime/jit/arm/sections/*.cpp"
+        "runtime/jit/x64/*.h"
+        "runtime/jit/x64/*.cpp"
+        "runtime/jit/x64/opcode/*.cpp"
+        "runtime/jit/x64/sections/*.cpp"
+        "runtime/telemetry/*.h"
+        "runtime/telemetry/*.cpp"
+        "runtime/sni/*.h"
+        "runtime/sni/*.cpp"
+        "runtime/multitasking/*/*.h"
+        "runtime/multitasking/*/*.cpp"
+        "runtime/types/*.h"
+        "runtime/types/*.cpp"
+        "runtime/interrupts/*.h"
+        "runtime/interrupts/*.cpp"
+        "runtime/*.h"
+        "runtime/*.cpp"
+        "runtime/opcode/*.cpp"
+        "runtime/opcode/*.h"
+        "runtime/util/*.cpp"
+        "runtime/util/*.h"
+        "runtime/jit/asmjit/src/asmjit/*.cpp"
+        "runtime/jit/asmjit/src/asmjit/*.h"
+        "runtime/jit/asmjit/src/asmjit/arm/*.cpp"
+        "runtime/jit/asmjit/src/asmjit/arm/*.h"
+        "runtime/jit/asmjit/src/asmjit/core/*.cpp"
+        "runtime/jit/asmjit/src/asmjit/core/*.h"
+        "runtime/jit/asmjit/src/asmjit/x86/*.cpp"
+        "runtime/jit/asmjit/src/asmjit/x86/*.h"
+        "runtime/interrupts/native/*.h"
+        "runtime/interrupts/native/*.cpp"
+        )
+
+set(SOURCE_FILES runtime/entry/main.cpp ${runtime_SRC}
+        )
+add_executable(Sharp ${SOURCE_FILES})
+
+# Link libraries based on platform  
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_link_libraries(Sharp stdc++ m dl)
 else()
-    #virtual machine
-    add_definitions(-DDEBUGGING)
-    file(GLOB jit_SRC
-            "lib/util/jit/asmjit/src/asmjit/*.h"
-            "lib/util/jit/asmjit/src/asmjit/x86/*.h"
-            "lib/util/jit/asmjit/src/asmjit/x86/*.cpp"
-            "lib/util/jit/asmjit/src/asmjit/core/*.h"
-            "lib/util/jit/asmjit/src/asmjit/core/*.cpp"
-    )
-    #            "lib/runtime/jit.cpp.old"
-    #            "lib/runtime/jit.h.old"
-    set(SOURCE_FILES main.cpp  lib/runtime/main.cpp lib/runtime/symbols/string.h lib/runtime/jit/architecture.h lib/runtime/List.h lib/runtime/memory/GarbageCollector.cpp lib/runtime/memory/GarbageCollector.h lib/runtime/symbols/Object.h lib/runtime/symbols/Exception.cpp lib/runtime/symbols/Exception.h lib/runtime/symbols/Field.h lib/runtime/symbols/ClassObject.cpp lib/runtime/symbols/ClassObject.h lib/runtime/register.h lib/runtime/symbols/Method.h lib/util/fmt/include/core.h lib/util/fmt/include/format.h lib/util/fmt/include/format-inl.h lib/util/fmt/include/ostream.h lib/util/fmt/include/posix.h lib/util/fmt/include/printf.h lib/util/fmt/include/ranges.h lib/util/fmt/include/time.h lib/util/fmt/src/format.cc lib/util/fmt/src/posix.cc lib/runtime/Thread.cpp lib/runtime/Thread.h lib/runtime/symbols/Object.cpp lib/runtime/Manifest.h lib/runtime/Manifest.cpp lib/runtime/Exe.h lib/runtime/Exe.cpp lib/util/zip/zcompress.cpp lib/util/zip/zcompress.h lib/util/zip/zcore.cpp lib/util/zip/zcore.h lib/util/zip/zdecompress.cpp lib/util/zip/zdecompress.h lib/util/zip/zinclude.h lib/util/zip/zlib.cpp lib/util/zip/zlib.h lib/util/zip/zstream.cpp lib/util/zip/zstream.h lib/runtime/VirtualMachine.cpp lib/runtime/VirtualMachine.h lib/runtime/main.h lib/util/File.cpp lib/util/File.h lib/util/time.cpp lib/util/time.h lib/util/KeyPair.h stdimports.h lib/runtime/Opcode.h lib/Modules/std.io/fileio.cpp lib/Modules/std.io/fileio.h lib/runtime/profiler.h lib/runtime/profiler.cpp lib/runtime/SignalHandler.cpp lib/runtime/termios.cpp lib/runtime/termios.h lib/Modules/math/cmath.cpp lib/Modules/math/cmath.h lib/Modules/std/Random.cpp lib/Modules/std/Random.h lib/Modules/std.os.gui/win/Gui.cpp lib/Modules/std.os.gui/win/Gui.h ${jit_SRC} lib/runtime/jit/_BaseAssembler.cpp lib/runtime/jit/_BaseAssembler.h lib/runtime/jit/Jit.cpp lib/runtime/jit/Jit.h lib/runtime/jit/x64Assembler.cpp lib/runtime/jit/x64Assembler.h lib/runtime/Opcode.cpp lib/util/HashMap.h lib/runtime/symbols/symbol.h lib/runtime/symbols/symbol.cpp lib/runtime/symbols/param.h lib/Modules/std.io/memory.cpp lib/Modules/std.io/memory.h lib/runtime/snb/snb.cpp lib/runtime/snb/snb.h lib/runtime/Library.h lib/runtime/snb/util.h)
-    if (POSIX)
-        set(LRT_LIB -lrt -ldl)
-    endif ()
-
-    add_executable(Sharp ${SOURCE_FILES})
-
-    if (POSIX)
-        target_link_libraries(Sharp ${LRT_LIB})
-    endif ()
-endif ()
+    target_link_libraries(Sharp stdc++ rt m dl)
+endif()

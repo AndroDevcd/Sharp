@@ -1,0 +1,67 @@
+mod main;
+
+import (
+    std.testing,
+    std.io.fiber
+)
+
+/**
+ * KNOWN BUG (language): a lambda that uses a local variable of the function
+ * that created it only sees that variable on the fiber that created it. On
+ * any other fiber the variable reads as null.
+ *
+ * WHERE
+ *   The compiler keeps captured locals in one "closure object" per enclosing
+ *   function, and the reference to that object lives in fiber-local storage
+ *   (closure_ref_<function> is created as a localized field:
+ *   lib/grammar/backend/dependency/dependency.cpp, the code around
+ *   create_closure_field / staticClosureRef; platform.tls_init() gives every
+ *   new fiber a fresh, empty closure object).
+ *
+ * WHAT std.io.coroutines DOES ABOUT IT
+ *   Everything that runs a block on another fiber (launch, async, produce,
+ *   launch_on, with_context, invoke_on_completion) has an overload that takes
+ *   a state object and hands it to the block: launch(state, { s: object -> ... }).
+ *   Blocks that run in-line in the caller (coroutine_scope, run_blocking,
+ *   with_timeout, mutex.with_lock, channel.for_each) capture normally.
+ *   See "THE CLOSURE RULE" in std/io/coroutines/builders.sharp.
+ *
+ * EXPECTED: both checks pass.
+ * ACTUAL:   the lambda on the other fiber dies with a nullptr_exception (it is
+ *           printed as an unhandled exception) and the second check fails.
+ */
+
+class box { value : decimal = 0; }
+
+seen_on_other_fiber := new box();      // a global: every fiber can see it
+finished := new box();
+
+def call_it(block: ()()) {
+    block();
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_coroutines_closure_across_fibers") {
+        captured := new box();
+        captured.value = 7;
+
+        // 1. the lambda runs on the fiber that created it
+        same := new box();
+        call_it({ -> same.value = captured.value; });
+        test("a captured local on the same fiber") { expect(same.value).should_be(7); };
+
+        // 2. the same kind of lambda runs on another fiber
+        slice({ a: object[] -> (int)
+            seen_on_other_fiber.value = captured.value;     // `captured` is null here
+            finished.value = 1;
+            return 0;
+        });
+
+        for(i : decimal = 0; i < 200 && finished.value == 0; i++) {
+            delay(5);
+        }
+        test("a captured local on another fiber") { expect(seen_on_other_fiber.value).should_be(7); };
+    };
+    finish_tests("lib_coroutines_closure_across_fibers");
+}

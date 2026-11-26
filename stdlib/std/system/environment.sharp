@@ -1,0 +1,107 @@
+mod std.system;
+
+import ( std.c, platform )
+
+/**
+ * THE ENVIRONMENT: the named texts every program is started with
+ *
+ *      home := environment.value("HOME");                // null when it is not set
+ *      level := environment.value_or("LOG_LEVEL", "info");
+ *      environment.put("MY_TOOL_DIR", "/opt/tool");     // for this program and what it starts
+ *      environment.remove("MY_TOOL_DIR");
+ *
+ * A variable that is set to nothing counts as not set (on Windows the two
+ * cannot be told apart).
+ *
+ * What is set here is seen by this program and by the programs it starts
+ * afterwards (process.run) - not by the program that started this one.
+ *
+ * The system is asked directly (getenv on Linux, GetEnvironmentVariable on
+ * Windows): no shell is started.
+ */
+class environment {
+    extern "unix:c" {
+        static def getenv(name: string) : string;
+        static def setenv(name: string, value: string, replace: c_int) : c_int;
+        static def unsetenv(name: string) : c_int;
+    }
+
+    extern "windows:kernel32" {
+        static def GetEnvironmentVariableA(name: string, into: _int8[], size: c_uint) : c_uint;
+        static def SetEnvironmentVariableA(name: string, value: string) : c_int;
+    }
+
+    /** a name is at least one character, none of them `=` or the 0 byte */
+    private static def check(name: string) {
+        count : _int64 = sizeof(name.data);
+        bad : bool = count == 0;
+        for(i : _int64 = 0; i < count; i++) {
+            if(name.data!![i] == '=' || name.data!![i] == 0) { bad = true; }
+        }
+        if(bad) { throw new illegal_argument_exception("environment: not a name of a variable: \"" + name + "\""); }
+    }
+
+    /**
+     * The value of `name`, or null when it is not set (or set to nothing).
+     * Throws illegal_argument_exception for a name that is empty or has a `=` in it.
+     */
+    static def value(name: string) : string? {
+        check(name);
+        if(!build.is_windows()) {
+            value : string? = getenv(name);
+            if(value == null || sizeof(value!!.data) == 0) { return null; }
+            return value;
+        }
+        // Windows says how much room the value needs when it does not fit
+        room : _int64 = 512;
+        while(true) {
+            into := new _int8[room];
+            length : _int64 = GetEnvironmentVariableA(name, into, room);
+            if(length == 0) { return null; }
+            if(length < room) { return new string(into, 0, length); }
+            room = length + 1;
+        }
+        return null;
+    }
+
+    /** the value of `name`, or `otherwise` when it is not set */
+    static def value_or(name: string, otherwise: string) : string {
+        found := value(name);
+        if(found == null) { return otherwise; }
+        return found!!;
+    }
+
+    /** is `name` set (to something)? */
+    static def has(name: string) : bool {
+        return value(name) != null;
+    }
+
+    /**
+     * Set `name` to `value` for this program and the programs it starts.
+     * Throws illegal_state_exception when the system refuses (no memory).
+     */
+    static def put(name: string, value: string) {
+        check(name);
+        worked : bool = false;
+        if(build.is_windows()) { worked = SetEnvironmentVariableA(name, value) != 0; }
+        else { worked = setenv(name, value, 1) == 0; }
+        if(!worked) { throw new illegal_state_exception("environment: the system would not set `" + name + "`"); }
+    }
+
+    /** take `name` out of the environment; nothing happens when it is not set */
+    static def remove(name: string) {
+        check(name);
+        if(build.is_windows()) {
+            windows_environment_clear.SetEnvironmentVariableA(name, 0);
+        } else {
+            unsetenv(name);
+        }
+    }
+}
+
+/** SetEnvironmentVariableA with no text (C's NULL) for the value, which is how Windows takes a name out */
+class windows_environment_clear {
+    extern "windows:kernel32" {
+        static def SetEnvironmentVariableA(name: string, value: pointer) : c_int;
+    }
+}

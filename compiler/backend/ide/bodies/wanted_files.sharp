@@ -1,0 +1,64 @@
+mod backend.ide.bodies;
+
+import (
+    std.io,
+    backend.ide.files,
+    backend.types.program
+)
+
+/**
+ * WHICH FILES GET A `bodies/<n>.json`
+ *
+ * The index of what a file DECLARES is written for every file of the program,
+ * the standard library included. What a file's FUNCTION BODIES say (its local
+ * variables, and a table of every name used and what it refers to) is only
+ * needed for the file being edited, and costs about 100 bytes per line of
+ * source, so it is written only for the files the editor has open.
+ *
+ * The plugin says which, in a text file it writes into the output folder
+ * BEFORE it starts the compiler: `bodies_for.txt`, one path per line, spelled
+ * exactly as on the command line. (It is a file and not an option because the
+ * options are read in main.sharp, which this package does not change.)
+ *
+ *      the file is missing     a person (or a test) runs `-ide` by hand: every file that is not a library file
+ *      the file is there       exactly the files it lists, library files included; a path that is not a
+ *                              file of the program is ignored
+ *      the file is empty       no file
+ */
+def apply_wanted_files(folder: string, files: ide_files, prog: sharp_program) {
+    listing := new file(folder + "/bodies_for.txt");
+    if(!listing.exists()) {
+        for(i : _int64 = 0; i < files.count(); i++) {
+            f := files.at(i);
+            if(f.is_readable() == 0) { continue; }
+            declared := prog.file_of(f.unit);
+            if(declared != null && declared!!.module.is_library() == 0) { f.wanted = 1; }
+        }
+        return;
+    }
+
+    text : string? = file_natives.read(listing.path);
+    if(text == null) { return; }                // an empty list: nothing is wanted
+    data : _int8[]? = text!!.data;
+    size : _int64 = sizeof(data);
+    start : _int64 = 0;
+    for(i : _int64 = 0; i <= size; i++) {
+        if(i == size || data!![i] == 10) {
+            mark_wanted(files, new string(data!!, start, i));
+            start = i + 1;
+        }
+    }
+}
+
+/** one line of the list: the spaces and a `\r` around it are not part of the path */
+private def mark_wanted(files: ide_files, line: string) {
+    data : _int8[]? = line.data;
+    first : _int64 = 0;
+    last : _int64 = sizeof(data);
+    while(first < last && (data!![first] == ' ' || data!![first] == 13 || data!![first] == 9)) { first++; }
+    while(last > first && (data!![last - 1] == ' ' || data!![last - 1] == 13 || data!![last - 1] == 9)) { last--; }
+    if(last == first) { return; }
+
+    found := files.of_path(new string(data!!, first, last));
+    if(found != null && found!!.is_readable() == 1) { found!!.wanted = 1; }
+}

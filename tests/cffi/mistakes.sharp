@@ -1,0 +1,102 @@
+mod main;
+
+import ( std.c, std.io, platform )
+
+/**
+ * What goes wrong with calls to C, and that each mistake is reported as what it is:
+ *
+ *      sharp mistakes <folder of the test library> <which>
+ *
+ *      no_library      a library that is nowhere: an unsatisfied_link_error listing where it was looked for
+ *      no_function     a function the library does not have
+ *      said_late       c_library() after the library was opened
+ *      crash           C reads the address 0: the crash report names the C function, not the VM
+ *      all             the first three, each caught; prints MISTAKES: PASS (n checks)
+ */
+
+extern "no_such_library_12345" {
+    def nowhere(a: c_int) : c_int;
+}
+
+extern "c_test" {
+    def add3(a: c_int, b: c_int, c: c_int) : c_int;
+    def this_function_is_not_there(a: c_int) : c_int;
+    def read_null(p: pointer) : c_int;
+    def sum_array(values: _int32[], count: c_int) : _int64;
+}
+
+checks : _int64 = 0;
+failures : _int64 = 0;
+
+def expect_text(name: string, text: string, part: string) {
+    checks++;
+    if(!text.contains(part)) {
+        failures++;
+        println("FAIL  " + name + ": the message does not say `" + part + "`:\n" + text);
+    }
+}
+
+def main(args: string[]) {
+    folder : string = args[0];
+    which : string = args[1];
+    c_library("c_test", folder + "/c_test");
+
+    if(which == "crash") {
+        println("before the crash");
+        read_null(0);
+        println("after the crash?!");
+        return;
+    }
+    if(which == "crash_array") {
+        empty := new _int32[0];
+        sum_array(empty, 5);
+        return;
+    }
+
+    try {
+        nowhere(1);
+        failures++;
+        println("FAIL  a function of a library that is nowhere was called");
+    } catch(problem: unsatisfied_link_error) {
+        message : string = problem.get_message();
+        expect_text("no library", message, "no_such_library_12345");
+        expect_text("no library", message, "Looked for:");
+        expect_text("no library", message, "c_library(");
+        expect_text("no library", message, "nowhere");
+    }
+
+    try {
+        this_function_is_not_there(1);
+        failures++;
+        println("FAIL  a function the library does not have was called");
+    } catch(problem: unsatisfied_link_error) {
+        message : string = problem.get_message();
+        expect_text("no function", message, "this_function_is_not_there");
+        expect_text("no function", message, "c_test");
+    }
+
+    // the library still works after a function of it was not found
+    checks++;
+    if(add3(1, 2, 3) != 321) { failures++; println("FAIL  add3 after a failed lookup"); }
+
+    try {
+        c_library("c_test", "somewhere/else");
+        failures++;
+        println("FAIL  c_library() after the library was opened was accepted");
+    } catch(problem: illegal_state_exception) {
+        expect_text("said late", problem.get_message(), "already open");
+    }
+
+    try {
+        c_check_libraries();
+        failures++;
+        println("FAIL  c_check_libraries() found everything");
+    } catch(problem: unsatisfied_link_error) {
+        message : string = problem.get_message();
+        expect_text("check", message, "no_such_library_12345");
+        expect_text("check", message, "this_function_is_not_there");
+    }
+
+    if(failures == 0) { println("MISTAKES: PASS (" + checks + " checks)"); }
+    else { println("MISTAKES: FAIL (" + failures + " of " + checks + " checks failed)"); }
+}

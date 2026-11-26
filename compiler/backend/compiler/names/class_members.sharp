@@ -1,0 +1,173 @@
+mod backend.compiler.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.postprocessor.inheritance,
+    backend.postprocessor.members,
+    backend.compiler.context
+)
+
+/**
+ * THE MEMBER OF A CLASS CALLED SO-AND-SO
+ *
+ *      class shape { name : string; }
+ *      class circle base shape { radius : decimal; }
+ *
+ *      a_circle.name       not in circle -> look in shape: found
+ *
+ * A member is looked for in the class, then in its base class, and so on up
+ * to `_object_`. The first class that has ANYTHING of that name ends the
+ * search (the nearest name hides the ones above it). This is the rule of
+ * `find_member` (backend/postprocessor/members/member_lookup.sharp); the
+ * function here is the path for the question bodies ask thousands of times -
+ * "what is `x` in this class?". It stops at the first class that has the
+ * name (for a function name every overload up the chain is wanted, and
+ * `find_member` is asked), and it REMEMBERS each answer per class, so the
+ * chain is walked once per name.
+ *
+ *      C++ comparison: `resolve_field` / `resolve_function` on a class and
+ *      its `owner` chain in dependency.cpp.
+ */
+
+/**
+ * Fill `found` with the member `name` of `declared` or of a class above it.
+ * Leaves it FOUND_NOTHING when no class in the chain has the name.
+ */
+def find_class_member(prog: sharp_program, declared: sharp_class, name: string, found: lookup_result) {
+    // asked before? the answer does not change (types/declarations: remembered_name)
+    if(declared.remembered_members == null) { declared.remembered_members = new name_table<remembered_name>(); }
+    known := declared.remembered_members!!.at(name);
+    if(known == null) {
+        search_class_member(prog, declared, name, found);
+        declared.remembered_members!!.put(name, remember(found));
+    } else {
+        recall(known!!, found);
+    }
+}
+
+/** keep the answer of a lookup */
+def remember(found: lookup_result) : remembered_name {
+    kept := new remembered_name();
+    kept.kind = found.kind;
+    kept.field = found.field;
+    kept.value = found.value;
+    kept.declaration = found.declaration;
+    kept.functions = found.functions;
+    kept.owner = found.owner;
+    kept.in_module = found.in_module;
+    return kept;
+}
+
+/** an answer that was kept, as a lookup result */
+def recall(kept: remembered_name, found: lookup_result) {
+    found.kind = kept.kind;
+    found.field = kept.field;
+    found.value = kept.value;
+    found.declaration = kept.declaration;
+    found.functions = kept.functions;
+    found.owner = kept.owner;
+    found.in_module = kept.in_module;
+}
+
+/** the search itself: the class, then the classes above it, then what only its interfaces have */
+def search_class_member(prog: sharp_program, declared: sharp_class, name: string, found: lookup_result) {
+    current : sharp_class? = declared;
+    for(depth : _int64 = 0; current != null && depth < 256; depth++) {
+        owner : sharp_class = current!!;
+        ensure_members(prog, owner);
+        same_name := owner.members!!.find(name);
+        if(same_name != null && classify_members(prog, declared, owner, same_name!!, name, found)) { return; }
+        resolve_bases(prog, owner);
+        current = owner.base_class;
+    }
+
+    // A function the class has only through an INTERFACE (`def area() :
+    // decimal;` promised by `measurable`, or an extension function added to
+    // the interface): the class chain did not have it. Most names that miss
+    // the chain are not such functions - they are globals and class names -
+    // so the names are gathered once per class and a miss costs one lookup.
+    if(declared.interface_only_names == null) { declared.interface_only_names = interface_function_names(prog, declared); }
+    if(declared.interface_only_names!!.at(name) != null) {
+        found.kind = FOUND_FUNCTIONS;
+        found.functions = find_functions(prog, declared, name);
+        found.owner = declared;
+    }
+}
+
+/** the name of every function of every interface the class, or a class above it, has (each mapped to one such function) */
+def interface_function_names(prog: sharp_program, declared: sharp_class) : hash_map<string, sharp_function> {
+    names := new hash_map<string, sharp_function>();
+    visited := new list<sharp_class>();
+    current : sharp_class? = declared;
+    for(depth : _int64 = 0; current != null && depth < 256; depth++) {
+        resolve_bases(prog, current!!);
+        if(current!!.is_interface()) { add_interface_names(prog, current!!, names, visited); }
+        for(i : _int64 = 0; i < current!!.interfaces.size(); i++) {
+            add_interface_names(prog, current!!.interfaces.at(i), names, visited);
+        }
+        current = current!!.base_class;
+    }
+    return names;
+}
+
+/** the function names of one interface and of the interfaces it extends */
+def add_interface_names(prog: sharp_program, from: sharp_class, names: hash_map<string, sharp_function>, visited: list<sharp_class>) {
+    if(contains_class(visited, from)) { return; }
+    visited.add(from);
+    ensure_members(prog, from);
+    resolve_bases(prog, from);
+    for(i : _int64 = 0; i < from.functions.size(); i++) {
+        names.put(from.functions.at(i).name, from.functions.at(i));
+    }
+    if(from.base_class != null && from.base_class!!.is_interface()) { add_interface_names(prog, from.base_class!!, names, visited); }
+    for(i : _int64 = 0; i < from.interfaces.size(); i++) { add_interface_names(prog, from.interfaces.at(i), names, visited); }
+}
+
+/**
+ * What the declarations called `name` in ONE class are. A field, enum value,
+ * alias or class inside wins over functions of the same name (W1001 was
+ * given for such a class). Returns 0 when the list holds nothing a body can
+ * name (a constructor, an init block).
+ */
+def classify_members(prog: sharp_program, asked: sharp_class, owner: sharp_class, same_name: list<sharp_declaration>,
+                     name: string, found: lookup_result) : _int64 {
+    has_function : _int64 = 0;
+    for(i : _int64 = 0; i < same_name.size(); i++) {
+        candidate := same_name.at(i);
+        kind : _int64 = candidate.kind;
+        if(kind == D_FIELD) {
+            found.kind = FOUND_FIELD;
+            found.field = candidate as sharp_field;
+            found.owner = owner;
+            return 1;
+        }
+        if(kind == D_ENUM_VALUE) {
+            found.kind = FOUND_ENUM_VALUE;
+            found.value = candidate as sharp_enum_value;
+            found.owner = owner;
+            return 1;
+        }
+        if(kind == D_ALIAS || kind == D_CLASS || kind == D_INTERFACE || kind == D_ENUM) {
+            found.kind = FOUND_TYPE;
+            found.declaration = candidate;
+            found.owner = owner;
+            return 1;
+        }
+        if(kind == D_FUNCTION) { has_function = 1; }
+    }
+    if(has_function == 0) { return 0; }
+
+    // every overload, from this class and the ones above it, nearest first
+    found.kind = FOUND_FUNCTIONS;
+    found.functions = find_functions(prog, asked, name);
+    found.owner = owner;
+    return 1;
+}

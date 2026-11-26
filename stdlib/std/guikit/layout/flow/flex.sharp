@@ -1,0 +1,252 @@
+mod std.guikit.layout.flow;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * How children are placed ACROSS a row or column (a column's left-to-right,
+ * a row's top-to-bottom), and how leftover room ALONG it is used.
+ */
+const ALIGN_START   : _int64 = 0;   // at the start: left in a column, top in a row
+const ALIGN_CENTER  : _int64 = 1;
+const ALIGN_END     : _int64 = 2;   // at the end: right in a column, bottom in a row
+const ALIGN_STRETCH : _int64 = 3;   // made as wide (column) / tall (row) as the container
+
+const JUSTIFY_START   : _int64 = 0; // packed at the start, leftover room after
+const JUSTIFY_CENTER  : _int64 = 1; // packed in the middle
+const JUSTIFY_END     : _int64 = 2; // packed at the end
+const JUSTIFY_BETWEEN : _int64 = 3; // first at the start, last at the end, equal gaps between
+
+/**
+ * flex - the ONE algorithm behind both gui.row() and gui.column().
+ *
+ * A row and a column are the same thing turned 90 degrees, so the layout is
+ * written once in terms of two directions:
+ *
+ *      MAIN  direction: the way children follow each other (down, in a column)
+ *      CROSS direction: the other one                      (across, in a column)
+ *
+ * and `sideways` (1 for a row) says which is which. The small functions at the
+ * bottom (main_of, cross_of, measure_kid) read "the main size" of a view
+ * without the algorithm caring whether that is its width or its height.
+ *
+ * MEASURE decides every size, in this order (the order Compose's Row/Column
+ * uses - RowColumnMeasurePolicy - and for the same reasons):
+ *
+ *   1. Children WITHOUT a share are measured first, each offered the room the
+ *      ones before it left. Measuring these first is what keeps a child with
+ *      a share from eating the room of a fixed child that comes after it (a
+ *      growing text before a button must not squeeze the button out).
+ *   2. The room that is left is split among the children WITH a share
+ *      (.grow(n), or filling along the main direction), in proportion. Each is
+ *      measured ONCE, told its exact main size - so a text that wraps works
+ *      out its height for the width it really gets. The split is done on
+ *      running totals, so the rounding of one child is made up by the next
+ *      and the shares add up to the room exactly.
+ *   3. The container is as big across as its biggest child.
+ *   4. With ALIGN_STRETCH, children are then measured once more, told to be
+ *      exactly that big across.
+ *
+ *   When the main direction is unlimited (a column inside a scroller), there
+ *   is no "leftover room" to share: a share is ignored and the child is simply
+ *   its natural size.
+ *
+ * ARRANGE only decides positions: where the run of children starts and how
+ * much extra room goes between them (`justify`), and where each child sits
+ * across (`align`).
+ *
+ * (CSS flexbox with flex-grow, Android's LinearLayout with layout_weight: the
+ * same idea. LinearLayout measures weighted children twice; telling them
+ * their exact size up front, as here, needs only one measure each.)
+ */
+stable class flex {
+
+    /** the container `me` measures its children; sets me.content_w / content_h */
+    static def measure(me: view, sideways: _int64, gap: decimal, align: _int64,
+                       min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        main_max : decimal = max_h;
+        cross_min : decimal = min_w;
+        cross_max : decimal = max_w;
+        if(sideways == 1) {
+            main_max = max_w;
+            cross_min = min_h;
+            cross_max = max_h;
+        }
+        limited : _int64 = num.is_bounded(main_max);
+
+        // how many children take part, and so how much room the gaps use
+        count : _int64 = me.kid_count();
+        shown : _int64 = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            if(me.kids.at(i).shown == 1) { shown = shown + 1; }
+        }
+        gaps : decimal = 0;
+        if(shown > 1) { gaps = gap * (shown - 1); }
+
+        // step 1: the children without a share
+        fixed : decimal = 0;                // the main size they use together
+        shares : decimal = 0;               // the shares the others ask for, added up
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+            share : decimal = share_of(kid, sideways, limited);
+            if(share > 0) {
+                shares = shares + share;
+                continue;
+            }
+            room : decimal = main_max;
+            if(limited == 1) { room = num.larger(0, main_max - gaps - fixed); }
+            measure_kid(kid, sideways, 0, room, 0, cross_max);
+            fixed = fixed + main_of(kid, sideways);
+        }
+
+        // step 2: split what is left among the children with a share
+        leftover : decimal = 0;
+        if(limited == 1) { leftover = num.larger(0, main_max - gaps - fixed); }
+        handed : decimal = 0;               // room given out so far, in whole pixels
+        counted : decimal = 0;              // shares served so far
+        if(shares > 0) {
+            for(i : _int64 = 0; i < count; i++) {
+                kid : view = me.kids.at(i);
+                if(kid.shown == 0) { continue; }
+                share : decimal = share_of(kid, sideways, limited);
+                if(share <= 0) { continue; }
+
+                // "up to this child, this much of the leftover should be given out" - rounded;
+                // the child gets the difference to what was already handed out
+                counted = counted + share;
+                upto : decimal = num.nearest(leftover * counted / shares);
+                size : decimal = upto - handed;
+                handed = upto;
+                measure_kid(kid, sideways, size, size, 0, cross_max);
+            }
+        }
+
+        // step 3: as big across as the biggest child
+        across : decimal = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 1) { across = num.larger(across, cross_of(kid, sideways)); }
+        }
+        across = num.between(across, cross_min, cross_max);
+
+        // step 4: stretch - a child that is to be stretched is measured once more,
+        // told to be exactly that big across, at the main size it has
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+            if(align_of(kid, align) == ALIGN_STRETCH) {
+                along : decimal = main_of(kid, sideways);
+                measure_kid(kid, sideways, along, along, across, across);
+            }
+        }
+
+        along_total : decimal = fixed + handed + gaps;
+        if(sideways == 1) {
+            me.content_w = along_total;
+            me.content_h = across;
+        } else {
+            me.content_w = across;
+            me.content_h = along_total;
+        }
+    }
+
+    /** the container `me` has its final box: put the children at their places in it */
+    static def arrange(me: view, sideways: _int64, gap: decimal, align: _int64, justify: _int64) {
+        main_size : decimal = me.inner_h();
+        cross_size : decimal = me.inner_w();
+        main_start : decimal = me.inner_y();
+        cross_start : decimal = me.inner_x();
+        if(sideways == 1) {
+            main_size = me.inner_w();
+            cross_size = me.inner_h();
+            main_start = me.inner_x();
+            cross_start = me.inner_y();
+        }
+
+        // the room the children leave free along the main direction
+        count : _int64 = me.kid_count();
+        used : decimal = 0;
+        shown : _int64 = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+            shown = shown + 1;
+            used = used + main_of(kid, sideways);
+        }
+        if(shown == 0) {
+            return;
+        }
+        free : decimal = num.larger(0, main_size - used - gap * (shown - 1));
+
+        // justify: where the run starts, and extra room between children
+        at : decimal = main_start;
+        extra : decimal = 0;
+        if(justify == JUSTIFY_CENTER) { at = main_start + free / 2; }
+        else if(justify == JUSTIFY_END) { at = main_start + free; }
+        else if(justify == JUSTIFY_BETWEEN && shown > 1) { extra = free / (shown - 1); }
+
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = me.kids.at(i);
+            if(kid.shown == 0) { continue; }
+
+            along : decimal = main_of(kid, sideways);
+            across : decimal = num.smaller(cross_of(kid, sideways), cross_size);
+
+            placed : _int64 = align_of(kid, align);
+            offset : decimal = 0;
+            if(placed == ALIGN_CENTER) { offset = (cross_size - across) / 2; }
+            else if(placed == ALIGN_END) { offset = cross_size - across; }
+
+            // on whole pixels: text and thin lines stay sharp
+            if(sideways == 1) { kid.arrange(num.nearest(at), num.nearest(cross_start + offset), along, across); }
+            else { kid.arrange(num.nearest(cross_start + offset), num.nearest(at), across, along); }
+
+            at = at + along + gap + extra;
+        }
+    }
+
+    // ------------------------------------------------------------ "main" and "cross" of a child
+
+    /** measure a child, saying the allowed range as main (along) and cross (across) */
+    private static def measure_kid(kid: view, sideways: _int64, main_low: decimal, main_high: decimal, cross_low: decimal, cross_high: decimal) {
+        if(sideways == 1) { kid.measure(main_low, main_high, cross_low, cross_high); }
+        else { kid.measure(cross_low, cross_high, main_low, main_high); }
+    }
+
+    /** how this child sits across: its own modifier().align(...) when it has one, otherwise what the container says */
+    private static def align_of(kid: view, container_align: _int64) : _int64 {
+        if(kid.self_align >= 0) { return kid.self_align; }
+        return container_align;
+    }
+
+    private static def main_of(kid: view, sideways: _int64) : decimal {
+        if(sideways == 1) { return kid.want_w; }
+        return kid.want_h;
+    }
+
+    private static def cross_of(kid: view, sideways: _int64) : decimal {
+        if(sideways == 1) { return kid.want_h; }
+        return kid.want_w;
+    }
+
+    /**
+     * The share of leftover room a child asks for: its grow(), or 1 when it
+     * fills along the main direction. 0 when it has an exact size that way, or
+     * when the main direction is unlimited (nothing is "left over" then).
+     */
+    private static def share_of(kid: view, sideways: _int64, limited: _int64) : decimal {
+        if(limited == 0) { return 0; }
+        if(sideways == 1) {
+            if(kid.fixed_w >= 0) { return 0; }
+            if(kid.weight > 0) { return kid.weight; }
+            if(kid.fill_w == 1) { return 1; }
+        } else {
+            if(kid.fixed_h >= 0) { return 0; }
+            if(kid.weight > 0) { return kid.weight; }
+            if(kid.fill_h == 1) { return 1; }
+        }
+        return 0;
+    }
+}

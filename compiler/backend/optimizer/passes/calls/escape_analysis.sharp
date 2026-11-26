@@ -1,0 +1,141 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.optimizer.analysis
+)
+
+/**
+ * ESCAPE ANALYSIS: does an object handed to a function stay inside it?
+ *
+ * An object ESCAPES a function when a reference to it is still somewhere
+ * after the function has returned: stored into a field, a static or an
+ * array, returned, thrown, or given to something that does one of these.
+ * An object that does not escape is the business of the code that made it
+ * alone - nobody else can read it, change it, or tell whether it ever
+ * existed. That is what the passes that remove objects need to know
+ * (box_elimination.sharp for an object whose every use is in one function;
+ * removal/dead_objects.sharp for one that is only ever written).
+ *
+ * Inside one function the question is answered by looking at the uses of
+ * the object (analysis/object_paths.sharp). This file answers it ACROSS a
+ * call: for every function of the program, which of its arguments do not
+ * escape - written on the function as bits (`optimizer_kept_in`: bit k for
+ * argument k, `self` being argument 0 of a function that has one).
+ *
+ * AN ARGUMENT DOES NOT ESCAPE when every instruction that reads its slot
+ * is one of
+ *
+ *      a field read or write THROUGH it, an element read or write through it,
+ *      its length, a test (`is_null`, same object, `is`), a cast, a lock;
+ *      or a direct call that passes it on as an argument that does not
+ *      escape there either.
+ *
+ * Everything else lets it go: stored as a VALUE (field, static, element),
+ * copied to another slot (the copy is not followed: said to escape),
+ * returned, thrown, passed to a virtual or native call or to a function
+ * value.
+ *
+ * As with the facts of pure_functions.sharp, the answer for one function
+ * depends on the functions it calls, so every argument starts out "does not
+ * escape" and loses that when a reason is found, round after round until
+ * nothing changes; two functions that hand an object back and forth can
+ * both keep it in.
+ *
+ * (The slot of a parameter may be given another value later in the function;
+ * the uses after that are of another object. They are counted all the same:
+ * the answer can only become "escapes" too often, never too rarely.)
+ *
+ *      C++ comparison: the C++ optimizer has nothing like it. This is the
+ *      "escape analysis" of Choi et al. (1999) in its simplest form - no
+ *      connection graph, each argument alone; HotSpot and Go use the full
+ *      form to put such objects on the stack, which this VM has no way to do.
+ */
+
+/** how many arguments have a bit (a function with more: the rest are said to escape) */
+const MAX_TRACKED_ARGUMENTS : _int64 = 60;
+
+/** work out, for every function, which arguments do not escape; returns how many functions keep all of theirs in */
+def find_argument_escapes(layout: program_layout) : _int64 {
+    count : _int64 = layout.functions.size();
+    kept := new _int64[count + 1];              // per function: bit k set = argument k does not escape (so far)
+    arguments := new _int64[count + 1];         // per function: how many arguments (self and the parameters)
+    one : _int64 = 1;
+    for(f : _int64 = 0; f < count; f++) {
+        made := layout.functions.at(f);
+        made.of.optimizer_kept_in = 0;
+        if(made.ir == null || !can_be_optimized(made.ir!!)) { continue; }
+        arguments[f] = (1 - made.is_static) + made.parameter_count();
+        if(arguments[f] > MAX_TRACKED_ARGUMENTS) { arguments[f] = MAX_TRACKED_ARGUMENTS; }
+        kept[f] = (one << arguments[f]) - 1;
+    }
+    changed : _int64 = 1;
+    while(changed == 1) {
+        changed = 0;
+        for(f : _int64 = 0; f < count; f++) {
+            if(kept[f] == 0) { continue; }
+            code : ir_function = layout.functions.at(f).ir!!;
+            now_kept : _int64 = kept[f] & arguments_kept_in(code, arguments[f], kept, count);
+            if(now_kept != kept[f]) {
+                kept[f] = now_kept;
+                changed = 1;
+            }
+        }
+    }
+    all_in : _int64 = 0;
+    for(f : _int64 = 0; f < count; f++) {
+        layout.functions.at(f).of.optimizer_kept_in = kept[f];
+        if(arguments[f] > 0 && kept[f] == (one << arguments[f]) - 1) { all_in++; }
+    }
+    return all_in;
+}
+
+/** the arguments (slots 0 .. arguments - 1) of this code that no instruction lets escape, as bits */
+def arguments_kept_in(code: ir_function, arguments: _int64, kept: _int64[], functions: _int64) : _int64 {
+    one : _int64 = 1;
+    result : _int64 = (one << arguments) - 1;
+    total : _int64 = code.instructions.size();
+    for(i : _int64 = 0; i < total && result != 0; i++) {
+        made := code.instructions.at(i);
+        kind : _int64 = made.kind;
+        if(kind == IR_CALL && made.number == CALL_HOW_DIRECT && made.declaration != null) {
+            // passed on: it stays in when it stays in there
+            address : _int64 = made.declaration!!.address;
+            theirs : _int64 = 0;
+            if(address >= 0 && address < functions) { theirs = kept[address]; }
+            for(k : _int64 = 0; made.arguments != null && k < made.arguments!!.count; k++) {
+                slot : _int64 = made.arguments!!.at(k);
+                if(slot < 0 || slot >= arguments) { continue; }
+                if(k >= MAX_TRACKED_ARGUMENTS || (theirs & (one << k)) == 0) { result = without(result, one << slot); }
+            }
+            continue;
+        }
+        k : _int64 = 0;
+        read : _int64 = slot_read(made, 0);
+        while(read >= 0) {
+            if(read < arguments && !stays_in_as(made, k)) { result = without(result, one << read); }
+            k++;
+            read = slot_read(made, k);
+        }
+    }
+    return result;
+}
+
+/** does the k-th slot the instruction reads only USE the object there (the header says how), without keeping a reference? */
+def stays_in_as(made: ir_instruction, k: _int64) : _int64 {
+    kind : _int64 = made.kind;
+    if(kind == IR_GET_FIELD || kind == IR_GET_ELEMENT || kind == IR_LENGTH || kind == IR_IS_NULL || kind == IR_SAME_OBJECT
+       || kind == IR_IS || kind == IR_CAST || kind == IR_LOCK || kind == IR_UNLOCK) {
+        return 1;
+    }
+    // through it, not it: `set_field %a.f, %v` keeps a reference to %v, `set_element %a[%i], %v` too
+    if(kind == IR_SET_FIELD) { return k == 0 && made.first >= 0; }
+    if(kind == IR_SET_ELEMENT) { return k < 2; }
+    // numbers are never objects: a number parameter read by arithmetic or a test "stays in" trivially
+    return kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY || kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE
+           || kind == IR_NEGATE || kind == IR_NOT || kind == IR_CONVERT || kind == IR_INT_IMMEDIATE || kind == IR_JUMP_IF
+           || kind == IR_JUMP_UNLESS || kind == IR_NEW_ARRAY || kind == IR_MATH;
+}

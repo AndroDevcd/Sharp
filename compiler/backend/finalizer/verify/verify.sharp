@@ -1,0 +1,184 @@
+mod backend.finalizer.verify;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.bytecode
+)
+
+/**
+ * THE BYTECODE VERIFIER (doc/codegen.md 5.7)
+ *
+ * Before a function is written, its words are checked. A failure is a bug of
+ * the COMPILER (E0970, naming the function and what is wrong): the cheapest
+ * way to find a code generation mistake without running anything. The model
+ * is the JVM's bytecode verifier.
+ *
+ *      the words decode: every opcode is one the VM has, no instruction runs
+ *          past the end, and the last one is `ret` (its low byte is not the code
+ *          section's end marker: 11.2)
+ *      every jump lands on the first word of an instruction of the function
+ *      every frame slot an instruction names is below the frame's size
+ *      every function a `call` names, and every class `newclass` / `movg` names, exists
+ *      the second word of invoke_delegate has the opcode FF
+ *      the operand stack (stack_heights.sharp): the same height on every path into
+ *          an instruction, never below the frame, and empty at every `ret`; a catch
+ *          handler and a finally block are entered by the VM with height 0
+ *      the try records (try_records.sharp): ranges that nest and lie on whole
+ *          instructions, handlers on instructions, slots in the frame, no call as the
+ *          last instruction of a range or just before one (R1, R2 of codegen.md 4.7)
+ *      the IR the words were made from (slot_kinds.sharp): every instruction reads
+ *          and writes slots of the kind it works on - a whole number, a decimal,
+ *          a reference
+ *
+ * A function with an `asm` block skips the stack check: an interrupt (`int`)
+ * takes and gives values on the stack in ways only the runtime knows
+ * (interrupt_signatures.cpp).
+ *
+ * The files of this package (module `backend.finalizer.verify`):
+ *
+ *      verify.sharp            this front door: verify_function, the checks of each instruction
+ *      stack_heights.sharp     the height of the operand stack along every path
+ *      slot_kinds.sharp        the kind of every slot an IR instruction touches
+ *      try_records.sharp       the try records: ranges, handlers, slots, rules R1 and R2
+ *
+ * Not checked yet (later stages): function values made of address 0 (stage
+ * 4), and the operand of `is` / `cast` (the word does not say whether it is a
+ * class address or a VM number type).
+ */
+def verify_function(made: function_layout, layout: program_layout) : string? {
+    code : function_code = made.code!!;
+    words : number_list = code.words;
+    if(made.ir == null) {
+        if(words.count > 0) { return "a function without a body has code"; }
+        return null;
+    }
+    if(words.count == 0) { return "a function with a body has no code"; }
+    wrong_kind := check_slot_kinds(made.ir!!);
+    if(wrong_kind != null) { return wrong_kind; }
+    if(code.stack_size < 0 || code.frame_stack_offset < 0) { return "a negative frame size"; }
+
+    starts := new number_list();
+    for(i : _int64 = 0; i < words.count; i++) { starts.add(0); }
+    last : _int64 = 0 - 1;
+    pc : _int64 = 0;
+    while(pc < words.count) {
+        opcode : _int64 = words.at(pc) & 0xff;
+        if(opcode > OP_LAST) { return "word " + pc + " holds no instruction (" + opcode + ")"; }
+        starts.replace(pc, 1);
+        last = pc;
+        if(is_two_words(opcode)) {
+            if(pc + 1 >= words.count) { return "`" + opcode_name(opcode) + "` at " + pc + " runs past the end"; }
+            pc += 2;
+        } else {
+            pc += 1;
+        }
+    }
+    if((words.at(last) & 0xff) != OP_RET) { return "the code does not end with `ret`"; }
+
+    pc = 0;
+    while(pc < words.count) {
+        problem := check_instruction(words, pc, starts, code, layout);
+        if(problem != null) { return problem; }
+        if(is_two_words(words.at(pc) & 0xff)) { pc += 2; } else { pc += 1; }
+    }
+
+    tries_wrong := check_try_records(words, starts, code, layout);
+    if(tries_wrong != null) { return tries_wrong; }
+
+    if(has_asm(made.ir!!) == 0) { return check_stack_heights(words, starts, made, layout); }
+    return null;
+}
+
+/** does the function contain an asm block? */
+def has_asm(ir: ir_function) : _int64 {
+    for(i : _int64 = 0; i < ir.instructions.size(); i++) {
+        kind : _int64 = ir.instructions.at(i).kind;
+        if(kind == IR_ASM) { return 1; }
+    }
+    return 0;
+}
+
+/** the "a" field of a class-D word (sign and magnitude) */
+def field_d(word: _int64) : _int64 {
+    magnitude : _int64 = (word >> 9) & 0x7fffff;
+    if(((word >> 8) & 1) == 0) { return 0 - magnitude; }
+    return magnitude;
+}
+
+/** the "a" and "b" fields of a class-C word */
+def field_ca(word: _int64) : _int64 {
+    magnitude : _int64 = (word >> 10) & 0xf;
+    if(((word >> 8) & 1) == 0) { return 0 - magnitude; }
+    return magnitude;
+}
+
+/** the "b" field of a class-C word (sign and magnitude) */
+def field_cb(word: _int64) : _int64 {
+    magnitude : _int64 = (word >> 14) & 0x3ffff;
+    if(((word >> 9) & 1) == 0) { return 0 - magnitude; }
+    return magnitude;
+}
+
+/** a raw second word as a signed 32-bit number */
+def raw_value(word: _int64) : _int64 {
+    if(word > 2147483647) { return word - 4294967296; }
+    return word;
+}
+
+/** the checks of one instruction (the list at the top of this file) */
+def check_instruction(words: number_list, pc: _int64, starts: number_list, code: function_code,
+                      layout: program_layout) : string? {
+    word : _int64 = words.at(pc);
+    opcode : _int64 = word & 0xff;
+    name := opcode_name(opcode);
+    if(opcode == OP_JMP || opcode == OP_JE || opcode == OP_JNE) {
+        target : _int64 = field_d(word);
+        if(target < 0 || target >= words.count || starts.at(target) == 0) {
+            return "`" + name + "` at " + pc + " jumps to " + target + ", which is not the start of an instruction";
+        }
+    }
+    if(is_slot_jump(opcode)) {
+        target : _int64 = words.at(pc + 1);
+        if(target < 0 || target >= words.count || starts.at(target) == 0) {
+            return "`" + name + "` at " + pc + " jumps to " + target + ", which is not the start of an instruction";
+        }
+    }
+    slot : _int64 = 0 - 1;
+    if(opcode == OP_MOVL || opcode == OP_POPL || opcode == OP_IPUSHL || opcode == OP_PUSHL || opcode == OP_IPOPL
+       || opcode == OP_SMOVR_3 || opcode == OP_ISTOREL || opcode == OP_DISTOREL) {
+        slot = field_d(word);
+    }
+    if(opcode == OP_LOADL || opcode == OP_SMOVR_2) { slot = field_cb(word); }
+    if(slot >= code.stack_size || (slot < 0 && slot != 0 - 1)) {
+        return "`" + name + "` at " + pc + " names slot " + slot + " of a frame of " + code.stack_size;
+    }
+    if(opcode == OP_SMOVR_4) {
+        first : _int64 = field_d(word);
+        second : _int64 = raw_value(words.at(pc + 1));
+        if(first < 0 || first >= code.stack_size || second < 0 || second >= code.stack_size) {
+            return "`smovr_4` at " + pc + " names a slot outside the frame";
+        }
+    }
+    if(opcode == OP_CALL) {
+        address : _int64 = field_d(word);
+        if(address < 0 || address >= layout.functions.size()) { return "`call` at " + pc + " names function " + address; }
+    }
+    if(opcode == OP_INVOKE_DELEGATE) {
+        address : _int64 = field_d(word);
+        if(address < 0 || address >= layout.functions.size()) {
+            return "`invoke_delegate` at " + pc + " names function " + address;
+        }
+        if((words.at(pc + 1) & 0xff) != OP_ILL) { return "the second word of `invoke_delegate` at " + pc + " is not FF"; }
+    }
+    if(opcode == OP_NEWCLASS) {
+        address : _int64 = raw_value(words.at(pc + 1));
+        if(address < 0 || address >= layout.classes.size()) { return "`newclass` at " + pc + " names class " + address; }
+    }
+    if(opcode == OP_MOVG) {
+        address : _int64 = field_d(word);
+        if(address < 0 || address >= layout.classes.size()) { return "`movg` at " + pc + " names class " + address; }
+    }
+    return null;
+}

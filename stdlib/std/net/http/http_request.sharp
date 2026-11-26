@@ -1,0 +1,321 @@
+mod std.net;
+
+import ( std.io, std.data )
+
+/**
+ * ONE REQUEST, being put together
+ *
+ *      asked := new http_request("POST", "https://api.shop.example/v2/products/{id}/photo");
+ *      asked.path("id", 7)                     // fills {id} in the address
+ *           .query("size", "large")            // ...?size=large
+ *           .header("Accept", "application/json")
+ *           .bearer(token)                     // Authorization: Bearer ...
+ *           .json("caption", "front view");    // the body: {"caption":"front view"}
+ *
+ * Every word returns the request, so they chain; in the block of
+ * http.POST(...) { } the request is `it`, and in an http_service the same
+ * words are written bare.
+ *
+ * THE ADDRESS
+ *      path(name, value)       replaces {name} in the address, encoded so that it stays one part of the path
+ *      query(name, value)      one "name=value" after the "?". A null value leaves it out.
+ *
+ * THE HEADERS
+ *      header(name, value)     set one (a second call with the name replaces it)
+ *      accept(type)            Accept
+ *      bearer(token)           Authorization: Bearer token
+ *      basic(user, password)   Authorization: Basic ...
+ *
+ * THE BODY - one of:
+ *      body(text)              the text as it is (Content-Type text/plain unless set)
+ *      body(text, type)        the text, and what it is ("application/xml")
+ *      body(bytes, type)       bytes
+ *      body(json_value)        a json value
+ *      json(name, value)       a json object, one member per call
+ *      form(name, value)       a form, as a browser sends one (name=value&name=value)
+ *      part(name, value)       a form in parts (multipart/form-data), which can carry files:
+ *      part(name, file, type)      a file, sent with its name and what it is ("image/jpeg")
+ *
+ * OTHER
+ *      timeout(milliseconds)   give up when the server is silent for this long
+ *      follow_redirects(false) hand back a "go there instead" answer as it is
+ */
+class http_request {
+    method : string = "GET";
+    address : string = "";
+    headers : http_headers = new http_headers();
+    /** milliseconds; below 0: what the client has set */
+    wait : _int64 = 0 - 1;
+    redirects : bool = true;
+
+    private path_names : list<string>?;
+    private path_values : list<string>?;
+    private query_names : list<string>?;
+    private query_values : list<string>?;
+    private form_names : list<string>?;
+    private form_values : list<string>?;
+    private members : json_value?;
+    private parts : list<http_part>?;
+    private bytes : _int8[]?;
+    private bytes_type : string = "";
+
+    http_request(method: string, address: string) {
+        self->method = method;
+        self->address = address;
+    }
+
+    // ================================================================ the address
+
+    def path(name: string, value: string) : http_request {
+        if(path_names == null) { path_names = new list<string>(); path_values = new list<string>(); }
+        path_names!!.add(name);
+        path_values!!.add(value);
+        return self;
+    }
+
+    def path(name: string, value: decimal) : http_request {
+        return path(name, http_text.of_number(value));
+    }
+
+    def query(name: string, value: string?) : http_request {
+        if(value == null) { return self; }
+        if(query_names == null) { query_names = new list<string>(); query_values = new list<string>(); }
+        query_names!!.add(name);
+        query_values!!.add(value!!);
+        return self;
+    }
+
+    def query(name: string, value: decimal) : http_request {
+        return query(name, http_text.of_number(value));
+    }
+
+    def query(name: string, value: bool) : http_request {
+        return query(name, http_text.of_bool(value));
+    }
+
+    /**
+     * The address as it will be asked for: {names} filled, the query added.
+     * Throws illegal_argument_exception when a {name} was given no value or
+     * the result is not a web address.
+     */
+    def resolved_address() : string {
+        text : string = address;
+        if(path_names != null) {
+            for(i : _int64 = 0; i < path_names!!.size(); i++) {
+                slot : string = "{" + path_names!!.at(i) + "}";
+                if(!io_strings.contains(text, slot)) {
+                    throw new illegal_argument_exception("path(\"" + path_names!!.at(i) + "\", ...): the address `" + address + "` has no " + slot);
+                }
+                text = io_strings.replace_text(text, slot, url_codec.encode(path_values!!.at(i)));
+            }
+        }
+        open : _int64 = io_strings.index_of(text, '{') as _int64;
+        if(open >= 0) {
+            close : _int64 = io_strings.index_of(text, '}', open) as _int64;
+            mark : _int64 = io_strings.index_of(text, '?') as _int64;
+            if(close > open && (mark < 0 || open < mark)) {
+                throw new illegal_argument_exception("the address `" + address + "` has " + io_strings.slice(text, open, close + 1)
+                    + " and nothing was given for it: path(\"" + io_strings.slice(text, open + 1, close) + "\", value)");
+            }
+        }
+        if(query_names != null) {
+            asked := new char_buffer();
+            asked.append(text);
+            if(io_strings.index_of(text, '?') >= 0) { asked.append("&"); } else { asked.append("?"); }
+            for(i : _int64 = 0; i < query_names!!.size(); i++) {
+                if(i > 0) { asked.append("&"); }
+                asked.append(url_codec.encode(query_names!!.at(i))).append("=").append(url_codec.encode(query_values!!.at(i)));
+            }
+            text = asked.build();
+        }
+        return text;
+    }
+
+    // ================================================================ the headers
+
+    def header(name: string, value: string) : http_request {
+        headers.put(name, value);
+        return self;
+    }
+
+    def accept(type: string) : http_request {
+        return header("Accept", type);
+    }
+
+    def bearer(token: string) : http_request {
+        return header("Authorization", "Bearer " + token);
+    }
+
+    def basic(user: string, password: string) : http_request {
+        return header("Authorization", "Basic " + base64.encode(user + ":" + password));
+    }
+
+    // ================================================================ the body
+
+    def body(text: string) : http_request {
+        return body(text, "text/plain; charset=utf-8");
+    }
+
+    def body(text: string, type: string) : http_request {
+        if(sizeof(text.data) == 0) { bytes = new _int8[0]; }
+        else { bytes = text.data!!; }
+        bytes_type = type;
+        return self;
+    }
+
+    def body(data: _int8[], type: string) : http_request {
+        bytes = data;
+        bytes_type = type;
+        return self;
+    }
+
+    def body(value: json_value) : http_request {
+        members = value;
+        return self;
+    }
+
+    private def member_list() : json_value {
+        if(members == null || !members!!.is_object()) { members = json_value.new_object(); }
+        return members!!;
+    }
+
+    def json(name: string, value: string) : http_request { member_list().put_string(name, value); return self; }
+    def json(name: string, value: decimal) : http_request { member_list().put_number(name, value); return self; }
+    def json(name: string, value: bool) : http_request { member_list().put_bool(name, value); return self; }
+    def json(name: string, value: json_value) : http_request { member_list().put(name, value); return self; }
+
+    def form(name: string, value: string) : http_request {
+        if(form_names == null) { form_names = new list<string>(); form_values = new list<string>(); }
+        form_names!!.add(name);
+        form_values!!.add(value);
+        return self;
+    }
+
+    def form(name: string, value: decimal) : http_request {
+        return form(name, http_text.of_number(value));
+    }
+
+    def part(name: string, value: string) : http_request {
+        if(parts == null) { parts = new list<http_part>(); }
+        parts!!.add(new http_part(name, "", "", value.data));
+        return self;
+    }
+
+    /** a file as one part of the form; `type` is what it is ("image/jpeg", "application/pdf") */
+    def part(name: string, source: file, type: string) : http_request {
+        if(!source.exists() || source.is_directory()) {
+            throw new io_exception("part(\"" + name + "\", ...): there is no file " + source.path);
+        }
+        if(parts == null) { parts = new list<http_part>(); }
+        parts!!.add(new http_part(name, source.name(), type, source.read_bytes()));
+        return self;
+    }
+
+    def has_body() : bool {
+        return bytes != null || members != null || form_names != null || parts != null;
+    }
+
+    /**
+     * The body as the bytes that are sent (null: the request has none), and
+     * what they are, in `headers` as Content-Type - unless the request set
+     * a Content-Type of its own.
+     */
+    def resolved_body() : _int8[]? {
+        type : string = "";
+        made : _int8[]? = null;
+        if(parts != null) {
+            edge : string = "sharp-" + http_text.boundary();
+            made = http_part.join(parts!!, edge);
+            type = "multipart/form-data; boundary=" + edge;
+        } else if(form_names != null) {
+            text := new char_buffer();
+            for(i : _int64 = 0; i < form_names!!.size(); i++) {
+                if(i > 0) { text.append("&"); }
+                text.append(url_codec.encode_form(form_names!!.at(i))).append("=").append(url_codec.encode_form(form_values!!.at(i)));
+            }
+            made = text.to_array() ?: new _int8[0];
+            type = "application/x-www-form-urlencoded";
+        } else if(members != null) {
+            made = members!!.to_string()!!.data;
+            type = "application/json";
+        } else if(bytes != null) {
+            made = bytes;
+            type = bytes_type;
+        }
+        if(made != null && sizeof(type.data) > 0 && !headers.has("Content-Type")) { headers.put("Content-Type", type); }
+        return made;
+    }
+
+    // ================================================================ other
+
+    def timeout(milliseconds: _int64) : http_request {
+        wait = milliseconds;
+        return self;
+    }
+
+    def follow_redirects(yes: bool) : http_request {
+        redirects = yes;
+        return self;
+    }
+
+    override def to_string() : string? {
+        return method + " " + address;
+    }
+}
+
+/** one part of a form in parts: a plain value, or a file with its name and what it is */
+class http_part {
+    name : string;
+    file_name : string;
+    type : string;
+    data : _int8[]?;
+
+    http_part(name: string, file_name: string, type: string, data: _int8[]?) {
+        self->name = name;
+        self->file_name = file_name;
+        self->type = type;
+        self->data = data;
+    }
+
+    /** the parts as one body, each between lines of `--edge` */
+    static def join(parts: list<http_part>, edge: string) : _int8[] {
+        whole := new byte_buffer();
+        for(i : _int64 = 0; i < parts.size(); i++) {
+            one := parts.at(i);
+            head : string = "--" + edge + "\r\nContent-Disposition: form-data; name=\"" + one.name + "\"";
+            if(sizeof(one.file_name.data) > 0) { head = head + "; filename=\"" + one.file_name + "\""; }
+            head = head + "\r\n";
+            if(sizeof(one.type.data) > 0) { head = head + "Content-Type: " + one.type + "\r\n"; }
+            head = head + "\r\n";
+            whole.put_bytes(head.data);
+            if(sizeof(one.data) > 0) { whole.put_bytes(one.data); }
+            whole.put_bytes("\r\n".data);
+        }
+        whole.put_bytes(("--" + edge + "--\r\n").data);
+        return whole.to_array() ?: new _int8[0];
+    }
+}
+
+/** small conversions the http classes share */
+class http_text {
+    private static made : _int64 = 0;
+
+    /** 7 for 7.0, 7.5 for 7.5: a number as it is written in an address or a form */
+    static def of_number(value: decimal) : string {
+        whole : _int64 = value as _int64;
+        if(whole == value) { return "" + whole; }
+        return io_strings.number_to_string(value);
+    }
+
+    static def of_bool(value: bool) : string {
+        if(value) { return "true"; }
+        return "false";
+    }
+
+    /** a text that will not turn up inside what a form in parts carries */
+    static def boundary() : string {
+        made++;
+        return io_strings.int_to_hex(utc_mills().value & 0xFFFFFFFF, 8) + "-" + io_strings.int_to_hex((made * 40503) & 0xFFFFFF, 6)
+             + "-" + io_strings.int_to_hex(rand_index(2147483647), 8);
+    }
+}

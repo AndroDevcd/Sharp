@@ -1,0 +1,63 @@
+mod main;
+
+import ( std.math, std.text )
+
+/**
+ * spectral-norm - the Benchmarks Game.  The largest singular value of the
+ * infinite matrix A, a(i,j) = 1 / ((i+j)(i+j+1)/2 + i + 1), cut to n x n,
+ * found with ten steps of the power method.
+ *
+ *      sharp spectralnorm <n>
+ */
+
+def a(i: _int64, j: _int64) : decimal {
+    return 1.0 / ((i + j) * (i + j + 1) / 2 + i + 1);
+}
+
+/** to = A * from */
+def times(n: _int64, from: decimal[], to: decimal[]) {
+    for(i : _int64 = 0; i < n; i++) {
+        sum : decimal = 0;
+        for(j : _int64 = 0; j < n; j++) {
+            sum += a(i, j) * from[j];
+        }
+        to[i] = sum;
+    }
+}
+
+/** to = A transposed * from */
+def times_transposed(n: _int64, from: decimal[], to: decimal[]) {
+    for(i : _int64 = 0; i < n; i++) {
+        sum : decimal = 0;
+        for(j : _int64 = 0; j < n; j++) {
+            sum += a(j, i) * from[j];
+        }
+        to[i] = sum;
+    }
+}
+
+def main(args: string[]) {
+    n : _int64 = 100;
+    if(sizeof(args) > 0) { n = args[0].to_int(); }
+
+    u := new decimal[n];
+    v := new decimal[n];
+    t := new decimal[n];
+
+    for(i : _int64 = 0; i < n; i++) { u[i] = 1; }
+    for(i : _int64 = 0; i < 10; i++) {
+        // v = At A u, then u = At A v
+        times(n, u, t);
+        times_transposed(n, t, v);
+        times(n, v, t);
+        times_transposed(n, t, u);
+    }
+
+    vbv : decimal = 0;
+    vv : decimal = 0;
+    for(i : _int64 = 0; i < n; i++) {
+        vbv += u[i] * v[i];
+        vv += v[i] * v[i];
+    }
+    println(number_to_fixed(sqrt(vbv / vv), 9));
+}

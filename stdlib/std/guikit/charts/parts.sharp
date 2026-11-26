@@ -1,0 +1,518 @@
+mod std.guikit.charts;
+
+import (
+    std,
+    std.guikit.*
+)
+
+/**
+ * THE PARTS OF A CHART THAT ARE NOT DATA: the two axes, the lines behind the
+ * marks, the legend and the marker. Each is said inside chart { } when it is
+ * wanted - a chart with none of them is only its bars and lines.
+ */
+
+/**
+ * chart_axis - the words along one side. Made with x_axis(...) or y_axis().
+ *
+ *      x_axis(months)                                  // a word under every place (else: 1, 2, 3 ...)
+ *      y_axis().ticks(4).format { v: decimal -> return "$" + chart_text.number(v); }
+ *
+ * WITH A BLOCK, EVERY LABEL IS BUILT FROM WIDGETS instead of having its words
+ * painted. The block runs once for each label; `it` says which one it is
+ * (an axis_label: index, value, words) and whatever the block makes - a text,
+ * a row with a picture, a button, one of your composables - stands where the
+ * label would. The chart makes the room they need and puts them in place.
+ *
+ *      x_axis(months) {
+ *          if(it.index == best) { chip("best"); }
+ *          text(it.words).size(13);
+ *      }
+ *      y_axis { text("$" + it.words).size(12).dim(); }
+ *
+ * (Compose calls this a slot: a parameter that is a piece of screen.)
+ *
+ *   .ticks(n)             y axis: about this many numbers (5). The chart picks round ones.
+ *   .format { v -> }      y axis: how a number is written (also at the bars and in the marker)
+ *   .color(c)             the colour of the words (else: the theme's quiet text colour)
+ *   .for_each { l -> }    painted labels: change single ones - their colour, words, weight (below)
+ *
+ * Painted words that would run into each other are left out evenly, and so
+ * are built labels.
+ */
+stable class chart_axis {
+    words : list<string> = new list<string>();
+    wanted : _int64 = 5;
+    writer : (decimal)(string)?;
+    tint : color?;
+
+    /** the word for each place (the front door calls this: x_axis(months)) */
+    def name_places(names: string[]) : chart_axis {
+        words.clear();
+        count : _int64 = sizeof(names);
+        for(i : _int64 = 0; i < count; i++) {
+            words.add(names[i]);
+        }
+        return self;
+    }
+
+    def name_places(names: list<string>) : chart_axis {
+        words.clear();
+        count : _int64 = names.size();
+        for(i : _int64 = 0; i < count; i++) {
+            words.add(names.at(i));
+        }
+        return self;
+    }
+
+    def ticks(about: _int64) : chart_axis {
+        wanted = about;
+        if(wanted < 1) { wanted = 1; }
+        return self;
+    }
+
+    def format(write: (decimal)(string)) : chart_axis {
+        writer = write;
+        return self;
+    }
+
+    def color(c: color) : chart_axis {
+        tint = c;
+        return self;
+    }
+
+    /**
+     * Go over the labels of the axis one by one, as they are painted, and
+     * change the ones you like - their colour, their words, whether they are
+     * bold or there at all:
+     *
+     *      x_axis(months).for_each { l: axis_label ->
+     *          if(l.index == best_month) { l.tint = green; l.bold = 1; }
+     *      };
+     *      y_axis().for_each { l: axis_label -> if(l.value < 0) { l.tint = red; } };
+     */
+    def for_each(change: (axis_label)()) : chart_axis {
+        changer = change;
+        return self;
+    }
+
+    /** what builds each label from widgets (the block given to x_axis / y_axis); null: the words are painted */
+    viewer : (axis_label)()?;
+
+    /** label `index` as it is to be painted: as the axis writes it, then as for_each left it */
+    def dressed(index: _int64, value: decimal, words: string) : axis_label {
+        shown.index = index;
+        shown.value = value;
+        shown.words = words;
+        shown.tint = null;
+        shown.bold = 0;
+        shown.hidden = 0;
+        if(changer != null) { changer!!(shown); }
+        return shown;
+    }
+
+    private changer : (axis_label)()?;
+    private shown : axis_label = new axis_label();
+}
+
+/**
+ * axis_label - one label of an axis: `it` in the block of x_axis / y_axis,
+ * and what the function given to chart_axis.for_each is handed. In for_each,
+ * change its fields to change how the label is painted.
+ */
+stable class axis_label {
+    index : _int64 = 0;                 // x axis: the place, 0 the first. y axis: which number, 0 the lowest
+    value : decimal = 0;                // y axis: the number it stands for (x axis: 0)
+    words : string = "";                // what is written
+    tint : color?;                      // its colour (null: the axis' own)
+    bold : _int64 = 0;                  // 1: bold
+    hidden : _int64 = 0;                // 1: not painted
+}
+
+/**
+ * chart_grid - level lines behind the marks, one at each number of the y
+ * axis. Made with grid_lines().
+ *
+ *      grid_lines().dashed()
+ */
+stable class chart_grid {
+    broken : _int64 = 0;
+    tint : color?;
+
+    def dashed() : chart_grid {
+        broken = 1;
+        return self;
+    }
+
+    def color(c: color) : chart_grid {
+        tint = c;
+        return self;
+    }
+}
+
+/** the sign beside a name in the legend */
+const LEGEND_SQUARE : _int64 = 0;       // a small square with round corners (the default)
+const LEGEND_DOT    : _int64 = 1;       // a dot
+const LEGEND_LINE   : _int64 = 2;       // a short thick line
+
+/**
+ * chart_legend - the name of every named series beside a sign in its colour.
+ * Made with legend().
+ *
+ *      legend()                                            // squares, above the marks, at the left
+ *      legend().bottom().align(ALIGN_CENTER).sign(LEGEND_DOT)
+ *      legend().pills().bold().size(14).gap(10)
+ *
+ *   .bottom()             below the chart (else: above the marks)
+ *   .align(how)           ALIGN_START (left, the default), ALIGN_CENTER, ALIGN_END (right)
+ *   .sign(which)          LEGEND_SQUARE, LEGEND_DOT, LEGEND_LINE
+ *   .pills()              each name in a small rounded box of its own
+ *   .color(c)             the colour of the names (else: the theme's quiet text colour)
+ *   .size(pixels)         the size of the names (else: the theme's small text)
+ *   .bold()               bold names
+ *   .gap(pixels)          the room between one entry and the next (18)
+ *
+ * WITH A BLOCK, EVERY ENTRY IS BUILT FROM WIDGETS: `it` is a legend_entry
+ * (index, name, tint), and the sign is then yours to make too.
+ *
+ *      legend {
+ *          text(it.name).bold().color(it.tint!!);
+ *          text(total_of(it.index)).dim();
+ *      }.align(ALIGN_END);
+ */
+stable class chart_legend {
+    /** what builds each entry from widgets (the block given to legend); null: a sign and the name are painted */
+    viewer : (legend_entry)()?;
+
+    below : _int64 = 0;
+    sideways : _int64 = ALIGN_START;
+    mark_kind : _int64 = LEGEND_SQUARE;
+    boxed : _int64 = 0;
+    tint : color?;
+    pixels : decimal = 0;               // 0: the theme's small text
+    heavy : _int64 = 0;
+    apart : decimal = 18;
+
+    def bottom() : chart_legend {
+        below = 1;
+        return self;
+    }
+
+    def align(how: _int64) : chart_legend {
+        sideways = how;
+        return self;
+    }
+
+    def sign(which: _int64) : chart_legend {
+        mark_kind = which;
+        return self;
+    }
+
+    def pills() : chart_legend {
+        boxed = 1;
+        return self;
+    }
+
+    def color(c: color) : chart_legend {
+        tint = c;
+        return self;
+    }
+
+    def size(px: decimal) : chart_legend {
+        pixels = px;
+        return self;
+    }
+
+    def bold() : chart_legend {
+        heavy = 1;
+        return self;
+    }
+
+    def gap(px: decimal) : chart_legend {
+        apart = px;
+        return self;
+    }
+}
+
+/** legend_entry - one named series: `it` in the block of legend { } */
+stable class legend_entry {
+    index : _int64 = 0;                 // which series of the chart: 0 is the first
+    name : string = "";
+    tint : color?;                      // the series' colour
+}
+
+/** what marks the place the mouse points at, behind the marks */
+const GUIDE_AUTO : _int64 = 0;          // an upright line - or, in a chart with bars, nothing (the bar itself lights up)
+const GUIDE_LINE : _int64 = 1;          // an upright line through the place
+const GUIDE_BAND : _int64 = 2;          // the whole place tinted, from top to bottom
+const GUIDE_NONE : _int64 = 3;          // nothing
+
+/**
+ * chart_hover - which place the mouse points at: `it` in the block of
+ * marker { }, and what the functions given to a marker are told. The first
+ * two fields are all a block or .tip needs; the rest says where things are
+ * on the screen, for a function that paints (.draw).
+ */
+stable class chart_hover {
+    index : _int64 = 0;                 // the place: 0 is the first
+    name : string = "";                 // its word on the x axis
+
+    x : decimal = 0;                    // the middle of the place, across
+    left : decimal = 0;                 // the area the marks are in
+    top : decimal = 0;
+    width : decimal = 0;
+    height : decimal = 0;
+    mouse_x : decimal = 0;
+    mouse_y : decimal = 0;
+}
+
+/**
+ * chart_tip - what the marker's box says, line by line. The function given
+ * to marker().tip fills one; the chart measures it, draws the box around it
+ * and puts it where there is room.
+ *
+ *      marker().tip { h: chart_hover, tip: chart_tip ->
+ *          tip.title(days[h.index]);
+ *          tip.line(teal, chart_text.number(steps[h.index]) + " steps");       // a dot in that colour, then the words
+ *          tip.line("goal: 8,000");                                            // only words
+ *      };
+ */
+stable class chart_tip {
+    static const TITLE : _int64 = 0;
+    static const WORDS : _int64 = 1;
+    static const DOTTED : _int64 = 2;
+
+    kinds : list<long> = new list<long>();
+    texts : list<string> = new list<string>();
+    tints : list<color> = new list<color>();        // for a line with a dot: its colour (else: any colour, not used)
+    private static plain : color = new color(0, 0, 0, 0);
+
+    /** a heading, in bold */
+    def title(words: string) {
+        add(TITLE, words, plain);
+    }
+
+    /** a line of words */
+    def line(words: string) {
+        add(WORDS, words, plain);
+    }
+
+    /** a line of words behind a dot of this colour */
+    def line(dot: color, words: string) {
+        add(DOTTED, words, dot);
+    }
+
+    def clear() {
+        kinds.clear();
+        texts.clear();
+        tints.clear();
+    }
+
+    def size() : _int64 {
+        return texts.size();
+    }
+
+    def kind_at(i: _int64) : _int64 {
+        return kinds.at(i).value;
+    }
+
+    private def add(what: _int64, words: string, tint: color) {
+        kinds.add(new long(what));
+        texts.add(words);
+        tints.add(tint);
+    }
+}
+
+/**
+ * chart_marker - what the mouse points at: the place under it is marked and
+ * a small box says its numbers. Made with marker().
+ *
+ *      marker()                                                // the usual look
+ *      marker().guide(GUIDE_BAND).dim_others()                 // the place tinted, the other bars faded
+ *      marker().box_color(white).text_color(black).corner(4)   // the box in your colours
+ *      marker().title { i: _int64 -> return "Week " + (i + 1); }
+ *
+ * THE PLACE
+ *   .guide(which)         GUIDE_AUTO, GUIDE_LINE, GUIDE_BAND, GUIDE_NONE (above)
+ *   .guide_color(c)       the colour of the line or band
+ *   .dashed()             a broken line
+ *   .dim_others()         the bars of every other place fade while one is pointed at
+ *   .highlight(c)         what is laid over the bar pointed at (else: a faint white). See-through colours only!
+ *   .dot(radius)          the ring on each line's point there (6); 0: none
+ *   .dot_color(c)         the middle of that ring (else: white)
+ *
+ * THE BOX
+ *   .box_color(c)         its background           .border(c)        its edge
+ *   .text_color(c)        its words                .corner(pixels)   how round it is (8; 99: a pill)
+ *   .above()              over the place, just above its highest mark (else: beside the mouse)
+ *   .title { i -> }       the heading, from the place's number (else: the x axis' word)
+ *   .format { v -> }      how a number is written in it (else: as the y axis writes it)
+ *   .tip { h, tip -> }    say yourself what the box holds, line by line (chart_tip, above):
+ *                         the chart still measures it, draws it and finds its place
+ *   .no_box()             no box at all: only the place is marked (with a block: no background)
+ *
+ * WITH A BLOCK, THE BOX HOLDS WIDGETS: texts, rows, pictures, a small chart.
+ * `it` is a chart_hover (index, name); the block runs whenever the mouse comes
+ * to another place. The box's colours, corner and .above() still apply.
+ *
+ *      marker {
+ *          text(months[it.index] + " 2026").bold();
+ *          progress(done[it.index] / goal, modifier().width(150));
+ *      }.dashed();
+ *
+ * AND IF NONE OF THAT WILL DO
+ *   .draw { p, h -> }     paint whatever you like instead of the box, with the painter. Here
+ *                         the places and sizes are yours to work out: h says where things are.
+ */
+stable class chart_marker {
+    guide_kind : _int64 = GUIDE_AUTO;
+    guide_tint : color?;
+    broken : _int64 = 0;
+    fading : _int64 = 0;
+    lit : color?;
+    ring : decimal = 6;
+    ring_tint : color?;
+
+    boxed : _int64 = 1;
+    back : color?;
+    edge : color?;
+    ink : color?;
+    round : decimal = 8;
+    over : _int64 = 0;                  // 1: above the place's highest mark; 0: beside the mouse
+    heading : (_int64)(string)?;
+    writer : (decimal)(string)?;
+    filler : (chart_hover, chart_tip)()?;
+    viewer : (chart_hover)()?;              // what builds the box from widgets (the block given to marker); null: lines of words
+    painter_of : (painter, chart_hover)()?;
+
+    def guide(which: _int64) : chart_marker {
+        guide_kind = which;
+        return self;
+    }
+
+    def guide_color(c: color) : chart_marker {
+        guide_tint = c;
+        return self;
+    }
+
+    def dashed() : chart_marker {
+        broken = 1;
+        return self;
+    }
+
+    def dim_others() : chart_marker {
+        fading = 1;
+        return self;
+    }
+
+    def highlight(c: color) : chart_marker {
+        lit = c;
+        return self;
+    }
+
+    def dot(radius: decimal) : chart_marker {
+        ring = radius;
+        return self;
+    }
+
+    def dot_color(c: color) : chart_marker {
+        ring_tint = c;
+        return self;
+    }
+
+    def box_color(c: color) : chart_marker {
+        back = c;
+        return self;
+    }
+
+    def border(c: color) : chart_marker {
+        edge = c;
+        return self;
+    }
+
+    def text_color(c: color) : chart_marker {
+        ink = c;
+        return self;
+    }
+
+    def corner(pixels: decimal) : chart_marker {
+        round = pixels;
+        return self;
+    }
+
+    def title(write: (_int64)(string)) : chart_marker {
+        heading = write;
+        return self;
+    }
+
+    def format(write: (decimal)(string)) : chart_marker {
+        writer = write;
+        return self;
+    }
+
+    def above() : chart_marker {
+        over = 1;
+        return self;
+    }
+
+    def tip(fill: (chart_hover, chart_tip)()) : chart_marker {
+        filler = fill;
+        return self;
+    }
+
+    def no_box() : chart_marker {
+        boxed = 0;
+        return self;
+    }
+
+    def draw(drawing: (painter, chart_hover)()) : chart_marker {
+        painter_of = drawing;
+        return self;
+    }
+}
+
+/** chart_text - numbers as a chart writes them. */
+stable class chart_text {
+
+    /**
+     * A number as short as it can honestly be: no ".0" on a whole number, at
+     * most two digits after the point, and a comma between the thousands -
+     * 1250 is "1,250", 3.5 is "3.5", 0.125 is "0.13".
+     */
+    static def number(v: decimal) : string {
+        sign : string = "";
+        if(v < 0) {
+            sign = "-";
+            v = 0 - v;
+        }
+        hundredths : _int64 = num.nearest(v * 100);
+        whole : _int64 = hundredths / 100;
+        rest : _int64 = hundredths - whole * 100;
+        if(whole == 0 && rest == 0) { sign = ""; }
+
+        // the whole part, three digits at a time from the right
+        text : string = "";
+        if(whole < 1000) {
+            text = "" + whole;
+        } else {
+            left : _int64 = whole;
+            while(left >= 1000) {
+                thousands : _int64 = left / 1000;
+                group : _int64 = left - thousands * 1000;
+                left = thousands;
+                piece : string = "" + group;
+                if(group < 10) { piece = "00" + group; }
+                else if(group < 100) { piece = "0" + group; }
+                text = "," + piece + text;
+            }
+            text = "" + left + text;
+        }
+
+        if(rest > 0) {
+            tenths : _int64 = rest / 10;
+            last : _int64 = rest - tenths * 10;
+            text = text + "." + tenths;
+            if(last > 0) { text = text + last; }
+        }
+        return sign + text;
+    }
+}

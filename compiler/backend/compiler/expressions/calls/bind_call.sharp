@@ -1,0 +1,245 @@
+mod backend.compiler.expressions.calls;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.names,
+    backend.compiler.overloads,
+    backend.compiler.driver,
+    backend.compiler.expressions
+)
+
+/**
+ * FROM THE CHOSEN FUNCTION TO A bound_call
+ *
+ * Once overload resolution has picked the function, the call is built:
+ *
+ *   - each argument gets the conversion that was found for it (a
+ *     bound_conversion: `area(count)` hands a decimal to `area(side: decimal)`);
+ *   - the object: kept for an instance function; dropped for a static one
+ *     (`a_list.of(...)` - the object only said which class);
+ *   - the rules of using the function from HERE:
+ *         an instance function needs an object                  E0704
+ *         a private / protected function outside its class      W1022 (the C++ compiler does
+ *                                                               not check this at all, D8)
+ *         `base->f()` where `f` has no body                     E0510
+ *         `c.f()` where `f` is static and has no body           E0510
+ *   - `dispatch`: which body runs (doc/backend.md 7.7.3).
+ *
+ *      C++ comparison: `compile_function_call` in
+ *      compiler/expressions/expression.cpp, and the static check of
+ *      `resolve_primary_class_function` in dependency.cpp.
+ */
+
+/**
+ * The call of `chosen` on `on` (null: no object).
+ *
+ * @param node      the syntax node of the whole call
+ * @param name_node the name of the function, for messages
+ */
+def bind_call(context: analysis_context, chosen: call_candidate, on: bound_expression?, arguments: list<call_argument>,
+              node: _int64, name_node: _int64) : bound_call {
+    function : sharp_function = chosen.function;
+    is_static : _int64 = function.owner == null || function.has(FLAG_STATIC);
+    receiver : bound_expression? = on;
+    if(is_static == 1) { receiver = null; }
+
+    call := new bound_call(context.unit, node, function, receiver, result_type_of(context, function, name_node));
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        argument := arguments.at(i);
+        call.add_argument(argument_for(context, argument, chosen.conversions.at(i), chosen.function.parameters.at(i).value_type,
+                                       i, chosen.function.name));
+    }
+    call.dispatch = dispatch_of(function, receiver);
+    if(call.dispatch == CALL_BASE) { check_base_call_has_body(context, function, name_node); }
+    if(call.dispatch == CALL_STATIC) { check_static_call_has_body(context, function, name_node); }
+    check_function_access(context, function, name_node);
+    return call;
+}
+
+/** what a call of the function gives; for `def f() := value;` the value is analysed now if need be */
+def result_type_of(context: analysis_context, function: sharp_function, node: _int64) : resolved_type {
+    if(function.result_type != null) { return function.result_type!!; }
+    return result_of_function(context, function, node);
+}
+
+/**
+ * Which body runs (doc/backend.md 7.7.3), decided from the declarations:
+ *
+ *      no object                                   CALL_STATIC
+ *      base->f()                                   CALL_BASE: the base class's own function
+ *      f has no body, or overrides one, or is      CALL_VIRTUAL: the object's class decides
+ *      overridden somewhere below
+ *      anything else                               CALL_DIRECT
+ *
+ * A function that is overridden by a class below is virtual too: `b.id()`
+ * on a `base_one` that holds a `derived_one` must run the derived function
+ * when it is an `override`. (Narrowing a virtual call to a direct one is the
+ * code generator's business: it can read `overridden_by`.)
+ */
+def dispatch_of(function: sharp_function, receiver: bound_expression?) : _int64 {
+    if(receiver == null) { return CALL_STATIC; }
+    if(receiver!!.kind == BX_BASE) { return CALL_BASE; }
+    if(function.has(FLAG_NATIVE)) { return CALL_DIRECT; }
+    if(!function.has_body() || function.overrides != null || function.family_root != null || function.has(FLAG_OVERRIDE)) {
+        return CALL_VIRTUAL;
+    }
+    return CALL_DIRECT;
+}
+
+/**
+ * W1022: a private or protected function or constructor used where it could
+ * not be if it were a field. The C++ compiler checks neither (it gives every
+ * function the `public` flag, D37), and programs rely on that, so it is a
+ * warning; the rule is the same as for fields (names/access_rules.sharp).
+ */
+def check_function_access(context: analysis_context, function: sharp_function, node: _int64) {
+    owner : sharp_class? = function.owner;
+    if(owner == null && function.has(FLAG_LOCAL) && function.unit != context.unit) {
+        warn_global_function_access(context, function, node, "local");
+        return;
+    }
+    if(!function.has(FLAG_PRIVATE) && !function.has(FLAG_PROTECTED)) { return; }
+    if(owner == null) {
+        same_module : _int64 = context.file.module == function.module;
+        if(function.has(FLAG_PRIVATE) && (same_module == 0 || context.class_of != null)) { warn_global_function_access(context, function, node, "private"); }
+        else if(function.has(FLAG_PROTECTED) && same_module == 0) { warn_global_function_access(context, function, node, "protected"); }
+        return;
+    }
+    user : sharp_class? = context.class_of;
+    if(user != null && user!!.written == owner!!.written) { return; }
+
+    what := "the function `" + signature_of(function) + "`";
+    if(function.kind == D_CONSTRUCTOR) { what = "the constructor `" + signature_of(function) + "`"; }
+    if(function.kind == D_SETTER && function.field != null) { what = "the setter of `" + function.field!!.name + "`"; }
+    if(function.kind == D_GETTER && function.field != null) { what = "the getter of `" + function.field!!.name + "`"; }
+    if(function.has(FLAG_PROTECTED)) {
+        if(context.file.module == function.module) { return; }
+        if(user != null && (class_is_below(context, user!!, owner!!) || class_is_below(context, owner!!, user!!))) { return; }
+    }
+    word := "private";
+    if(function.has(FLAG_PROTECTED)) { word = "protected"; }
+    d := problem_at(context, "W1022", what + " is " + word + " to `"
+                    + owner!!.written.qualified_name() + "`", node);
+    d.with_label("used outside `" + owner!!.written.name + "`");
+    d.with_related_place(place_of_declaration(function, "declared `" + word + "` here"));
+    d.with_note("the old compiler does not check `" + word + "` on functions and constructors, so this is accepted; a field would be refused");
+    d.with_help("declare it `public`, or call a public function of `" + owner!!.written.name + "` instead");
+    report(context, d);
+}
+
+/**
+ * W1022 for a function declared in a MODULE, outside any class: the same
+ * table as for a global variable (`check_access_to_global` and the `local`
+ * rule in names/access_rules.sharp), which refuses a variable with E0700 -
+ * E0702. A function only gets the warning, because the C++ compiler accepts
+ * the call and runs it:
+ *
+ *      local       only the file that declares it
+ *      private     only the module's global code (its functions outside any class)
+ *      protected   only code of the same module
+ */
+def warn_global_function_access(context: analysis_context, function: sharp_function, node: _int64, word: string) {
+    d := problem_at(context, "W1022", "the function `" + signature_of(function) + "` is " + word + " to "
+                    + global_place_words(function, word), node);
+    if(word == "local") { d.with_label("used from another file"); }
+    else if(context.file.module == function.module) { d.with_label("used inside class `" + context.class_of!!.written.name + "`"); }
+    else { d.with_label("used from module `" + context.file.module.name + "`"); }
+    d.with_related_place(place_of_declaration(function, "declared `" + word + "` here"));
+    d.with_note("the old compiler does not check `" + word + "` on functions, so this is accepted; a global variable declared this way would be refused");
+    d.with_help("remove `" + word + "` from the declaration of `" + function.name + "` to use it from here");
+    report(context, d);
+}
+
+/** "its file", "the global code of module `other`", "module `other`" */
+def global_place_words(function: sharp_function, word: string) : string {
+    if(word == "local") { return "its file"; }
+    if(word == "private") { return "the global code of module `" + function.module.name + "`"; }
+    return "module `" + function.module.name + "`";
+}
+
+/** is `lower` the class `upper` or below it? */
+def class_is_below(context: analysis_context, lower: sharp_class, upper: sharp_class) : _int64 {
+    current : sharp_class? = lower;
+    for(depth : _int64 = 0; current != null && depth < 256; depth++) {
+        if(current!!.written == upper.written) { return 1; }
+        current = current!!.base_class;
+    }
+    return 0;
+}
+
+/**
+ * E0704: an instance function called where there is no object - from a
+ * static function by its plain name, or through the class (`point.move()`).
+ *
+ * @param through_type  1: written `point.move()`; 0: written `move()` in static code
+ */
+def report_instance_function_without_object(context: analysis_context, function: sharp_function, node: _int64, through_type: _int64) {
+    owner_name := "its class";
+    if(function.owner != null) { owner_name = function.owner!!.written.name; }
+    d := problem_at(context, "E0704", "`" + function.name + "` is an instance function of `" + owner_name + "`: it needs an object", node);
+    d.with_related_place(place_of_declaration(function, "`" + function.name + "` is declared here, without `static`"));
+    if(through_type == 1) {
+        d.with_label("`" + owner_name + "` is the class, not one of its objects");
+        d.with_help("call it on an object: `a_" + owner_name + "." + function.name + "(...)`, or declare it `static`");
+    } else {
+        d.with_label("there is no `self` here");
+        if(context.function != null) {
+            d.with_note("`" + static_owner_name(context) + "` is static: it is not called on an object");
+            d.with_help("make `" + function.name + "` static, or call it on an object");
+        } else {
+            d.with_note("the value of a static field is worked out before any object exists");
+            d.with_help("make `" + function.name + "` static, or call it on an object");
+        }
+    }
+    report(context, d);
+}
+
+/**
+ * E0510: `base->speak()` where the class above declares `speak` WITHOUT a
+ * body. `base->` asks for the base class's own body, not the object's, and
+ * there is none. The C++ compiler accepts it and calls the function
+ * virtually - which comes back to the very function that made the call: the
+ * program ends in `stack_overflow_exception` (checked). So the result has no
+ * meaning, and the rule of section 5 makes it an error.
+ */
+def check_base_call_has_body(context: analysis_context, function: sharp_function, node: _int64) {
+    if(function.has_body() || function.has(FLAG_NATIVE)) { return; }
+    owner_name := "the base class";
+    if(function.owner != null) { owner_name = "`" + function.owner!!.written.name + "`"; }
+    d := problem_at(context, "E0510", "`" + function.name + "` has no body in " + owner_name + ": `base->" + function.name
+                    + "()` has nothing to call", node);
+    d.with_label("`base->` runs the base class's own body");
+    d.with_related_place(place_of_declaration(function, "declared here without a body: each class below must give one"));
+    d.with_note("a function without a body is only a promise; the class of the object keeps it");
+    d.with_help("remove the `base->" + function.name + "(...)` call, or give `" + function.name + "` a body in " + owner_name);
+    report(context, d);
+}
+
+/**
+ * E0510 too: a `static` function of a class declared WITHOUT a body, called.
+ * A static call is never virtual - there is no object whose class could
+ * supply the body - so the call has nothing to run. The C++ compiler accepts
+ * it and the VM stops with "attempting to call non-native static delegate
+ * function" (checked), whether or not a class below "overrides" it.
+ */
+def check_static_call_has_body(context: analysis_context, function: sharp_function, node: _int64) {
+    if(function.owner == null || function.kind != D_FUNCTION) { return; }
+    if(function.has_body() || function.has(FLAG_NATIVE)) { return; }
+    owner_name := function.owner!!.written.name;
+    d := problem_at(context, "E0510", "the static function `" + function.name + "` of `" + owner_name
+                    + "` has no body: this call has nothing to run", node);
+    d.with_label("a static call runs the function of the class it names, and that has no body");
+    d.with_related_place(place_of_declaration(function, "declared here without a body"));
+    d.with_note("a function without a body is completed by the class of an OBJECT; a static function is called without one");
+    d.with_help("give it a body - `static def " + function.name + "(...) { ... }` - or mark it `native` if the VM provides it");
+    report(context, d);
+}

@@ -1,0 +1,267 @@
+mod std.guikit.testing;
+
+import (
+    std,
+    std.io,
+    std.io.fiber,
+    std.io.coroutines,
+    std.testing,
+    std.guikit.*
+)
+
+/**
+ * TESTING A VIEW MODEL - and anything else that starts work in the background.
+ *
+ * A model is plain logic: a test makes it with `new`, calls its functions and
+ * reads its states. No screen is needed, and no special kind of test: an
+ * ordinary test(...) does it.
+ *
+ *      test("an empty name is refused") {
+ *          basket := new basket_model();
+ *          basket.add("");
+ *          expect(basket.problem.value).should_be("Say what to add");
+ *      };
+ *
+ * What a test cannot do by itself is wait for work the model starts on another
+ * thread. Three words are for that:
+ *
+ *      test_dispatcher()       a dispatcher that holds the work it is given until the test runs it
+ *      run_work()              run all of it now, and everything on_main handed back, until nothing is left
+ *      watching(state)         write down every value a state takes, to check them afterwards
+ *
+ * THE MODEL IS GIVEN ITS DISPATCHER. It does not pick `dispatchers.io()`
+ * itself: it asks for a dispatcher (std.di), the app gives it the real one,
+ * and a test gives it a test one. Nothing is swapped behind anybody's back -
+ * which thread a model's work runs on is its business (one thread may own a
+ * database; order may matter), so it is written down where it can be read.
+ *
+ *      component app {
+ *          factory { replaceable<coroutine_dispatcher>() { return dispatchers.io(); } }
+ *      }
+ *
+ *      class tasks_model base view_model {
+ *          inject background : coroutine_dispatcher;
+ *          tasks := state_list<string>();
+ *          busy := gui.state(0);
+ *
+ *          def load() {
+ *              busy.value = 1;
+ *              launch(background) {
+ *                  found := read_the_tasks();              // off the main thread
+ *                  on_main {
+ *                      tasks.replace_all(found);           // back on it
+ *                      busy.value = 0;
+ *                  };
+ *              };
+ *          }
+ *      }
+ *
+ *      test("loading shows the tasks, and is busy meanwhile") {
+ *          work := test_dispatcher();
+ *          provide<coroutine_dispatcher>() { return work; };
+ *
+ *          model := new tasks_model();
+ *          seen := watching(model.busy);
+ *          model.load();
+ *          expect(model.tasks.size()).should_be(0);        // nothing has run yet: the work is held
+ *
+ *          run_work();
+ *          expect(model.tasks.size()).should_be(3);
+ *          seen.should_have_been(0, 1, 0);                 // not busy, busy, not busy again
+ *      };
+ *
+ * HOW A TEST DISPATCHER HOLDS WORK. A piece of work given to it is not
+ * started at all: it is kept on a list. run_work() starts the pieces one
+ * after the other, in the order they were given, each on the test's own
+ * thread, and waits for each to finish before the next - so the test reads
+ * the same every time it runs. Work that a piece of work starts in turn is
+ * kept the same way, and run by the same run_work().
+ *
+ * In a ui_test the same words work, with a screen in front of the model:
+ * run_work() also lets the screen follow what the work changed.
+ *
+ * An app that needs two kinds of thread - say one for a database and a pool
+ * for the network - asks for two things: give each a small class or interface
+ * of its own (`class database_thread { on : coroutine_dispatcher; }`), so that
+ * each can be asked for, and replaced in a test, by its type.
+ *
+ * (Android: StandardTestDispatcher with advanceUntilIdle(), a dispatcher
+ * handed in through the constructor, and Turbine for a flow's values.)
+ */
+
+/**
+ * A dispatcher for tests: the work it is given is kept, not started, until
+ * run_work() - which runs it on the thread that made the dispatcher, the
+ * test's. Made with test_dispatcher().
+ */
+stable class held_dispatcher : coroutine_dispatcher, holding_dispatcher {
+    private owner : thread;
+
+    /** the work every test dispatcher has been given and that has not run yet, in the order it was given */
+    static waiting : list<job> = new list<job>();
+
+    held_dispatcher() {
+        owner = thread.current();
+    }
+
+    /** the thread that made this dispatcher: where its work runs once run_work() starts it */
+    override def select_thread() : thread? {
+        return owner;
+    }
+
+    /** keep a piece of work for run_work() */
+    override def hold(coroutine: job) {
+        waiting.add(coroutine);
+    }
+}
+
+/** a dispatcher that holds the work it is given until run_work() - hand it to the code under test with provide<...>() */
+def test_dispatcher() : coroutine_dispatcher {
+    return new held_dispatcher();
+}
+
+/**
+ * Run everything that is waiting: the work given to test dispatchers, in the
+ * order it was started, and what on_main handed back to the main thread - and
+ * whatever those start in turn, until nothing is left. In a ui_test the
+ * screen is then built again for what changed.
+ *
+ * Work that waits on purpose (delay(...)) is waited for. Work that never ends
+ * fails the test after ten seconds.
+ */
+def run_work() {
+    began : decimal = nano_time().value;
+    while(true) {
+        // what was handed back to the main thread so far (it may start more work)
+        handed_back : _int64 = main_queue.run_waiting();
+        if(held_dispatcher.waiting.size() == 0) {
+            if(handed_back == 0) { break; }
+            continue;
+        }
+
+        // the piece of work that was given first: started now, and waited for
+        next : job = held_dispatcher.waiting.at(0);
+        held_dispatcher.waiting.remove_at(0);
+        start_held(next);
+        while(!next.is_completed()) {
+            delay(1);                               // the test's thread turns to the work
+            if(nano_time().value - began > 10000000000) {
+                fail_test("run_work(): after ten seconds there is still work that has not finished "
+                        + "(does it wait for something that never comes, or loop for ever?)");
+            }
+        }
+    }
+    if(test_screen.host != null) {
+        test_screen.settle();
+    }
+}
+
+/**
+ * What a state has been: its value when watching(...) was called, and every
+ * value it was given after that, in order. Made with watching(state).
+ */
+stable class state_watch<t> {
+    private seen : t[] = new t[8];
+    private count : _int64 = 0;
+
+    state_watch(of: state<t>) {
+        note(of.value);
+        of.on_change({ -> note(of.value); });
+    }
+
+    private def note(value: t) {
+        if(count == sizeof(seen)) {
+            more := new t[count * 2];
+            for(i : _int64 = 0; i < count; i++) { more[i] = seen[i]; }
+            seen = more;
+        }
+        seen[count] = value;
+        count = count + 1;
+    }
+
+    /** how many values there were, the first one included */
+    def size() : _int64 {
+        return count;
+    }
+
+    /** the n-th of them, from 0 */
+    def at(n: _int64) : t {
+        return seen[n];
+    }
+
+    /** the value it has now */
+    def last() : t {
+        return seen[count - 1];
+    }
+
+    private def said() : string {
+        words : string = "";
+        for(i : _int64 = 0; i < count; i++) {
+            if(i > 0) { words = words + ", "; }
+            words = words + seen[i];
+        }
+        return words;
+    }
+
+    private def check(wanted: t[]) : state_watch<t> {
+        same : bool = sizeof(wanted) == count;
+        for(i : _int64 = 0; same && i < count; i++) {
+            if(seen[i] != wanted[i]) { same = false; }
+        }
+        if(!same) {
+            expected : string = "";
+            for(i : _int64 = 0; i < sizeof(wanted); i++) {
+                if(i > 0) { expected = expected + ", "; }
+                expected = expected + wanted[i];
+            }
+            fail_test("expected the state to have been: " + expected + "\nbut it was:  " + said());
+        }
+        return self;
+    }
+
+    /** the state had exactly these values, in this order: the one it started with first */
+    def should_have_been(a: t) : state_watch<t> {
+        wanted := new t[1];
+        wanted[0] = a;
+        return check(wanted);
+    }
+
+    def should_have_been(a: t, b: t) : state_watch<t> {
+        wanted := new t[2];
+        wanted[0] = a;
+        wanted[1] = b;
+        return check(wanted);
+    }
+
+    def should_have_been(a: t, b: t, c: t) : state_watch<t> {
+        wanted := new t[3];
+        wanted[0] = a;
+        wanted[1] = b;
+        wanted[2] = c;
+        return check(wanted);
+    }
+
+    def should_have_been(a: t, b: t, c: t, d: t) : state_watch<t> {
+        wanted := new t[4];
+        wanted[0] = a;
+        wanted[1] = b;
+        wanted[2] = c;
+        wanted[3] = d;
+        return check(wanted);
+    }
+
+    def should_have_been(a: t, b: t, c: t, d: t, e: t) : state_watch<t> {
+        wanted := new t[5];
+        wanted[0] = a;
+        wanted[1] = b;
+        wanted[2] = c;
+        wanted[3] = d;
+        wanted[4] = e;
+        return check(wanted);
+    }
+}
+
+/** write down every value this state takes from now on (and the one it has): seen := watching(model.busy); */
+def watching<t>(of: state<t>) : state_watch<t> {
+    return new state_watch<t>(of);
+}

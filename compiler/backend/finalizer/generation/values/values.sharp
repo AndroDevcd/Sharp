@@ -1,0 +1,94 @@
+mod backend.finalizer.generation.values;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation
+)
+
+/**
+ * VALUES: the leaves of an expression, and what is done to one value (doc/codegen.md 6.1 - 6.3, 6.8)
+ *
+ * The package that turns the simplest expressions into slots - the values
+ * that are written out or named - and the operations that take one value
+ * and give another without a choice between paths:
+ *
+ *      5   2.5   'a'   "text"      constants (this file): a new slot with the number, or a new _int8[]
+ *      shape.sides   point.count   fields: instance, static, global, `localized` (fields.sharp)
+ *      colour.red                  enum values: the value's static slot of its enum (fields.sharp)
+ *      count given to a decimal    conversions: what analysis decided a value becomes (conversions.sharp)
+ *      x is shape   sizeof(a)      tests of a value: `is`, `sizeof` (type_tests.sharp)
+ *
+ * The files of this package (module `backend.finalizer.generation.values`):
+ *
+ *      values.sharp            this front door: constants and literals
+ *      fields.sharp            fields of every kind, enum values, `self` and `base`
+ *      conversions.sharp       every CONV_ kind; conditions (a decimal's truth)
+ *      type_tests.sharp        `is`, `sizeof`
+ *
+ *      C++ comparison: compiler/expressions/primary (literals, names,
+ *      fields) and type_compare/cast code of the C++ compiler, which do
+ *      analysis and code at once there.
+ */
+
+/** a known value into a new slot: an integer, a decimal, or a text (a new _int8[] from the string table) */
+def constant_value_of(g: generator, e: bound_expression) : _int64 {
+    if(e.constant == null) { g.stop("a literal without a value", e.unit, e.node); }
+    constant := e.constant!!;
+    if(constant.kind == CONST_TEXT) {
+        if(e.type.is_array == 0) { g.stop("a text used as a `string`", e.unit, e.node); }
+        target : _int64 = g.b.temp(SLOT_REF);
+        text := g.b.emit(IR_TEXT);
+        text.target = target;
+        text.number = g.layout.strings.number_of(constant.text!!);
+        return target;
+    }
+    if(e.type.kind == RT_DECIMAL) {
+        target : _int64 = g.b.temp(SLOT_DEC);
+        value : decimal = constant.number;
+        if(constant.kind == CONST_INTEGER) { value = constant.integer; }
+        digits : string? = null;
+        if(e.kind == BX_LITERAL && e.literal == LIT_DECIMAL) { digits = literal_digits(e.unit, e.node); }
+        g.b.decimal_constant(target, value, digits);
+        return target;
+    }
+    target : _int64 = g.b.temp(SLOT_INT);
+    value : _int64 = constant.integer;
+    if(constant.kind == CONST_DECIMAL) { value = constant.number as _int64; }
+    g.b.int_constant(target, value);
+    return target;
+}
+
+/**
+ * The digits of a decimal literal as written, without `_` (`1_000.5` ->
+ * `1000.5`): the text the constant section carries, which the VM's strtod
+ * reads to exactly the double the compiler means (codegen.md 3.6). Null when
+ * the node is not a literal's own node - analysis also makes a literal of a
+ * FOLDED expression (`0.1 + 0.2`, `-7.9`), whose node is the operator: its
+ * value was computed, so it is written in the exact hexadecimal form - or
+ * when the token holds anything but the digits of a number.
+ */
+def literal_digits(unit: source_unit, node: _int64) : string? {
+    p := unit.parsed;
+    if(p == null || node < 0 || node >= p!!.tree.count) { return null; }
+    if(p!!.tree.kinds!![node] != N_LITERAL) { return null; }
+    text := token_text(p!!.source, p!!.table, p!!.tree.tokens!![node]);
+    out := new string_builder("");
+    raw : _int8[]? = text.data;
+    if(raw == null) { return null; }
+    characters : _int8[] = raw!!;
+    for(i : _int64 = 0; i < sizeof(characters); i++) {
+        ch : _int64 = characters[i];
+        if(ch == '_') { continue; }
+        if((ch >= '0' && ch <= '9') || ch == '.' || ch == 'e' || ch == 'E' || ch == '+' || ch == '-') { out.append_char(ch); }
+        else { return null; }
+    }
+    if(out.size() == 0 || characters[0] == '+' || characters[0] == '-') { return null; }
+    return out.build();
+}

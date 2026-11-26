@@ -1,0 +1,14 @@
+// expect: E0351
+// help: action
+// replace: (decimal)(decimal)
+// help: class action { run : (decimal)(decimal); action(f: (decimal)(decimal)) { run = f; } }
+// before: def twice
+mod tests.helps;
+import (std, std.io);
+
+def twice(x: decimal) : decimal { return x * 2; }
+
+def main() {
+    actions := new hash_map<string, (decimal)(decimal)>();
+    println(actions.size());
+}

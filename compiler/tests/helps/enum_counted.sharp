@@ -1,0 +1,12 @@
+// expect: E0511
+// help: x = colour.green;
+// replace: x++;
+mod tests.helps;
+import (std, std.io);
+
+enum colour { red, green }
+
+def main() {
+    x := colour.red;
+    x++;
+}

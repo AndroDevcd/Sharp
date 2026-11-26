@@ -1,0 +1,45 @@
+// expect: E0700 E0700 E0700 E0700 E0700 E0700 E0700
+mod type_access_mistakes;
+
+import ( std.io )
+
+/**
+ * TYPES THAT MAY NOT BE NAMED WHERE THEY ARE NAMED: `private` on a class or alias
+ * Checked by the type-names stage for every type name of the program - in
+ * declarations first, then in bodies. (`protected` and `local` need a second
+ * module / a second file, which one test file cannot have; the same function
+ * checks them.)
+ */
+
+private class scratch { next : scratch?; }              // private to the GLOBAL code of the module; a class may name itself
+protected class shared_inside_module { }
+
+class vault {
+    private class plate { next : plate?; }              // fine: itself
+    alias _int64 as money;                              // private: every alias of a class is
+    protected class shelf { }
+
+    spare : plate? = null;                              // fine: vault itself
+    cost : money = 0;                                   // fine
+    pad : scratch? = null;                              // E0700: a class of the module is not its global code
+    board : shared_inside_module? = null;               // fine: protected, same module
+
+    class drawer {
+        front : plate? = null;                          // E0700: a class inside vault is not vault
+    }
+}
+
+class strongbox base vault {
+    door : plate? = null;                               // E0700: private shuts out the classes below
+    rack : shelf? = null;                               // fine: protected
+}
+
+held : vault.plate? = null;                             // E0700: outside vault
+kept : scratch? = null;                                 // fine: global code of the module
+
+def uses(price: vault.money) {                          // E0700: a private alias
+    a : vault.plate? = null;                            // E0700: in a body
+    b := new scratch();                                 // fine: a global function of the module
+    c : object = new vault.shelf();                     // fine: protected, same module
+    d : object = c as vault.plate;                      // E0700: in a cast
+}

@@ -1,0 +1,40 @@
+mod main;
+
+import (
+    std.io,
+    std.io.coroutines
+)
+
+/**
+ * Coroutines: light pieces of work that run beside the rest of the program.
+ *
+ *      launch { }          start one; gives a job
+ *      job.join()          wait for it
+ *      async<t>.start { }  start one that gives a value back; await() waits for the value
+ *      delay(ms)           wait without holding a thread
+ */
+def main() {
+    // start one and wait for it
+    job := launch { ->
+        delay(50);
+        println("the first piece of work is done");
+    };
+    job.join();
+
+    // two at once, each giving a number back
+    left := async<int>.start({ -> (int) return slow_square(6); });
+    right := async<int>.start({ -> (int) return slow_square(7); });
+    println("6 squared + 7 squared = " + (left.await() + right.await()));
+
+    // a job can be cancelled
+    endless := launch { ->
+        while(true) { delay(10); }
+    };
+    endless.cancel_and_join();
+    println("the endless one was cancelled: " + endless.is_cancelled());
+}
+
+def slow_square(n: int) : int {
+    delay(50);
+    return n * n;
+}

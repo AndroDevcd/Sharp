@@ -1,0 +1,123 @@
+mod backend.compiler.expressions.arithmetic;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.inheritance,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions.calls
+)
+
+/**
+ * `==` AND `!=` ON REFERENCES: objects, arrays, function values
+ *
+ *      x == null           "is there an object?" - an _int8, 1 or 0. Never the class's own
+ *                          operator== (it compares CONTENTS, and cannot be called on null)
+ *      a == b              a class with an operator== that takes b: that function (operator_calls.sharp);
+ *                          otherwise "the same object?"
+ *      an_object == other  `object`, arrays: the same object?  (both sides arrays, or neither)
+ *      a == b  (arrays)    only when one array COULD be both: items of the same number type,
+ *                          or classes one of which is the other or below it (E0511 otherwise -
+ *                          `_int64[] == _int32[]` can never be true)
+ *      f == g              two function values: `function_value.same(f, g)` - the same function
+ *                          with the same captured variables (doc/backend.md 4.3); a new function
+ *                          value is made every time a function's name is used, so "the same
+ *                          object" would be the wrong question
+ *
+ *      C++ comparison: `compile_binary_object_expression` and
+ *      `compile_function_value_comparison` in binary/binary_expression.cpp.
+ */
+
+/** `left == null` / `left != null` */
+def null_test(context: analysis_context, node: _int64, operation: _int64, left: bound_expression, right: bound_expression) : bound_expression {
+    return new bound_binary(context.unit, node, operation, left, right, OPERANDS_NULL_TEST, context.session.types.bool_type);
+}
+
+/**
+ * `left == right` as "the same object?". Null when the two sides cannot be
+ * compared that way (one is not a reference, or one is an array and the
+ * other is not): the caller reports.
+ */
+def same_object_test(context: analysis_context, node: _int64, operation: _int64, left: bound_expression,
+                     right: bound_expression) : bound_expression? {
+    if(right.type.kind == RT_NULL) { return null_test(context, node, operation, left, right); }
+    if(!right.type.is_reference()) { return null; }
+    is_object_either : _int64 = (left.type.kind == RT_OBJECT && left.type.is_array == 0)
+                               || (right.type.kind == RT_OBJECT && right.type.is_array == 0);
+    if(left.type.is_array != right.type.is_array && is_object_either == 0) { return null; }
+    return new bound_binary(context.unit, node, operation, left, right, OPERANDS_REFERENCE, context.session.types.bool_type);
+}
+
+/**
+ * Could one array be both `left` and `right`? Only then is "the same
+ * array?" a question with two answers:
+ *
+ *      _int64[] == _int64[]        yes                 _int64[] == _int32[]    never (E0511)
+ *      animal[] == dog[]           yes: a dog[] is     k[] == string[]         never (E0511)
+ *                                  stored as animals   _int64[] == k[]         never (E0511)
+ *      object[] == k[]             yes                 object[] == _int64[]    never (E0511)
+ *      fn[] == fn[]                yes (the same function type)
+ *
+ *      C++ comparison: "expected object type" for number arrays of different
+ *      types, and "mismatched array types" for class arrays - which the C++
+ *      compiler says for EVERY two class arrays, even `k[] == k[]` (a bug:
+ *      D91). Here related classes are accepted.
+ */
+def arrays_can_be_the_same(context: analysis_context, left: resolved_type, right: resolved_type) : _int64 {
+    if(left.is_array == 0 || right.is_array == 0) { return 1; }
+    a : resolved_type = left.element_type().as_non_null();
+    b : resolved_type = right.element_type().as_non_null();
+    if(a.kind == RT_ERROR || b.kind == RT_ERROR) { return 1; }
+    // (an `object[]` holds objects: it can be an array of any class, never an array of plain numbers)
+    if(a.is_number() || b.is_number()) { return a.is_number() && b.is_number() && same_resolved_type(a, b); }
+    if(a.kind == RT_OBJECT || b.kind == RT_OBJECT) { return 1; }
+    if(a.kind == RT_CLASS && b.kind == RT_CLASS) {
+        return inherits_from(context.prog, a.class_of!!, b.class_of!!) || inherits_from(context.prog, b.class_of!!, a.class_of!!);
+    }
+    return same_resolved_type(a, b);
+}
+
+/** E0511 for `a == b` with two arrays no array can be at once */
+def report_arrays_never_the_same(context: analysis_context, node: _int64, left: bound_expression, right: bound_expression) {
+    a : resolved_type = left.type.element_type().as_non_null();
+    b : resolved_type = right.type.element_type().as_non_null();
+    note := "an array has ONE item type: no array is both a `" + left.type.to_text() + "` and a `" + right.type.to_text()
+            + "`, so the answer is known before the program runs";
+    help := "";
+    if(a.is_number() && b.is_number()) { help = "to compare the ITEMS, loop over both and compare `a[i] == b[i]`"; }
+    else if(a.kind == RT_CLASS && b.kind == RT_CLASS) {
+        note = note + " (neither `" + a.to_text() + "` nor `" + b.to_text() + "` is below the other)";
+    }
+    report_operands_do_not_fit(context, node, left, right, note, help);
+}
+
+/**
+ * `f == g` for two function values: `function_value.same(f, g)` /
+ * `different(f, g)`. Null when the library has no such class or function.
+ */
+def function_value_test(context: analysis_context, node: _int64, operation: _int64, left: bound_expression,
+                        right: bound_expression) : bound_expression? {
+    holder := context.session.known.function_value_class;
+    if(holder == null) { return null; }
+    name := "same";
+    if(operation == P_NOTEQ) { name = "different"; }
+    functions := operator_functions(context, holder!!, name);
+    if(functions.size() == 0) { return null; }
+
+    arguments := new list<call_argument>();
+    arguments.add(new call_argument(left, left.node));
+    arguments.add(new call_argument(right, right.node));
+    result := resolve_overload(context, functions, arguments, null, null);
+    if(result.best == null) { return null; }
+    call := bind_call(context, result.best!!, null, arguments, node, node);
+    call.written_as = AS_OPERATOR;
+    return call;
+}

@@ -1,0 +1,284 @@
+mod std.c;
+
+/**
+ * C'S OWN MEMORY: a block that stays where it is, for what C keeps hold of
+ *
+ *      block := new c_memory(16);              // 16 bytes from C's malloc, all 0
+ *      block.put_int32(0, 640);
+ *      block.put_int32(4, 480);
+ *      some_c_function(block.address());       // C may keep this address
+ *      ...
+ *      width := block.int32_at(0);             // what C wrote
+ *      block.release();                        // give it back: C's free
+ *
+ * A struct object (std/c/struct.sharp) is laid out for C only while a call
+ * lasts. Memory C holds on to AFTER a call - a buffer it fills later, a
+ * struct it links into a list, the "user data" of a callback - has to stay at
+ * one address, and this is it: C's own memory, which Sharp's garbage
+ * collector neither moves nor frees. You free it, with release().
+ *
+ * EVERY READ AND WRITE IS CHECKED against the block's size, and a block that
+ * was released refuses to be used: an out_of_bounds_exception or an
+ * illegal_state_exception instead of memory that was quietly damaged.
+ *
+ * WHAT C DOES TO IT is not checked by C. So each block has a few guard bytes
+ * in front of and behind it that nothing should touch; damaged() tells
+ * whether C wrote past an end, and release() checks it for you and throws.
+ *
+ * MEMORY C GAVE YOU (a pointer a C function returned) is looked at through
+ * c_memory.view(address, bytes): the same reads and writes, checked against
+ * the size you say it has. A view is not yours to release.
+ *
+ * This whole file is Sharp: malloc, free and memcpy called directly.
+ *
+ *      Java comparison: MemorySegment and Arena (allocate, get/set with a
+ *      ValueLayout, close); C#: Marshal.AllocHGlobal and Marshal.ReadInt32.
+ */
+extern "c" {
+    def malloc(bytes: c_size) : pointer;
+    def free(block: pointer);
+    def memset(block: pointer, value: c_int, bytes: c_size) : pointer;
+    def strlen(text: pointer) : c_size;
+    // memcpy, once per kind of thing copied from or to: C sees two addresses and a count each time
+    def memcpy(into: _int8[], from: pointer, bytes: c_size) : pointer;
+    def memcpy(into: _int16[], from: pointer, bytes: c_size) : pointer;
+    def memcpy(into: _int32[], from: pointer, bytes: c_size) : pointer;
+    def memcpy(into: _int64[], from: pointer, bytes: c_size) : pointer;
+    def memcpy(into: decimal[], from: pointer, bytes: c_size) : pointer;
+    def memcpy(into: c_float_cell?, from: pointer, bytes: c_size) : pointer;
+    def memcpy(into: c_pointer_cell?, from: pointer, bytes: c_size) : pointer;
+    def memcpy(into: pointer, from: _int8[], bytes: c_size) : pointer;
+    def memcpy(into: pointer, from: _int16[], bytes: c_size) : pointer;
+    def memcpy(into: pointer, from: _int32[], bytes: c_size) : pointer;
+    def memcpy(into: pointer, from: _int64[], bytes: c_size) : pointer;
+    def memcpy(into: pointer, from: decimal[], bytes: c_size) : pointer;
+    def memcpy(into: pointer, from: c_float_cell?, bytes: c_size) : pointer;
+    def memcpy(into: pointer, from: pointer, bytes: c_size) : pointer;
+}
+
+/** a C `float` on its own: how a 32-bit float is read from and written to memory */
+class c_float_cell base c_struct {
+    value : c_float;
+}
+
+/** an address on its own: how wide an address is on this machine is read off one */
+class c_pointer_cell base c_struct {
+    value : pointer;
+}
+
+class c_memory {
+    private static const GUARD : _int64 = 16;           // bytes in front of and behind a block of ours
+    private static const GUARD_BYTE : _int64 = 0x5A;
+
+    private start : pointer = 0;                // the first byte the program may use
+    private bytes : _int64 = 0;
+    private owned : bool = false;               // made by `new c_memory(n)`: ours to release
+    private released : bool = false;
+    // one item of each width, for reading and writing through memcpy
+    private one8 := new _int8[1];
+    private one16 := new _int16[1];
+    private one32 := new _int32[1];
+    private one64 := new _int64[1];
+    private one_decimal := new decimal[1];
+    private one_float := new c_float_cell();
+
+    /**
+     * `size` bytes of C's memory, all 0.
+     * Throws illegal_argument_exception for a size below 1 and
+     * out_of_memory_exception when C has none to give.
+     */
+    c_memory(size: _int64) {
+        if(size < 1) { throw new illegal_argument_exception("c_memory: a block has at least 1 byte, not " + size); }
+        whole : pointer = malloc(size + 2 * GUARD);
+        if(whole == 0) { throw new out_of_memory_exception("c_memory: C has no " + size + " bytes to give"); }
+        memset(whole, GUARD_BYTE, size + 2 * GUARD);
+        start = whole + GUARD;
+        memset(start, 0, size);
+        bytes = size;
+        owned = true;
+    }
+
+    private c_memory(at: pointer, size: _int64, view: bool) {
+        start = at;
+        bytes = size;
+    }
+
+    /**
+     * Memory that is C's: `size` bytes at `address` (a pointer a C function
+     * returned, a field of a C struct). Reads and writes are checked against
+     * `size`; whether the address really has that many bytes is yours to know.
+     * Throws illegal_argument_exception for the address 0 or a size below 1.
+     */
+    static def view(address: pointer, size: _int64) : c_memory {
+        if(address == 0) { throw new illegal_argument_exception("c_memory.view: the address is 0 (C's NULL)"); }
+        if(size < 1) { throw new illegal_argument_exception("c_memory.view: a view has at least 1 byte, not " + size); }
+        return new c_memory(address, size, true);
+    }
+
+    /** the address of the block's first byte: what a C function is handed */
+    def address() : pointer {
+        usable();
+        return start;
+    }
+
+    /** the address of the byte `offset` bytes in */
+    def address_at(offset: _int64) : pointer {
+        room(offset, 1);
+        return start + offset;
+    }
+
+    /** how many bytes the block has */
+    def size() : _int64 {
+        return bytes;
+    }
+
+    /** was the block given back (release())? */
+    def is_released() : bool {
+        return released;
+    }
+
+    private def usable() {
+        if(released) { throw new illegal_state_exception("c_memory: the block was released - its memory is no longer the program's"); }
+    }
+
+    /** `count` bytes starting at `offset` must be inside the block */
+    private def room(offset: _int64, count: _int64) {
+        usable();
+        if(offset < 0 || count < 0 || offset + count > bytes) {
+            throw new out_of_bounds_exception("c_memory: " + count + " byte(s) at offset " + offset + " are not inside a block of " + bytes + " bytes");
+        }
+    }
+
+    // ---- reading
+
+    def int8_at(offset: _int64) : _int64 { room(offset, 1); memcpy(one8, start + offset, 1); return one8[0]; }
+    def uint8_at(offset: _int64) : _int64 { return int8_at(offset) & 0xFF; }
+    def int16_at(offset: _int64) : _int64 { room(offset, 2); memcpy(one16, start + offset, 2); return one16[0]; }
+    def uint16_at(offset: _int64) : _int64 { return int16_at(offset) & 0xFFFF; }
+    def int32_at(offset: _int64) : _int64 { room(offset, 4); memcpy(one32, start + offset, 4); return one32[0]; }
+    def uint32_at(offset: _int64) : _int64 { return int32_at(offset) & 0xFFFFFFFF; }
+    def int64_at(offset: _int64) : _int64 { room(offset, 8); memcpy(one64, start + offset, 8); return one64[0]; }
+    /** a C `float` */
+    def float_at(offset: _int64) : decimal { room(offset, 4); memcpy(one_float, start + offset, 4); return one_float.value; }
+    /** a C `double` */
+    def double_at(offset: _int64) : decimal { room(offset, 8); memcpy(one_decimal, start + offset, 8); return one_decimal[0]; }
+
+    /** an address stored in the block (8 bytes on a 64-bit machine, 4 on a 32-bit one) */
+    def pointer_at(offset: _int64) : pointer {
+        if(pointer_size() == 8) { return int64_at(offset); }
+        return uint32_at(offset);
+    }
+
+    /** `count` bytes as an array of their own (a copy) */
+    def bytes_at(offset: _int64, count: _int64) : _int8[] {
+        room(offset, count);
+        copy := new _int8[count];
+        if(count > 0) { memcpy(copy, start + offset, count); }
+        return copy;
+    }
+
+    /**
+     * The C string that starts at `offset`: the characters up to the first 0.
+     * Throws out_of_bounds_exception when there is no 0 before the block ends.
+     */
+    def text_at(offset: _int64) : string {
+        room(offset, 1);
+        length : _int64 = 0;
+        while(offset + length < bytes && int8_at(offset + length) != 0) { length++; }
+        if(offset + length >= bytes) {
+            throw new out_of_bounds_exception("c_memory: the text at offset " + offset + " has no 0 at its end inside the block of " + bytes + " bytes");
+        }
+        if(length == 0) { return ""; }
+        return new string(bytes_at(offset, length), 0, length);
+    }
+
+    // ---- writing
+
+    def put_int8(offset: _int64, value: _int64) : c_memory { room(offset, 1); one8[0] = value; memcpy(start + offset, one8, 1); return self; }
+    def put_int16(offset: _int64, value: _int64) : c_memory { room(offset, 2); one16[0] = value; memcpy(start + offset, one16, 2); return self; }
+    def put_int32(offset: _int64, value: _int64) : c_memory { room(offset, 4); one32[0] = value; memcpy(start + offset, one32, 4); return self; }
+    def put_int64(offset: _int64, value: _int64) : c_memory { room(offset, 8); one64[0] = value; memcpy(start + offset, one64, 8); return self; }
+    /** as a C `float` */
+    def put_float(offset: _int64, value: decimal) : c_memory { room(offset, 4); one_float.value = value; memcpy(start + offset, one_float, 4); return self; }
+    /** as a C `double` */
+    def put_double(offset: _int64, value: decimal) : c_memory { room(offset, 8); one_decimal[0] = value; memcpy(start + offset, one_decimal, 8); return self; }
+
+    /** an address (8 bytes on a 64-bit machine, 4 on a 32-bit one) */
+    def put_pointer(offset: _int64, value: pointer) : c_memory {
+        if(pointer_size() == 8) { return put_int64(offset, value); }
+        return put_int32(offset, value);
+    }
+
+    /** every byte of `values` */
+    def put_bytes(offset: _int64, values: _int8[]) : c_memory {
+        room(offset, sizeof(values));
+        if(sizeof(values) > 0) { memcpy(start + offset, values, sizeof(values)); }
+        return self;
+    }
+
+    /** `text` as a C string: its characters and a 0 after them (so it takes one byte more than it has characters) */
+    def put_text(offset: _int64, text: string) : c_memory {
+        count : _int64 = sizeof(text.data);
+        room(offset, count + 1);
+        if(count > 0) { memcpy(start + offset, text.data!!, count); }
+        return put_int8(offset + count, 0);
+    }
+
+    /** every byte of the block set to `value` */
+    def fill(value: _int64) : c_memory {
+        usable();
+        memset(start, value, bytes);
+        return self;
+    }
+
+    // ---- the guards, and giving the block back
+
+    /**
+     * Was something written in front of the block or behind its end? (C
+     * writing more than the block has room for.) Always false for a view:
+     * memory that is C's has no guards of ours.
+     */
+    def damaged() : bool {
+        if(!owned || released) { return false; }
+        for(i : _int64 = 0; i < GUARD; i++) {
+            memcpy(one8, start - GUARD + i, 1);
+            if((one8[0] & 0xFF) != GUARD_BYTE) { return true; }
+            memcpy(one8, start + bytes + i, 1);
+            if((one8[0] & 0xFF) != GUARD_BYTE) { return true; }
+        }
+        return false;
+    }
+
+    /**
+     * Give the block back to C. Afterwards it refuses every use. Releasing
+     * twice does nothing; releasing a view does nothing (it is not ours).
+     * Throws illegal_state_exception - after the memory is given back - when
+     * the guard bytes around the block were written over: C wrote outside it.
+     */
+    def release() {
+        if(released || !owned) { return; }
+        was_damaged : bool = damaged();
+        free(start - GUARD);
+        released = true;
+        if(was_damaged) {
+            throw new illegal_state_exception("c_memory: something wrote outside this block of " + bytes
+                + " bytes (its guard bytes were changed). A C function was handed the block and wrote more than it has room for.");
+        }
+    }
+
+    /** how many bytes an address has on this machine: 8, or 4 on a 32-bit one */
+    static def pointer_size() : _int64 {
+        if(pointer_bytes == 0) {
+            // eight bytes of 0xFF read as one address: all of them on a 64-bit machine (-1), the first four on a 32-bit one
+            block : pointer = malloc(8);
+            memset(block, 0xFF, 8);
+            cell := new c_pointer_cell();
+            memcpy(cell, block, 8);
+            free(block);
+            pointer_bytes = cell.value == 0 - 1 ? 8 : 4;
+        }
+        return pointer_bytes;
+    }
+
+    private static pointer_bytes : _int64 = 0;
+}

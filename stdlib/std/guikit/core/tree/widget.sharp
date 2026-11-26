@@ -1,0 +1,51 @@
+mod std.guikit.core.tree;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * widget - what every built-in widget class starts from: its view.
+ *
+ *      class label base widget : behavior { ... }
+ *
+ * A widget is two things joined together:
+ *
+ *   - its VIEW (`me`): the one box it has in the tree (view.sharp) - position,
+ *     size, padding, background, children. Every widget has one, and they are
+ *     all the same class.
+ *   - its BEHAVIOR: the widget class itself, which implements `behavior` and
+ *     answers how big its content is, where its children go and what it
+ *     paints (behavior.sharp).
+ *
+ * A widget class's constructor calls attach(self): that makes the view, tells
+ * it who to ask about content, and - when a container's block is running -
+ * puts the new widget into that container (scope.sharp).
+ *
+ * WHAT IS NOT HERE: settings for the box (padding, size, fill, background,
+ * click ...). Those are not widget functions at all. They are chained onto a
+ * `modifier` that is passed in where the widget is made (modifier.sharp), so
+ * there is exactly one way to say them and every widget understands all of
+ * them. A widget class only adds the settings that are about what it IS: a
+ * text's size and colour, a column's gap, a button's look.
+ *
+ * `element` is what containers accept as a child: anything with a view -
+ * every widget, and every composable.
+ */
+stable class widget : element {
+    me : view;
+
+    /**
+     * Make this widget's view; `what` is the widget itself (it is the
+     * behavior). If a container's block is running, the new widget becomes a
+     * child of that container right here.
+     */
+    def attach(what: behavior) {
+        me = new view(what);
+        scope.adopt(me);
+    }
+
+    override def node() : view {
+        return me;
+    }
+}

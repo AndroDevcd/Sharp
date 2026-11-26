@@ -1,0 +1,366 @@
+mod main;
+
+import ( std.testing, std.io )
+
+/**
+ * std.io directory trees: mkdirs, listing, directory_walker, copy, move,
+ * delete_recursively, directory_listing (command line and runtime
+ * fallback), temp_files and file_utils.
+ *
+ * Works only inside /tmp/sharp_suite_io_tree (and the temporary directory
+ * of temp_files) and removes everything at the end. On windows the folder
+ * is sharp_suite_io_tree in the directory for temporary files.
+ */
+
+/** is this windows? (its paths are written with back slashes) */
+def on_windows(): bool {
+    return std.io#path.separator() != '/';
+}
+
+/** `path`, written with slashes here, the way this system writes it */
+def os(path: string): string {
+    return io_strings.replace_char(path, '/', std.io#path.separator());
+}
+
+/** the folder this test works in: below /tmp, or on windows below the directory for temporary files */
+def suite_dir(name: string): string {
+    return on_windows() ? os(temp_files.directory() + "/" + name) : "/tmp/" + name;
+}
+
+base_dir : string = suite_dir("sharp_suite_io_tree");
+
+def at(name: string): file {
+    return new file(base_dir + "/" + name);
+}
+
+/** the paths of `files` below the test directory, joined with spaces (and written with slashes on every system) */
+def names_of(files: list<file>): string {
+    buf := new char_buffer();
+    skip : decimal = io_strings.length(base_dir) + 1;
+    count : decimal = files.size();
+    for(i : decimal = 0; i < count; i++) {
+        if(i > 0) {
+            buf.append_char(' ');
+        }
+        buf.append(io_strings.replace_char(io_strings.slice_from(files.at(i).path, skip), std.io#path.separator(), '/'));
+    }
+    return buf.build();
+}
+
+/**
+ * The tree every test works on:
+ *   t/a.txt (5 bytes)   t/b.md (3)   t/.dot (1)
+ *   t/sub/c.txt (2)     t/sub/deep/d.txt (4)   t/sub/deep/deeper/ (empty)
+ *   t/empty/ (empty)
+ */
+def build_tree() {
+    at("t").delete_recursively();
+    at("t/sub/deep/deeper").mkdirs();
+    at("t/empty").mkdirs();
+    at("t/a.txt").write_text("aaaaa");
+    at("t/b.md").write_text("bbb");
+    at("t/.dot").write_text("h");
+    at("t/sub/c.txt").write_text("cc");
+    at("t/sub/deep/d.txt").write_text("dddd");
+}
+
+def test_mkdirs_and_listing() {
+    deep := at("m/one/two/three");
+    test("mkdirs") { expect_true(deep.mkdirs()); };
+    test("deepest exists") { expect_true(deep.is_directory()); };
+    test("middle exists") { expect_true(at("m/one").is_directory()); };
+    test("mkdirs on existing directory") { expect_true(deep.mkdirs()); };
+    at("m/plain.txt").write_text("x");
+    test("mkdirs where a file is") { expect_false(at("m/plain.txt").mkdirs()); };
+    test("mkdirs below a file") { expect_false(at("m/plain.txt/below").mkdirs()); };
+    test("is_empty_directory") { expect_true(deep.is_empty_directory()); };
+    test("is_empty_directory with content") { expect_false(at("m").is_empty_directory()); };
+    test("is_empty_directory on file") { expect_false(at("m/plain.txt").is_empty_directory()); };
+    test("is_empty_directory on missing") { expect_false(at("m/none").is_empty_directory()); };
+
+    build_tree();
+    t := at("t");
+    test("list") { expect(io_strings.join(t.list_names(), " ")).should_be(".dot a.txt b.md empty sub"); };
+    test("list of empty directory") { expect(at("t/empty").list_names().size()).should_be(0); };
+    test("list_files") { expect(names_of(t.list_files())).should_be("t/.dot t/a.txt t/b.md t/empty t/sub"); };
+    only_dirs := t.list_files({ f: file -> (bool) return f.is_directory(); });
+    test("list_files with filter") { expect(names_of(only_dirs)).should_be("t/empty t/sub"); };
+    try { at("t/a.txt").list_names(); test("list of a file") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("list of a file") { }; }
+    try { at("t/nothing").list_files(); test("list_files of missing") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("list_files of missing") { }; }
+
+    test("tree_size") { expect(t.tree_size()).should_be(15); };
+    test("tree_size of a file") { expect(at("t/a.txt").tree_size()).should_be(5); };
+    test("tree_size of missing") { expect(at("t/nothing").tree_size()).should_be(0); };
+    test("walk") { expect(names_of(t.walk())).should_be("t/.dot t/a.txt t/b.md t/empty t/sub t/sub/c.txt t/sub/deep t/sub/deep/d.txt t/sub/deep/deeper"); };
+}
+
+def test_walker() {
+    build_tree();
+    t := at("t");
+
+    test("depth first (default)") { expect(names_of(new directory_walker(t).to_list())).should_be("t/.dot t/a.txt t/b.md t/empty t/sub t/sub/c.txt t/sub/deep t/sub/deep/d.txt t/sub/deep/deeper"); };
+    test("breadth first") { expect(names_of(new directory_walker(t).breadth_first().to_list())).should_be("t/.dot t/a.txt t/b.md t/empty t/sub t/sub/c.txt t/sub/deep t/sub/deep/d.txt t/sub/deep/deeper"); };
+    // a tree where the two orders differ
+    at("o/a/x").mkdirs();
+    at("o/a/x/1.txt").write_text("1");
+    at("o/b").mkdirs();
+    at("o/b/2.txt").write_text("2");
+    test("depth first order") { expect(names_of(new directory_walker(at("o")).to_list())).should_be("o/a o/a/x o/a/x/1.txt o/b o/b/2.txt"); };
+    test("breadth first order") { expect(names_of(new directory_walker(at("o")).breadth_first().to_list())).should_be("o/a o/b o/a/x o/b/2.txt o/a/x/1.txt"); };
+
+    test("files_only") { expect(names_of(new directory_walker(t).files_only().to_list())).should_be("t/.dot t/a.txt t/b.md t/sub/c.txt t/sub/deep/d.txt"); };
+    test("directories_only") { expect(names_of(new directory_walker(t).directories_only().to_list())).should_be("t/empty t/sub t/sub/deep t/sub/deep/deeper"); };
+    test("max depth 1") { expect(names_of(new directory_walker(t).set_max_depth(1).to_list())).should_be("t/.dot t/a.txt t/b.md t/empty t/sub"); };
+    test("max depth 2") { expect(names_of(new directory_walker(t).set_max_depth(2).files_only().to_list())).should_be("t/.dot t/a.txt t/b.md t/sub/c.txt"); };
+    test("max depth 0") { expect(new directory_walker(t).set_max_depth(0).to_list().size()).should_be(0); };
+    test("include_root") { expect(names_of(new directory_walker(at("t/sub/deep")).include_root().to_list())).should_be("t/sub/deep t/sub/deep/d.txt t/sub/deep/deeper"); };
+
+    txt := new directory_walker(t);
+    txt.set_filter({ f: file -> (bool) return f.has_extension("txt"); });
+    test("filter by extension") { expect(names_of(txt.to_list())).should_be("t/a.txt t/sub/c.txt t/sub/deep/d.txt"); };
+    no_deep := new directory_walker(t);
+    no_deep.set_enter_filter({ f: file -> (bool) return f.name() != "deep"; });
+    test("enter filter") { expect(names_of(no_deep.files_only().to_list())).should_be("t/.dot t/a.txt t/b.md t/sub/c.txt"); };
+
+    // has_next / next / depth by hand
+    w := new directory_walker(at("t/sub"));
+    test("has_next") { expect_true(w.has_next()); };
+    test("has_next twice does not skip") { expect_true(w.has_next()); };
+    test("first") { expect(w.next().name()).should_be("c.txt"); };
+    test("depth 1") { expect(w.depth()).should_be(1); };
+    test("second") { expect(w.next().name()).should_be("deep"); };
+    test("third") { expect(w.next().name()).should_be("d.txt"); };
+    test("depth 2") { expect(w.depth()).should_be(2); };
+    test("fourth") { expect(w.next().name()).should_be("deeper"); };
+    test("no more") { expect_false(w.has_next()); };
+    try { w.next(); test("next past the end") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("next past the end") { }; }
+    try { w.files_only(); test("configure after start") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("configure after start") { }; }
+    try { new directory_walker(at("nope")); test("walker on missing root") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("walker on missing root") { }; }
+    try { new directory_walker(t).set_max_depth(0 - 1); test("negative depth") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("negative depth") { }; }
+
+    test("walker on a plain file") { expect(new directory_walker(at("t/a.txt")).to_list().size()).should_be(0); };
+    test("walker on a plain file with root") { expect(new directory_walker(at("t/a.txt")).include_root().to_list().size()).should_be(1); };
+    test("for_each count") { expect(new directory_walker(t).for_each({ f: file -> f.exists(); })).should_be(9); };
+
+    // a deep chain: no recursion, so depth is no problem (but the default limit is 64)
+    chain := new char_buffer();
+    chain.append("deepchain");
+    for(i : decimal = 0; i < 80; i++) {
+        chain.append("/n");
+    }
+    at(chain.build()).mkdirs();
+    test("default depth limit") { expect(new directory_walker(at("deepchain")).to_list().size()).should_be(64); };
+    test("raised depth limit") { expect(new directory_walker(at("deepchain")).set_max_depth(200).to_list().size()).should_be(80); };
+    test("delete deep chain") { expect_true(at("deepchain").delete_recursively()); };
+}
+
+def test_copy_move_delete() {
+    build_tree();
+    t := at("t");
+
+    // a one_file file
+    at("t/a.txt").copy_to(at("a_copy.txt"));
+    test("copy file") { expect(at("a_copy.txt").read_text()).should_be("aaaaa"); };
+    at("t/b.md").copy_to(at("a_copy.txt"));
+    test("copy replaces") { expect(at("a_copy.txt").read_text()).should_be("bbb"); };
+    at("empty_src.txt").write_text("");
+    at("empty_src.txt").copy_to(at("empty_dst.txt"));
+    test("copy of empty file exists") { expect_true(at("empty_dst.txt").is_file()); };
+    test("copy of empty file is empty") { expect(at("empty_dst.txt").size()).should_be(0); };
+
+    // a whole tree
+    t.copy_to(at("copy"));
+    test("copied tree") { expect(names_of(at("copy").walk())).should_be("copy/.dot copy/a.txt copy/b.md copy/empty copy/sub copy/sub/c.txt copy/sub/deep copy/sub/deep/d.txt copy/sub/deep/deeper"); };
+    test("copied content") { expect(at("copy/sub/deep/d.txt").read_text()).should_be("dddd"); };
+    test("copied size") { expect(at("copy").tree_size()).should_be(15); };
+    test("same_tree") { expect_true(file_utils.same_tree(base_dir + "/t", base_dir + "/copy")); };
+    at("copy/sub/c.txt").write_text("cX");
+    test("same_tree sees changed content") { expect_false(file_utils.same_tree(base_dir + "/t", base_dir + "/copy")); };
+    at("copy/sub/c.txt").write_text("cc");
+    at("copy/extra").mkdir();
+    test("same_tree sees extra directory") { expect_false(file_utils.same_tree(base_dir + "/t", base_dir + "/copy")); };
+    test("source untouched") { expect_true(file_utils.same_content(base_dir + "/t/a.txt", base_dir + "/copy/a.txt")); };
+
+    try { at("nothing").copy_to(at("x")); test("copy missing") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("copy missing") { }; }
+    try { t.copy_to(at("t/sub/inside")); test("copy into itself") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("copy into itself") { }; }
+    try { at("t/a.txt").copy_to(at("copy")); test("copy file onto directory") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("copy file onto directory") { }; }
+
+    // move
+    m := at("copy");
+    m.move_to(at("moved"));
+    test("object follows move") { expect(m.name()).should_be("moved"); };
+    test("old place gone") { expect_false(at("copy").exists()); };
+    test("moved content") { expect(at("moved/sub/deep/d.txt").read_text()).should_be("dddd"); };
+    one_file := at("a_copy.txt");
+    one_file.move_to(at("moved/a_moved.txt"));
+    test("moved file") { expect_true(at("moved/a_moved.txt").is_file()); };
+    try { at("nothing").move_to(at("x")); test("move missing") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("move missing") { }; }
+    try { at("t").move_to(at("moved")); test("move onto existing") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("move onto existing") { }; }
+
+    // delete
+    test("delete_recursively") { expect_true(at("moved").delete_recursively()); };
+    test("tree gone") { expect_false(at("moved").exists()); };
+    test("delete_recursively on missing") { expect_true(at("moved").delete_recursively()); };
+    test("delete_recursively on a file") { expect_true(at("empty_dst.txt").delete_recursively()); };
+    test("file gone") { expect_false(at("empty_dst.txt").exists()); };
+}
+
+def test_listing_fallback() {
+    build_tree();
+    t := base_dir + "/t";
+    test("shell listing is the default") { expect_true(directory_listing.is_shell_enabled()); };
+    test("names") { expect(io_strings.join(directory_listing.names(t), " ")).should_be(".dot a.txt b.md empty sub"); };
+    test("names of a file") { expect(directory_listing.names(t + "/a.txt").size()).should_be(0); };
+    test("names of missing") { expect(directory_listing.names(t + "/nope").size()).should_be(0); };
+
+    // the runtime call alone: no hidden files, no empty directories
+    test("names_from_runtime") { expect(io_strings.join(directory_listing.names_from_runtime(t), " ")).should_be("a.txt b.md sub"); };
+    directory_listing.set_shell_enabled(false);
+    test("shell switched off") { expect_false(directory_listing.is_shell_enabled()); };
+    test("names without shell") { expect(io_strings.join(directory_listing.names(t), " ")).should_be("a.txt b.md sub"); };
+    test("list without shell") { expect(io_strings.join(at("t/sub").list_names(), " ")).should_be("c.txt deep"); };
+    directory_listing.set_shell_enabled(true);
+    test("names with shell again") { expect(io_strings.join(at("t/sub/deep").list_names(), " ")).should_be("d.txt deeper"); };
+
+    // names that need quoting on the command line
+    odd := at("odd dir with 'quote' & " + io_strings.from_char(36) + "HOME"); // 36 is the dollar sign
+    odd.mkdirs();
+    odd.child("file one.txt").write_text("1");
+    odd.child("-dash").write_text("2");
+    test("odd names") { expect(io_strings.join(odd.list_names(), "|")).should_be("-dash|file one.txt"); };
+    test("odd directory deleted") { expect_true(odd.delete_recursively()); };
+}
+
+def test_temp_files() {
+    dir := temp_files.directory();
+    test("temp directory exists") { expect_true(new file(dir).is_directory()); };
+    before : decimal = temp_files.pending();
+
+    p1 := temp_files.new_path("sharp_suite_io_", ".tmp");
+    p2 := temp_files.new_path("sharp_suite_io_", ".tmp");
+    test("new_path gives different names") { expect_false(io_strings.equals(p1, p2)); };
+    test("new_path is in the temp directory") { expect_true(io_strings.starts_with(p1, dir + os("/sharp_suite_io_"))); };
+    test("new_path has the suffix") { expect_true(io_strings.ends_with(p1, ".tmp")); };
+    test("new_path creates nothing") { expect_false(new file(p1).exists()); };
+
+    f := temp_files.create_file("sharp_suite_io_", ".txt");
+    test("temp file exists") { expect_true(f.is_file()); };
+    test("temp file is empty") { expect(f.size()).should_be(0); };
+    test("temp file extension") { expect(f.extension()).should_be("txt"); };
+    d := temp_files.create_directory("sharp_suite_io_dir_");
+    test("temp directory created") { expect_true(d.is_directory()); };
+    d.child("inner").mkdirs();
+    d.child("inner/x.txt").write_text("x");
+    inside := temp_files.create_file_in(base_dir, "in_", ".dat");
+    test("create_file_in parent") { expect(inside.parent_path()!!).should_be(base_dir); };
+    test("pending") { expect(temp_files.pending() - before).should_be(3); };
+
+    try { temp_files.create_file_in(base_dir + "/no/such", "a", "b"); test("temp file in missing directory") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("temp file in missing directory") { }; }
+    try { temp_files.set_directory(base_dir + "/no/such"); test("set_directory missing") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("set_directory missing") { }; }
+
+    test("cleanup deletes all three") { expect(temp_files.cleanup()).should_be(3); };
+    test("temp file gone") { expect_false(f.exists()); };
+    test("temp directory gone") { expect_false(d.exists()); };
+    test("nothing pending") { expect(temp_files.pending()).should_be(0); };
+    test("cleanup again") { expect(temp_files.cleanup()).should_be(0); };
+
+    temp_files.set_directory(base_dir);
+    test("set_directory") { expect(temp_files.directory()).should_be(base_dir); };
+    own := temp_files.create_file("own_", ".tmp");
+    test("temp file in own directory") { expect(own.parent_path()!!).should_be(base_dir); };
+    temp_files.cleanup();
+    temp_files.set_directory(dir);
+}
+
+def test_file_utils() {
+    root := base_dir + "/u";
+    file_utils.write_text(root + "/x/y/z.txt", "hello");
+    test("write_text creates directories") { expect_true(file_utils.is_file(root + "/x/y/z.txt")); };
+    test("read_text") { expect(file_utils.read_text(root + "/x/y/z.txt")).should_be("hello"); };
+    file_utils.append_text(root + "/x/y/z.txt", "\nworld\n");
+    test("read_lines") { expect(file_utils.read_lines(root + "/x/y/z.txt").size()).should_be(2); };
+    file_utils.append_text(root + "/new/app.txt", "first");
+    test("append_text creates") { expect(file_utils.read_text(root + "/new/app.txt")).should_be("first"); };
+    lines := new list<string>();
+    lines.add("l1"); lines.add("l2");
+    file_utils.write_lines(root + "/lines/l.txt", lines);
+    test("write_lines") { expect(file_utils.read_text(root + "/lines/l.txt")).should_be("l1\nl2\n"); };
+
+    test("exists") { expect_true(file_utils.exists(root)); };
+    test("is_directory") { expect_true(file_utils.is_directory(root + "/x")); };
+    test("is_file on directory") { expect_false(file_utils.is_file(root + "/x")); };
+    test("exists missing") { expect_false(file_utils.exists(root + "/nope")); };
+
+    file_utils.ensure_directory(root + "/made/here");
+    test("ensure_directory") { expect_true(file_utils.is_directory(root + "/made/here")); };
+    file_utils.ensure_directory(root + "/made/here");
+    test("ensure_directory twice") { };
+    try { file_utils.ensure_directory(root + "/x/y/z.txt"); test("ensure_directory on file") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("ensure_directory on file") { }; }
+
+    file_utils.touch(root + "/touched/t.txt");
+    test("touch creates") { expect_true(file_utils.is_file(root + "/touched/t.txt")); };
+    test("touched file is empty") { expect(file_utils.size_of_tree(root + "/touched/t.txt")).should_be(0); };
+    new file(root + "/touched/t.txt").set_last_modified(1000000000);
+    file_utils.touch(root + "/touched/t.txt");
+    test("touch updates the time") { expect_true(new file(root + "/touched/t.txt").last_modified() > 1500000000); };
+
+    test("list_tree") { expect(io_strings.join(file_utils.list_tree(root + "/x"), " ")).should_be("y y/z.txt"); };
+    test("count_files") { expect(file_utils.count_files(root)).should_be(4); };
+    test("count_files of a file") { expect(file_utils.count_files(root + "/x/y/z.txt")).should_be(1); };
+    test("count_files of missing") { expect(file_utils.count_files(root + "/nope")).should_be(0); };
+    test("size_of_tree") { expect(file_utils.size_of_tree(root)).should_be(23); };
+
+    file_utils.copy(root + "/x", root + "/copies/deep/x2");
+    test("copy creates parent directories") { expect_true(file_utils.is_file(root + "/copies/deep/x2/y/z.txt")); };
+    test("same_tree after copy") { expect_true(file_utils.same_tree(root + "/x", root + "/copies/deep/x2")); };
+    test("same_content") { expect_true(file_utils.same_content(root + "/x/y/z.txt", root + "/copies/deep/x2/y/z.txt")); };
+    test("same_content different size") { expect_false(file_utils.same_content(root + "/x/y/z.txt", root + "/new/app.txt")); };
+    file_utils.write_text(root + "/same_size.txt", "hellx\nworld\n");
+    test("same_content same size") { expect_false(file_utils.same_content(root + "/x/y/z.txt", root + "/same_size.txt")); };
+    try { file_utils.same_content(root + "/x/y/z.txt", root + "/nope"); test("same_content missing") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("same_content missing") { }; }
+
+    file_utils.move(root + "/copies/deep/x2", root + "/moved/there/x3");
+    test("move") { expect_true(file_utils.is_directory(root + "/moved/there/x3/y")); };
+    test("move source gone") { expect_false(file_utils.exists(root + "/copies/deep/x2")); };
+
+    test("delete file") { expect_true(file_utils.delete(root + "/same_size.txt")); };
+    test("delete missing") { expect_false(file_utils.delete(root + "/same_size.txt")); };
+    test("delete refuses directory") { expect_false(file_utils.delete(root + "/x")); };
+    test("delete_tree") { expect_true(file_utils.delete_tree(root)); };
+    test("tree gone") { expect_false(file_utils.exists(root)); };
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_io_tree") {
+        start := new file(base_dir);
+        start.delete_recursively();
+        test("test directory created") { expect_true(start.mkdirs()); };
+
+        test_mkdirs_and_listing();
+        test_walker();
+        test_copy_move_delete();
+        test_listing_fallback();
+        test_temp_files();
+        test_file_utils();
+
+        test("cleanup") { expect_true(start.delete_recursively()); };
+        test("test directory gone") { expect_false(start.exists()); };
+    };
+    finish_tests("lib_io_tree");
+}

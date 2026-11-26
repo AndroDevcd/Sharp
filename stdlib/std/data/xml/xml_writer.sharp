@@ -1,0 +1,413 @@
+mod std.data;
+
+import ( std.io )
+
+/**
+ * Writes well formed XML, element by element.
+ *
+ *     xml := new xml_writer();
+ *     xml.set_indent(2);
+ *     xml.declaration();
+ *     xml.start("library").attribute("city", "Oslo");
+ *     xml.start("book").attribute("id", "1");
+ *     xml.element("title", "Tom & Jerry");
+ *     xml.end();
+ *     xml.start("empty").end();
+ *     xml.end();
+ *     xml.to_string()
+ *
+ *     <?xml version="1.0" encoding="UTF-8"?>
+ *     <library city="Oslo">
+ *       <book id="1">
+ *         <title>Tom &amp; Jerry</title>
+ *       </book>
+ *       <empty/>
+ *     </library>
+ *
+ * The writer keeps track of the open elements, so the output is always
+ * properly nested: start() opens an element, end() closes the innermost
+ * open one, and to_string() refuses to give out a document with elements
+ * still open. What cannot be well formed XML is rejected right away with an
+ * exception: names with illegal characters, an attribute given twice,
+ * attributes after content, a second root element, text outside the root.
+ *
+ * Escaping is done for you: & < > in text; & < > " and line ends and tabs
+ * in attribute values. Characters XML does not allow at all (control
+ * characters other than tab and line ends) throw illegal_argument_exception.
+ * Text is otherwise written byte for byte (so UTF-8 stays UTF-8).
+ *
+ * Layout: with set_indent(n), n > 0, every element starts on its own line,
+ * indented n spaces per level - except inside an element that has text,
+ * whose content stays on one line so that no white space is added to the
+ * text. Without indent everything is written in one line.
+ *
+ * Every function that adds something returns the writer, so calls can be
+ * chained. Not thread safe.
+ */
+class xml_writer {
+    private buf : char_buffer;
+    private indent : decimal = 0;
+
+    /** the names of the open elements, the innermost last */
+    private open_names := new list<string>();
+    /** for every open element: 1 when it has child elements or comments, 2 when it has text, 3 for both */
+    private open_content := new list<int>();
+    /** the names of the attributes of the start tag that is being written */
+    private attribute_names := new list<string>();
+
+    /** the start tag of the innermost element is still open: "<name" was written but not ">" */
+    private in_start_tag : decimal = 0;
+    /** a root element was started (and maybe finished) */
+    private has_root : decimal = 0;
+    /** something was written before the root that wants a line break after it */
+    private wrote_prolog : decimal = 0;
+
+    /** a writer with nothing written; no indentation */
+    xml_writer() {
+        buf = new char_buffer(256);
+    }
+
+    /**
+     * Indent nested elements by `spaces` spaces per level and put them on
+     * lines of their own (0 = everything in one line). Call it before
+     * writing anything. Returns this writer.
+     * Throws illegal_argument_exception when spaces is negative.
+     */
+    def set_indent(spaces: decimal) : xml_writer {
+        if(spaces < 0) {
+            throw new illegal_argument_exception("xml: the indent cannot be negative");
+        }
+        indent = spaces;
+        return self;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* checks and escaping                                                 */
+    /* ------------------------------------------------------------------ */
+
+    /** throw unless `name` is usable as an element or attribute name */
+    private static def check_name(name: string) {
+        n : decimal = sizeof(name.data);
+        ok : decimal = n > 0;
+        for(i : decimal = 0; ok && i < n; i++) {
+            ch : decimal = name.data[i] & 0xff;
+            start_char : decimal = character.is_letter(ch) || ch == '_' || ch == ':' || ch >= 128;
+            if(!start_char) {
+                if(i == 0 || !(character.is_digit(ch) || ch == '-' || ch == '.')) {
+                    ok = 0;
+                }
+            }
+        }
+        if(!ok) {
+            throw new illegal_argument_exception("xml: not a valid name: \"" + name + "\"");
+        }
+    }
+
+    /** append `text` with the characters escaped that have a meaning in XML; `in_attribute` also escapes quotes and white space */
+    private def append_escaped(text: string, in_attribute: decimal) {
+        n : decimal = sizeof(text.data);
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = text.data[i] & 0xff;
+            if(ch == '&') {
+                buf.append("&amp;");
+            } else if(ch == '<') {
+                buf.append("&lt;");
+            } else if(ch == '>') {
+                buf.append("&gt;");
+            } else if(in_attribute && ch == '"') {
+                buf.append("&quot;");
+            } else if(in_attribute && ch == '\n') {
+                buf.append("&#10;");
+            } else if(in_attribute && ch == '\r') {
+                buf.append("&#13;");
+            } else if(in_attribute && ch == '\t') {
+                buf.append("&#9;");
+            } else if(ch == '\r') {
+                buf.append("&#13;"); // a bare carriage return would be turned into a line feed by a parser
+            } else if(ch < 32 && ch != '\n' && ch != '\t') {
+                throw new illegal_argument_exception("xml: the character with code " + io_strings.int_to_string(ch)
+                    + " cannot be written in XML");
+            } else {
+                buf.append_char(ch);
+            }
+        }
+    }
+
+    /** finish the start tag that is being written, if any: write its ">" */
+    private def close_start_tag() {
+        if(in_start_tag) {
+            buf.append_char('>');
+            in_start_tag = 0;
+        }
+    }
+
+    /** true when the innermost open element has text (then nothing inside it is put on new lines) */
+    private def inside_text() : bool {
+        count : decimal = open_content.size();
+        for(i : decimal = 0; i < count; i++) {
+            if(open_content.at(i).value >= 2) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** start a new line for something at the current nesting depth (only when indenting) */
+    private def new_line() {
+        if(indent > 0 && !inside_text() && buf.length() > 0) {
+            buf.append_char('\n');
+            buf.append_repeated(' ', open_names.size() * indent);
+        }
+    }
+
+    /** note that the innermost open element got content of the given kind (1 = element/comment, 2 = text) */
+    private def mark_content(kind: decimal) {
+        count : decimal = open_content.size();
+        if(count > 0) {
+            old : decimal = open_content.at(count - 1).value;
+            if(kind == 1 && (old == 0 || old == 2)) {
+                open_content.put(count - 1, new int(old + 1));
+            } else if(kind == 2 && old < 2) {
+                open_content.put(count - 1, new int(old + 2));
+            }
+        }
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* writing                                                             */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Write the XML declaration <?xml version="1.0" encoding="UTF-8"?>.
+     * It has to be the very first thing.
+     * Throws illegal_state_exception when something was written already.
+     */
+    def declaration() : xml_writer {
+        if(buf.length() > 0) {
+            throw new illegal_state_exception("xml: the declaration has to come first");
+        }
+        buf.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>");
+        wrote_prolog = 1;
+        return self;
+    }
+
+    /**
+     * Open an element: writes <name. Attributes can be added until content
+     * follows. Returns this writer.
+     * Throws illegal_argument_exception for an invalid name and
+     * illegal_state_exception for a second root element.
+     */
+    def start(name: string) : xml_writer {
+        check_name(name);
+        if(open_names.size() == 0 && has_root) {
+            throw new illegal_state_exception("xml: a document has exactly one root element; \"" + name + "\" would be a second one");
+        }
+        close_start_tag();
+        mark_content(1);
+        if(open_names.size() == 0) {
+            if(wrote_prolog && indent == 0) {
+                buf.append_char('\n'); // the root always starts on its own line after the prolog
+            }
+        }
+        new_line();
+
+        buf.append_char('<');
+        buf.append(name);
+        open_names.add(name);
+        open_content.add(new int(0));
+        attribute_names.clear();
+        in_start_tag = 1;
+        has_root = 1;
+        return self;
+    }
+
+    /**
+     * Add an attribute to the element that was just started: writes
+     * name="value" with the value escaped. Returns this writer.
+     * Throws illegal_state_exception when no start tag is open (content
+     * was already written, or no element was started) or the element has
+     * this attribute already; illegal_argument_exception for an invalid
+     * name or a value with a character XML does not allow.
+     */
+    def attribute(name: string, value: string) : xml_writer {
+        if(!in_start_tag) {
+            throw new illegal_state_exception("xml: attribute \"" + name + "\" must directly follow start()");
+        }
+        check_name(name);
+        count : decimal = attribute_names.size();
+        for(i : decimal = 0; i < count; i++) {
+            if(io_strings.equals(attribute_names.at(i), name)) {
+                throw new illegal_state_exception("xml: the element has two attributes \"" + name + "\"");
+            }
+        }
+        attribute_names.add(name);
+
+        buf.append_char(' ');
+        buf.append(name);
+        buf.append("=\"");
+        append_escaped(value, 1);
+        buf.append_char('"');
+        return self;
+    }
+
+    /** add an attribute whose value is a number, written the short way ("3", "0.5"). Returns this writer. Throws like attribute(). */
+    def attribute_number(name: string, value: decimal) : xml_writer {
+        return attribute(name, io_strings.number_to_string(value));
+    }
+
+    /**
+     * Add text to the innermost open element, escaped. Empty text adds
+     * nothing. Returns this writer.
+     * Throws illegal_state_exception when no element is open and
+     * illegal_argument_exception for a character XML does not allow.
+     */
+    def text(content: string) : xml_writer {
+        if(open_names.size() == 0) {
+            throw new illegal_state_exception("xml: text has to be inside an element");
+        }
+        if(sizeof(content.data) == 0) {
+            return self;
+        }
+        close_start_tag();
+        mark_content(2);
+        append_escaped(content, 0);
+        return self;
+    }
+
+    /**
+     * Add text to the innermost open element as a CDATA section, in which
+     * nothing needs escaping: <![CDATA[ ... ]]>. Handy for text full of
+     * < and &, like code. The one sequence a CDATA section cannot contain,
+     * "]]>", is split over two sections. Returns this writer.
+     * Throws illegal_state_exception when no element is open.
+     */
+    def cdata(content: string) : xml_writer {
+        if(open_names.size() == 0) {
+            throw new illegal_state_exception("xml: a CDATA section has to be inside an element");
+        }
+        close_start_tag();
+        mark_content(2);
+        buf.append("<![CDATA[");
+        n : decimal = sizeof(content.data);
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = content.data[i];
+            buf.append_char(ch);
+            if(ch == ']' && i + 2 < n && content.data[i + 1] == ']' && content.data[i + 2] == '>') {
+                // write the second bracket too, then end the section in front of the '>' and start a new one
+                buf.append_char(']');
+                buf.append("]]><![CDATA[");
+                i++;
+            }
+        }
+        buf.append("]]>");
+        return self;
+    }
+
+    /**
+     * Add a comment: <!-- content -->. Allowed anywhere, also before and
+     * after the root element. Returns this writer.
+     * Throws illegal_argument_exception when the content contains "--" or
+     * ends with "-" (XML does not allow that in a comment).
+     */
+    def comment(content: string) : xml_writer {
+        n : decimal = sizeof(content.data);
+        if(io_strings.contains(content, "--") || (n > 0 && content.data[n - 1] == '-')) {
+            throw new illegal_argument_exception("xml: a comment cannot contain \"--\" or end with \"-\"");
+        }
+        close_start_tag();
+        mark_content(1);
+        if(open_names.size() == 0 && buf.length() > 0 && indent == 0) {
+            buf.append_char('\n');
+        }
+        new_line();
+        buf.append("<!--");
+        buf.append(content);
+        buf.append("-->");
+        if(open_names.size() == 0) {
+            wrote_prolog = 1;
+        }
+        return self;
+    }
+
+    /**
+     * Close the innermost open element: writes </name>, or turns an
+     * element without content into <name/>. Returns this writer.
+     * Throws illegal_state_exception when no element is open.
+     */
+    def end() : xml_writer {
+        if(open_names.size() == 0) {
+            throw new illegal_state_exception("xml: end() without an open element");
+        }
+        name := open_names.pop_last();
+        content : decimal = open_content.last().value;
+        open_content.pop_back();
+
+        if(in_start_tag) {
+            buf.append("/>");
+            in_start_tag = 0;
+            return self;
+        }
+        if(content == 1) {
+            new_line(); // only child elements: the end tag goes on its own line
+        }
+        buf.append("</");
+        buf.append(name);
+        buf.append_char('>');
+        return self;
+    }
+
+    /** a whole element with text and nothing else: start(name), text(content), end(). Returns this writer. Throws like those. */
+    def element(name: string, content: string) : xml_writer {
+        start(name);
+        text(content);
+        return end();
+    }
+
+    /** close all elements that are still open. Returns this writer. */
+    def end_all() : xml_writer {
+        while(open_names.size() > 0) {
+            end();
+        }
+        return self;
+    }
+
+    /** how many elements are open at the moment */
+    def depth() : decimal {
+        return open_names.size();
+    }
+
+    /**
+     * The finished document as text (with a line end at the end when
+     * indenting).
+     * Throws illegal_state_exception when elements are still open or no
+     * root element was written.
+     */
+    override def to_string() : string? {
+        if(open_names.size() > 0) {
+            throw new illegal_state_exception("xml: the element \"" + open_names.last() + "\" is still open");
+        }
+        if(!has_root) {
+            throw new illegal_state_exception("xml: the document has no root element");
+        }
+        if(indent > 0) {
+            return buf.build() + "\n";
+        }
+        return buf.to_string();
+    }
+
+    /**
+     * Replace the content of the file `target` with the finished document.
+     * Throws illegal_state_exception like to_string(), io_exception when
+     * the file cannot be written.
+     */
+    def save(target: file) {
+        target.write_text(to_string()!!);
+    }
+
+    /** the text of `content` with & < > escaped, as it would appear between tags: escape("a<b") gives "a&lt;b" */
+    static def escape(content: string) : string {
+        helper := new xml_writer();
+        helper.append_escaped(content, 0);
+        return helper.buf.build();
+    }
+}

@@ -1,0 +1,436 @@
+mod std.guikit.core.state;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * composable - a piece of screen you write yourself: some state, and a
+ * build() that turns that state into widgets.
+ *
+ *      class counter base composable {
+ *          count := state(0);
+ *
+ *          override def build() : element {
+ *              return gui.column().gap(12).center()
+ *                  .add(gui.text("count: " + count.value).size(28))
+ *                  .add(gui.row().gap(8)
+ *                      .add(gui.button("-", { -> count.value -= 1; }))
+ *                      .add(gui.button("+", { -> count.value += 1; })));
+ *          }
+ *      }
+ *
+ *      gui.run("Counter", 360, 240, new counter());
+ *
+ * build() describes what the screen looks like RIGHT NOW. It is called again
+ * whenever one of this composable's states changes - you never update the
+ * screen by hand. Keep build() free of side effects: it only reads state and
+ * returns widgets; things happen in the click handlers.
+ *
+ * A composable is itself an element, so composables nest like any widget:
+ *
+ *      gui.column().add(new counter()).add(new counter())      // two independent counters
+ *
+ * PASSING THINGS IN: give your composable a constructor and keep what it was
+ * given in fields; build() reads them. (Compose calls these parameters, React
+ * "props".)
+ *
+ * (The name is `composable` because `component` is a word the Sharp language
+ * keeps for itself.)
+ *
+ * HOW IT WORKS INSIDE
+ *
+ * A composable has its own view in the tree with exactly one child: whatever
+ * build() returned. For layout and painting it is invisible - it measures as
+ * its child and places its child over itself.
+ *
+ * When a state that this composable's build() read changes, the state calls
+ * invalidate(), which puts the composable on the host's list; before the next
+ * frame the host calls rebuild(): build() runs again, and the reconciler
+ * settles the new widgets in, carrying over what the old ones remembered
+ * (reconciler.sharp). While build() runs, the host's `building` points at this
+ * composable - that is how a state knows who is reading it (state.sharp).
+ *
+ * When a PARENT rebuilds, its build() makes this composable again - a NEW
+ * object with states at their starting values. The reconciler pairs the new
+ * object with the old one and the new one adopts the old states' values
+ * (adopt, below). From then on the old object forwards to the new one
+ * (`replaced_by`), in case a click handler still holds it.
+ */
+stable class composable : element, behavior, stateful {
+    me : view;
+
+    // The states made by state(...), in the order they were made. Created on
+    // first use: it must not depend on a field initializer of this class having
+    // run before a subclass's `count := state(0)`.
+    private cells : list<state_cell>?;
+
+    // the object that took this one's place after a parent rebuilt (null: this one is live)
+    private replaced_by : composable?;
+
+    // 1 while waiting on the host's list to be rebuilt (so it is listed once)
+    waiting : _int64 = 0;
+
+    // ---- its life on the screen (see "a life with a beginning and an end", below)
+    private alive : _int64 = 0;                     // 1 from when it appeared until it is gone
+    private on_shown : list<life_hook>?;            // what to run when it appears
+    private on_gone : list<life_hook>?;             // what to run when it is gone
+    private beats : list<heartbeat>?;               // what to run again and again while it is there
+
+    // the models of the screen this composable was made in (view_model.sharp): made
+    // current again whenever it is built, so its parts find the same models
+    private models_home : model_store?;
+
+    composable() {
+        models_home = model_store.current;
+        me = new view(self);
+        scope.adopt(me);        // made inside a container's block: it is that container's child (scope.sharp)
+    }
+
+    /** What this piece of screen looks like right now. You write this. */
+    def build() : element;
+
+    /**
+     * A value this composable's screen depends on (see state<t>). Call it in
+     * a field's start value: `count := state(0);` - a whole number here; the
+     * functions below make decimal, text and any-object states.
+     *
+     * A state made here is REMEMBERED with the composable: when a parent
+     * rebuilds and makes this composable again, the new object's states take
+     * the old values (adopt, below). Make them in the same order every time -
+     * as field start values, not inside an `if`.
+     */
+    def state(first: _int64) : state<_int64> {
+        cell := new state<_int64>(first);
+        keep(cell);
+        return cell;
+    }
+
+    /** a decimal state: `volume := state(0.5);` */
+    def state(first: decimal) : state<decimal> {
+        cell := new state<decimal>(first);
+        keep(cell);
+        return cell;
+    }
+
+    /** a text state: `name := state("");` */
+    def state(first: string) : state<string> {
+        cell := new state<string>(new string(first));      // its own string: the state must not share one with a literal
+        keep(cell);
+        return cell;
+    }
+
+    /**
+     * A state holding any other kind of value - an object, a list:
+     * `items := state_of(new list<todo>());`. After changing something INSIDE
+     * the object, call items.touch() so the screen follows.
+     */
+    def state_of<t>(first: t) : state<t> {
+        cell := new state<t>(first);
+        keep(cell);
+        return cell;
+    }
+
+    /**
+     * A number that glides to new values instead of jumping (animated.sharp):
+     * `width := animated(0);` then width.go(240, 0.25) and read width.value.
+     * Remembered with the composable like a state.
+     */
+    def animated(first: decimal) : animated {
+        cell := new animated(first);
+        keep(cell);
+        return cell;
+    }
+
+    // ------------------------------------------------------------ a life with a beginning and an end
+    //
+    // A composable APPEARS when it is first built onto the screen, and is GONE
+    // when a rebuild no longer makes it (or its screen is closed). In between,
+    // parents may rebuild and make its object anew any number of times - that
+    // is the same composable carrying on, not a new life.
+    //
+    //      class clock base composable {
+    //          now := state(0);
+    //
+    //          clock() {
+    //              every(1) { now.value += 1; };                // ticks only while the clock is on screen
+    //              when_shown { println("clock is up"); };
+    //              when_gone { println("clock is gone"); };
+    //          }
+    //          ...
+    //      }
+    //
+    // Say these in the CONSTRUCTOR. (Compose: LaunchedEffect / DisposableEffect.
+    // Android: onStart / onStop of a fragment.)
+    //
+    // WHY every() AND NOT gui.every(): a timer made with gui.every lives until
+    // it is cancelled, so one made by a composable would keep ticking after the
+    // composable has left the screen - and would be made a second time when a
+    // parent rebuilds. every() here belongs to the composable: it starts when
+    // the composable appears, stops when it is gone, and when a parent rebuilds
+    // the composable, the NEW object's timer takes over from the old one's (the
+    // old object's states are not the live ones any more).
+
+    /** run this once, when the composable first appears on the screen */
+    def when_shown(action: ()()) {
+        if(on_shown == null) { on_shown = new list<life_hook>(); }
+        on_shown!!.add(new life_hook(action));
+    }
+
+    /** run this once, when the composable is gone from the screen for good */
+    def when_gone(action: ()()) {
+        if(on_gone == null) { on_gone = new list<life_hook>(); }
+        on_gone!!.add(new life_hook(action));
+    }
+
+    /** run this every `seconds`, for as long as the composable is on the screen */
+    def every(seconds: decimal, action: ()()) {
+        if(beats == null) { beats = new list<heartbeat>(); }
+        beats!!.add(new heartbeat(seconds, action));
+        if(alive == 1) {
+            beats!!.at(beats!!.size() - 1).start();
+        }
+    }
+
+    /** the composable is on the screen now (the reconciler calls this after building it; a second call does nothing) */
+    def appeared() {
+        if(alive == 1) {
+            return;
+        }
+        alive = 1;
+        start_beats();
+        if(on_shown != null) {
+            count : _int64 = on_shown!!.size();
+            for(i : _int64 = 0; i < count; i++) {
+                on_shown!!.at(i).run();
+            }
+        }
+    }
+
+    /** the composable is gone from the screen for good (the reconciler calls this) */
+    def left() {
+        if(alive == 0) {
+            return;
+        }
+        alive = 0;
+        stop_beats();
+        if(on_gone != null) {
+            count : _int64 = on_gone!!.size();
+            for(i : _int64 = 0; i < count; i++) {
+                on_gone!!.at(i).run();
+            }
+        }
+    }
+
+    /** has a newer object taken this one's place (after a parent rebuilt)? */
+    def is_replaced() : _int64 {
+        if(replaced_by != null) { return 1; }
+        return 0;
+    }
+
+    private def start_beats() {
+        if(beats != null) {
+            count : _int64 = beats!!.size();
+            for(i : _int64 = 0; i < count; i++) {
+                beats!!.at(i).start();
+            }
+        }
+    }
+
+    private def stop_beats() {
+        if(beats != null) {
+            count : _int64 = beats!!.size();
+            for(i : _int64 = 0; i < count; i++) {
+                beats!!.at(i).stop();
+            }
+        }
+    }
+
+    /** remember a state of this composable, in the order they are made */
+    private def keep(cell: state_cell) {
+        if(cells == null) {
+            cells = new list<state_cell>();
+        }
+        cells!!.add(cell);
+    }
+
+    /** "build me again before the next frame" - called by a state my build() read, when it changes */
+    def invalidate() {
+        live : composable = self;
+        while(live.replaced_by != null) {
+            live = live.replaced_by!!;
+        }
+        if(ui_host.current != null) {
+            ui_host.current!!.schedule_rebuild(live);
+        }
+    }
+
+    /**
+     * Run build() and settle the result in as this composable's one child.
+     * `before` is the child it replaces (null the first time): the new widgets
+     * take over what the old ones remembered.
+     */
+    def rebuild(before: view?) {
+        // "I am the one building now": every state read inside build() signs me
+        // up as its reader. Composables nest, so the one that was building is
+        // put back afterwards.
+        outer : composable? = ui_host.building;
+        ui_host.building = self;
+        models_before : model_store? = model_store.current;
+        if(models_home != null) { model_store.current = models_home; }
+
+        // build() starts with NO container open: what it returns is this
+        // composable's child, whatever block the composable itself was made in
+        open_before : view? = scope.open;
+        scope.open = null;
+        fresh : view = build().node();
+        scope.open = open_before;
+
+        ui_host.building = outer;
+        model_store.current = models_before;
+
+        me.clear_kids();
+        me.add_kid(fresh);
+        reconciler.settle(fresh, before);
+
+        // what the old result held and the new one does not take over is gone:
+        // tell the composables in it (their timers stop, their when_gone runs)
+        if(before != null && before!! != fresh) {
+            reconciler.retire(before!!);
+        }
+    }
+
+    /** the child that build() last produced (null before the first build) */
+    def built() : view? {
+        if(me.kid_count() == 0) {
+            return null;
+        }
+        return me.kids.at(0);
+    }
+
+    override def node() : view {
+        return me;
+    }
+
+    // ------------------------------------------------------------ as a behavior: invisible, it is its child
+
+    override def kind() : string {
+        count : _int64 = 0;
+        if(cells != null) { count = cells!!.size(); }
+        return "composable/" + count;
+    }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        child : view? = built();
+        if(child == null) {
+            me.content_w = 0;
+            me.content_h = 0;
+            return;
+        }
+        child!!.measure(min_w, max_w, min_h, max_h);       // the same range it was given: it IS its child
+        me.content_w = child!!.want_w;
+        me.content_h = child!!.want_h;
+    }
+
+    override def arrange() {
+        child : view? = built();
+        if(child != null) {
+            child!!.arrange(me.inner_x(), me.inner_y(), child!!.want_w, child!!.want_h);
+        }
+    }
+
+    override def paint(p: painter) {
+    }
+
+    // ------------------------------------------------------------ taking over from the object this one replaces
+
+    /**
+     * The old composable at this place in the tree hands over: each of my
+     * states takes the value of the old state made at the same position, and
+     * the old object forwards to me from now on.
+     */
+    override def adopt(old: behavior) {
+        if(!(old is composable)) {
+            return;
+        }
+        before := old as composable;
+        if(cells != null && before.cells != null) {
+            mine : _int64 = cells!!.size();
+            theirs : _int64 = before.cells!!.size();
+            if(mine == theirs) {
+                for(i : _int64 = 0; i < mine; i++) {
+                    cells!!.at(i).take_from(before.cells!!.at(i));
+                }
+            }
+        }
+        before.replaced_by = self;
+
+        // the same composable carries on in a new object: its life does not
+        // begin again, but its timers must be the NEW object's from here on
+        if(before.alive == 1) {
+            before.stop_beats();
+            before.alive = 0;
+            alive = 1;
+            start_beats();
+        }
+    }
+}
+
+/** something a composable runs when it appears or is gone (a function, wrapped so it can be kept in a list) */
+local stable class life_hook {
+    private action : ()();
+
+    life_hook(what: ()()) {
+        action = what;
+    }
+
+    def run() {
+        action();
+    }
+}
+
+/** something a composable runs again and again while it is on the screen: a timer it starts and stops */
+local stable class heartbeat {
+    private seconds : decimal;
+    private action : ()();
+    private ticking : timer?;
+
+    heartbeat(every: decimal, what: ()()) {
+        seconds = every;
+        action = what;
+    }
+
+    def start() {
+        if(ticking == null) {
+            ticking = new timer(seconds, seconds, action);
+        }
+    }
+
+    def stop() {
+        if(ticking != null) {
+            ticking!!.cancel();
+            ticking = null;
+        }
+    }
+}
+
+/**
+ * A composable made from a function instead of a class - for a screen whose
+ * state lives outside it (gui.state):
+ *
+ *      count := gui.state(0);
+ *      gui.run("Counter", 360, 240, { ->
+ *          return gui.button("clicked " + count.value, { -> count.value += 1; });
+ *      });
+ */
+stable class built_by base composable {
+    private make : ()(element);
+
+    built_by(maker: ()(element)) {
+        make = maker;
+    }
+
+    override def build() : element {
+        return make();
+    }
+}

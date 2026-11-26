@@ -1,0 +1,129 @@
+mod std.guikit.layout.flow;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * column - children stacked top to bottom.
+ *
+ *      column(modifier().padding(16)) {
+ *          text("Title").size(24);
+ *          text("some words underneath");
+ *          button("OK") { save(); };
+ *      }.gap(12)
+ *
+ *   .gap(n)          room between the children
+ *   .align(how)      how children sit ACROSS the column: ALIGN_START (left, the
+ *                    default), ALIGN_CENTER, ALIGN_END (right), ALIGN_STRETCH
+ *   .justify(how)    where the children go when the column is taller than they
+ *                    need: JUSTIFY_START (top, the default), JUSTIFY_CENTER,
+ *                    JUSTIFY_END, JUSTIFY_BETWEEN
+ *   .center()        both in the middle
+ *
+ * A child takes leftover height with modifier().grow(1) or .fill_height(); a spacer
+ * (gui.spacer()) is the usual way to push things apart. All the placing is
+ * done by the shared algorithm in flex.sharp; a column is that algorithm going
+ * DOWN. (Compose: Column. CSS: flex-direction: column. Android: a vertical
+ * LinearLayout.)
+ */
+stable class column base widget : behavior {
+    private space : decimal = 0;
+    private across : _int64 = ALIGN_START;
+    private along : _int64 = JUSTIFY_START;
+    private sorter : reorder?;              // set by reorderable(): rows can be dragged into a new order
+
+    column() {
+        attach(self);
+    }
+
+    /** put a widget (or one of your composables) at the bottom of the column */
+    def add(child: element) : column {
+        me.add_kid(child.node());
+        return self;
+    }
+
+    /**
+     * The nested way to fill the column: every widget made inside the block
+     * becomes a child, top to bottom, in the order the lines run. Ordinary
+     * `if` and `for` work inside it.
+     *
+     *      column(modifier().padding(16)).gap(12).content {
+     *          text("Title").size(24);
+     *          for(i : _int64 = 1; i <= 3; i++) { text("line " + i); }
+     *          button("OK") { save(); };
+     *      }
+     *
+     * column { ... } is the short form when no settings come first.
+     * (How a widget "knows" it belongs here: scope.sharp.)
+     */
+    def content(block: ()()) : column {
+        scope.fill(me, block);
+        return self;
+    }
+
+    /** room between the children, in pixels */
+    /**
+     * When children are added, removed or change places, the others GLIDE to
+     * where they now belong, and a new child fades in. Give the children keys
+     * (modifier().key(...)) so the framework knows which is which.
+     * (glide.sharp. Compose: Modifier.animateItem.)
+     */
+    def animate_items() : column {
+        me.glides = 1;
+        return self;
+    }
+
+    /**
+     * The children can be dragged into a new order: hold a row to pick it up,
+     * drag, let go. `moved` is called with where it was and where it is now
+     * (counted among the children on the screen); it must change the list the
+     * screen is built from. Children glide as with animate_items().
+     * (reorder.sharp)
+     */
+    def reorderable(moved: (_int64, _int64)()) : column {
+        me.glides = 1;
+        sorter = new reorder(me, moved);
+        return self;
+    }
+
+    def gap(pixels: decimal) : column {
+        space = pixels;
+        return self;
+    }
+
+    /** how children sit across the column: ALIGN_START, ALIGN_CENTER, ALIGN_END, ALIGN_STRETCH */
+    def align(how: _int64) : column {
+        across = how;
+        return self;
+    }
+
+    /** where children go when there is height to spare: JUSTIFY_START, _CENTER, _END, _BETWEEN */
+    def justify(how: _int64) : column {
+        along = how;
+        return self;
+    }
+
+    /** children in the middle, both ways */
+    def center() : column {
+        across = ALIGN_CENTER;
+        along = JUSTIFY_CENTER;
+        return self;
+    }
+
+    override def kind() : string { return "column"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        flex.measure(me, 0, space, across, min_w, max_w, min_h, max_h);
+    }
+
+    override def arrange() {
+        flex.arrange(me, 0, space, across, along);
+        if(sorter != null) {
+            sorter!!.wire_all(space);
+        }
+    }
+
+    override def paint(p: painter) {
+    }
+}

@@ -1,0 +1,72 @@
+mod backend.ide.diagnostics;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.ide.files,
+    backend.ide.output
+)
+
+/**
+ * DIAGNOSTICS: THE ERRORS AND WARNINGS, FOR THE EDITOR
+ *
+ * The compiler prints its messages for a person. For the editor they are
+ * written as `diagnostics.json`, with every part of a message in a field of
+ * its own: code, message, place, label, notes, helps, related places.
+ *
+ * The files of this package (module `backend.ide.diagnostics`):
+ *
+ *      diagnostics.sharp        this front door: `write_diagnostics`
+ *      diagnostic_writer.sharp  one diagnostic and its related places as JSON
+ *      syntax_problems.sharp    the syntax errors of every file, before there is anything to analyse
+ *
+ * The list written is the list that is PRINTED (after the warning switches
+ * `-w`, `-werror`...), so the editor shows what the terminal shows. It stops
+ * at 1000 entries (`truncated` says so): a file full of one repeated mistake
+ * must not make a file nobody reads.
+ */
+
+/** the most diagnostics one file holds; the manifest's two counts are of these (manifest.sharp) */
+const MOST_DIAGNOSTICS : _int64 = 1000;
+
+/**
+ * `diagnostics.json`
+ *
+ * @param shown  the diagnostics to write, in the order the compiler prints them
+ * @param units  every file given to the compiler: the ones that could not be read are listed apart
+ */
+def write_diagnostics(folder: string, run: string, files: ide_files, shown: list<diagnostic>, units: list<source_unit>) {
+    w := new json_writer();
+    w.begin_object();
+    w.key(KEY_FORMAT);  w.number(1);
+    w.key(KEY_RUN);  w.text(run);
+
+    truncated : _int64 = 0;
+    if(shown.size() > MOST_DIAGNOSTICS) { truncated = 1; }
+    w.key(KEY_TRUNCATED);  w.flag(truncated);
+
+    w.key(KEY_DIAGNOSTICS);
+    w.begin_array();
+    for(i : _int64 = 0; i < shown.size() && i < MOST_DIAGNOSTICS; i++) {
+        w.line();
+        write_diagnostic(w, files, shown.at(i));
+    }
+    w.line();
+    w.end_array();
+
+    w.key(KEY_UNREADABLE);
+    w.begin_array();
+    for(i : _int64 = 0; i < files.count(); i++) {
+        f := files.at(i);
+        if(f.is_readable() == 1) { continue; }
+        w.begin_object();
+        w.key(KEY_FILE);  w.text(f.path);
+        w.key(KEY_PROBLEM);  w.text(f.unit.problem);
+        w.end_object();
+    }
+    w.end_array();
+    w.end_object();
+
+    write_file_atomically(folder, "diagnostics.json", w.build());
+}

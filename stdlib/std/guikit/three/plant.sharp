@@ -1,0 +1,405 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.math,
+    std.guikit.*
+)
+
+/**
+ * plant - a tree, grown by the program: a trunk that tapers and leans, limbs
+ * that branch and reach up, and foliage on them.
+ *
+ *      oak := tree(7);                 // a broad-leaved tree; another number, another tree
+ *      fir := pine(3);                 // a conifer
+ *
+ *      scene {
+ *          add(oak).at(4, 0, 0 - 2);
+ *          scatter(fir, 2000).on(land).between(2, 60);        // a forest of it
+ *      }
+ *
+ * HOW A TREE IS MADE (the way games make them): the WOOD is real shape - tubes
+ * of bark, thinner with every branching. The LEAVES are not: no machine draws
+ * a hundred thousand leaves. Each spray of leaves is one flat card with a
+ * picture of leaves on it, see-through between them; a few dozen cards, facing
+ * all ways and lit as if they were the outside of one round crown, read as a
+ * tree. A whole tree is about a thousand triangles.
+ *
+ * It needs no picture files: the bark and the leaves are textures the library
+ * draws itself. Your own go on with
+ *
+ *      tree(7).bark("assets/oak_bark.jpg").leaves("assets/oak_leaves.png");
+ *
+ * (a leaf picture: a spray of leaves on a see-through background, spreading
+ * from the middle; for a pine: a twig with its base at the bottom edge).
+ *
+ * The same number always grows the same tree, and every tree(7) shares one
+ * shape on the graphics card: a forest costs a tree.
+ *
+ * FAR AWAY a tree is drawn from a much simpler shape (`simple`: about seventy
+ * triangles); scatter(...) switches to it by itself.
+ */
+class plant base thing {
+    wood : mesh;                    // trunk and limbs
+    foliage : mesh;                 // the leaf cards
+    simple : plant? = null;         // the same tree with far fewer triangles, for far away
+
+    plant(trunk: mesh, crown: mesh) {
+        stage.adopt(self);
+        wood = trunk;
+        foliage = crown;
+        shape = trunk;              // (the crown is a second part of the trunk's model: mesh.also)
+    }
+
+    /** your own bark: a picture that repeats, laid round the trunk and limbs */
+    def bark(path: string) : plant {
+        wood.texture(path);
+        if(simple != null) { simple!!.wood.texture(path); }
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+
+    /** your own leaves: a spray of leaves (or a twig of needles) on a see-through background */
+    def leaves(path: string) : plant {
+        foliage.texture(path);
+        if(simple != null) { simple!!.foliage.texture(path); }
+        thing.changes = thing.changes + 1;
+        return self;
+    }
+}
+
+/**
+ * plants - the trees already grown, by kind and seed: tree(7) asked for a
+ * second time (the screen was rebuilt) gets the shape of the first.
+ */
+stable class plants {
+    private static names : list<string> = new list<string>();
+    private static woods : list<mesh> = new list<mesh>();
+    private static crowns : list<mesh> = new list<mesh>();
+
+    /** a tree of this kind ("tree", "pine") and seed, full or simple: grown now, or the one grown before */
+    static def grown(kind: string, seed: decimal, full: bool) : plant {
+        name : string = kind + " " + seed + " " + full;
+        count : _int64 = names.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(names.at(i) == name) {
+                return new plant(woods.at(i), crowns.at(i));
+            }
+        }
+        maker := new grower(seed, full);
+        if(kind == "pine") { maker.pine(); }
+        else { maker.broadleaf(); }
+        maker.wood.also(maker.foliage);
+        names.add(name);
+        woods.add(maker.wood);
+        crowns.add(maker.foliage);
+        return new plant(maker.wood, maker.foliage);
+    }
+
+    /** the tree with its simple version attached: what tree(...) and pine(...) hand out */
+    static def whole(kind: string, seed: decimal) : plant {
+        // the simple one is a pattern, not a thing of the scene being written
+        open_before : thing? = stage.open;
+        stage.open = null;
+        far := grown(kind, seed, false);
+        stage.open = open_before;
+
+        made := grown(kind, seed, true);
+        made.simple = far;
+        return made;
+    }
+}
+
+/** grows one tree into two meshes: wood and foliage */
+local stable class grower {
+    wood : mesh = new mesh();
+    foliage : mesh = new mesh();
+
+    private seed : decimal;
+    private full : bool;
+    private drawn : decimal = 0;        // how many random numbers were taken
+    // the crown, for lighting the leaf cards as the outside of one round shape
+    private crown_x : decimal = 0;
+    private crown_y : decimal = 0;
+    private crown_z : decimal = 0;
+    private crown_r : decimal = 1;
+    // where the last limb went: 7 numbers a ring - x y z, the direction there, the radius
+    private path : decimal[] = new decimal[7 * 16];
+    private rings : _int64 = 0;
+
+    grower(of: decimal, in_full: bool) {
+        seed = of;
+        full = in_full;
+    }
+
+    /** the next random number, 0 .. 1 */
+    private def roll() : decimal {
+        drawn = drawn + 1;
+        v : decimal = sin(seed * 78.233 + drawn * 12.9898) * 43758.5453;
+        return v - floor(v);
+    }
+
+    private def between(low: decimal, high: decimal) : decimal {
+        return low + (high - low) * roll();
+    }
+
+    // ---------------------------------------------------------------- wood
+
+    /**
+     * a limb: a tube from (x, y, z) setting off along (dx, dy, dz), `length`
+     * long, `r0` thick at its start and `r1` at its end, in `pieces` pieces of
+     * `sides` sides. Along the way it is pulled towards (bx, by, bz) - up, for
+     * a branch reaching to the light - and wanders a little. Its rings are
+     * left in `path`.
+     */
+    private def limb(x: decimal, y: decimal, z: decimal, dx: decimal, dy: decimal, dz: decimal, length: decimal,
+                     r0: decimal, r1: decimal, sides: _int64, pieces: _int64, bx: decimal, by: decimal, bz: decimal,
+                     wander: decimal) {
+        first : _int64 = wood.corner_count;
+        row : _int64 = sides + 1;
+        along : decimal = 0;
+        rings = pieces + 1;
+        for(i : _int64 = 0; i <= pieces; i++) {
+            long : decimal = sqrt(dx * dx + dy * dy + dz * dz);
+            dx = dx / long;
+            dy = dy / long;
+            dz = dz / long;
+            radius : decimal = r0 + (r1 - r0) * i / pieces;
+            path[i * 7] = x;
+            path[i * 7 + 1] = y;
+            path[i * 7 + 2] = z;
+            path[i * 7 + 3] = dx;
+            path[i * 7 + 4] = dy;
+            path[i * 7 + 5] = dz;
+            path[i * 7 + 6] = radius;
+
+            // two directions across the limb: a sideways one, and the one that with it goes round the limb
+            // counter-clockwise as seen from its tip (so the bark faces out)
+            ax : decimal = dz;
+            ay : decimal = 0;
+            az : decimal = 0 - dx;
+            if(abs(dy) > 0.95) { ax = 1; ay = 0; az = 0; }
+            a_long : decimal = sqrt(ax * ax + ay * ay + az * az);
+            ax = ax / a_long;
+            ay = ay / a_long;
+            az = az / a_long;
+            cx : decimal = ay * dz - az * dy;
+            cy : decimal = az * dx - ax * dz;
+            cz : decimal = ax * dy - ay * dx;
+            for(j : _int64 = 0; j <= sides; j++) {
+                turn : decimal = PI_VALUE * 2 * j / sides;
+                nx : decimal = ax * cos(turn) + cx * sin(turn);
+                ny : decimal = ay * cos(turn) + cy * sin(turn);
+                nz : decimal = az * cos(turn) + cz * sin(turn);
+                wood.corner(x + nx * radius, y + ny * radius, z + nz * radius, nx, ny, nz, 2.0 * j / sides, along / 1.4);
+            }
+            if(i > 0) {
+                upper : _int64 = first + i * row;
+                lower : _int64 = upper - row;
+                for(j : _int64 = 0; j < sides; j++) {
+                    wood.quad(upper + j, upper + j + 1, lower + j + 1, lower + j);
+                }
+            }
+
+            step : decimal = length / pieces;
+            x = x + dx * step;
+            y = y + dy * step;
+            z = z + dz * step;
+            along = along + step;
+            // the pull, and a little wandering
+            dx = dx + bx / pieces + between(0 - wander, wander);
+            dy = dy + by / pieces + between(0 - wander, wander) * 0.6;
+            dz = dz + bz / pieces + between(0 - wander, wander);
+        }
+    }
+
+    // ---------------------------------------------------------------- foliage
+
+    /** a corner of a leaf card: lit as part of the round crown, darker the deeper inside it is */
+    private def leaf_corner(x: decimal, y: decimal, z: decimal, u: decimal, v: decimal, shade: decimal) : _int64 {
+        nx : decimal = x - crown_x;
+        ny : decimal = (y - crown_y) + crown_r * 0.45;                 // (tipped up: the top of a crown catches the sky)
+        nz : decimal = z - crown_z;
+        long : decimal = sqrt(nx * nx + ny * ny + nz * nz);
+        if(long <= 0) { ny = 1; long = 1; }
+        at : _int64 = foliage.corner(x, y, z, nx / long, ny / long, nz / long, u, v);
+        foliage.tint(at, gui.pack(255 * shade * 0.96, 255 * shade, 255 * shade * 0.92));
+        return at;
+    }
+
+    /** how light a leaf at this place is: the outside of the crown bright, its inside and underside dim */
+    private def shade_at(x: decimal, y: decimal, z: decimal) : decimal {
+        dx : decimal = x - crown_x;
+        dy : decimal = y - crown_y;
+        dz : decimal = z - crown_z;
+        out : decimal = sqrt(dx * dx + dy * dy + dz * dz) / crown_r;
+        if(out > 1) { out = 1; }
+        low : decimal = 0.5 + 0.5 * (dy / crown_r);
+        if(low < 0) { low = 0; }
+        if(low > 1) { low = 1; }
+        return (0.72 + 0.28 * out) * (0.82 + 0.18 * low) * between(0.92, 1.06);
+    }
+
+    /** a spray of leaves: a square card `size` across round (x, y, z), turned `heading` round and tipped `tip` (radians) */
+    private def spray(x: decimal, y: decimal, z: decimal, size: decimal, heading: decimal, tip: decimal) {
+        rx : decimal = cos(heading);
+        rz : decimal = sin(heading);
+        // "up" on the card: straight up, tipped back round the card's sideways direction
+        ux : decimal = 0 - rz * sin(tip);
+        uy : decimal = cos(tip);
+        uz : decimal = rx * sin(tip);
+        half : decimal = size / 2;
+        shade : decimal = shade_at(x, y, z);
+        a : _int64 = leaf_corner(x - rx * half - ux * half, y - uy * half, z - rz * half - uz * half, 0, 1, shade);
+        b : _int64 = leaf_corner(x + rx * half - ux * half, y - uy * half, z + rz * half - uz * half, 1, 1, shade);
+        c : _int64 = leaf_corner(x + rx * half + ux * half, y + uy * half, z + rz * half + uz * half, 1, 0, shade);
+        d : _int64 = leaf_corner(x - rx * half + ux * half, y + uy * half, z - rz * half + uz * half, 0, 0, shade);
+        foliage.quad(a, b, c, d);
+    }
+
+    /** a clump of sprays round a point: `count` cards facing different ways */
+    private def clump(x: decimal, y: decimal, z: decimal, size: decimal, count: _int64) {
+        for(i : _int64 = 0; i < count; i++) {
+            spray(x + between(0 - 0.3, 0.3) * size, y + between(0 - 0.15, 0.3) * size, z + between(0 - 0.3, 0.3) * size,
+                  size * between(0.85, 1.2), PI_VALUE * i / count + between(0, 0.6), between(0 - 0.7, 0.7));
+        }
+    }
+
+    // ---------------------------------------------------------------- a broad-leaved tree
+
+    def broadleaf() {
+        tall : decimal = between(4.8, 6.6);
+        thick : decimal = between(0.2, 0.28);
+        crown_y = tall * 0.8;
+        crown_r = tall * 0.55;
+
+        if(!full) {
+            // far away: a short trunk and a dozen large sprays where the crown is
+            limb(0, 0, 0, between(0 - 0.05, 0.05), 1, between(0 - 0.05, 0.05), tall * 0.75, thick, thick * 0.5, 5, 2, 0, 0, 0, 0.03);
+            for(i : _int64 = 0; i < 12; i++) {
+                round : decimal = PI_VALUE * 2 * i / 12 + between(0, 0.5);
+                out : decimal = crown_r * between(0.25, 0.7);
+                spray(cos(round) * out, crown_y + between(0 - 0.45, 0.5) * crown_r, sin(round) * out,
+                      crown_r * between(1.0, 1.3), round + between(0 - 0.6, 0.6), between(0 - 0.6, 0.6));
+            }
+            dress("leaves");
+            return;
+        }
+
+        // the trunk
+        limb(0, 0, 0, between(0 - 0.08, 0.08), 1, between(0 - 0.08, 0.08), tall, thick, thick * 0.3, 8, 6, 0, 0, 0, 0.045);
+        trunk := new decimal[rings * 7];
+        for(i : _int64 = 0; i < rings * 7; i++) { trunk[i] = path[i]; }
+        trunk_rings : _int64 = rings;
+        clump(trunk[(trunk_rings - 1) * 7], trunk[(trunk_rings - 1) * 7 + 1], trunk[(trunk_rings - 1) * 7 + 2], 1.7, 4);
+
+        // the main limbs, round the upper trunk, each a little further round than the last
+        limbs : _int64 = 6;
+        for(i : _int64 = 0; i < limbs; i++) {
+            where : decimal = 0.4 + 0.55 * i / (limbs - 1);
+            at : _int64 = where * (trunk_rings - 1);
+            px : decimal = trunk[at * 7];
+            py : decimal = trunk[at * 7 + 1] + between(0, tall / 6 * 0.8);
+            pz : decimal = trunk[at * 7 + 2];
+            round : decimal = i * 2.4 + between(0 - 0.3, 0.3);
+            lift : decimal = 0.35 + 0.5 * where;                       // the higher limbs point more upwards
+            long : decimal = tall * between(0.36, 0.5) * (1 - 0.3 * where);
+            limb(px, py, pz, cos(round), lift, sin(round), long, trunk[at * 7 + 6] * 0.6, trunk[at * 7 + 6] * 0.2, 6, 4, 0, 0.45, 0, 0.09);
+            main := new decimal[rings * 7];
+            for(k : _int64 = 0; k < rings * 7; k++) { main[k] = path[k]; }
+            main_rings : _int64 = rings;
+            tip : _int64 = (main_rings - 1) * 7;
+            clump(main[tip], main[tip + 1], main[tip + 2], 1.6, 3);
+
+            // smaller limbs off it, to the sides and up
+            for(s : _int64 = 0; s < 3; s++) {
+                from : _int64 = 1 + s;
+                if(from > main_rings - 1) { from = main_rings - 1; }
+                sx : decimal = main[from * 7];
+                sy : decimal = main[from * 7 + 1];
+                sz : decimal = main[from * 7 + 2];
+                side : decimal = round + (s - 1) * 1.1 + between(0 - 0.3, 0.3);
+                limb(sx, sy, sz, cos(side), between(0.2, 0.7), sin(side), long * between(0.4, 0.6),
+                     main[from * 7 + 6] * 0.55, main[from * 7 + 6] * 0.2, 4, 3, 0, 0.35, 0, 0.09);
+                end : _int64 = (rings - 1) * 7;
+                clump(path[end], path[end + 1], path[end + 2], 1.5, 3);
+                middle : _int64 = (rings / 2) * 7;
+                spray(path[middle], path[middle + 1] + 0.2, path[middle + 2], 1.3, between(0, 6.28), between(0 - 0.5, 0.5));
+            }
+        }
+        dress("leaves");
+    }
+
+    // ---------------------------------------------------------------- a conifer
+
+    /**
+     * one bough of a pine: a card along it from the trunk outwards - the twig
+     * picture has its base at the bottom edge - and, in full, a second one on
+     * edge so it has body from every side
+     */
+    private def bough(x: decimal, y: decimal, z: decimal, round: decimal, lift: decimal, long: decimal) {
+        dx : decimal = cos(round) * cos(lift);
+        dy : decimal = sin(lift);
+        dz : decimal = sin(round) * cos(lift);
+        wide : decimal = long * 0.62;
+        // across the bough, level with the ground
+        sx : decimal = 0 - sin(round);
+        sz : decimal = cos(round);
+        tx : decimal = x + dx * long;
+        ty : decimal = y + dy * long;
+        tz : decimal = z + dz * long;
+        shade : decimal = shade_at(x + dx * long / 2, y, z + dz * long / 2);
+        a : _int64 = leaf_corner(x - sx * wide / 2, y, z - sz * wide / 2, 0, 1, shade * 0.8);
+        b : _int64 = leaf_corner(x + sx * wide / 2, y, z + sz * wide / 2, 1, 1, shade * 0.8);
+        c : _int64 = leaf_corner(tx + sx * wide / 2, ty, tz + sz * wide / 2, 1, 0, shade);
+        d : _int64 = leaf_corner(tx - sx * wide / 2, ty, tz - sz * wide / 2, 0, 0, shade);
+        foliage.quad(a, b, c, d);
+        if(full) {
+            // on edge: across the bough, up and down (the needles hang a little below it)
+            e : _int64 = leaf_corner(x, y - wide * 0.38, z, 0, 1, shade * 0.75);
+            f : _int64 = leaf_corner(x, y + wide * 0.3, z, 1, 1, shade * 0.85);
+            g : _int64 = leaf_corner(tx, ty + wide * 0.3, tz, 1, 0, shade);
+            h : _int64 = leaf_corner(tx, ty - wide * 0.38, tz, 0, 0, shade * 0.9);
+            foliage.quad(e, f, g, h);
+        }
+    }
+
+    def pine() {
+        tall : decimal = between(7.5, 10.5);
+        thick : decimal = between(0.16, 0.22);
+        crown_y = tall * 0.55;
+        crown_r = tall * 0.5;
+
+        sides : _int64 = 8;
+        pieces : _int64 = 5;
+        if(!full) { sides = 4; pieces = 2; }
+        limb(0, 0, 0, 0, 1, 0, tall, thick, thick * 0.15, sides, pieces, 0, 0, 0, 0);       // a conifer stands straight
+
+        // rings of boughs up the trunk: long and drooping at the bottom, short and lifted at the top
+        gap : decimal = 0.55;
+        around : _int64 = 6;
+        if(!full) { gap = 1.5; around = 4; }
+        twist : decimal = 0;
+        for(height : decimal = tall * 0.2; height < tall * 0.96; height += gap) {
+            up : decimal = height / tall;
+            long : decimal = (1 - up) * tall * 0.36 + 0.3;
+            for(i : _int64 = 0; i < around; i++) {
+                bough(0, height + between(0 - 0.12, 0.12), 0, twist + PI_VALUE * 2 * i / around + between(0 - 0.2, 0.2),
+                      (up - 0.45) * 0.7 + between(0 - 0.1, 0.1), long * between(0.85, 1.12));
+            }
+            twist = twist + 0.7;
+        }
+        // the tip: two upright cards, crossed
+        bough(0, tall - 1.1, 0, 0, 1.5, 1.4);
+        bough(0, tall - 1.1, 0, HALF_PI, 1.5, 1.4);
+        dress("needles");
+    }
+
+    /** the made textures a tree wears until it is given its own */
+    private def dress(leafage: string) {
+        which : _int64 = 1 + abs(seed) % 3;
+        wood.texture(g3_texture_made("bark", 1));
+        if(leafage == "needles") { wood.color(0x9A8C84FF); }            // a conifer's bark is greyer
+        foliage.texture(g3_texture_made(leafage, which)).cut_out();
+    }
+}

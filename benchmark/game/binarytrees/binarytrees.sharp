@@ -1,0 +1,52 @@
+mod main;
+
+/**
+ * binary-trees - the Benchmarks Game.  Makes and throws away a great many
+ * complete binary trees, one node an object: a test of the garbage collector.
+ *
+ *      sharp binarytrees <depth>
+ */
+
+class node {
+    left : node?;
+    right : node?;
+}
+
+def make(depth: _int64) : node {
+    n := new node();
+    if(depth > 0) {
+        n.left = make(depth - 1);
+        n.right = make(depth - 1);
+    }
+    return n;
+}
+
+/** how many nodes the tree has */
+def check(n: node) : _int64 {
+    if(n.left == null) { return 1; }
+    return 1 + check(n.left!!) + check(n.right!!);
+}
+
+def main(args: string[]) {
+    n : _int64 = 10;
+    if(sizeof(args) > 0) { n = args[0].to_int(); }
+
+    min_depth : _int64 = 4;
+    max_depth : _int64 = n > min_depth + 2 ? n : min_depth + 2;
+    stretch_depth : _int64 = max_depth + 1;
+
+    println("stretch tree of depth " + stretch_depth + "\t check: " + check(make(stretch_depth)));
+
+    long_lived := make(max_depth);
+
+    for(depth : _int64 = min_depth; depth <= max_depth; depth += 2) {
+        iterations : _int64 = 1 << (max_depth - depth + min_depth);
+        total : _int64 = 0;
+        for(i : _int64 = 0; i < iterations; i++) {
+            total += check(make(depth));
+        }
+        println("" + iterations + "\t trees of depth " + depth + "\t check: " + total);
+    }
+
+    println("long lived tree of depth " + max_depth + "\t check: " + check(long_lived));
+}

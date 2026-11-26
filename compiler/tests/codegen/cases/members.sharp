@@ -1,0 +1,100 @@
+mod main;
+
+import (std.io)
+
+// output:
+// an animal with 4 legs says ...
+// 5 ...
+// 44
+// 44
+// 1
+// 11
+// -126
+// -126
+// 14
+// 1
+// no name
+// rex
+// len 3
+// m 2
+// char q bool true dec 1.25 neg -3
+// 1
+// 2
+// 3
+// 1
+// 4
+// 5
+// 5
+// 2
+// abcdef
+// 6 true
+
+/*
+ * Members and calls (doc/codegen.md 6.2, 6.6): a method that calls another
+ * method of its own class in a template; a function of a class below with
+ * the same name and no `override` (it HIDES the one above: a call through the
+ * base class runs the base's body, as in the C++-built program); `base->legs`
+ * and `base->sound()`; a downcast and a call on its result; a field cut to
+ * `_int8` read back; the value of `h.small = 300`; an element changed by
+ * `+=` and by `++` with an index that is a call (run once); `?:` on a
+ * `string?` field; `?.` that ends in a call whose result is used; a
+ * dictionary's size; `&&` / `||` / `? :` with calls that show the order.
+ */
+class animal {
+    legs : _int64 = 4;
+    def sound() : string { return "..."; }
+    def describe() : string { return "an animal with ${legs} legs says ${sound()}"; }
+}
+
+class dog base animal {
+    def sound() : string { return "woof"; }
+    def base_legs() : _int64 { n : _int64 = base->legs; return n + 1; }
+    def base_sound() : string { return base->sound(); }
+}
+
+class holder {
+    small : _int8;
+    items : _int64[] = new _int64[3];
+    name : string? = null;
+}
+
+def tick(n: _int64) : _int64 { show(n); return n; }
+
+def main() {
+    a : animal = new dog();
+    println(a.describe());
+    d := a as dog;
+    println("${d.base_legs()} ${d.base_sound()}");
+    h := new holder();
+    show(h.small = 300);
+    show(h.small);
+    h.items[1] = 7;
+    h.items[1] += 3;
+    h.items[tick(1)]++;
+    show(h.items[1]);
+    x : _int8 = 120;
+    show(x += 10);
+    show(x);
+    y : _int64 = 5;
+    z : _int64 = (y = 9) + y;
+    show(z);
+    show(h.name == null);
+    println(h.name ?: "no name");
+    h.name = "rex";
+    println(h.name ?: "no name");
+    println("len ${(h.name ?: "").size()}");
+    m := { "one" : 1, "two" : 2 };
+    println("m ${m.size()}");
+    ch : _int8 = 'q';
+    println("char ${ch} bool ${true} dec ${1.25} neg ${0 - 3}");
+    flag : _int64 = tick(1) > 0 && tick(2) > 5 || tick(3) == 3;
+    show(flag);
+    t : _int64 = tick(4) > 3 ? tick(5) : tick(6);
+    show(t);
+    nested : _int64 = y > 100 ? 1 : y > 5 ? 2 : 3;
+    show(nested);
+    s : string = "abc";
+    s2 : string = s + "def";
+    println(s2);
+    println("${s2.size()} ${s == "abc"}");
+}

@@ -1,0 +1,140 @@
+mod main;
+
+import ( std.c, std.io, platform )
+
+/**
+ * c_memory (std/c/memory.sharp): C's own memory read and written from Sharp,
+ * every use checked, and C writing past a block's end found out.
+ *
+ *      sharp memory <folder of the test library>
+ *
+ * Prints one line per check that fails and, last, MEMORY: PASS (n checks).
+ */
+
+extern "c_test" {
+    def write_past_end(bytes: pointer, size: c_int, extra: c_int);
+    def fill_rect(into: pointer, first: c_int);
+    def read_rect(from: pointer) : c_double;
+    def text_length(text: pointer) : _int64;
+    def ret_ptr(p: pointer, add: c_int) : pointer;
+}
+
+checks : _int64 = 0;
+failures : _int64 = 0;
+
+def same(name: string, got: decimal, want: decimal) {
+    checks++;
+    if(got != want) {
+        failures++;
+        println("FAIL  " + name + ": got " + got + ", expected " + want);
+    }
+}
+
+def refused(name: string, did: _int64) {
+    checks++;
+    if(did == 0) {
+        failures++;
+        println("FAIL  " + name + ": it was not refused");
+    }
+}
+
+def main(args: string[]) {
+    folder : string = ".";
+    if(sizeof(args) > 0) { folder = args[0]; }
+    c_library("c_test", folder + "/c_test");
+
+    block := new c_memory(64);
+    same("size", block.size(), 64);
+    same("a new block is all 0", block.int64_at(0) + block.int64_at(56), 0);
+    checks++;
+    if(block.address() == 0) { failures++; println("FAIL  the block's address is 0"); }
+
+    // ---- every width, there and back
+    block.put_int8(0, 0 - 5).put_int16(2, 0 - 30000).put_int32(4, 0 - 2000000000).put_int64(8, 0 - 9000000000);
+    same("int8", block.int8_at(0), 0 - 5);
+    same("uint8", block.uint8_at(0), 251);
+    same("int16", block.int16_at(2), 0 - 30000);
+    same("uint16", block.uint16_at(2), 35536);
+    same("int32", block.int32_at(4), 0 - 2000000000);
+    same("uint32", block.uint32_at(4), 2294967296);
+    same("int64", block.int64_at(8), 0 - 9000000000);
+    block.put_float(16, 2.75).put_double(24, 0 - 1234.5625);
+    same("float", block.float_at(16), 2.75);
+    same("double", block.double_at(24), 0 - 1234.5625);
+    block.put_pointer(32, block.address());
+    same("pointer", block.pointer_at(32), block.address());
+    same("pointer_size", c_memory.pointer_size() == 8 || c_memory.pointer_size() == 4, 1);
+    same("address_at", block.address_at(10), block.address() + 10);
+
+    // ---- text and bytes
+    block.put_text(40, "hello, C");
+    same("C reads the text", text_length(block.address_at(40)), 8);
+    checks++;
+    if(block.text_at(40) != "hello, C") { failures++; println("FAIL  text_at gave \"" + block.text_at(40) + "\""); }
+    some := new _int8[] { 1, 2, 3, 4 };
+    block.put_bytes(50, some);
+    back := block.bytes_at(50, 4);
+    same("bytes", back[0] * 1000 + back[1] * 100 + back[2] * 10 + back[3], 1234);
+
+    // ---- C writes a struct into the block, Sharp reads its members; and the other way
+    fill_rect(block.address(), 7);
+    same("C filled the block", block.int32_at(0) * 1000 + block.int32_at(4) * 100 + block.int32_at(8) * 10 + block.int32_at(12), 7000 + 800 + 90 + 10);
+    block.put_int32(12, 100);
+    same("C reads what Sharp wrote", read_rect(block.address()), 7 + 16 + 27 + 400);
+
+    // ---- a view onto memory that is C's
+    inside := c_memory.view(ret_ptr(block.address(), 4), 8);
+    same("a view reads C's memory", inside.int32_at(0) + inside.int32_at(4), 8 + 9);
+    inside.put_int32(0, 55);
+    same("... and writes it", block.int32_at(4), 55);
+
+    // ---- what is refused
+    did : _int64 = 0;
+    try { block.int32_at(61); } catch(problem: out_of_bounds_exception) { did = 1; }
+    refused("a read that ends outside the block", did);
+    did = 0;
+    try { block.put_int64(60, 1); } catch(problem: out_of_bounds_exception) { did = 1; }
+    refused("a write that ends outside the block", did);
+    did = 0;
+    try { block.int8_at(0 - 1); } catch(problem: out_of_bounds_exception) { did = 1; }
+    refused("a negative offset", did);
+    did = 0;
+    try { inside.int32_at(6); } catch(problem: out_of_bounds_exception) { did = 1; }
+    refused("a read outside a view", did);
+    did = 0;
+    try { block.put_text(60, "too long"); } catch(problem: out_of_bounds_exception) { did = 1; }
+    refused("a text that does not fit", did);
+    did = 0;
+    try { new c_memory(0); } catch(problem: illegal_argument_exception) { did = 1; }
+    refused("a block of 0 bytes", did);
+    did = 0;
+    try { c_memory.view(0, 8); } catch(problem: illegal_argument_exception) { did = 1; }
+    refused("a view of the address 0", did);
+
+    // ---- released memory refuses every use
+    same("not damaged", block.damaged(), 0);
+    block.release();
+    same("is_released", block.is_released(), 1);
+    did = 0;
+    try { block.int32_at(0); } catch(problem: illegal_state_exception) { did = 1; }
+    refused("a read after release", did);
+    did = 0;
+    try { block.address(); } catch(problem: illegal_state_exception) { did = 1; }
+    refused("the address after release", did);
+    block.release();                // twice: nothing happens
+    checks++;
+
+    // ---- C writes past the end of a block: found out
+    small := new c_memory(16);
+    write_past_end(small.address(), 16, 0);
+    same("C stayed inside", small.damaged(), 0);
+    write_past_end(small.address(), 16, 4);
+    same("C wrote 4 bytes too many", small.damaged(), 1);
+    did = 0;
+    try { small.release(); } catch(problem: illegal_state_exception) { did = 1; }
+    refused("releasing a block C wrote outside of", did);
+    same("... and it is released all the same", small.is_released(), 1);
+
+    if(failures == 0) { println("MEMORY: PASS (" + checks + " checks)"); }
+    else { println("MEMORY: FAIL (" + failures + " of " + checks + " checks failed)"); }
+}

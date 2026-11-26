@@ -1,0 +1,30 @@
+mod main;
+
+import ( std.testing )
+
+/**
+ * KNOWN BUG: the COMPILER CRASHES (segmentation fault, no error message, no
+ * output file). This file is EXPECTED TO FAIL.
+ *
+ * A lambda that joins a string literal and its int parameter with `+`,
+ * passed to a function of a generic class with two type parameters:
+ *
+ *     mapper<int, string>.apply(5, { a: int -> (string) return "v" + a; })
+ *
+ * The same lambda with `return "v";` compiles, and `"v" + a` outside a
+ * lambda works.
+ */
+
+class mapper<T, R> {
+    static def apply(item: T, f: (T)(R)) : R {
+        return f(item);
+    }
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_collections_lambda_concat") {
+        test("lambda that joins a string and an int") { expect(mapper<int, string>.apply(5, { a: int -> (string) return "v" + a; })).should_be("v5"); };
+    };
+    finish_tests("lib_collections_lambda_concat");
+}

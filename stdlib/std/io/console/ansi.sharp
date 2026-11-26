@@ -1,0 +1,219 @@
+mod std.io.console;
+
+import ( std.io )
+
+/**
+ * ANSI escape sequences: the control codes terminals understand for colours,
+ * bold / underline, clearing the screen and moving the cursor.
+ *
+ *     println(ansi.colored("error:", ansi.red) + " file not found");
+ *     println(ansi.styled("Title", ansi.bold));
+ *     print(ansi.clear_screen());
+ *
+ * Every function only builds a string; nothing is printed here (see the
+ * class console for printing). A sequence is the escape character (code 27),
+ * '[', numbers separated by ';', and a letter - e.g. "\e[31m" switches to
+ * red and "\e[0m" back to normal.
+ *
+ * Colours are numbers: the constants below (black .. white) and their
+ * bright variants (bright_black .. bright_white). Linux and macOS terminals
+ * and the Windows Terminal understand these codes; the old Windows console
+ * prints them as garbage. When output goes to a file or another program,
+ * call ansi.set_enabled(false) once: then every function returns its text
+ * without any codes (and the cursor / clear functions return "").
+ *
+ * Everything is static.
+ */
+class ansi {
+    /* the eight basic colours */
+    static const black   : decimal = 0;
+    static const red     : decimal = 1;
+    static const green   : decimal = 2;
+    static const yellow  : decimal = 3;
+    static const blue    : decimal = 4;
+    static const magenta : decimal = 5;
+    static const cyan    : decimal = 6;
+    static const white   : decimal = 7;
+
+    /* their bright variants */
+    static const bright_black   : decimal = 8;
+    static const bright_red     : decimal = 9;
+    static const bright_green   : decimal = 10;
+    static const bright_yellow  : decimal = 11;
+    static const bright_blue    : decimal = 12;
+    static const bright_magenta : decimal = 13;
+    static const bright_cyan    : decimal = 14;
+    static const bright_white   : decimal = 15;
+
+    /* styles for styled() */
+    static const bold      : decimal = 1;
+    static const dim       : decimal = 2;
+    static const italic    : decimal = 3;
+    static const underline : decimal = 4;
+    static const inverse   : decimal = 7;
+
+    /** 1 while codes are produced, 0 when they are switched off */
+    private static enabled : decimal = 1;
+
+    /** produce codes (true, the default) or plain text only (false) from now on */
+    static def set_enabled(on: bool) {
+        if(on) {
+            enabled = 1;
+        } else {
+            enabled = 0;
+        }
+    }
+
+    /** true while codes are produced */
+    static def is_enabled() : bool {
+        return enabled != 0;
+    }
+
+    /** the sequence ESC [ body, or "" when codes are switched off */
+    private static def sequence(body: string) : string {
+        if(!enabled) {
+            return "";
+        }
+        buf := new char_buffer(sizeof(body.data) + 2);
+        buf.append_char(27);
+        buf.append_char('[');
+        buf.append(body);
+        return buf.build();
+    }
+
+    private static def check_color(color: decimal) {
+        if(color < 0 || color > 15 || (color as _int32) != color) {
+            throw new illegal_argument_exception("ansi: not a colour (0..15): " + io_strings.number_to_string(color));
+        }
+    }
+
+    /**
+     * The code that switches the text colour to `color` (one of the colour
+     * constants, 0..15). What is printed after it has that colour until
+     * reset().
+     * Throws illegal_argument_exception when color is not 0..15.
+     */
+    static def foreground(color: decimal) : string {
+        check_color(color);
+        if(color < 8) {
+            return sequence(io_strings.int_to_string(30 + color) + "m");
+        }
+        return sequence(io_strings.int_to_string(90 + color - 8) + "m");
+    }
+
+    /**
+     * The code that switches the background colour to `color` (0..15).
+     * Throws illegal_argument_exception when color is not 0..15.
+     */
+    static def background(color: decimal) : string {
+        check_color(color);
+        if(color < 8) {
+            return sequence(io_strings.int_to_string(40 + color) + "m");
+        }
+        return sequence(io_strings.int_to_string(100 + color - 8) + "m");
+    }
+
+    /** the code that switches a style on: one of bold, dim, italic, underline, inverse */
+    static def style(which: decimal) : string {
+        return sequence(io_strings.int_to_string(which) + "m");
+    }
+
+    /** the code that switches all colours and styles back to normal */
+    static def reset() : string {
+        return sequence("0m");
+    }
+
+    /**
+     * `text` in the colour `color`: the colour code, the text, and the
+     * reset code. Throws illegal_argument_exception when color is not
+     * 0..15.
+     */
+    static def colored(text: string, color: decimal) : string {
+        return wrap(foreground(color), text);
+    }
+
+    /**
+     * `text` in the colour `color` on the background `back`.
+     * Throws illegal_argument_exception when a colour is not 0..15.
+     */
+    static def colored(text: string, color: decimal, back: decimal) : string {
+        return wrap(foreground(color) + background(back), text);
+    }
+
+    /** `text` in the style `which` (bold, dim, italic, underline, inverse), followed by the reset code */
+    static def styled(text: string, which: decimal) : string {
+        return wrap(style(which), text);
+    }
+
+    /** code + text + reset, or just the text when codes are switched off */
+    private static def wrap(code: string, text: string) : string {
+        if(!enabled) {
+            return text;
+        }
+        buf := new char_buffer(sizeof(text.data) + 16);
+        buf.append(code);
+        buf.append(text);
+        buf.append(reset());
+        return buf.build();
+    }
+
+    /** the code that clears the whole screen and puts the cursor in the top left corner */
+    static def clear_screen() : string {
+        if(!enabled) {
+            return "";
+        }
+        return sequence("2J") + sequence("H");
+    }
+
+    /** the code that clears the line the cursor is on and puts the cursor at its beginning (for progress displays) */
+    static def clear_line() : string {
+        if(!enabled) {
+            return "";
+        }
+        return sequence("2K") + io_strings.from_char(13);
+    }
+
+    /**
+     * The code that puts the cursor at `row`, `column`, both counting from
+     * 1 at the top left corner.
+     * Throws illegal_argument_exception when one of them is below 1.
+     */
+    static def move_to(row: decimal, column: decimal) : string {
+        if(row < 1 || column < 1) {
+            throw new illegal_argument_exception("ansi: rows and columns count from 1");
+        }
+        return sequence(io_strings.int_to_string(row) + ";" + io_strings.int_to_string(column) + "H");
+    }
+
+    /** the codes that hide (false) or show (true) the cursor */
+    static def cursor_visible(visible: bool) : string {
+        if(visible) {
+            return sequence("?25h");
+        }
+        return sequence("?25l");
+    }
+
+    /**
+     * `text` without any ANSI sequences in it (for writing coloured output
+     * to a log file, or measuring how wide a text is on screen).
+     */
+    static def strip(text: string) : string {
+        n : decimal = sizeof(text.data);
+        buf := new char_buffer(n);
+        i : decimal = 0;
+        while(i < n) {
+            if(text.data[i] == 27 && i + 1 < n && text.data[i + 1] == '[') {
+                // skip to the letter that ends the sequence
+                i += 2;
+                while(i < n && !character.is_letter(text.data[i])) {
+                    i++;
+                }
+                i++;
+            } else {
+                buf.append_char(text.data[i]);
+                i++;
+            }
+        }
+        return buf.build();
+    }
+}

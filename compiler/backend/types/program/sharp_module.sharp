@@ -1,0 +1,243 @@
+mod backend.types.program;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * A MODULE: everything every file with the same `mod` line declares
+ *
+ *      mod std.io;         in file.sharp, console.sharp, ...  ->  one sharp_module "std.io"
+ *
+ * What is declared directly in a module - outside any class - is listed
+ * here; `declared` finds the same things by name.
+ */
+class sharp_module {
+    name : string;
+    declared := new scope();
+    units := new list<source_unit>();           // the files that belong to it
+
+    classes := new list<sharp_class>();         // classes, interfaces and enums
+    fields := new list<sharp_field>();          // global variables
+    functions := new list<sharp_function>();    // global functions, extension functions included
+    aliases := new list<sharp_alias>();
+    components := new list<sharp_component>();
+
+    // ---- set by the body stages (backend/compiler/initializers)
+    // The global variables with a value (or a default object), in an order in
+    // which each comes after the globals its value reads: what runs when the
+    // program starts. `localized` globals are run once per fiber instead.
+    global_initializers : list<sharp_declaration>?;
+    fiber_initializers : list<sharp_declaration>?;
+    reached : _int64 = 0;                       // 1 once the whole-program walk found something of it is used from main (backend/compiler/program/usage)
+
+    sharp_module(name: string) {
+        self->name = name;
+    }
+
+    /**
+     * Is this a module of the standard library (`std`, `std.io`, `platform.kernel` ...)?
+     * Messages use it so that a help never suggests editing a library class.
+     */
+    def is_library() : _int64 {
+        return name == "std" || name.starts_with("std.") || name == "platform" || name.starts_with("platform.");
+    }
+}
+
+/**
+ * ONE FILE AS THE BACKEND SEES IT: its syntax tree (the source_unit), the
+ * module it belongs to, and the modules it can see.
+ */
+class sharp_file {
+    unit : source_unit;
+    module : sharp_module;
+    imports := new list<sharp_module>();    // in the order they are searched, the file's own module first
+
+    // The class most recently looked up by its tree node (class_at_node in the
+    // postprocessor). The type names of a file are resolved in the order they
+    // are written, so hundreds in a row are inside the same class:
+    // remembering one answer saves nearly every one of those lookups.
+    recent_class_node : _int64 = 0 - 1;
+    recent_class : sharp_declaration?;
+
+    // One entry per node of the file's tree: 1 once the type name at that node
+    // has been looked up. A type name that belongs to a sharp_type is looked
+    // up through that object; this stops it being looked up (and a mistake in
+    // it being reported) a second time when the whole tree is checked.
+    checked : _int8[]?;
+
+    // `import (a.b, c.*) as g`: the groups this file named, in order (file_rules.sharp)
+    import_groups := new list<import_group>();
+
+    // the modules its import list names that do not exist (E0303, imports.sharp) ...
+    missing_imports := new list<string>();
+    // ... and the modules those names most likely meant: the ones the E0303 offers as
+    // "did you mean". A name one of THEM declares is not reported as unknown in this file -
+    // the misspelt import is the one mistake (brought_by_a_misspelt_import)
+    meant_imports := new list<sharp_module>();
+
+    // The written type of every type node INSIDE a function body or a field
+    // value (`new list<T>()`, `x as shape`), made the first time the node is
+    // met and kept here, one slot per tree node, so a body shared by many
+    // instances of a generic class looks each name up once
+    // (backend/compiler/context/body_types.sharp). Null until the first one.
+    body_types : sharp_type[]??;
+    node_names : string[]??;
+    remembered_globals : name_table<remembered_name>?;    // what a plain name means in the modules this file sees                // the text of identifier nodes, remembered the same way
+
+    sharp_file(unit: source_unit, module: sharp_module) {
+        self->unit = unit;
+        self->module = module;
+        checked = new _int8[unit.parsed!!.tree.count];
+    }
+
+    /**
+     * Is `name` declared by a module that a misspelt import of this file most
+     * likely meant?
+     *
+     *      import ( std.utils )            E0303: no module `std.utils` - did you mean `std.util`?
+     *      def f(r: range) { }             quiet: `range` is declared in `std.util`
+     *      x := range.of(1, 2);            quiet as well
+     *      y : nosuch;                     still reported: `std.util` has no `nosuch`
+     *
+     * The misspelt import is the one mistake; every use of what it would have
+     * brought in - fourteen in a real file - follows from it.
+     *
+     * @param types_only  1: only a type of that name counts (the name stands where a type is written)
+     */
+    def brought_by_a_misspelt_import(name: string, types_only: _int64) : _int64 {
+        for(i : _int64 = 0; i < meant_imports.size(); i++) {
+            meant := meant_imports.at(i);
+            if(imports_module(meant)) { continue; }
+            if(types_only == 1) {
+                if(meant.declared.find_type(name) != null) { return 1; }
+            } else {
+                same_name := meant.declared.find(name);
+                if(same_name != null && same_name!!.size() > 0) { return 1; }
+            }
+        }
+        return 0;
+    }
+
+    /** the group `import (...) as name` of this file; null when there is none */
+    def import_group_named(name: string) : import_group? {
+        for(i : _int64 = 0; i < import_groups.size(); i++) {
+            if(import_groups.at(i).name == name) { return import_groups.at(i); }
+        }
+        return null;
+    }
+
+    /** the group `import (...) as g` of this file that lists `module`; null when none does */
+    def group_importing(module: sharp_module) : import_group? {
+        for(i : _int64 = 0; i < import_groups.size(); i++) {
+            group := import_groups.at(i);
+            for(j : _int64 = 0; j < group.modules.size(); j++) {
+                if(group.modules.at(j) == module) { return group; }
+            }
+        }
+        return null;
+    }
+
+    def imports_module(wanted: sharp_module) : _int64 {
+        for(i : _int64 = 0; i < imports.size(); i++) {
+            if(imports.at(i) == wanted) { return 1; }
+        }
+        return 0;
+    }
+}
+
+/** `import (a.b, c.*) as g`: a name for a list of modules; `g#name` looks in them only, in this order */
+class import_group {
+    name : string;
+    modules := new list<sharp_module>();
+    node : _int64;                  // the N_IMPORT node
+
+    import_group(name: string, node: _int64) {
+        self->name = name;
+        self->node = node;
+    }
+}
+
+/** THE WHOLE PROGRAM: every module and every file */
+class sharp_program {
+    // the folder whose `main` is where the program starts (a tests build: -tests, -testdir);
+    // "" for an ordinary build, where the one global `main` is
+    tests_folder : string = "";
+
+    modules := new name_table<sharp_module>();
+    module_list := new list<sharp_module>();
+    files := new list<sharp_file>();
+    files_by_path := new name_table<sharp_file>();
+
+    // every class, interface and enum of the program in one list - the ones
+    // declared inside other classes too. Filled by the postprocessor once no
+    // more classes can appear (after the `mutate` blocks).
+    all_classes := new list<sharp_class>();
+
+    // every `mutate x { }` block, noted by the preprocessor and carried out by
+    // the postprocessor once the class x can be found
+    mutations := new list<pending_mutation>();
+
+    // ---- set by stage 5 (backend/postprocessor/members/members.sharp)
+    types := new type_table();                          // the built-in types, each once (resolved_type.sharp)
+    well_known : well_known_classes?;                   // the library classes the compiler itself needs (well_known.sharp)
+
+    // Every class made from a generic class, in the order they were made:
+    // instances (box<string>) and the classes nested in them. The list only
+    // grows. A stage that must visit every class walks all_classes and then
+    // this list UNTIL ITS END - handling one may add more (a work list).
+    generic_instances := new list<sharp_class>();
+    instances_completed : _int64 = 0;                   // stage 5 has given members to the instances before this index
+    pending_functions := new list<sharp_function>();    // instances of generic functions, for the body stages
+    generic_functions := new list<sharp_function>();    // every generic function as written (the blueprints)
+    components := new list<sharp_component>();          // every component of the program
+    obfuscation_rules := new list<obfuscation_rule>();  // every name listed in an `obfuscate` block, resolved (backend/compiler/obfuscation)
+    instance_extensions := new list<sharp_function>();  // def box<string>.f(): for ONE instance; attached once it exists (extension_functions.sharp)
+    problems := new list<diagnostic>();                 // where work done on demand (a generic instance met late) reports; main.sharp makes it the build's list
+    unresolved_in_real_class : _int64 = 0;              // types stage 5 could not pin down (shown by -declarations)
+    lambdas := new list<sharp_function>();              // every lambda the body stages analysed, as a function (backend/compiler/lambdas)
+    main_function : sharp_function?;                    // the entry point, once the whole-program checks found it (backend/compiler/program)
+
+    /** the module with this name, created when it is first mentioned by a `mod` line */
+    def module_named(name: string) : sharp_module {
+        found := modules.at(name);
+        if(found != null) { return found!!; }
+
+        created := new sharp_module(name);
+        modules.put(name, created);
+        module_list.add(created);
+        return created;
+    }
+
+    def find_module(name: string) : sharp_module? {
+        return modules.at(name);
+    }
+
+    // the answer file_of gave last: it is asked about the same file many times in a row
+    recent_unit : source_unit?;
+    recent_file : sharp_file?;
+
+    /** the sharp_file of a source file */
+    def file_of(unit: source_unit) : sharp_file? {
+        if(recent_unit == unit) { return recent_file; }
+        recent_unit = unit;
+        recent_file = files_by_path.at(unit.file);
+        return recent_file;
+    }
+}
+
+/** a `mutate target { members }` block that has not been carried out yet */
+class pending_mutation {
+    file : sharp_file;
+    node : _int64;                  // the N_MUTATE node
+
+    pending_mutation(file: sharp_file, node: _int64) {
+        self->file = file;
+        self->node = node;
+    }
+}

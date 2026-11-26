@@ -1,0 +1,270 @@
+mod std.guikit.charts;
+
+import (
+    std,
+    std.guikit.*
+)
+
+/**
+ * chart_series - one row of numbers in a chart, whatever it is drawn as: what
+ * bars and lines have in common. (The two kinds follow: bar_series,
+ * line_series.)
+ *
+ * It holds the numbers TWICE: `values` is what the program gave, and `start`
+ * is where each number stood when the last change began. What is on the
+ * screen is somewhere between the two while the chart glides from old numbers
+ * to new ones (value_at), and equal to `values` the rest of the time.
+ */
+stable class chart_series {
+    name : string = "";                 // what the legend and the marker call it ("": not named)
+    values : decimal[];                 // the numbers the program gave
+    start : decimal[];                  // where each one stood when the last change began
+    count : _int64 = 0;                 // how many numbers
+    tint : color?;                      // null: the chart picks one (palette.sharp ... chart.tint_of)
+    entering : motion?;                 // null: the chart's
+    born : decimal = 0 - 1;             // the host time it first appeared; -1: at the next paint
+    viewer : (mark)()?;                 // builds widgets for each mark (the block given to bars / line); null: none
+    views : list<view> = new list<view>();      // those widgets, one for each number (the chart makes and places them)
+
+    /** take the numbers: a copy, so the program's own list can go on changing */
+    def take(numbers: decimal[]) {
+        count = sizeof(numbers);
+        values = new decimal[count];
+        start = new decimal[count];
+        for(i : _int64 = 0; i < count; i++) {
+            values[i] = numbers[i];
+            start[i] = numbers[i];
+        }
+    }
+
+    def take(numbers: list<double>) {
+        count = numbers.size();
+        values = new decimal[count];
+        start = new decimal[count];
+        for(i : _int64 = 0; i < count; i++) {
+            values[i] = numbers.at(i).value;
+            start[i] = values[i];
+        }
+    }
+
+    /** 1: drawn as bars; 0: as a line */
+    def is_bars() : _int64;
+
+    /** number i when `part` of the way from where it stood to where it is going (1: arrived) */
+    def value_at(i: _int64, part: decimal) : decimal {
+        return start[i] + (values[i] - start[i]) * part;
+    }
+
+    /** the very same numbers as another series? */
+    def same_numbers(other: chart_series) : _int64 {
+        if(count != other.count) { return 0; }
+        for(i : _int64 = 0; i < count; i++) {
+            if(values[i] != other.values[i]) { return 0; }
+        }
+        return 1;
+    }
+}
+
+/**
+ * bar_series - a row of numbers drawn as bars. Made with bars(...), inside
+ * chart { }.
+ *
+ *      bars("Sales", sales).color(blue).corner(6)
+ *      bars(sales).gradient(light_blue, dark_blue).value_labels()
+ *      bars(profit).color_each { i: _int64, v: decimal -> if(v < 0) { return red; } return green; }
+ *
+ *   .color(c)                 one colour for every bar
+ *   .gradient(far, near)      a colour at the far end of the bar running into another at the baseline
+ *   .color_each { i, v -> }   a colour for each bar, from its number
+ *   .corner(pixels)           round the far end of the bar
+ *   .width(pixels)            exactly this wide (else: as wide as there is room)
+ *   .gap(part)                how much of each slot is left empty between the groups: 0 .. 0.9 (0.28)
+ *   .outline(pixels, c)       a line around each bar
+ *   .value_labels()           each bar's number written at its end
+ *   .enter(motion)            how THESE bars appear (else: as the chart says)
+ *   .draw_bar { p, b -> }     paint each bar yourself: b is a mark (motion.sharp) with its place and size
+ *
+ * WITH A BLOCK, WIDGETS STAND ON EVERY BAR, at its far end: a text, a chip, a
+ * picture. `it` is the bar's mark (index, value, tint). They ride on the bar
+ * while it moves.
+ *
+ *      bars("Sales", sales) { if(it.value >= goal) { chip("goal"); } }
+ *
+ * Several bars(...) in one chart stand side by side at each place; with
+ * .stacked() on the chart they stand on top of each other.
+ */
+stable class bar_series base chart_series {
+    far_tint : color?;                  // a gradient: the colour at the far end ...
+    near_tint : color?;                 // ... and at the baseline
+    each_tint : (_int64, decimal)(color)?;
+    round : decimal = 4;
+    wide : decimal = 0;                 // 0: as wide as there is room
+    empty : decimal = 0.28;
+    edge : decimal = 0;                 // the outline's thickness; 0: none
+    edge_tint : color?;
+    labelled : _int64 = 0;
+    painter_of : (painter, mark)()?;
+
+    bar_series(title: string, numbers: decimal[]) {
+        name = title;
+        take(numbers);
+    }
+
+    bar_series(title: string, numbers: list<double>) {
+        name = title;
+        take(numbers);
+    }
+
+    override def is_bars() : _int64 {
+        return 1;
+    }
+
+    def color(c: color) : bar_series {
+        tint = c;
+        return self;
+    }
+
+    def gradient(far: color, near: color) : bar_series {
+        far_tint = far;
+        near_tint = near;
+        tint = far;
+        return self;
+    }
+
+    def color_each(pick: (_int64, decimal)(color)) : bar_series {
+        each_tint = pick;
+        return self;
+    }
+
+    def corner(pixels: decimal) : bar_series {
+        round = pixels;
+        return self;
+    }
+
+    def width(pixels: decimal) : bar_series {
+        wide = pixels;
+        return self;
+    }
+
+    def gap(part: decimal) : bar_series {
+        empty = num.between(part, 0, 0.9);
+        return self;
+    }
+
+    def outline(pixels: decimal, c: color) : bar_series {
+        edge = pixels;
+        edge_tint = c;
+        return self;
+    }
+
+    def value_labels() : bar_series {
+        labelled = 1;
+        return self;
+    }
+
+    def enter(how: motion) : bar_series {
+        entering = how;
+        return self;
+    }
+
+    def draw_bar(drawing: (painter, mark)()) : bar_series {
+        painter_of = drawing;
+        return self;
+    }
+}
+
+/** how a line gets from one point to the next */
+const LINE_STRAIGHT : _int64 = 0;
+const LINE_CURVED   : _int64 = 1;
+const LINE_STEPPED  : _int64 = 2;
+
+/**
+ * line_series - a row of numbers drawn as a line through its points. Made
+ * with line(...), inside chart { }.
+ *
+ *      line("Target", target).curved().thickness(3).dots(4)
+ *      line(visitors).curved().fill_below()
+ *      line(limit).dashed().color(red)
+ *
+ *   .color(c)             the colour of the line, its dots and its fill
+ *   .curved()             a smooth curve through the points (it never swings past a point's height)
+ *   .stepped()            level to the next point, then straight up or down to it
+ *   .thickness(pixels)    how thick the line is (2.5)
+ *   .dashed()             a broken line
+ *   .dots(radius)         a dot on every point
+ *   .fill_below()         the area between the line and the baseline, fading towards the baseline
+ *   .enter(motion)        how THIS line appears (else: as the chart says)
+ *   .draw_dot { p, d -> } paint each point yourself: d is a mark (motion.sharp) with its place
+ *
+ * WITH A BLOCK, WIDGETS STAND ABOVE EVERY POINT: `it` is the point's mark
+ * (index, value, tint).
+ *
+ *      line(prices) { if(it.index == peak) { text("peak").size(12); } }
+ */
+stable class line_series base chart_series {
+    route : _int64 = LINE_STRAIGHT;
+    thick : decimal = 2.5;
+    broken : _int64 = 0;
+    dot : decimal = 0;                  // the radius of the dots; 0: none
+    filled : _int64 = 0;
+    painter_of : (painter, mark)()?;
+
+    line_series(title: string, numbers: decimal[]) {
+        name = title;
+        take(numbers);
+    }
+
+    line_series(title: string, numbers: list<double>) {
+        name = title;
+        take(numbers);
+    }
+
+    override def is_bars() : _int64 {
+        return 0;
+    }
+
+    def color(c: color) : line_series {
+        tint = c;
+        return self;
+    }
+
+    def curved() : line_series {
+        route = LINE_CURVED;
+        return self;
+    }
+
+    def stepped() : line_series {
+        route = LINE_STEPPED;
+        return self;
+    }
+
+    def thickness(pixels: decimal) : line_series {
+        thick = pixels;
+        return self;
+    }
+
+    def dashed() : line_series {
+        broken = 1;
+        return self;
+    }
+
+    def dots(radius: decimal) : line_series {
+        dot = radius;
+        return self;
+    }
+
+    def fill_below() : line_series {
+        filled = 1;
+        return self;
+    }
+
+    def enter(how: motion) : line_series {
+        entering = how;
+        return self;
+    }
+
+    def draw_dot(drawing: (painter, mark)()) : line_series {
+        painter_of = drawing;
+        return self;
+    }
+}

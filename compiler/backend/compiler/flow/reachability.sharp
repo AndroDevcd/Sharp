@@ -1,0 +1,254 @@
+mod backend.compiler.flow;
+
+import (
+    std.io,
+    backend.types.program,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context
+)
+
+/**
+ * CAN EXECUTION GO ON AFTER A STATEMENT? (doc/backend.md 7.13)
+ *
+ *      statement                       completes (execution goes on after it) when
+ *      ------------------------------  -------------------------------------------------------
+ *      return, throw, break, continue  never
+ *      a local, an expression, `;`,    always
+ *        asm
+ *      { a; b; c; }                    every statement in it does (the first that does not
+ *                                      makes the rest UNREACHABLE: W1002, once per block)
+ *      if without else                 always (the condition may be false)
+ *      if / else                       either part does
+ *      while(c), for(..; c; ..)        always - unless the loop is endless (no condition, or
+ *                                      the literal true) and no `break` that can be reached leaves it
+ *      do { } while(c)                 the body does (or a `continue` reaches the condition) and
+ *                                      the loop is not endless; or a `break` leaves it
+ *      foreach                         always (the items run out)
+ *      lock                            its body does
+ *      try                             (the body or a catch does) and the finally, if any, does
+ *      when without else               always (no clause may fit)
+ *      when with else                  a clause or the else does
+ *
+ * A `break` counts only when it can be REACHED: in `while(true) { return; break; }`
+ * the loop never ends. So the walk carries "can this statement be reached at
+ * all", and a jump marks its loop (`left_by_break`, `continued`) only when it can.
+ *
+ * Only a LITERAL condition makes a loop endless: `while(running)` may stop
+ * whatever `running` holds (bound_loop.is_endless, set when the loop is built).
+ */
+
+/**
+ * Work out `completes` for `statement` and everything inside it; return it.
+ *
+ * @param reachable  1: execution can get to this statement
+ */
+def flow_of(context: analysis_context, statement: bound_statement, reachable: _int64) : _int64 {
+    // (each kind has its own small function, and this one keeps no locals but
+    // one: it recurses once per level of nesting, and small frames let deeply
+    // nested code through on the VM's stack)
+    kind : _int64 = statement.kind;
+    completes : _int64 = 1;
+    if(kind == BS_BLOCK) { completes = flow_of_block(context, statement as bound_block, reachable); }
+    else if(kind == BS_IF) { completes = flow_of_if(context, statement as bound_if, reachable); }
+    else if(kind == BS_THROW) { completes = 0; }
+    // the one expression of a lambda written `{ it * 2 }` is its result: a `return`
+    else if(kind == BS_EXPRESSION_STATEMENT) { completes = (statement as bound_expression_statement).is_result == 0; }
+    // a reported jump: as if it went on (one mistake, one message)
+    else if(kind == BS_RETURN) { completes = (statement as bound_return).broken; }
+    else if(kind == BS_BREAK) { completes = flow_of_break(statement as bound_break, reachable); }
+    else if(kind == BS_CONTINUE) { completes = flow_of_continue(statement as bound_continue, reachable); }
+    else if(kind == BS_WHILE || kind == BS_FOR || kind == BS_FOREACH) { completes = flow_of_loop(context, statement as bound_loop, kind, reachable); }
+    else if(kind == BS_DO_WHILE) { completes = flow_of_do_while(context, statement as bound_loop, reachable); }
+    else if(kind == BS_LOCK) { completes = flow_of(context, (statement as bound_lock).body, reachable); }
+    else if(kind == BS_TRY) { completes = flow_of_try(context, statement as bound_try, reachable); }
+    else if(kind == BS_WHEN) { completes = flow_of_when(context, statement as bound_when, reachable); }
+    if(statement.holds_blocks == 1) { completes = flow_of_held_blocks(context, statement, reachable, completes); }
+    statement.completes = completes;
+    return completes;
+}
+
+/**
+ * The blocks of the `with` / `apply` expressions written directly in a
+ * statement (in its condition, its value, its arguments ...): they are
+ * statements of this function too, so a `break` in one leaves a loop and a
+ * statement after a `return` in one cannot be reached.
+ *
+ * What the statement itself does afterwards is what it did anyway (`was`),
+ * with one exception: `with(...) as x { } else { }` standing alone as a
+ * statement goes on only when one of its blocks does - like an `if`.
+ */
+def flow_of_held_blocks(context: analysis_context, statement: bound_statement, reachable: _int64, was: _int64) : _int64 {
+    expressions := new list<bound_expression>();
+    below := new list<bound_statement>();           // (the statements inside it are walked by their own rules)
+    statement_parts(statement, expressions, below);
+    for(i : _int64 = 0; i < expressions.size(); i++) {
+        every := all_expressions_in(expressions.at(i));
+        for(j : _int64 = 0; j < every.size(); j++) {
+            if(every.at(j).kind != BX_WITH) { continue; }
+            held := every.at(j) as bound_with;
+            flow_of(context, held.then_part, reachable);
+            if(held.else_part != null) { flow_of(context, held.else_part!!, reachable); }
+        }
+    }
+
+    if(statement.kind != BS_EXPRESSION_STATEMENT) { return was; }
+    alone : bound_expression = (statement as bound_expression_statement).expression;
+    if(alone.kind != BX_WITH) { return was; }
+    held := alone as bound_with;
+    if(held.may_be_null == 0) { return held.then_part.completes; }
+    if(held.else_part == null) { return 1; }
+    return held.then_part.completes == 1 || held.else_part!!.completes == 1;
+}
+
+/** `break`: the loop it leaves is left by a break (when this one can run) */
+def flow_of_break(jump: bound_break, reachable: _int64) : _int64 {
+    if(reachable == 1 && jump.broken == 0) { jump.loop!!.left_by_break = 1; }
+    return jump.broken;
+}
+
+/** `continue`: the loop it belongs to reaches its condition through it */
+def flow_of_continue(jump: bound_continue, reachable: _int64) : _int64 {
+    if(reachable == 1 && jump.broken == 0) { jump.loop!!.continued = 1; }
+    return jump.broken;
+}
+
+/**
+ * An `if` completes when one of its two ways does (with no `else`, the way
+ * around it always does).
+ *
+ * `if .. else if .. else if .. else` is an `if` in the else part of an `if`,
+ * as deep as the chain is long. It is followed in a loop, not by recursion
+ * (generated code has chains of hundreds, more levels than the VM's stack
+ * holds): first every then part in order, then the last else, and from
+ * there back up the chain each `if` gets its answer - "my then part
+ * completes, or the rest of the chain does".
+ */
+def flow_of_if(context: analysis_context, branch: bound_if, reachable: _int64) : _int64 {
+    then_completes : _int64 = flow_of(context, branch.then_part, reachable);
+    if(branch.else_part == null) { return 1; }
+    if(branch.else_part!!.kind != BS_IF) {
+        else_completes : _int64 = flow_of(context, branch.else_part!!, reachable);
+        return then_completes == 1 || else_completes == 1;
+    }
+
+    // the chain below this `if`: its `else if`s, in order
+    chain := new list<bound_if>();
+    last_else : bound_statement? = branch.else_part;
+    while(last_else != null && last_else!!.kind == BS_IF) {
+        next : bound_statement = last_else!!;
+        link := next as bound_if;
+        chain.add(link);
+        flow_of(context, link.then_part, reachable);
+        last_else = link.else_part;
+    }
+    rest_completes : _int64 = 1;                // (a chain without a final `else` can fall through)
+    if(last_else != null) { rest_completes = flow_of(context, last_else!!, reachable); }
+    for(i : _int64 = chain.size() - 1; i >= 0; i--) {
+        link := chain.at(i);
+        if(link.then_part.completes == 1) { rest_completes = 1; }
+        link.completes = rest_completes;
+    }
+    return then_completes == 1 || rest_completes == 1;
+}
+
+/** `while`, `for`, `foreach`: they complete unless they never end and nothing breaks out (a foreach always ends) */
+def flow_of_loop(context: analysis_context, loop: bound_loop, kind: _int64, reachable: _int64) : _int64 {
+    flow_of(context, loop.body, reachable);
+    if(kind == BS_FOREACH) { return 1; }
+    return loop.is_endless == 0 || loop.left_by_break == 1;
+}
+
+/** `do { } while(c)`: the condition is reached when the body completes or continues */
+def flow_of_do_while(context: analysis_context, loop: bound_loop, reachable: _int64) : _int64 {
+    body_completes : _int64 = flow_of(context, loop.body, reachable);
+    reaches_condition : _int64 = body_completes == 1 || loop.continued == 1;
+    return (reaches_condition == 1 && loop.is_endless == 0) || loop.left_by_break == 1;
+}
+
+/** a block: its statements in order; W1002 at the first one that cannot be reached */
+def flow_of_block(context: analysis_context, block: bound_block, reachable: _int64) : _int64 {
+    can_go_on : _int64 = 1;
+    stopper : bound_statement? = null;          // the statement after which execution does not go on
+    warned : _int64 = 0;
+    for(i : _int64 = 0; i < block.statements.size(); i++) {
+        statement := block.statements.at(i);
+        if(can_go_on == 0 && reachable == 1 && warned == 0 && statement.kind != BS_EMPTY) {
+            if(!is_return_the_old_compiler_asks_for(context, block, i, stopper!!)) { report_unreachable(context, statement, stopper!!); }
+            warned = 1;
+        }
+        statement_reachable : _int64 = reachable == 1 && can_go_on == 1;
+        if(flow_of(context, statement, statement_reachable) == 0 && can_go_on == 1) {
+            can_go_on = 0;
+            stopper = statement;
+        }
+    }
+    return can_go_on;
+}
+
+/**
+ * The `return` that ends a function body after a loop that never ends:
+ *
+ *      while(true) { ... return x; ... }
+ *      return 0;                   never reached - but the C++ compiler refuses the
+ *                                  function without it ("not all code paths return a
+ *                                  value", D12)
+ *
+ * A program that must compile with both compilers cannot remove it, so it
+ * gets no W1002. Only that one statement: the LAST of the function's own
+ * block, a `return`, right after an endless loop. (After an `if` / `try` /
+ * `when` whose every branch returns, the C++ compiler does see that every
+ * path returns: a `return` there is dead code, and W1002 says so.)
+ */
+def is_return_the_old_compiler_asks_for(context: analysis_context, block: bound_block, index: _int64, stopper: bound_statement) : _int64 {
+    if(stopper.kind != BS_WHILE && stopper.kind != BS_DO_WHILE && stopper.kind != BS_FOR) { return 0; }
+    if(context.function == null || context.function!!.bound_body != block) { return 0; }
+    if(index != block.statements.size() - 1) { return 0; }
+    return block.statements.at(index).kind == BS_RETURN;
+}
+
+/** try: (the body or any catch completes) and the finally, if there is one, completes */
+def flow_of_try(context: analysis_context, statement: bound_try, reachable: _int64) : _int64 {
+    any : _int64 = flow_of(context, statement.body, reachable);
+    for(i : _int64 = 0; i < statement.catches.size(); i++) {
+        if(flow_of(context, statement.catches.at(i).body, reachable) == 1) { any = 1; }
+    }
+    if(statement.finally_part != null) {
+        if(flow_of(context, statement.finally_part!!, reachable) == 0) { return 0; }
+    }
+    return any;
+}
+
+/** when: without an else it always completes; with one, when any clause or the else does */
+def flow_of_when(context: analysis_context, statement: bound_when, reachable: _int64) : _int64 {
+    any : _int64 = 0;
+    for(i : _int64 = 0; i < statement.clauses.size(); i++) {
+        if(flow_of(context, statement.clauses.at(i).body, reachable) == 1) { any = 1; }
+    }
+    if(statement.else_part == null) { return 1; }
+    if(flow_of(context, statement.else_part!!, reachable) == 1) { any = 1; }
+    return any;
+}
+
+/** W1002: `statement` is never reached, because `stopper` does not complete */
+def report_unreachable(context: analysis_context, statement: bound_statement, stopper: bound_statement) {
+    d := problem_over(context, "W1002", "this statement is never reached", statement.node);
+    d.with_label("execution never gets here");
+    d.with_related_place(place_of_node(stopper.unit, stopper.node, why_it_stops(stopper)));
+    d.with_help("remove it, or move it in front of the statement that ends the way here");
+    if(report(context, d) == 1) { withdraw_earlier(context, "W1018", d); }     // ("does nothing" is not the point here)
+}
+
+/** "`return` leaves the function" ...: why execution does not go on after `stopper` */
+def why_it_stops(stopper: bound_statement) : string {
+    kind : _int64 = stopper.kind;
+    if(kind == BS_RETURN) { return "`return` leaves the function here"; }
+    if(kind == BS_THROW) { return "`throw` leaves here"; }
+    if(kind == BS_BREAK) { return "`break` leaves the loop here"; }
+    if(kind == BS_CONTINUE) { return "`continue` goes back to the start of the loop here"; }
+    if(kind == BS_IF) { return "every branch of this `if` ends with a jump"; }
+    if(kind == BS_WHEN) { return "every clause of this `when` (and its `else`) ends with a jump"; }
+    if(kind == BS_TRY) { return "every way through this `try` ends with a jump"; }
+    if(kind == BS_WHILE || kind == BS_DO_WHILE || kind == BS_FOR) { return "this loop never ends: nothing can stop it and no `break` leaves it"; }
+    return "execution does not go on after this";
+}

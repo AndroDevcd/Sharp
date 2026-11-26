@@ -1,0 +1,137 @@
+mod main;
+
+import (
+    testing,
+    std.io.fiber
+)
+
+/**
+ * When a lock(x) { } block gives its lock back:
+ *   - an exception that LEAVES the block releases it (thrown in the block, in
+ *     a function called from it, through several functions, through a finally)
+ *   - an exception that is caught INSIDE the block does not
+ *   - the same fiber can enter a lock it already holds; the lock is free again
+ *     when the outermost block ends, also when an exception ends them all
+ *
+ * Whether a lock is free is asked by another fiber that tries to take it.
+ */
+
+class box { value : decimal = 0; }
+
+/** 1 when another fiber can take `guard` within a quarter of a second */
+def is_free(guard: object) : decimal {
+    answer := new box();
+    slice({ a: object[] -> (int)
+        lock(a[0]) { (a[1] as box).value = 1; }
+        return 0;
+    }, new object[] { guard, answer });
+
+    for(i : decimal = 0; i < 50 && answer.value == 0; i++) {
+        delay(5);
+    }
+    return answer.value;
+}
+
+def throw_inside(guard: object) {
+    lock(guard) {
+        throw new illegal_state_exception("leaves the lock block");
+    }
+}
+
+def deeper(guard: object, levels: decimal) {
+    if(levels == 0) { throw_inside(guard); }
+    else { deeper(guard, levels - 1); }
+}
+
+def two_locks(first: object, second: object) {
+    lock(first) {
+        lock(second) {
+            throw new illegal_state_exception("leaves both");
+        }
+    }
+}
+
+def nested_same(guard: object) {
+    lock(guard) {
+        lock(guard) {
+            lock(guard) {
+                throw new illegal_state_exception("leaves three blocks of one lock");
+            }
+        }
+    }
+}
+
+def main(args: string[]) {
+    a := new box();
+    try { throw_inside(a); } catch(e: exception) { }
+    expect("exception out of a function", is_free(a), 1);
+
+    b := new box();
+    try { deeper(b, 4); } catch(e: exception) { }
+    expect("exception through five functions", is_free(b), 1);
+
+    c := new box();
+    try {
+        lock(c) { throw new illegal_state_exception("same function"); }
+    } catch(e: exception) { }
+    expect("lock inside the try block of the same function", is_free(c), 1);
+
+    d := new box();
+    held_after_catch : decimal = 0;
+    lock(d) {
+        try { throw new illegal_state_exception("caught inside"); } catch(e: exception) { }
+        if(is_free(d) == 0) { held_after_catch = 1; }
+    }
+    expect("an exception caught INSIDE the block keeps the lock", held_after_catch, 1);
+    expect("...and it is free after the block", is_free(d), 1);
+
+    e1 := new box();
+    e2 := new box();
+    try { two_locks(e1, e2); } catch(e: exception) { }
+    expect("two locks, outer one free", is_free(e1), 1);
+    expect("two locks, inner one free", is_free(e2), 1);
+
+    f := new box();
+    try { nested_same(f); } catch(e: exception) { }
+    expect("one lock entered three times, then an exception", is_free(f), 1);
+
+    g := new box();
+    ran_finally : decimal = 0;
+    try {
+        try {
+            lock(g) { throw new illegal_state_exception("through a finally"); }
+        } finally {
+            ran_finally = 1;
+        }
+    } catch(e: exception) { }
+    expect("the finally block ran", ran_finally, 1);
+    expect("free after leaving through a finally", is_free(g), 1);
+
+    h := new box();
+    inner_held : decimal = 0;
+    outer_held : decimal = 0;
+    lock(h) {
+        lock(h) {
+            if(is_free(h) == 0) { inner_held = 1; }
+        }
+        if(is_free(h) == 0) { outer_held = 1; }
+    }
+    expect("held inside the inner block", inner_held, 1);
+    expect("still held after the inner block ended", outer_held, 1);
+    expect("free after the outer block", is_free(h), 1);
+
+    k := new box();
+    count : decimal = 0;
+    for(i : decimal = 0; i < 200; i++) {
+        try {
+            lock(k) {
+                count++;
+                if(i % 2 == 0) { throw new illegal_state_exception("every second round"); }
+            }
+        } catch(e: exception) { }
+    }
+    expect("200 rounds, half of them left by an exception", count, 200);
+    expect("free after the loop", is_free(k), 1);
+
+    finish("lock_release_rules");
+}

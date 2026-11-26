@@ -1,0 +1,642 @@
+mod std.time;
+
+/**
+ * Formats dates and times as text, and parses text back, following a
+ * PATTERN such as "yyyy-MM-dd HH:mm:ss" - the pattern language of
+ * java.time.format.DateTimeFormatter / kotlin, reduced to what works without
+ * locale data (names are English).
+ *
+ * Pattern letters
+ * ---------------
+ * The NUMBER of letters matters: it sets the width, or chooses between a
+ * number and a name.
+ *
+ *   y      year                    yyyy -> 2024   yy -> 24   y -> 2024 (no padding)
+ *   M      month                   M -> 2   MM -> 02   MMM -> Feb   MMMM -> February
+ *   d      day of month            d -> 9   dd -> 09
+ *   D      day of year             D -> 60  DDD -> 060
+ *   E      day of week, name       E, EE, EEE -> Thu     EEEE -> Thursday
+ *   e      day of week, number     1 (Monday) .. 7 (Sunday)
+ *   w      ISO week of the year    w -> 9   ww -> 09
+ *   Y      ISO week-based year     YYYY -> 2024  (the year the ISO week belongs to)
+ *   Q      quarter                 1 .. 4
+ *   H      hour 0-23               H -> 7   HH -> 07
+ *   h      hour 1-12               h -> 7   hh -> 07
+ *   a      AM / PM
+ *   m      minute                  m -> 5   mm -> 05
+ *   s      second                  s -> 5   ss -> 05
+ *   S      fraction of second      as many digits as letters: SSS -> 250  (1 to 9 letters)
+ *   n      nanosecond of second    n -> 250000000
+ *   X      offset, "Z" for UTC     X -> +02 or +0530   XX -> +0200   XXX -> +02:00
+ *   x      offset, never "Z"       x -> +00            xx -> +0000   xxx -> +00:00
+ *   Z      offset                  +0200
+ *   '...'  literal text            'T'  'at'  ('' is one quote character)
+ *
+ * Every other character that is not a letter (space, - : . , /) stands for
+ * itself. A letter that is not in the table is an error, so that a typo in a
+ * pattern is found at once.
+ *
+ * Formatting
+ * ----------
+ * `format` accepts a date, time_of_day, date_time, offset_date_time or
+ * instant (an instant is shown in UTC). A pattern letter that needs
+ * something the value does not have (HH for a `date`, X for a `date_time`)
+ * throws a date_time_exception.
+ *
+ * Parsing
+ * -------
+ * `parse_date`, `parse_time`, `parse_date_time`, `parse_offset_date_time`
+ * and `parse_instant` read text that has the shape of the pattern;
+ * `parse` returns the raw `date_time_fields`.
+ *   - a numeric field written with TWO OR MORE letters must have exactly
+ *     that many digits (so "yyyyMMdd" can split "20240229"); written with
+ *     ONE letter it takes as many digits as there are, up to its maximum
+ *   - `yy` reads a year 2000-2099
+ *   - names (MMM, EEEE, AM/PM) are matched without regard to case
+ *   - literal text must match exactly; the whole input must be consumed
+ *   - an offset is read in any of the forms zone_offset.parse accepts
+ *   - redundant fields must agree (see date_time_fields)
+ *
+ * A formatter is immutable and can be shared and reused.
+ *
+ *     f := date_time_formatter.of_pattern("EEE, d MMM yyyy HH:mm");
+ *     f.format(date_time.of(2024, 2, 29, 13, 5))        // "Thu, 29 Feb 2024 13:05"
+ *     f.parse_date_time("Thu, 29 Feb 2024 13:05")       // 2024-02-29T13:05:00
+ *     date_time_formatter.iso_date().parse_date("2000-01-01")
+ */
+class date_time_formatter {
+    // ---- kinds of pattern element
+    private static const k_literal : decimal = 1;
+    private static const k_year : decimal = 2;
+    private static const k_month : decimal = 3;
+    private static const k_day : decimal = 4;
+    private static const k_day_of_year : decimal = 5;
+    private static const k_weekday_name : decimal = 6;
+    private static const k_weekday_number : decimal = 7;
+    private static const k_hour : decimal = 8;
+    private static const k_hour_12 : decimal = 9;
+    private static const k_minute : decimal = 10;
+    private static const k_second : decimal = 11;
+    private static const k_fraction : decimal = 12;
+    private static const k_am_pm : decimal = 13;
+    private static const k_offset_z : decimal = 14;      // X
+    private static const k_offset : decimal = 15;        // x
+    private static const k_offset_plain : decimal = 16;  // Z
+    private static const k_nano : decimal = 17;
+    private static const k_week : decimal = 18;
+    private static const k_week_year : decimal = 19;
+    private static const k_quarter : decimal = 20;
+
+    private static const am_pm_names : string[] = new string[] { "AM", "PM" };
+
+    /** the pattern as it was given */
+    private source_pattern : string;
+
+    /**
+     * The compiled pattern: element i has kind element_kind[i], was written
+     * with element_count[i] letters and, for a literal, has its text in
+     * element_text[i] (otherwise that slot is "").
+     */
+    private element_kind : decimal[];
+    private element_count : decimal[];
+    private element_text : string[];
+    private elements : decimal = 0;
+
+    private date_time_formatter(pattern: string) {
+        source_pattern = pattern;
+        capacity : decimal = sizeof(pattern.data) + 1;
+        element_kind = new decimal[capacity];
+        element_count = new decimal[capacity];
+        element_text = new string[capacity];
+        compile(pattern);
+    }
+
+    // ------------------------------------------------------------------
+    //  creating
+    // ------------------------------------------------------------------
+
+    /**
+     * A formatter for `pattern` (see the class comment for the letters).
+     * @throws date_time_exception when the pattern contains an unknown
+     *         letter, too many letters of one kind (e.g. "ddd"), or a quote
+     *         that is not closed
+     */
+    static def of_pattern(pattern: string): date_time_formatter {
+        return new date_time_formatter(pattern);
+    }
+
+    /** "yyyy-MM-dd", e.g. 2024-02-29 */
+    static def iso_date(): date_time_formatter { return of_pattern("yyyy-MM-dd"); }
+
+    /** "HH:mm:ss", e.g. 13:45:30 */
+    static def iso_time(): date_time_formatter { return of_pattern("HH:mm:ss"); }
+
+    /** "yyyy-MM-dd'T'HH:mm:ss", e.g. 2024-02-29T13:45:30 */
+    static def iso_date_time(): date_time_formatter { return of_pattern("yyyy-MM-dd'T'HH:mm:ss"); }
+
+    /** "yyyy-MM-dd'T'HH:mm:ssXXX", e.g. 2024-02-29T13:45:30+02:00 or ...Z */
+    static def iso_offset_date_time(): date_time_formatter { return of_pattern("yyyy-MM-dd'T'HH:mm:ssXXX"); }
+
+    /** "yyyy-MM-dd'T'HH:mm:ss.SSSXXX": ISO with milliseconds, e.g. 2024-02-29T13:45:30.250Z */
+    static def iso_offset_date_time_millis(): date_time_formatter { return of_pattern("yyyy-MM-dd'T'HH:mm:ss.SSSXXX"); }
+
+    /** "yyyyMMdd", the ISO basic date without separators, e.g. 20240229 */
+    static def basic_iso_date(): date_time_formatter { return of_pattern("yyyyMMdd"); }
+
+    /** "yyyy-DDD", the ISO ordinal date (year and day of year), e.g. 2024-060 */
+    static def iso_ordinal_date(): date_time_formatter { return of_pattern("yyyy-DDD"); }
+
+    /** "YYYY-'W'ww-e", the ISO week date, e.g. 2024-W09-4 (format only: a week date cannot be parsed back) */
+    static def iso_week_date(): date_time_formatter { return of_pattern("YYYY-'W'ww-e"); }
+
+    /**
+     * "EEE, d MMM yyyy HH:mm:ss 'GMT'", the date format of HTTP headers and
+     * e-mail (RFC 1123), e.g. Thu, 29 Feb 2024 13:45:30 GMT. The value
+     * formatted must already be in UTC - the pattern prints "GMT" literally.
+     */
+    static def rfc_1123(): date_time_formatter { return of_pattern("EEE, d MMM yyyy HH:mm:ss 'GMT'"); }
+
+    /** the pattern this formatter was created with */
+    def pattern(): string {
+        return source_pattern;
+    }
+
+    /** the pattern, as `pattern()` */
+    override def to_string(): string? {
+        return source_pattern;
+    }
+
+    // ------------------------------------------------------------------
+    //  compiling the pattern
+    // ------------------------------------------------------------------
+
+    /** appends one element to the compiled pattern */
+    private def add_element(kind: decimal, count: decimal, text: string) {
+        element_kind[elements] = kind;
+        element_count[elements] = count;
+        element_text[elements] = text;
+        elements++;
+    }
+
+    private def pattern_error(reason: string, at: decimal): date_time_exception {
+        return new date_time_exception("invalid pattern \"" + source_pattern + "\": " + reason + " at index "
+            + time_math.whole_text(at));
+    }
+
+    /**
+     * Splits the pattern into elements: runs of the same letter, quoted
+     * literals, and single characters that stand for themselves. Neighbouring
+     * literal characters are merged into one literal element.
+     */
+    private def compile(pattern: string) {
+        length : decimal = sizeof(pattern.data);
+        i : decimal = 0;
+        literal := new time_text_writer();
+
+        while(i < length) {
+            ch : decimal = pattern.data[i];
+
+            if(ch == 39) {                                  // a quote '
+                if(i + 1 < length && pattern.data[i + 1] == 39) {
+                    literal.put(39);                        // '' outside quotes is one quote
+                    i += 2;
+                    continue;
+                }
+                start : decimal = i;
+                i++;
+                closed : decimal = 0;
+                while(i < length) {
+                    if(pattern.data[i] == 39) {
+                        if(i + 1 < length && pattern.data[i + 1] == 39) {
+                            literal.put(39);                // '' inside quotes is one quote
+                            i += 2;
+                            continue;
+                        }
+                        closed = 1;
+                        i++;
+                        break;
+                    }
+                    literal.put(pattern.data[i]);
+                    i++;
+                }
+                if(!closed) {
+                    throw pattern_error("a quote is not closed", start);
+                }
+                continue;
+            }
+
+            if(!time_text_reader.is_letter(ch)) {
+                literal.put(ch);                            // punctuation, digits, spaces: themselves
+                i++;
+                continue;
+            }
+
+            // a run of the same letter
+            run : decimal = 1;
+            while(i + run < length && pattern.data[i + run] == ch) {
+                run++;
+            }
+            if(literal.size() > 0) {
+                add_element(k_literal, 0, literal.text());
+                literal = new time_text_writer();
+            }
+            add_element(kind_of(ch, run, i), run, "");
+            i += run;
+        }
+
+        if(literal.size() > 0) {
+            add_element(k_literal, 0, literal.text());
+        }
+    }
+
+    /** the element kind for `run` repetitions of pattern letter `ch`; throws when not valid */
+    private def kind_of(ch: decimal, run: decimal, at: decimal): decimal {
+        kind : decimal = 0;
+        longest : decimal = 2;
+        if(ch == 'y') { kind = k_year; longest = 9; }
+        else if(ch == 'M') { kind = k_month; longest = 4; }
+        else if(ch == 'd') { kind = k_day; }
+        else if(ch == 'D') { kind = k_day_of_year; longest = 3; }
+        else if(ch == 'E') { kind = k_weekday_name; longest = 4; }
+        else if(ch == 'e') { kind = k_weekday_number; longest = 1; }
+        else if(ch == 'H') { kind = k_hour; }
+        else if(ch == 'h') { kind = k_hour_12; }
+        else if(ch == 'm') { kind = k_minute; }
+        else if(ch == 's') { kind = k_second; }
+        else if(ch == 'S') { kind = k_fraction; longest = 9; }
+        else if(ch == 'a') { kind = k_am_pm; longest = 1; }
+        else if(ch == 'X') { kind = k_offset_z; longest = 3; }
+        else if(ch == 'x') { kind = k_offset; longest = 3; }
+        else if(ch == 'Z') { kind = k_offset_plain; longest = 3; }
+        else if(ch == 'n') { kind = k_nano; longest = 9; }
+        else if(ch == 'w') { kind = k_week; }
+        else if(ch == 'Y') { kind = k_week_year; longest = 9; }
+        else if(ch == 'Q') { kind = k_quarter; longest = 1; }
+
+        if(kind == 0) {
+            w := new time_text_writer();
+            w.put_text("unknown pattern letter '").put(ch).put_text("' (put literal text in single quotes)");
+            throw pattern_error(w.text(), at);
+        }
+        if(run > longest) {
+            w := new time_text_writer();
+            w.put_text("too many '").put(ch).put_text("' (at most ").put_number(longest).put(41);
+            throw pattern_error(w.text(), at);
+        }
+        return kind;
+    }
+
+    // ------------------------------------------------------------------
+    //  formatting
+    // ------------------------------------------------------------------
+
+    /**
+     * Formats a date. The pattern may only use date letters.
+     * @throws date_time_exception when the pattern contains a time or offset letter
+     */
+    def format(value: date): string {
+        return format_parts(value, 1, time_of_day.midnight, 0, zone_offset.utc, 0);
+    }
+
+    /**
+     * Formats a time of day. The pattern may only use time letters.
+     * @throws date_time_exception when the pattern contains a date or offset letter
+     */
+    def format(value: time_of_day): string {
+        return format_parts(date.epoch, 0, value, 1, zone_offset.utc, 0);
+    }
+
+    /**
+     * Formats a date and time.
+     * @throws date_time_exception when the pattern contains an offset letter
+     */
+    def format(value: date_time): string {
+        return format_parts(value.to_date(), 1, value.to_time(), 1, zone_offset.utc, 0);
+    }
+
+    /** formats a date and time with its offset; every pattern letter is allowed */
+    def format(value: offset_date_time): string {
+        return format_parts(value.to_date(), 1, value.to_time(), 1, value.offset(), 1);
+    }
+
+    /** formats a moment as its UTC date and time (offset letters print UTC) */
+    def format(value: instant): string {
+        return format(offset_date_time.of_instant(value, zone_offset.utc));
+    }
+
+    private def missing(what: string, needed: string): date_time_exception {
+        return new date_time_exception("pattern \"" + source_pattern + "\" needs " + needed
+            + " but the value formatted has no " + what);
+    }
+
+    /** the common formatter: the has_... flags say which of the three parts are real */
+    private def format_parts(day: date, has_date: decimal, at: time_of_day, has_time: decimal,
+                             offset: zone_offset, has_offset: decimal): string {
+        w := new time_text_writer();
+        for(i : decimal = 0; i < elements; i++) {
+            kind : decimal = element_kind[i];
+            count : decimal = element_count[i];
+
+            if(kind == k_literal) {
+                w.put_text(element_text[i]);
+                continue;
+            }
+
+            if(kind == k_year || kind == k_month || kind == k_day || kind == k_day_of_year || kind == k_weekday_name
+                    || kind == k_weekday_number || kind == k_week || kind == k_week_year || kind == k_quarter) {
+                if(!has_date) {
+                    throw missing("date", "a date");
+                }
+                if(kind == k_year) {
+                    write_year(w, day.year(), count);
+                } else if(kind == k_week_year) {
+                    write_year(w, day.iso_week_year(), count);
+                } else if(kind == k_month) {
+                    if(count >= 4) {
+                        w.put_text(day.month_of_year().name());
+                    } else if(count == 3) {
+                        w.put_text(day.month_of_year().short_name());
+                    } else {
+                        w.put_padded(day.month_value(), count);
+                    }
+                } else if(kind == k_day) {
+                    w.put_padded(day.day(), count);
+                } else if(kind == k_day_of_year) {
+                    w.put_padded(day.day_of_year(), count);
+                } else if(kind == k_weekday_name) {
+                    if(count >= 4) {
+                        w.put_text(day.day_of_week().name());
+                    } else {
+                        w.put_text(day.day_of_week().short_name());
+                    }
+                } else if(kind == k_weekday_number) {
+                    w.put_number(day.day_of_week().value());
+                } else if(kind == k_week) {
+                    w.put_padded(day.iso_week(), count);
+                } else {
+                    w.put_number(day.quarter());
+                }
+                continue;
+            }
+
+            if(kind == k_offset_z || kind == k_offset || kind == k_offset_plain) {
+                if(!has_offset) {
+                    throw missing("offset", "an offset from UTC");
+                }
+                write_offset(w, offset, kind, count);
+                continue;
+            }
+
+            // everything left is a time field
+            if(!has_time) {
+                throw missing("time of day", "a time");
+            }
+            if(kind == k_hour) {
+                w.put_padded(at.hour(), count);
+            } else if(kind == k_hour_12) {
+                w.put_padded(at.hour_12(), count);
+            } else if(kind == k_minute) {
+                w.put_padded(at.minute(), count);
+            } else if(kind == k_second) {
+                w.put_padded(at.second(), count);
+            } else if(kind == k_fraction) {
+                w.put_fraction(at.nano(), count);
+            } else if(kind == k_nano) {
+                w.put_padded(at.nano(), count);
+            } else {
+                w.put_text(am_pm_names[at.is_pm()]);
+            }
+        }
+        return w.text();
+    }
+
+    /** y / Y: two letters -> last two digits; otherwise padded to the number of letters, '-' for negative years */
+    private def write_year(w: time_text_writer, year: decimal, count: decimal) {
+        if(count == 2) {
+            w.put_padded(time_math.floor_mod(year, 100), 2);
+            return;
+        }
+        if(year < 0) {
+            w.put('-');
+            year = 0 - year;
+        }
+        w.put_padded(year, count);
+    }
+
+    /** X, x and Z in their one, two and three letter forms */
+    private def write_offset(w: time_text_writer, offset: zone_offset, kind: decimal, count: decimal) {
+        z_for_utc : decimal = kind == k_offset_z;
+        if(kind == k_offset_plain) {
+            offset.write_to(w, 0, 0);                       // Z: +0200
+            return;
+        }
+        if(count == 3) {
+            offset.write_to(w, 1, z_for_utc);               // XXX: +02:00
+            return;
+        }
+        if(count == 2) {
+            offset.write_to(w, 0, z_for_utc);               // XX: +0200
+            return;
+        }
+        // X: hours only, minutes added only when they are not zero
+        total : decimal = offset.total_seconds();
+        if(total == 0 && z_for_utc) {
+            w.put('Z');
+            return;
+        }
+        if(total % 3600 != 0) {
+            offset.write_to(w, 0, z_for_utc);
+            return;
+        }
+        if(total < 0) {
+            w.put('-');
+            total = 0 - total;
+        } else {
+            w.put('+');
+        }
+        w.put_padded(total / 3600, 2);
+    }
+
+    // ------------------------------------------------------------------
+    //  parsing
+    // ------------------------------------------------------------------
+
+    /**
+     * Reads `text` according to the pattern and returns the fields found,
+     * not yet combined into a value (see date_time_fields).
+     *
+     * @throws date_time_exception when the text does not have the shape of
+     *         the pattern; the message names the text and the index
+     */
+    def parse(text: string): date_time_fields {
+        r := new time_text_reader(text, "text with pattern \"" + source_pattern + "\"");
+        fields := new date_time_fields(text);
+
+        for(i : decimal = 0; i < elements; i++) {
+            kind : decimal = element_kind[i];
+            count : decimal = element_count[i];
+
+            if(kind == k_literal) {
+                literal : string = element_text[i];
+                for(j : decimal = 0; j < sizeof(literal.data); j++) {
+                    if(!r.accept(literal.data[j])) {
+                        throw r.failure("expected \"" + literal + "\"");
+                    }
+                }
+            } else if(kind == k_year) {
+                fields.year = read_year(r, count);
+                fields.has_year = 1;
+            } else if(kind == k_week_year) {
+                fields.iso_week_year = read_year(r, count);
+                fields.has_iso_week_year = 1;
+            } else if(kind == k_month) {
+                if(count >= 3) {
+                    index : decimal = 0 - 1;
+                    if(count >= 4) {
+                        index = r.accept_word(month.names());
+                    } else {
+                        index = r.accept_word(month.abbreviations());
+                    }
+                    if(index < 0) {
+                        throw r.failure("expected the name of a month");
+                    }
+                    fields.month_value = index + 1;
+                } else {
+                    fields.month_value = read_number(r, count, 2);
+                }
+                fields.has_month = 1;
+            } else if(kind == k_day) {
+                fields.day = read_number(r, count, 2);
+                fields.has_day = 1;
+            } else if(kind == k_day_of_year) {
+                fields.day_of_year = read_number(r, count, 3);
+                fields.has_day_of_year = 1;
+            } else if(kind == k_weekday_name) {
+                index : decimal = 0 - 1;
+                if(count >= 4) {
+                    index = r.accept_word(day_of_week.names());
+                } else {
+                    index = r.accept_word(day_of_week.abbreviations());
+                }
+                if(index < 0) {
+                    throw r.failure("expected the name of a day of the week");
+                }
+                fields.day_of_week_value = index + 1;
+                fields.has_day_of_week = 1;
+            } else if(kind == k_weekday_number) {
+                fields.day_of_week_value = read_number(r, 1, 1);
+                fields.has_day_of_week = 1;
+                if(fields.day_of_week_value < 1 || fields.day_of_week_value > 7) {
+                    throw r.failure("day of week must be 1 to 7");
+                }
+            } else if(kind == k_week) {
+                fields.iso_week = read_number(r, count, 2);
+                fields.has_iso_week = 1;
+            } else if(kind == k_quarter) {
+                fields.quarter = read_number(r, 1, 1);
+                fields.has_quarter = 1;
+            } else if(kind == k_hour) {
+                fields.hour = read_number(r, count, 2);
+                fields.has_hour = 1;
+            } else if(kind == k_hour_12) {
+                fields.hour_12 = read_number(r, count, 2);
+                fields.has_hour_12 = 1;
+            } else if(kind == k_minute) {
+                fields.minute = read_number(r, count, 2);
+                fields.has_minute = 1;
+            } else if(kind == k_second) {
+                fields.second = read_number(r, count, 2);
+                fields.has_second = 1;
+            } else if(kind == k_fraction) {
+                fields.nano = r.read_fraction_as_nanos(count, count);
+                fields.has_nano = 1;
+            } else if(kind == k_nano) {
+                fields.nano = read_number(r, count, 9);
+                fields.has_nano = 1;
+            } else if(kind == k_am_pm) {
+                index : decimal = r.accept_word(am_pm_names);
+                if(index < 0) {
+                    throw r.failure("expected AM or PM");
+                }
+                fields.pm = index;
+                fields.has_am_pm = 1;
+            } else {
+                fields.offset = zone_offset.read_from(r);
+                fields.has_offset = 1;
+            }
+        }
+
+        r.expect_end();
+        return fields;
+    }
+
+    /**
+     * A numeric field: written with one letter it has 1 .. `most` digits,
+     * written with more letters it has exactly that many.
+     */
+    private def read_number(r: time_text_reader, count: decimal, most: decimal): decimal {
+        if(count >= 2) {
+            return r.read_digits(count, count);
+        }
+        return r.read_digits(1, most);
+    }
+
+    /** a year: optional '-', then digits by the rule of read_number; `yy` means 2000-2099 */
+    private def read_year(r: time_text_reader, count: decimal): decimal {
+        negative : decimal = r.accept('-');
+        year : decimal = 0;
+        if(count == 2) {
+            year = 2000 + r.read_digits(2, 2);
+        } else {
+            year = read_number(r, count, 6);
+        }
+        if(negative) {
+            return 0 - year;
+        }
+        return year;
+    }
+
+    /**
+     * Parses a date. The pattern must supply year, month and day (or year
+     * and day of year).
+     * @throws date_time_exception when the text does not match the pattern
+     *         or does not hold a complete, existing date
+     */
+    def parse_date(text: string): date {
+        return parse(text).to_date();
+    }
+
+    /**
+     * Parses a time of day. The pattern must supply the hour (H, or h with a).
+     * @throws date_time_exception when the text does not match the pattern
+     *         or a field is out of range
+     */
+    def parse_time(text: string): time_of_day {
+        return parse(text).to_time();
+    }
+
+    /**
+     * Parses a date and time. A pattern without any time letters gives the
+     * date at 00:00:00.
+     * @throws date_time_exception as parse_date and parse_time
+     */
+    def parse_date_time(text: string): date_time {
+        return parse(text).to_date_time();
+    }
+
+    /**
+     * Parses a date and time with an offset (the pattern needs X, x or Z).
+     * @throws date_time_exception as parse_date_time, or when there is no offset
+     */
+    def parse_offset_date_time(text: string): offset_date_time {
+        return parse(text).to_offset_date_time();
+    }
+
+    /**
+     * Parses a moment on the time line (the pattern needs X, x or Z).
+     * @throws date_time_exception as parse_offset_date_time
+     */
+    def parse_instant(text: string): instant {
+        return parse(text).to_instant();
+    }
+}

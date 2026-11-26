@@ -1,0 +1,286 @@
+mod std.io;
+
+/**
+ * Walks through a directory and everything below it, one entry at a time.
+ *
+ *     walker := new directory_walker(new file("src"));
+ *     walker.set_filter({ f: file -> (bool) return f.has_extension("sharp"); });
+ *     while(walker.has_next()) {
+ *         println(walker.next().path);
+ *     }
+ *
+ * The walk does not use recursion (deep trees are no problem for the stack):
+ * the entries still to be visited are kept in a list.
+ *
+ * Order. Within a directory the entries come sorted by name.
+ *   - depth first (the default): a directory comes first, then everything
+ *     inside it, then its next sibling - the order of `find` or `ls -R`.
+ *   - breadth first: first everything directly in the root, then everything
+ *     one level down, and so on.
+ *
+ * What is reported can be narrowed in three independent ways:
+ *   - set_filter(): only entries the function accepts are returned (a
+ *     directory that is not accepted is still walked into)
+ *   - set_enter_filter(): directories the function rejects are not walked
+ *     into (they are still returned, unless the filter says no)
+ *   - files_only() / directories_only(), set_max_depth(), include_root()
+ *
+ * Depth: the root has depth 0, what is directly in it depth 1, and so on.
+ * The walk stops going down at depth 64 unless set_max_depth() says
+ * otherwise; that also ends a walk around a directory that (through a link)
+ * contains itself.
+ *
+ * Configure the walker before the first has_next() / next(). The disk is
+ * read while walking, directory by directory: changes made during the walk
+ * may or may not be seen.
+ */
+class directory_walker {
+    /** the entries waiting to be visited, with their depths in `pending_depths` at the same positions */
+    private pending := new list<file>();
+    private pending_depths := new list<int>();
+    /** breadth first takes entries from the front of `pending` without moving the rest: this is where the front is */
+    private head : decimal = 0;
+
+    private root : file;
+    private started : decimal = 0;
+    private breadth : decimal = 0;
+    private max_depth : decimal = 64;
+    private with_root : decimal = 0;
+    private want_files : decimal = 1;
+    private want_directories : decimal = 1;
+
+    private has_filter : decimal = 0;
+    private filter : (file)(bool);
+    private has_enter_filter : decimal = 0;
+    private enter_filter : (file)(bool);
+
+    /** the next entry to return once it has been found, and its depth */
+    private upcoming : file?;
+    private upcoming_depth : decimal = 0;
+    /** the depth of the entry next() returned last */
+    private last_depth : decimal = 0;
+
+    /**
+     * A walker for the directory `root`. When `root` is a plain file the
+     * walk has no entries (or just the root itself with include_root()).
+     *
+     * Throws io_exception when `root` does not exist.
+     */
+    directory_walker(root: file) {
+        if(!root.exists()) {
+            throw new io_exception("directory_walker: not found: " + root.path);
+        }
+        self->root = root;
+    }
+
+    /** visit level by level instead of directory by directory (see the class comment); returns this walker */
+    def breadth_first() : directory_walker {
+        check_not_started();
+        breadth = 1;
+        return self;
+    }
+
+    /** visit directory by directory (the default); returns this walker */
+    def depth_first() : directory_walker {
+        check_not_started();
+        breadth = 0;
+        return self;
+    }
+
+    /**
+     * Do not go deeper than `depth` levels below the root: 1 reports only
+     * what is directly in the root, 2 also what is in its sub directories,
+     * and so on. Returns this walker.
+     *
+     * Throws illegal_argument_exception when depth is below 0.
+     */
+    def set_max_depth(depth: decimal) : directory_walker {
+        check_not_started();
+        if(depth < 0) {
+            throw new illegal_argument_exception("set_max_depth: the depth cannot be negative");
+        }
+        max_depth = depth;
+        return self;
+    }
+
+    /** also report the root itself, as the first entry (depth 0); returns this walker */
+    def include_root() : directory_walker {
+        check_not_started();
+        with_root = 1;
+        return self;
+    }
+
+    /** report plain files only (directories are still walked into); returns this walker */
+    def files_only() : directory_walker {
+        check_not_started();
+        want_files = 1;
+        want_directories = 0;
+        return self;
+    }
+
+    /** report directories only; returns this walker */
+    def directories_only() : directory_walker {
+        check_not_started();
+        want_files = 0;
+        want_directories = 1;
+        return self;
+    }
+
+    /**
+     * Report only the entries for which `accept` returns true. Directories
+     * that are not accepted are still walked into. Returns this walker.
+     */
+    def set_filter(accept: (file)(bool)) : directory_walker {
+        check_not_started();
+        filter = accept;
+        has_filter = 1;
+        return self;
+    }
+
+    /**
+     * Walk only into the directories for which `enter` returns true (e.g.
+     * to skip ".git"). The function is asked once per directory. Returns
+     * this walker.
+     */
+    def set_enter_filter(enter: (file)(bool)) : directory_walker {
+        check_not_started();
+        enter_filter = enter;
+        has_enter_filter = 1;
+        return self;
+    }
+
+    private def check_not_started() {
+        if(started) {
+            throw new illegal_state_exception("directory_walker: cannot be configured after the walk has started");
+        }
+    }
+
+    /** put the root on the list of entries to visit */
+    private def start() {
+        started = 1;
+        pending.add(root);
+        pending_depths.add(new int(0));
+    }
+
+    /** take the next entry to visit off the list: from the end (depth first) or from the front (breadth first) */
+    private def take() : file {
+        if(breadth) {
+            entry := pending.at(head);
+            last_taken_depth = pending_depths.at(head).value;
+            head++;
+            return entry;
+        }
+        last_taken_depth = pending_depths.last().value;
+        pending_depths.pop_back();
+        return pending.pop_last();
+    }
+
+    private last_taken_depth : decimal = 0;
+
+    private def pending_count() : decimal {
+        if(breadth) {
+            return pending.size() - head;
+        }
+        return pending.size();
+    }
+
+    /** visit entries until one is found that should be reported; leaves it in `upcoming` (null at the end of the walk) */
+    private def advance() {
+        if(!started) {
+            start();
+        }
+
+        while(upcoming == null && pending_count() > 0) {
+            entry := take();
+            depth : decimal = last_taken_depth;
+            is_dir : decimal = entry.is_directory();
+
+            // put the content of a directory on the list
+            if(is_dir && depth < max_depth) {
+                enter : decimal = 1;
+                if(has_enter_filter && depth > 0) {
+                    enter = enter_filter(entry);
+                }
+                if(enter) {
+                    names := directory_listing.names(entry.path);
+                    count : decimal = names.size();
+                    if(breadth) {
+                        for(i : decimal = 0; i < count; i++) {
+                            pending.add(entry.child(names.at(i)));
+                            pending_depths.add(new int(depth + 1));
+                        }
+                    } else {
+                        // the list is used as a stack: push in reverse so the first name is taken first
+                        for(i : decimal = count - 1; i >= 0; i--) {
+                            pending.add(entry.child(names.at(i)));
+                            pending_depths.add(new int(depth + 1));
+                        }
+                    }
+                }
+            }
+
+            // should this entry be reported?
+            report : decimal = 1;
+            if(depth == 0 && !with_root) {
+                report = 0;
+            } else if(is_dir && !want_directories) {
+                report = 0;
+            } else if(!is_dir && !want_files) {
+                report = 0;
+            } else if(has_filter) {
+                report = filter(entry);
+            }
+
+            if(report) {
+                upcoming = entry;
+                upcoming_depth = depth;
+            }
+        }
+    }
+
+    /** true when next() has another entry to return */
+    def has_next() : bool {
+        advance();
+        return upcoming != null;
+    }
+
+    /**
+     * The next entry of the walk.
+     * Throws illegal_state_exception when the walk is over (ask has_next()
+     * first).
+     */
+    def next() : file {
+        advance();
+        if(upcoming == null) {
+            throw new illegal_state_exception("directory_walker: no more entries");
+        }
+        entry := upcoming!!;
+        last_depth = upcoming_depth;
+        upcoming = null;
+        return entry;
+    }
+
+    /** the depth of the entry next() returned last: 0 for the root, 1 for what is directly in it, ... */
+    def depth() : decimal {
+        return last_depth;
+    }
+
+    /** all remaining entries of the walk, in walking order */
+    def to_list() : list<file> {
+        result := new list<file>();
+        while(has_next()) {
+            result.add(next());
+        }
+        return result;
+    }
+
+    /** call `action` for every remaining entry of the walk, in walking order; returns how many there were */
+    def for_each(action: (file)()) : decimal {
+        count : decimal = 0;
+        while(has_next()) {
+            action(next());
+            count++;
+        }
+        return count;
+    }
+}

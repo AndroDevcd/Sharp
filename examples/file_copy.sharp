@@ -1,16 +1,28 @@
 mod main;
 
-import std.io;
+import (
+    std.io,
+    std.system
+)
 
+// write a file, read it back, copy it, and clean up
 def main() {
+    folder := platform_info.temp_directory();
+    source := new file(folder + "/sharp_example_input.txt");
+    copy := new file(folder + "/sharp_example_output.txt");
 
-   try {
-       src := new file("input.txt");
-       dest := new file("output.txt");
-       data := src.read_all_text();
+    try {
+        source.write_text("first line\nsecond line\n");
 
-       dest.write(data);
-   } catch(e: exception) {
-      println("caught exception: $e");
-   }
+        words := source.read_text();
+        copy.write_text(words);                         // or, without reading it: source.copy_to(copy);
+
+        println("copied " + words.size() + " characters:");
+        print(copy.read_text());
+    } catch(e: exception) {
+        println("the copy failed: " + e.get_message());
+    }
+
+    source.remove();
+    copy.remove();
 }

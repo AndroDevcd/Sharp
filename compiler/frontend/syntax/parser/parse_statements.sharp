@@ -1,0 +1,514 @@
+mod frontend.syntax.parser;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.assembly,
+    frontend.syntax.tree,
+    frontend.syntax.parser.habits
+)
+
+/**
+ * PARSING STATEMENTS
+ *
+ * Grammar (doc/grammar.md, section 2.7):
+ *
+ *      block     = "{" { statement } "}" ;
+ *      statement = block | variable_decl | return_statement | if_statement
+ *                | for_statement | foreach_statement | while_statement
+ *                | do_while_statement | throw_statement | break_statement
+ *                | continue_statement | lock_statement | trycatch_statement
+ *                | when_statement | asm_statement | alias_decl | ";"
+ *                | scope_block | expression_statement ;
+ *
+ * (scope_block: `with(value) as name { }`, which is an expression -
+ * parse_expressions.sharp - that may stand as a statement.)
+ *
+ * The FIRST TOKEN says which statement it is: `if` starts an if statement and
+ * nothing else does. The one case that needs a second token is a name:
+ *
+ *      count : int = 0;        a declaration   (name, then `:` or `:=`)
+ *      count = 0;              an expression   (anything else)
+ *
+ * Every function adds the statement as the last child of `parent`.
+ */
+
+/** statement: one statement, whatever it is */
+def parse_statement(p: parse_state, parent: _int64) {
+    // one level deeper (parse_state.sharp, PARSER_NESTING_LIMIT). The exception is the one the
+    // VM raises when the stack runs out: parse_source catches both and reports E0103.
+    p.depth++;
+    if(p.depth > PARSER_NESTING_LIMIT) { throw new stack_overflow_exception("nested deeper than the parser follows"); }
+
+    kind : _int64 = p.kind();
+    // `retrun x;`, `fro(i := 0; ...)`: a keyword with a slip is reported and then read as the keyword (habits/misspelt_keywords.sharp)
+    if(kind == T_IDENTIFIER && read_misspelt_statement_keyword(p) == 1) { kind = p.kind(); }
+
+    if(kind == P_LBRACE) { parse_block(p, parent); }
+    else if(kind == K_RETURN) { parse_return(p, parent); }
+    else if(kind == K_IF) { parse_if(p, parent); }
+    else if(kind == K_FOR) { if(parse_for_in(p, parent) == 0) { parse_for(p, parent); } }
+    else if(kind == K_FOREACH) { parse_foreach(p, parent); }
+    else if(kind == K_WHILE) { parse_while(p, parent); }
+    else if(kind == K_DO) { parse_do_while(p, parent); }
+    else if(kind == K_THROW) { parse_throw(p, parent); }
+    else if(kind == K_BREAK) { parse_word_statement(p, parent, N_BREAK); }
+    else if(kind == K_CONTINUE) { parse_word_statement(p, parent, N_CONTINUE); }
+    else if(kind == K_LOCK) { parse_lock(p, parent); }
+    else if(kind == K_TRY) { parse_try(p, parent); }
+    else if(kind == K_WHEN) { parse_when(p, parent); }
+    else if(kind == K_ASM) { parse_asm(p, parent); }
+    else if(kind == K_ALIAS) { parse_alias(p, parent, 0 - 1); }
+    else if(kind == K_GOTO) {
+        p.error("`goto` is not part of the language")
+         .with_label("there are no labels to jump to")
+         .with_help("use a loop with `break` / `continue`, or move the code into a function and `return`");
+    }
+    else if(kind == K_ELSE) {
+        p.error("this `else` has no `if`")
+         .with_label("nothing for it to belong to")
+         .with_help("an `else` comes directly after the block of an `if`; check for a `;` or a `}` too many in front of it");
+    }
+    else if(kind == K_CATCH || kind == K_FINALLY) {
+        p.error(p.describe_current() + " has no `try`")
+         .with_label("nothing for it to belong to")
+         .with_help("it comes directly after the block of a `try`");
+    }
+    else if(kind == K_DEF || kind == K_CLASS || kind == K_INTERFACE || kind == K_ENUM) {
+        p.error(p.describe_current() + " cannot be declared inside a function")
+         .with_label("only allowed in a file or in a class")
+         .with_help("move the declaration out of the function; for a small function used once, a lambda does it:  f := { x: int -> (int) return x * 2; };");
+    }
+    else if(kind >= T_KEYWORD && (p.peek(1) == P_COLON || p.peek(1) == P_INFER)
+            && kind != K_SELF && kind != K_BASE && kind != K_NULL && kind != K_TRUE && kind != K_FALSE) {
+        word := p.current_text();
+        p.error("`" + word + "` cannot be used as a name")
+         .with_label("this word is reserved by the language")
+         .with_help("pick another name, for example `" + word + "_`");
+    }
+    else if(kind == T_IDENTIFIER && p.peek(1) == T_IDENTIFIER) {
+        // `int count = 0;`: the type first, as in C or Java (habits/declaration_habits.sharp has the Sharp text)
+        corrected := sharp_variable_text(p);
+        d := p.error("a declaration is written name first, then the type")
+         .with_label("this looks like a type in front of a name");
+        if(sizeof(corrected.data) > 0) { d.with_help("write: `" + corrected + "`"); }
+        else { d.with_help("write  name : type = value;   or   name := value;"); }
+    }
+    else if(kind == P_SEMICOLON) {
+        p.child(parent, N_EMPTY_STATEMENT);
+        p.advance();
+    }
+    else if(kind == T_IDENTIFIER && scope_block_follows(p) == 1) {
+        // `with(...) as x { }` as a statement: it ends with its last block, and what comes after is the
+        // next statement (a `;` after it is allowed)
+        statement : _int64 = p.child(parent, N_EXPRESSION_STATEMENT);
+        p.tree.append(statement, parse_scope_block(p));
+        p.accept(P_SEMICOLON);
+    }
+    else if((kind == K_GET || kind == K_SET) && parse_local_accessor(p, parent) == 1) {
+        // `x : int = 0; get { ... }` in a function: reported, the accessor read and dropped (habits/declaration_habits.sharp)
+    }
+    else if(is_modifier(kind) || variable_declaration_follows(p)) {
+        modifiers : _int64 = parse_modifiers(p);
+        parse_variable(p, parent, modifiers, 0);
+    }
+    else { parse_expression_statement(p, parent); }
+    p.depth--;
+}
+
+/**
+ * Does a variable declaration start here?
+ *
+ *      name : type ...     name := value       localized name ...      inject name ...
+ */
+def variable_declaration_follows(p: parse_state) : _int64 {
+    kind : _int64 = p.kind();
+    if(kind == K_LOCALIZED || kind == K_INJECT) { return 1; }
+    return kind == T_IDENTIFIER && (p.peek(1) == P_COLON || p.peek(1) == P_INFER);
+}
+
+/** block: { statements }   (the current token is the `{`) */
+def parse_block(p: parse_state, parent: _int64) : _int64 {
+    block : _int64 = p.child(parent, N_BLOCK);
+    opener : _int64 = p.position;
+    p.advance();
+    parse_statements_until_brace(p, block);
+    p.expect_closing(P_RBRACE, "`}` at the end of the block", opener);
+    return block;
+}
+
+/**
+ * Statements up to the `}` that ends them (which is left for the caller).
+ *
+ * This is also where the parser gets back on its feet after a mistake: when a
+ * statement reported an error, everything up to the end of that statement is
+ * skipped and parsing goes on with the next one. One mistake, one message.
+ */
+def parse_statements_until_brace(p: parse_state, block: _int64) {
+    while(!p.at(P_RBRACE) && !p.at_end()) {
+        before : _int64 = p.position;
+
+        parse_statement(p, block);
+
+        if(p.recovering == 1) {
+            if(p.line_lost == 0 && !ended_cleanly(p, before)) {
+                skip_to_statement_end(p);
+            }
+            p.recovering = 0;
+            p.line_lost = 0;        // a string without its closing quote: the next line starts afresh
+        }
+        if(p.position == before) {
+            p.advance();        // whatever it was, do not look at it twice
+        }
+    }
+}
+
+/**
+ * Did the statement or declaration that started at token `before` get to its
+ * own end in spite of a mistake inside it - is the last token it took a `;`
+ * or a `}`? Then the next one starts right here and nothing must be skipped.
+ *
+ *      p := new point(;        the value is missing, but the `;` was found:
+ *      if(p.x > 3) { ... }     this statement is checked like any other
+ */
+def ended_cleanly(p: parse_state, before: _int64) : _int64 {
+    if(p.position <= before) { return 0; }
+    last : _int64 = p.kinds[p.position - 1];
+    return last == P_SEMICOLON || last == P_RBRACE;
+}
+
+/**
+ * After a mistake: move to where the next statement starts - past the next
+ * `;`, or up to the `}` that closes the block we are in. Braces opened on the
+ * way are skipped whole, so a mistake in front of a nested block does not end
+ * the outer one early.
+ */
+def skip_to_statement_end(p: parse_state) {
+    depth : _int64 = 0;
+    while(!p.at_end()) {
+        kind : _int64 = p.kind();
+        if(kind == P_LBRACE) {
+            depth++;
+        } else if(kind == P_RBRACE) {
+            if(depth == 0) { return; }
+            depth--;
+            if(depth == 0) { p.advance(); return; }
+        } else if(kind == P_SEMICOLON && depth == 0) {
+            p.advance();
+            return;
+        }
+        p.advance();
+    }
+}
+
+/**
+ * The body of an `if`, a loop, a catch ...: a block, or ONE statement
+ * without braces:   if(done) return;
+ */
+def parse_body(p: parse_state, parent: _int64) {
+    if(p.at(P_LBRACE)) {
+        parse_block(p, parent);
+    } else {
+        parse_statement(p, parent);
+    }
+}
+
+/**
+ * expression_statement: an expression used for what it does:  total += 1;   start();
+ *
+ * The `;` may be left out when the `}` that ends the surrounding block comes
+ * next - that is how a short lambda reads:  items.map { it * 2 }
+ * - and after a call that ends in a lambda block:  launch { work(); }
+ */
+def parse_expression_statement(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_EXPRESSION_STATEMENT);
+    parse_expression_into(p, statement);
+
+    if(p.accept(P_SEMICOLON) == 1) { return; }
+    if(p.at(P_RBRACE)) { return; }
+    if(p.position > 0 && p.kinds[p.position - 1] == P_RBRACE) { return; }
+    p.expect(P_SEMICOLON, "`;` at the end of the statement");
+}
+
+/** return_statement:  return;   return value; */
+def parse_return(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_RETURN);
+    p.advance();
+    if(!p.at(P_SEMICOLON)) {
+        parse_expression_into(p, statement);
+    }
+    p.expect(P_SEMICOLON, "`;` after return");
+}
+
+/** throw_statement:  throw value; */
+def parse_throw(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_THROW);
+    p.advance();
+    parse_expression_into(p, statement);
+    p.expect(P_SEMICOLON, "`;` after throw");
+}
+
+/** break;   continue; */
+def parse_word_statement(p: parse_state, parent: _int64, node_kind: _int64) {
+    p.child(parent, node_kind);
+    p.advance();
+    p.expect(P_SEMICOLON, "`;`");
+}
+
+/** "(" expression ")": the condition of an if, a while, a lock ... */
+def parse_condition(p: parse_state, parent: _int64) {
+    opener : _int64 = p.position;
+    if(!p.at(P_LPAREN)) {
+        p.error("the condition is written in parentheses")
+         .with_label("expected `(` here")
+         .with_help("write it as:  if(condition) { ... }");
+        parse_expression_into(p, parent);       // read it anyway, so that what follows is checked too
+        p.recovering = 0;
+        return;
+    }
+    p.advance();
+    parse_expression_into(p, parent);
+    p.expect_closing(P_RPAREN, "`)`", opener);
+}
+
+/**
+ * if_statement:
+ *
+ *      if(a) { } else if(b) { } else { }
+ *
+ * An `else if` is simply an if statement that is the else part of the one
+ * before it, so the tree nests: if(a) [then] [else: if(b) [then] [else]].
+ */
+def parse_if(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_IF);
+    p.advance();
+    parse_condition(p, statement);
+    parse_body(p, statement);
+
+    if(p.accept(K_ELSE) == 1 || read_misspelt_else(p) == 1) {       // (`esle if(..)`: habits/misspelt_keywords.sharp)
+        if(p.at(K_IF)) {
+            parse_if(p, statement);
+        } else {
+            parse_body(p, statement);
+        }
+    }
+}
+
+/** while_statement:  while(condition) body */
+def parse_while(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_WHILE);
+    p.advance();
+    parse_condition(p, statement);
+    parse_body(p, statement);
+}
+
+/** do_while_statement:  do body while(condition); */
+def parse_do_while(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_DO_WHILE);
+    p.advance();
+    parse_body(p, statement);
+    p.expect(K_WHILE, "`while` after the body of `do`");
+    parse_condition(p, statement);
+    p.expect(P_SEMICOLON, "`;`");
+}
+
+/** lock_statement:  lock(value) body */
+def parse_lock(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_LOCK);
+    p.advance();
+    parse_condition(p, statement);
+    parse_body(p, statement);
+}
+
+/**
+ * for_statement:
+ *
+ *      for(i : decimal = 0; i < n; i++) body       first; condition; step - each may be empty
+ *      for( ;; ) body                              for ever
+ *      for() body          for body                for ever, the short ways
+ *
+ * The tree always has all three parts (N_FOR_INIT, N_FOR_CONDITION,
+ * N_FOR_STEP), empty when nothing was written, so whoever reads it never has
+ * to guess which part a child is.
+ */
+def parse_for(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_FOR);
+    p.advance();
+
+    first : _int64 = p.child(statement, N_FOR_INIT);
+    condition : _int64 = p.child(statement, N_FOR_CONDITION);
+    step : _int64 = p.child(statement, N_FOR_STEP);
+
+    if(p.accept(P_LPAREN) == 1 && p.accept(P_RPAREN) == 0) {
+        if(!p.at(P_SEMICOLON)) {
+            if(variable_declaration_follows(p)) {
+                parse_variable_names(p, first, 0 - 1);
+            } else {
+                parse_expression_into(p, first);     // for(i = 0; ...): a variable that exists already
+            }
+        }
+        p.expect(P_SEMICOLON, "`;` after the first part of `for`");
+
+        if(!p.at(P_SEMICOLON)) {
+            parse_expression_into(p, condition);
+        }
+        p.expect(P_SEMICOLON, "`;` after the condition of `for`");
+
+        if(!p.at(P_RPAREN)) {
+            parse_expression_into(p, step);
+        }
+        p.expect(P_RPAREN, "`)`");
+    }
+
+    parse_body(p, statement);
+}
+
+/** foreach_statement:  foreach(item in items) body     foreach(item: type in items) body */
+def parse_foreach(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_FOREACH);
+    p.advance();
+    p.expect(P_LPAREN, "`(`");
+
+    item : _int64 = p.child(statement, N_PARAMETER);
+    name := p.current_text();
+    p.expect(T_IDENTIFIER, "the name for each item");
+    if(p.accept(P_COLON) == 1) {
+        parse_type(p, item);
+    }
+
+    p.expect(K_IN, "`in`");
+    // `foreach(i in 0..10)`: a range of another language (the habits package)
+    if(parse_range_habit(p, statement, name) == 0) { parse_expression_into(p, statement); }
+    p.expect(P_RPAREN, "`)`");
+    parse_body(p, statement);
+}
+
+/**
+ * trycatch_statement:
+ *
+ *      try body catch(e: io_exception) body catch(exception) body finally body
+ *
+ * At least one catch or a finally.
+ */
+def parse_try(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_TRY);
+    p.advance();
+    parse_body(p, statement);
+
+    if(!p.at(K_CATCH) && !p.at(K_FINALLY)) {
+        p.error("expected `catch` or `finally` after the body of `try`");
+        return;
+    }
+
+    while(p.at(K_CATCH)) {
+        clause : _int64 = p.child(statement, N_CATCH);
+        p.advance();
+        p.expect(P_LPAREN, "`(`");
+        parse_optionally_named_parameter(p, clause);    // catch(e: type)  or  catch(type)
+        p.expect(P_RPAREN, "`)`");
+        parse_body(p, clause);
+    }
+
+    if(p.at(K_FINALLY)) {
+        clause : _int64 = p.child(statement, N_FINALLY);
+        p.advance();
+        parse_body(p, clause);
+    }
+}
+
+/**
+ * when_block = "{" when_clause { when_clause } [ when_else_clause ] "}"
+ *
+ *      when(n) { }                     no clause at all
+ *      when(n) { else -> { } }         only the `else`
+ *
+ * A `when` needs at least one clause with values (or, without a subject, a
+ * condition): with none it decides nothing. The C++ parser refuses both
+ * forms ("expected expression", "expected when clause"). Reported at the `}`
+ * or at the `else`, once, after the whole `when` was read. (An `else` in
+ * front of other clauses is a different mistake: the backend's E0619.)
+ *
+ * @param else_token  the token of the `else`, when there is one; -1: the `when` is empty
+ */
+def report_when_without_clauses(p: parse_state, statement: _int64, else_token: _int64) {
+    with_subject : _int64 = p.tree.child_of_kind(statement, N_WHEN_SUBJECT) >= 0;
+    example : string = "value -> { ... }";
+    if(!with_subject) { example = "condition -> { ... }"; }
+
+    if(else_token >= 0) {
+        p.report_at(else_token, "E0100", "this `when` has only an `else`", p.start_of(else_token), p.end_of(else_token))
+         .with_label("a clause with " + clause_contents(with_subject) + " must come first")
+         .with_note("the `else` of a `when` runs when no clause above it matched; with no clause it would always run")
+         .with_help("add a clause in front of it:  " + example + "   or, to run the code always, write it without the `when`");
+    } else {
+        p.error("this `when` has no clauses")
+         .with_label("a `when` needs at least one clause")
+         .with_note("each clause is " + clause_contents(with_subject) + ", `->`, and what to do: " + example)
+         .with_help("add a clause, or remove the `when`");
+    }
+}
+
+/** what a clause lists before its `->`: values to compare the subject with, or a condition */
+def clause_contents(with_subject: _int64) : string {
+    if(with_subject) { return "values to compare the subject with"; }
+    return "a condition";
+}
+
+/**
+ * when_statement:
+ *
+ *      when(month) {                   with a subject: each clause lists values
+ *          2 -> { return 28; }
+ *          4, 6, 9, 11 -> { return 30; }
+ *          else -> { return 31; }
+ *      }
+ *
+ *      when {                          without: each clause is a condition
+ *          n < 10 -> small();
+ *          else -> large();
+ *      }
+ *
+ * In an N_WHEN_CLAUSE the LAST child is the body; the ones before it are the
+ * values or conditions.
+ */
+def parse_when(p: parse_state, parent: _int64) {
+    statement : _int64 = p.child(parent, N_WHEN);
+    p.advance();
+
+    if(p.accept(P_LPAREN) == 1) {
+        subject : _int64 = p.child(statement, N_WHEN_SUBJECT);
+        parse_expression_into(p, subject);
+        p.expect(P_RPAREN, "`)`");
+    }
+
+    if(p.expect(P_LBRACE, "`{`") == 1 && p.at(P_RBRACE)) {
+        report_when_without_clauses(p, statement, 0 - 1);
+    }
+    clauses : _int64 = 0;           // clauses with values or a condition
+    first_else : _int64 = 0 - 1;    // the token of the first `else`
+    while(!p.at(P_RBRACE) && !p.at_end()) {
+        before : _int64 = p.position;
+
+        if(p.at(K_ELSE) && first_else < 0) { first_else = p.position; }
+        if(!p.at(K_ELSE)) { clauses++; }
+
+        if(p.at(K_ELSE)) {
+            clause : _int64 = p.child(statement, N_WHEN_ELSE);
+            p.advance();
+            p.expect(P_ARROW, "`->` after `else`");
+            parse_body(p, clause);
+        } else {
+            clause : _int64 = p.child(statement, N_WHEN_CLAUSE);
+            parse_expression_into(p, clause);
+            while(p.accept(P_COMMA) == 1) {
+                parse_expression_into(p, clause);
+            }
+            p.expect(P_ARROW, "`->` after the values of a when clause");
+            parse_body(p, clause);
+        }
+
+        if(p.position == before) { p.advance(); }
+    }
+    if(clauses == 0 && first_else >= 0) { report_when_without_clauses(p, statement, first_else); }
+    p.expect(P_RBRACE, "`}` at the end of `when`");
+}

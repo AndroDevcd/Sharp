@@ -1,0 +1,604 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Exceptions: throw and catch, catching by class and by base class, several
+ * catch clauses, exceptions that cross function calls, messages, custom
+ * exception classes, rethrowing, and the errors the runtime raises by itself
+ * (null access, array index out of bounds, a cast that cannot work).
+ *
+ * try/finally has its own file (finally.sharp).
+ */
+
+// ---- custom exception classes
+class parse_error base exception {
+    line : decimal = 0;
+
+    public parse_error(message: string, at_line: decimal) -> base(message) {
+        line = at_line;
+    }
+}
+
+// a second level of inheritance: number_error -> parse_error -> exception
+class number_error base parse_error {
+    public number_error(message: string, at_line: decimal) -> base(message, at_line) {}
+}
+
+class shape { sides : decimal = 0; }
+class holder { item : shape; }
+
+/* what the code went through, e.g. "try,catch,after" */
+steps : string = "";
+
+def step(name: string) {
+    if(steps == "") {
+        steps = name;
+    } else {
+        steps = steps + "," + name;
+    }
+}
+
+// ---- functions that throw
+def always_throws() {
+    throw new illegal_state_exception("always");
+}
+
+def throw_kind(kind: decimal) {
+    if(kind == 1) throw new illegal_state_exception("kind one");
+    if(kind == 2) throw new illegal_argument_exception("kind two");
+    if(kind == 3) throw new parse_error("kind three", 30);
+    if(kind == 4) throw new number_error("kind four", 40);
+    if(kind == 5) throw new error("kind five");
+}
+
+/** which catch clause takes exception number `kind`? Clauses are tried top to bottom. */
+def which_clause(kind: decimal): decimal {
+    try {
+        throw_kind(kind);
+        return 0;                               // nothing was thrown
+    } catch(e: illegal_state_exception) {
+        return 1;
+    } catch(e: illegal_argument_exception) {
+        return 2;
+    } catch(e: number_error) {
+        return 4;
+    } catch(e: parse_error) {
+        return 3;
+    } catch(e: exception) {
+        return 99;
+    }
+}
+
+// three functions deep: level1 -> level2 -> level3 throws
+def level3(n: decimal): decimal {
+    if(n < 0) throw new illegal_argument_exception("negative");
+    return n * 2;
+}
+def level2(n: decimal): decimal { return level3(n) + 1; }
+def level1(n: decimal): decimal { return level2(n) + 1; }
+
+/** an exception handled inside a function never reaches the caller */
+def safe_double(n: decimal): decimal {
+    try {
+        return level3(n);
+    } catch(e: illegal_argument_exception) {
+        return 0 - 1;
+    }
+}
+
+/** catches, then throws the SAME exception object again */
+def rethrow_same() {
+    try {
+        throw new parse_error("first", 7);
+    } catch(e: parse_error) {
+        step("inner");
+        throw e;
+    }
+}
+
+/** catches, then throws a DIFFERENT exception that carries the old message */
+def rethrow_wrapped() {
+    try {
+        always_throws();
+    } catch(e: illegal_state_exception) {
+        throw new error("wrapped: " + e.get_message());
+    }
+}
+
+/** adds up 1..limit, but the loop is left by an exception when i reaches stop_at */
+def sum_until(limit: decimal, stop_at: decimal): decimal {
+    total : decimal = 0;
+    try {
+        for(i : decimal = 1; i <= limit; i++) {
+            if(i == stop_at) throw new exception("stop");
+            total += i;
+        }
+    } catch(e: exception) {
+        return total;
+    }
+    return total;
+}
+
+/** throws from a method that is called on an object */
+class account {
+    balance : decimal = 100;
+
+    def withdraw(amount: decimal) {
+        if(amount > balance) throw new illegal_argument_exception("insufficient funds");
+        balance -= amount;
+    }
+}
+
+def read_sides(s: shape): decimal {
+    return s.sides;
+}
+
+def read_element(numbers: decimal[], index: decimal): decimal {
+    return numbers[index];
+}
+
+def main(args: string[]) {
+    // ---- the simplest case: the rest of the try block is skipped, the catch runs
+    step("before");
+    try {
+        step("try");
+        throw new exception("simple");
+    } catch(e: exception) {
+        step("catch");
+    }
+    step("after");
+    expect_str("throw skips the rest of the try block", steps, "before,try,catch,after");
+
+    // ---- no exception: the catch block does not run
+    steps = "";
+    try {
+        step("try");
+    } catch(e: exception) {
+        step("catch");
+    }
+    step("after");
+    expect_str("catch does not run without an exception", steps, "try,after");
+
+    // ---- the message
+    try {
+        throw new exception("the message");
+    } catch(e: exception) {
+        expect_str("get_message()", e.get_message(), "the message");
+        expect_str("to_string() is the message", e.to_string()!!, "the message");
+    }
+    try {
+        throw new illegal_state_exception("");
+    } catch(e: illegal_state_exception) {
+        expect_str("an empty message", e.get_message(), "");
+    }
+    try {
+        throw new exception("found " + "three" + " items");
+    } catch(e: exception) {
+        expect_str("a message built at run time", e.get_message(), "found three items");
+    }
+
+    // ---- an exception thrown in a called function
+    caught : decimal = 0;
+    try {
+        always_throws();
+        fail("call that throws", "the statement after the call ran");
+    } catch(e: illegal_state_exception) {
+        caught = 1;
+        expect_str("message from a called function", e.get_message(), "always");
+    }
+    expect("exception from a called function was caught", caught, 1);
+
+    // ---- through three levels of calls
+    expect("no exception: level1(5)", level1(5), 12);
+    caught = 0;
+    result : decimal = 0;
+    try {
+        result = level1(0 - 5);
+    } catch(e: illegal_argument_exception) {
+        caught = 1;
+        expect_str("message from three calls down", e.get_message(), "negative");
+    }
+    expect("caught three calls up", caught, 1);
+    expect("the assignment did not happen", result, 0);
+
+    // ---- handled inside the function: the caller sees an ordinary return value
+    expect("safe_double(21)", safe_double(21), 42);
+    expect("safe_double(-1) handled the exception itself", safe_double(0 - 1), 0 - 1);
+
+    // ---- several catch clauses: the first one that matches wins
+    expect("no exception -> no clause", which_clause(0), 0);
+    expect("illegal_state_exception -> clause 1", which_clause(1), 1);
+    expect("illegal_argument_exception -> clause 2", which_clause(2), 2);
+    expect("parse_error -> its own clause", which_clause(3), 3);
+    expect("number_error -> its own clause, listed before its base", which_clause(4), 4);
+    expect("error -> the catch-all exception clause", which_clause(5), 99);
+
+    // ---- catch by base class
+    caught = 0;
+    try {
+        throw new illegal_state_exception("derived");
+    } catch(e: exception) {
+        caught = 1;
+        expect_str("caught as exception: message is kept", e.get_message(), "derived");
+    }
+    expect("illegal_state_exception caught as exception", caught, 1);
+
+    caught = 0;
+    try {
+        throw new exception("as throwable");
+    } catch(e: throwable) {
+        caught = 1;
+        expect_str("caught as throwable: message is kept", e.get_message(), "as throwable");
+    }
+    expect("exception caught as throwable", caught, 1);
+
+    // (catching by a user-defined base class: exceptions_fixes.sharp)
+    caught = 0;
+    try {
+        throw new number_error("two levels", 3);
+    } catch(e: exception) {
+        caught = 1;
+        expect_str("number_error caught as exception, two levels up", e.get_message(), "two levels");
+    }
+    expect("number_error caught as exception", caught, 1);
+
+    caught = 0;
+    try {
+        throw new number_error("three levels", 3);
+    } catch(e: throwable) {
+        caught = 1;
+    }
+    expect("number_error caught as throwable, three levels up", caught, 1);
+
+    caught = 0;
+    try {
+        throw new assertion_error("an error");
+    } catch(e: error) {
+        caught = 1;
+    }
+    expect("assertion_error caught as error", caught, 1);
+
+    // ---- a clause for another class does not catch: the exception goes to the outer try
+    steps = "";
+    try {
+        try {
+            throw new illegal_state_exception("not for the inner catch");
+        } catch(e: illegal_argument_exception) {
+            step("inner");
+        }
+    } catch(e: illegal_state_exception) {
+        step("outer");
+    }
+    expect_str("the wrong class is not caught", steps, "outer");
+
+    // a base class clause does not catch... a sibling: error is not a parse_error
+    steps = "";
+    try {
+        try {
+            throw new error("sibling");
+        } catch(e: parse_error) {
+            step("inner");
+        }
+    } catch(e: exception) {
+        step("outer");
+    }
+    expect_str("a sibling class is not caught", steps, "outer");
+
+    // ---- custom exception classes carry their own data
+    try {
+        throw new parse_error("unexpected token", 17);
+    } catch(e: parse_error) {
+        expect_str("custom exception: message", e.get_message(), "unexpected token");
+        expect("custom exception: field", e.line, 17);
+    }
+    try {
+        throw_kind(4);
+    } catch(e: number_error) {
+        expect_str("derived custom exception: message", e.get_message(), "kind four");
+        expect("derived custom exception: inherited field", e.line, 40);
+    }
+
+    // ---- an exception is an ordinary object: it can be made first and thrown later
+    prepared := new parse_error("prepared", 5);
+    prepared.line = 6;
+    try {
+        throw prepared;
+    } catch(e: parse_error) {
+        expect("thrown later: field changed before the throw", e.line, 6);
+        expect_true("the caught object is the one that was thrown", e == prepared);
+    }
+
+    // ---- rethrowing the same exception
+    steps = "";
+    try {
+        rethrow_same();
+    } catch(e: parse_error) {
+        step("outer");
+        expect_str("rethrown: same message", e.get_message(), "first");
+        expect("rethrown: same field", e.line, 7);
+    }
+    expect_str("rethrow: inner catch first, then the outer one", steps, "inner,outer");
+
+    // ---- throwing a new exception from a catch block
+    caught = 0;
+    try {
+        rethrow_wrapped();
+    } catch(e: illegal_state_exception) {
+        fail("wrapped exception", "the original class was caught");
+    } catch(e: error) {
+        caught = 1;
+        expect_str("wrapped: message", e.get_message(), "wrapped: always");
+    }
+    expect("the wrapping exception was caught", caught, 1);
+
+    // ---- nested try blocks, the inner one handles it
+    steps = "";
+    try {
+        step("outer try");
+        try {
+            step("inner try");
+            throw new exception("inner");
+        } catch(e: exception) {
+            step("inner catch");
+        }
+        step("between");
+    } catch(e: exception) {
+        step("outer catch");
+    }
+    expect_str("the innermost matching catch handles it", steps, "outer try,inner try,inner catch,between");
+
+    // ---- a try block inside a catch block
+    steps = "";
+    try {
+        throw new exception("one");
+    } catch(e: exception) {
+        step("first");
+        try {
+            throw new exception("two");
+        } catch(e2: exception) {
+            step("second");
+            expect_str("exception inside a catch block", e2.get_message(), "two");
+        }
+        expect_str("the outer exception is untouched", e.get_message(), "one");
+    }
+    expect_str("try inside catch", steps, "first,second");
+
+    // ---- code after a handled exception continues normally
+    total : decimal = 0;
+    for(i : decimal = 1; i <= 5; i++) {
+        try {
+            if(i % 2 == 0) throw new exception("even");
+            total += i;                         // 1 + 3 + 5
+        } catch(e: exception) {
+            total += 100;                       // twice: i = 2 and i = 4
+        }
+    }
+    expect("a loop keeps going after each handled exception", total, 209);
+
+    // ---- an exception leaves a loop
+    expect("sum_until(10, 5) = 1 + 2 + 3 + 4", sum_until(10, 5), 10);
+    expect("sum_until(4, 99) never throws", sum_until(4, 99), 10);
+
+    // ---- many exceptions one after the other
+    handled : decimal = 0;
+    for(i : decimal = 0; i < 1000; i++) {
+        try {
+            throw_kind(i % 5 + 1);
+        } catch(e: exception) {
+            handled++;
+        }
+    }
+    expect("1000 exceptions thrown and caught", handled, 1000);
+
+    // ---- exception from a method; the object is left as it was
+    acct := new account();
+    acct.withdraw(30);
+    caught = 0;
+    try {
+        acct.withdraw(500);
+    } catch(e: illegal_argument_exception) {
+        caught = 1;
+        expect_str("method exception message", e.get_message(), "insufficient funds");
+    }
+    expect("exception thrown by a method", caught, 1);
+    expect("balance unchanged by the failed call", acct.balance, 70);
+
+    // ---- variables assigned before the throw keep their values
+    progress : decimal = 0;
+    try {
+        progress = 1;
+        progress = 2;
+        always_throws();
+        progress = 3;
+    } catch(e: exception) {
+    }
+    expect("assignments before the throw are kept", progress, 2);
+
+    // ---- the helpers in std
+    caught = 0;
+    try {
+        assert(1 == 2, "one is not two");
+    } catch(e: assertion_error) {
+        caught = 1;
+        expect_str("assert message", e.get_message(), "one is not two");
+    }
+    expect("assert(false) throws assertion_error", caught, 1);
+
+    caught = 0;
+    try {
+        assert(2 == 2, "fine");
+    } catch(e: assertion_error) {
+        caught = 1;
+    }
+    expect("assert(true) does not throw", caught, 0);
+
+    caught = 0;
+    try {
+        todo("write this later");
+    } catch(e: not_implemented_error) {
+        caught = 1;
+        expect_str("todo message", e.get_message(), "write this later");
+    }
+    expect("todo() throws not_implemented_error", caught, 1);
+
+    caught = 0;
+    try {
+        throw runtime_error("made by runtime_error()");
+    } catch(e: runtime_exception) {
+        caught = 1;
+        expect_str("runtime_error message", e.get_message(), "made by runtime_error()");
+    }
+    expect("runtime_error() makes a runtime_exception", caught, 1);
+
+    // the short alias names are the same classes
+    caught = 0;
+    try {
+        throw new illegal_state_exception("alias");
+    } catch(e: illegal_state_exception) {
+        caught = 1;
+    }
+    expect("illegal_state_exception is illegal_state_exception", caught, 1);
+    caught = 0;
+    try {
+        throw new out_of_bounds_exception("alias");
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("out_of_bounds_exception is out_of_bounds_exception", caught, 1);
+
+    // ---- built-in error: using a null object
+    caught = 0;
+    nothing : shape;                            // never assigned: null
+    try {
+        println("sides " + nothing.sides);
+        fail("null access", "no exception");
+    } catch(e: nullptr_exception) {
+        caught = 1;
+    }
+    expect("reading a field of null throws nullptr_exception", caught, 1);
+
+    caught = 0;
+    try {
+        nothing.sides = 4;
+        fail("null store", "no exception");
+    } catch(e: nullptr_exception) {
+        caught = 1;
+    }
+    expect("writing a field of null throws nullptr_exception", caught, 1);
+
+    caught = 0;
+    try {
+        read_sides(nothing);
+    } catch(e: exception) {
+        caught = 1;
+    }
+    expect("null access in a called function, caught as exception", caught, 1);
+
+    caught = 0;
+    box := new holder();                        // box.item was never assigned
+    try {
+        box.item.sides = 3;
+    } catch(e: nullptr_exception) {
+        caught = 1;
+    }
+    expect("null field of an object", caught, 1);
+
+    caught = 0;
+    no_array : decimal[];
+    try {
+        no_array[0] = 1;
+    } catch(e: nullptr_exception) {
+        caught = 1;
+    }
+    expect("indexing a null array throws nullptr_exception", caught, 1);
+
+    caught = 0;
+    shapes := new shape[3];                     // three null elements
+    try {
+        seen_sides : decimal = shapes[1].sides;
+    } catch(e: nullptr_exception) {
+        caught = 1;
+    }
+    expect("a null array element", caught, 1);
+
+    // ---- built-in error: array index out of bounds
+    numbers := new decimal[3];
+    numbers[0] = 10;
+    numbers[1] = 20;
+    numbers[2] = 30;
+    index : decimal = 3;
+
+    caught = 0;
+    try {
+        numbers[index] = 1;
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("writing one past the end throws out_of_bounds_exception", caught, 1);
+
+    caught = 0;
+    seen : decimal = 0;
+    try {
+        seen = numbers[index];
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("reading one past the end throws", caught, 1);
+    expect("...and nothing was read", seen, 0);
+
+    caught = 0;
+    index = 0 - 1;
+    try {
+        numbers[index] = 1;
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("a negative index throws", caught, 1);
+
+    caught = 0;
+    try {
+        read_element(numbers, 100);
+    } catch(e: exception) {
+        caught = 1;
+    }
+    expect("out of bounds in a called function, caught as exception", caught, 1);
+    expect("the last valid index still works", read_element(numbers, 2), 30);
+    expect("the array is unchanged", numbers[0] + numbers[1] + numbers[2], 60);
+
+    caught = 0;
+    index = 3;
+    try {
+        shapes[index] = new shape();
+    } catch(e: out_of_bounds_exception) {
+        caught = 1;
+    }
+    expect("out of bounds on an array of objects", caught, 1);
+
+    // ---- built-in error: a cast that cannot work (the runtime reports it as illegal_state_exception)
+    caught = 0;
+    anything : object = new decimal[2];             // an array of numbers is not a shape
+    try {
+        s := anything as shape;
+        fail("bad cast", "no exception");
+    } catch(e: illegal_state_exception) {
+        caught = 1;
+    }
+    expect("casting a number array to a class throws illegal_state_exception", caught, 1);
+
+    caught = 0;
+    anything = new shape();
+    try {
+        s := anything as shape;
+        s.sides = 6;
+        expect("a cast that works", s.sides, 6);
+    } catch(e: illegal_state_exception) {
+        caught = 1;
+    }
+    expect("a correct cast does not throw", caught, 0);
+
+    // ---- execution continues normally after all of the above
+    expect("still running", level1(1), 4);
+
+    finish("exceptions");
+}

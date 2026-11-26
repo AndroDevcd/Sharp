@@ -1,0 +1,238 @@
+mod backend.optimizer.passes.control;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis,
+    backend.optimizer.passes.values
+)
+
+/**
+ * LOOP UNROLLING: a loop that is certain to run a small, known number of
+ * times becomes that many copies of its body, with no test and no jumps
+ *
+ *      for(k : _int64 = 0; k < 3; k++) { total = total + k * step; }
+ *
+ *      int_constant %2, 0                      int_constant %2, 0
+ *    L0:                                     L0:
+ *      int_constant %5, 3                      int_constant %5, 3              round 1: the test (known: 0 < 3) ...
+ *      int_compare lt %6, %2, %5               int_compare lt %6, %2, %5
+ *      jump_unless %6, L2              ->      int_binary mul %7, %2, %1       ... and the body, k is 0
+ *      int_binary mul %7, %2, %1               int_binary add %3, %3, %7
+ *      int_binary add %3, %3, %7               int_immediate add %2, %2, 1
+ *      int_immediate add %2, %2, 1             int_constant %5, 3              round 2, k is 1
+ *      jump L0                                 ...
+ *    L2:                                       int_compare lt %6, %2, %5       the last test (known: 3 < 3 is false)
+ *                                              jump L2
+ *                                            L2:
+ *
+ * Constant propagation then knows `k` in every copy (0, 1, 2), so the tests
+ * fold away, `k * step` becomes 0, `step`, `step * 2`, and the counter itself
+ * disappears (passes/values, passes/removal run again after this pass).
+ *
+ * HOW: THE LOOP IS RUN WHILE COMPILING. Nothing about the shape of the loop
+ * is matched. Starting from what is known where the loop is entered (the
+ * constants the block in front of it leaves in its slots), the loop is
+ * executed symbolically, one instruction after the other, with the same
+ * rules constant propagation uses (values/constant_propagation.sharp,
+ * `evaluate`; values/folding.sharp):
+ *
+ *  - every conditional jump met on the way must have a KNOWN condition, so
+ *    there is never a doubt which way it goes;
+ *  - a value that is not known (`step` above, the result of a call) is carried
+ *    as unknown - fine as long as no jump depends on it;
+ *  - the run ends when control leaves the loop.
+ *
+ * The instructions passed on that run are exactly what the program would
+ * execute, in that order. Copied out as straight code, without the jumps
+ * (their outcome is decided), they replace the loop. This is the textbook
+ * "complete unrolling" of a loop with a constant trip count (Muchnick 17.4.3).
+ *
+ * The loop is left as it is as soon as a jump depends on something unknown
+ * (the usual case: `i < n`), the run gets longer than
+ * MAX_UNROLLED_INSTRUCTIONS or goes round more than MAX_UNROLLED_TRIPS times,
+ * or it leaves through a `return` or a `throw`.
+ *
+ * WHICH LOOPS. A natural loop (analysis/loops.sharp) whose blocks lie in one
+ * piece of the code, the header first, and that is entered at one place only
+ * - so the piece can be replaced as a whole. No `try` in the function.
+ *
+ * It runs before loop rotation (which would only move the test of a loop
+ * that is about to disappear).
+ *
+ *      C++ comparison: passes/pass_loop_unrolling.cpp, which runs the loop
+ *      over the VM's registers the same way, with the same two limits.
+ */
+
+/** the straight code that replaces a loop may not be longer than this */
+const MAX_UNROLLED_INSTRUCTIONS : _int64 = 96;
+/** ... nor may the loop go round more often than this */
+const MAX_UNROLLED_TRIPS : _int64 = 16;
+/** a function larger than this is not looked at */
+const MAX_UNROLLING_FUNCTION : _int64 = 6000;
+/** how many loops of one function are unrolled at most (each one makes the function longer) */
+const MAX_UNROLLED_LOOPS : _int64 = 32;
+
+/** unroll every loop of the function that can be (the header); the number of loops replaced */
+def unroll_loops(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    if(code.tries.size() > 0 || code.instructions.size() > MAX_UNROLLING_FUNCTION) { return 0; }
+    if(!has_a_jump_back(code)) { return 0; }
+    // a loop that was looked at and left is not looked at again: it is known by the label of its header
+    tried := new number_list();
+    unrolled : _int64 = 0;
+    while(unrolled < MAX_UNROLLED_LOOPS && unroll_one_loop(analyses, tried) == 1) {
+        unrolled++;
+    }
+    return unrolled;
+}
+
+/** does any jump of the function go back (without one there is no loop)? */
+def has_a_jump_back(code: ir_function) : _int64 {
+    places := places_of_labels(code);
+    total : _int64 = code.instructions.size();
+    for(i : _int64 = 0; i < total; i++) {
+        made := code.instructions.at(i);
+        if(is_jump(made) && places.at(made.number) >= 0 && places.at(made.number) <= i) { return 1; }
+    }
+    return 0;
+}
+
+/** unroll the first loop of the function that can be and was not tried yet; 1 when one was */
+def unroll_one_loop(analyses: function_analyses, tried: number_list) : _int64 {
+    code := analyses.code;
+    graph := analyses.graph();
+    forest := find_loops(graph);
+    if(forest.valid == 0) { return 0; }
+    for(l : _int64 = 0; l < forest.count; l++) {
+        top := code.instructions.at(graph.starts[forest.headers.at(l)]);
+        if(top.kind != IR_LABEL || is_among(tried, top.number)) { continue; }
+        tried.add(top.number);
+        if(unroll(code, graph, forest, l) == 1) {
+            analyses.changed();
+            return 1;
+        }
+    }
+    return 0;
+}
+
+/** is `number` in the list? */
+def is_among(numbers: number_list, number: _int64) : _int64 {
+    for(i : _int64 = 0; i < numbers.count; i++) {
+        if(numbers.at(i) == number) { return 1; }
+    }
+    return 0;
+}
+
+/**
+ * Loop `l` replaced by the instructions one run of it executes, when the run
+ * can be made while compiling (the header); 1 when it was replaced.
+ */
+def unroll(code: ir_function, graph: flow_graph, forest: loop_forest, l: _int64) : _int64 {
+    // ---- the loop must be one piece of the code, header first, entered only through the header
+    header : _int64 = forest.headers.at(l);
+    first_block : _int64 = forest.first_block(l);
+    last_block : _int64 = forest.last_block(l);
+    if(first_block != header || forest.size(l) != last_block - first_block + 1) { return 0; }
+    entry_block : _int64 = 0 - 1;
+    ways_in : _int64 = 0;
+    for(b : _int64 = first_block; b <= last_block; b++) {
+        for(i : _int64 = graph.first_predecessor[b]; i < graph.first_predecessor[b + 1]; i++) {
+            from : _int64 = graph.predecessors[i];
+            if(from >= first_block && from <= last_block) { continue; }
+            if(b != header) { return 0; }
+            entry_block = from;
+            ways_in++;
+        }
+    }
+    // (a loop at the very start of the function is entered by the call: nothing is known there)
+    if(ways_in > 1 || (ways_in == 0 && header != 0)) { return 0; }
+    first : _int64 = graph.starts[header];
+    end : _int64 = graph.ends[last_block];
+
+    // ---- what is known on the way in: what the block in front of the loop leaves in the slots
+    state := everything_unknown(code);
+    value := new folded();
+    if(entry_block >= 0) {
+        for(i : _int64 = graph.starts[entry_block]; i < graph.ends[entry_block]; i++) {
+            run_instruction(code.instructions.at(i), state, value);
+        }
+    }
+
+    // ---- the run: `executed` gets the index of every instruction passed, in order
+    places := places_of_labels(code);
+    executed := new number_list();
+    exit_label : _int64 = 0 - 1;
+    counted : _int64 = 0;
+    trips : _int64 = 0;
+    at : _int64 = first;
+    while(at < end) {
+        made := code.instructions.at(at);
+        kind : _int64 = made.kind;
+        if(kind == IR_LABEL) { at++; continue; }
+        if(kind == IR_LINE) { executed.add(at); at++; continue; }
+        if(kind == IR_RETURN || kind == IR_RETURN_VALUE || kind == IR_THROW) { return 0; }
+        if(is_jump(made)) {
+            taken : _int64 = 1;
+            if(kind != IR_JUMP) {
+                if(!state.knows(made.first)) { return 0; }      // which way it goes is not known: no unrolling
+                taken = state.whole_of(made.first) != 0;
+                if(kind == IR_JUMP_UNLESS) { taken = !taken; }
+            }
+            if(!taken) { at++; continue; }
+            place : _int64 = places.at(made.number);
+            if(place < first || place >= end) {
+                exit_label = made.number;                       // control leaves the loop: the run is over
+                break;
+            }
+            if(place <= at) {
+                trips++;                                        // a jump back: one more round
+                if(trips > MAX_UNROLLED_TRIPS) { return 0; }
+            }
+            at = place;
+            continue;
+        }
+        counted++;
+        if(counted > MAX_UNROLLED_INSTRUCTIONS) { return 0; }
+        executed.add(at);
+        run_instruction(made, state, value);
+        at++;
+    }
+
+    // ---- the loop's piece of the code replaced by what the run executed
+    // (the header's label stays: the block in front may jump to it; jump cleanup takes it when nothing does)
+    old := code.instructions;
+    made_list := new list<ir_instruction>();
+    for(i : _int64 = 0; i <= first; i++) { made_list.add(old.at(i)); }
+    for(i : _int64 = 0; i < executed.count; i++) { made_list.add(copy_of_instruction(old.at(executed.at(i)))); }
+    if(exit_label >= 0) {
+        leave := new ir_instruction(IR_JUMP);
+        leave.number = exit_label;
+        made_list.add(leave);
+    }
+    total : _int64 = old.size();
+    for(i : _int64 = end; i < total; i++) { made_list.add(old.at(i)); }
+    code.instructions = made_list;
+    return 1;
+}
+
+/** a state for the run that follows every slot of the function, with nothing known yet */
+def everything_unknown(code: ir_function) : constant_state {
+    slots : _int64 = code.slot_count();
+    index := new _int64[slots + 1];
+    for(s : _int64 = 0; s <= slots; s++) { index[s] = s; }
+    state := new constant_state(index, slots);
+    for(s : _int64 = 0; s < slots; s++) {
+        state.kinds[s] = VARYING;
+        state.decimal_slot[s] = code.slot_kinds.at(s) == SLOT_DEC;
+    }
+    return state;
+}
+
+/** one instruction of the run: what it writes is known when constant propagation's rules can compute it */
+def run_instruction(made: ir_instruction, state: constant_state, value: folded) {
+    written : _int64 = slot_written(made);
+    if(written < 0) { return; }
+    evaluate(made, state, value);
+    state.written(written, value);
+}

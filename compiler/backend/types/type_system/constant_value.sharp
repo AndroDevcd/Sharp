@@ -1,0 +1,64 @@
+mod backend.types.type_system;
+
+import (
+    std.io
+)
+
+/**
+ * A VALUE THE COMPILER KNOWS WHILE COMPILING
+ *
+ * `5`, `'a'`, `"text"`, `2 + 3`: the compiler can say what these are without
+ * running the program. An expression of the typed tree that has such a value
+ * carries it in `bound_expression.constant`. It is used for enum values,
+ * for the type of `x := 5`, for `while(true)`, and later for folding
+ * (`2 + 3` becomes 5 while compiling).
+ *
+ *      true / false    the whole numbers 1 / 0
+ *      'a'             its character code, 97
+ *
+ *      C++ comparison: the old compiler keeps a literal's value in the
+ *      generated code of the expression (`MOVI`) and reads it back out of
+ *      there; here it is a small object of its own.
+ */
+const CONST_INTEGER : _int64 = 1;   // a whole number
+const CONST_DECIMAL : _int64 = 2;   // a number with a fraction
+const CONST_TEXT    : _int64 = 3;   // the characters of a string literal
+
+class constant_value {
+    kind : _int64;              // CONST_...
+    integer : _int64 = 0;
+    number : decimal = 0;
+    text : string?;
+
+    constant_value(kind: _int64) {
+        self->kind = kind;
+    }
+
+    /** the value as it is shown by the -analysis option */
+    def to_text() : string {
+        if(kind == CONST_INTEGER) { return "" + integer; }
+        if(kind == CONST_DECIMAL) { return "" + number; }
+        return "\"" + text!! + "\"";
+    }
+}
+
+/** the constant for a whole number */
+def integer_constant(value: _int64) : constant_value {
+    made := new constant_value(CONST_INTEGER);
+    made.integer = value;
+    return made;
+}
+
+/** the constant for a number with a fraction */
+def decimal_constant(value: decimal) : constant_value {
+    made := new constant_value(CONST_DECIMAL);
+    made.number = value;
+    return made;
+}
+
+/** the constant for a text literal */
+def text_constant(value: string) : constant_value {
+    made := new constant_value(CONST_TEXT);
+    made.text = value;
+    return made;
+}

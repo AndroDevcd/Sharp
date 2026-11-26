@@ -1,0 +1,420 @@
+mod std.util;
+
+/**
+ * @class version
+ *
+ * A semantic version number (semver.org, version 2.0.0):
+ *
+ *     MAJOR.MINOR.PATCH[-PRE-RELEASE][+BUILD]      e.g.  1.4.2,  2.0.0-rc.1,  1.0.0-beta+exp.sha.5114f85
+ *
+ *     v := version.parse("1.4.2-beta.3+build7");
+ *     v.major                 // 1
+ *     v.pre_release           // "beta.3"
+ *     (version.parse("1.9.0") < version.parse("1.10.0")).value        // true: numbers, not text
+ *     version.parse("1.2.3").next_minor().to_string()                 // "1.3.0"
+ *
+ * ORDER (precedence), as the specification defines it:
+ *   1. major, minor and patch are compared as NUMBERS, in that order.
+ *   2. A version with a pre-release part comes BEFORE the same version
+ *      without one: 1.0.0-rc.1 < 1.0.0.
+ *   3. Two pre-release parts are compared identifier by identifier (the
+ *      pieces between the dots): two numbers compare as numbers, a number
+ *      comes before a word, two words compare by character code; when all
+ *      shared identifiers are equal the shorter list comes first:
+ *      alpha < alpha.1 < alpha.beta < beta < beta.2 < beta.11 < rc.1
+ *   4. The build part is IGNORED when comparing: 1.0.0+a equals 1.0.0+b.
+ *
+ * Versions are VALUES: the fields are read only and next_major() etc.
+ * return new versions.
+ */
+class version {
+    /** incremented for incompatible changes (read only) */
+    major : decimal = 0;
+        private set v -> { major = v; }
+
+    /** incremented for new, backward compatible functionality (read only) */
+    minor : decimal = 0;
+        private set v -> { minor = v; }
+
+    /** incremented for backward compatible bug fixes (read only) */
+    patch : decimal = 0;
+        private set v -> { patch = v; }
+
+    /** the part after "-", e.g. "rc.1"; empty for a release version (read only) */
+    pre_release : string = "";
+        private set v -> { pre_release = v; }
+
+    /** the part after "+", e.g. "build.42"; empty when there is none. Not used for comparing (read only) */
+    build : string = "";
+        private set v -> { build = v; }
+
+    /**
+     * The release version major.minor.patch.
+     * Throws illegal_argument_exception when a number is negative or not whole.
+     */
+    version(major: decimal, minor: decimal, patch: decimal) {
+        check_number(major);
+        check_number(minor);
+        check_number(patch);
+        self->major = major;
+        self->minor = minor;
+        self->patch = patch;
+    }
+
+    /**
+     * The version major.minor.patch-pre_release (pass "" for no pre-release
+     * part).
+     * Throws illegal_argument_exception when a number is negative or not
+     * whole, and parse_exception when the pre-release text is malformed
+     * (see parse()).
+     */
+    version(major: decimal, minor: decimal, patch: decimal, pre_release: string) {
+        check_number(major);
+        check_number(minor);
+        check_number(patch);
+        check_identifiers(pre_release, 0, pre_release.size(), true, pre_release);
+        self->major = major;
+        self->minor = minor;
+        self->patch = patch;
+        self->pre_release = pre_release;
+    }
+
+    private static def check_number(n: decimal) {
+        if(n < 0 || n != (n as _int64))
+            throw new illegal_argument_exception("version: major, minor and patch must be whole numbers >= 0");
+    }
+
+    /**
+     * Read a version from text.
+     *
+     * Accepted: three dot-separated numbers without leading zeros, then
+     * optionally "-" and dot-separated pre-release identifiers, then
+     * optionally "+" and dot-separated build identifiers. Identifiers
+     * consist of letters, digits and "-" and are never empty; a numeric
+     * pre-release identifier has no leading zero.
+     *
+     * Throws parse_exception for anything else: "1.2", "1.2.3.4", "01.2.3",
+     * "1.2.x", "1.2.3-", "1.2.3-a..b", "v1.2.3", "".
+     */
+    static def parse(text: string): version {
+        length : decimal = text.size();
+
+        // find where the numbers end: at the first '-' or '+'
+        numbers_end : decimal = length;
+        for(i : decimal = 0; i < length; i++) {
+            ch : decimal = text.at(i).value;
+            if(ch == '-' || ch == '+') {
+                numbers_end = i;
+                break;
+            }
+        }
+
+        // the build part starts at the first '+', the pre-release part lies between
+        plus : decimal = length;
+        for(i : decimal = numbers_end; i < length; i++) {
+            if(text.at(i).value == '+') {
+                plus = i;
+                break;
+            }
+        }
+
+        // three numbers separated by exactly two dots
+        first_dot : decimal = 0 - 1;
+        second_dot : decimal = 0 - 1;
+        for(i : decimal = 0; i < numbers_end; i++) {
+            if(text.at(i).value == '.') {
+                if(first_dot < 0) {
+                    first_dot = i;
+                } else if(second_dot < 0) {
+                    second_dot = i;
+                } else {
+                    throw new parse_exception("version: not a semantic version: " + text);
+                }
+            }
+        }
+        if(first_dot < 0 || second_dot < 0)
+            throw new parse_exception("version: not a semantic version: " + text);
+
+        result := new version(
+            parse_number(text, 0, first_dot),
+            parse_number(text, first_dot + 1, second_dot),
+            parse_number(text, second_dot + 1, numbers_end));
+
+        if(numbers_end < length && text.at(numbers_end).value == '-') {
+            check_identifiers(text, numbers_end + 1, plus, true, text);
+            result.pre_release = slice(text, numbers_end + 1, plus);
+        }
+        if(plus < length) {
+            check_identifiers(text, plus + 1, length, false, text);
+            result.build = slice(text, plus + 1, length);
+        }
+        return result;
+    }
+
+    /**
+     * Like parse(), but returns null instead of throwing when the text is
+     * not a semantic version.
+     */
+    static def parse_or_null(text: string): version? {
+        try {
+            return parse(text);
+        } catch(e: parse_exception) {
+            return null;
+        }
+        return null;
+    }
+
+    /** true when parse(text) would succeed */
+    static def is_valid(text: string): bool {
+        return (parse_or_null(text) as object) != null;
+    }
+
+    /** the characters text[from .. to) as a new string ("" when the interval is empty) */
+    private static def slice(text: string, from: decimal, to: decimal): string {
+        if(to <= from) return "";
+        result := new _int8[to - from];
+        for(i : decimal = from; i < to; i++) {
+            result[i - from] = text.at(i).value;
+        }
+        return new string(result);
+    }
+
+    /** read the number in text[from .. to): digits only, at least one, no leading zero */
+    private static def parse_number(text: string, from: decimal, to: decimal): decimal {
+        if(to <= from)
+            throw new parse_exception("version: not a semantic version: " + text);
+        if(to - from > 1 && text.at(from).value == '0')
+            throw new parse_exception("version: a number has a leading zero: " + text);
+        if(to - from > 15)
+            throw new parse_exception("version: a number is too long: " + text);
+
+        result : decimal = 0;
+        for(i : decimal = from; i < to; i++) {
+            digit : decimal = text.at(i).value - '0';
+            if(digit < 0 || digit > 9)
+                throw new parse_exception("version: not a semantic version: " + text);
+            result = result * 10 + digit;
+        }
+        return result;
+    }
+
+    /**
+     * Check the dot-separated identifiers in text[from .. to): none empty,
+     * only letters, digits and '-', and (when `numeric_rule` is set, i.e.
+     * for the pre-release part) no leading zero in an all-digit identifier.
+     * An empty interval is accepted only when the whole text is empty (the
+     * "no pre-release" case of the constructor).
+     */
+    private static def check_identifiers(text: string, from: decimal, to: decimal, numeric_rule: bool, whole: string) {
+        if(to <= from) {
+            if(text.size() == 0) return;
+            throw new parse_exception("version: an empty pre-release or build part: " + whole);
+        }
+
+        start : decimal = from;
+        for(i : decimal = from; i <= to; i++) {
+            at_end : decimal = i == to;
+            ch : decimal = 0;
+            if(!at_end) ch = text.at(i).value;
+
+            if(at_end || ch == '.') {
+                if(i == start)
+                    throw new parse_exception("version: an empty identifier: " + whole);
+
+                if(numeric_rule && i - start > 1 && text.at(start).value == '0' && all_digits(text, start, i))
+                    throw new parse_exception("version: a numeric identifier has a leading zero: " + whole);
+                start = i + 1;
+            } else {
+                letter : decimal = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+                digit : decimal = ch >= '0' && ch <= '9';
+                if(!letter && !digit && ch != '-')
+                    throw new parse_exception("version: an illegal character in an identifier: " + whole);
+            }
+        }
+    }
+
+    private static def all_digits(text: string, from: decimal, to: decimal): bool {
+        for(i : decimal = from; i < to; i++) {
+            ch : decimal = text.at(i).value;
+            if(ch < '0' || ch > '9') return false;
+        }
+        return true;
+    }
+
+    /** true when the version has a pre-release part (1.0.0-rc.1) */
+    def is_pre_release(): bool {
+        return pre_release.size() != 0;
+    }
+
+    /**
+     * True for a version that promises a stable public interface: major is
+     * at least 1 and there is no pre-release part. (0.x.y is for initial
+     * development; anything may change.)
+     */
+    def is_stable(): bool {
+        return major >= 1 && pre_release.size() == 0;
+    }
+
+    /**
+     * True when code written against `required` can use this version: the
+     * same major number, and this version is not older than `required`.
+     * For major 0 the minor number must match as well, because 0.x releases
+     * make no compatibility promise between minor versions.
+     */
+    def is_compatible_with(required: version): bool {
+        if(major != required.major) return false;
+        if(major == 0 && minor != required.minor) return false;
+        return compare_to(required) >= 0;
+    }
+
+    /** the next incompatible release: major + 1, minor and patch 0, no pre-release or build part */
+    def next_major(): version {
+        return new version(major + 1, 0, 0);
+    }
+
+    /** the next feature release: minor + 1, patch 0, no pre-release or build part */
+    def next_minor(): version {
+        return new version(major, minor + 1, 0);
+    }
+
+    /** the next bug fix release: patch + 1, no pre-release or build part */
+    def next_patch(): version {
+        return new version(major, minor, patch + 1);
+    }
+
+    /** the same numbers without pre-release and build part: the release this version leads up to */
+    def release(): version {
+        return new version(major, minor, patch);
+    }
+
+    /**
+     * Three-way comparison by semantic version precedence (see the class
+     * comment): -1 when this version is older than `other`, 1 when it is
+     * newer, 0 when they have the same precedence (build parts may differ).
+     */
+    def compare_to(other: version): decimal {
+        if(major != other.major) return direction(major - other.major);
+        if(minor != other.minor) return direction(minor - other.minor);
+        if(patch != other.patch) return direction(patch - other.patch);
+
+        mine : decimal = pre_release.size();
+        theirs : decimal = other.pre_release.size();
+        if(mine == 0 && theirs == 0) return 0;
+        if(mine == 0) return 1;             // a release is newer than its pre-releases
+        if(theirs == 0) return 0 - 1;
+
+        return compare_pre_release(pre_release, other.pre_release);
+    }
+
+    private static def direction(difference: decimal): decimal {
+        if(difference < 0) return 0 - 1;
+        if(difference > 0) return 1;
+        return 0;
+    }
+
+    /** compare two non-empty pre-release texts identifier by identifier (rule 3 of the class comment) */
+    private static def compare_pre_release(a: string, b: string): decimal {
+        size_a : decimal = a.size();
+        size_b : decimal = b.size();
+        start_a : decimal = 0;
+        start_b : decimal = 0;
+
+        while(start_a <= size_a && start_b <= size_b) {
+            // the identifier of each side runs up to the next dot
+            end_a : decimal = start_a;
+            while(end_a < size_a && a.at(end_a).value != '.') { end_a++; }
+            end_b : decimal = start_b;
+            while(end_b < size_b && b.at(end_b).value != '.') { end_b++; }
+
+            order : decimal = compare_identifier(a, start_a, end_a, b, start_b, end_b);
+            if(order != 0) return order;
+
+            start_a = end_a + 1;
+            start_b = end_b + 1;
+        }
+
+        // all shared identifiers are equal: the side with identifiers left over is newer
+        if(start_a <= size_a) return 1;
+        if(start_b <= size_b) return 0 - 1;
+        return 0;
+    }
+
+    private static def compare_identifier(a: string, from_a: decimal, to_a: decimal, b: string, from_b: decimal, to_b: decimal): decimal {
+        numeric_a : decimal = all_digits(a, from_a, to_a);
+        numeric_b : decimal = all_digits(b, from_b, to_b);
+
+        if(numeric_a && numeric_b) {
+            // no leading zeros, so the longer number is the larger; equal lengths compare digit by digit below
+            if(to_a - from_a != to_b - from_b) return direction((to_a - from_a) - (to_b - from_b));
+        } else if(numeric_a) {
+            return 0 - 1;                   // a number comes before a word
+        } else if(numeric_b) {
+            return 1;
+        }
+
+        length_a : decimal = to_a - from_a;
+        length_b : decimal = to_b - from_b;
+        shared : decimal = length_a;
+        if(length_b < shared) shared = length_b;
+
+        for(i : decimal = 0; i < shared; i++) {
+            difference : decimal = a.at(from_a + i).value - b.at(from_b + i).value;
+            if(difference != 0) return direction(difference);
+        }
+        return direction(length_a - length_b);
+    }
+
+    /** true when both versions have the same precedence (the build part is ignored) */
+    def operator==(other: version): bool {
+        return compare_to(other) == 0;
+    }
+
+    /** true when the versions differ in precedence */
+    def operator!=(other: version): bool {
+        return compare_to(other) != 0;
+    }
+
+    /** true when this version is older than `other` */
+    def operator<(other: version): bool {
+        return compare_to(other) < 0;
+    }
+
+    /** true when this version is newer than `other` */
+    def operator>(other: version): bool {
+        return compare_to(other) > 0;
+    }
+
+    /** true when this version is older than or the same as `other` */
+    def operator<=(other: version): bool {
+        return compare_to(other) <= 0;
+    }
+
+    /** true when this version is newer than or the same as `other` */
+    def operator>=(other: version): bool {
+        return compare_to(other) >= 0;
+    }
+
+    /** the standard text form: "1.4.2", "2.0.0-rc.1", "1.0.0-beta+build.5" */
+    override def to_string(): string? {
+        text : string = snprintf('l', major, 0) + "." + snprintf('l', minor, 0) + "." + snprintf('l', patch, 0);
+        if(pre_release.size() != 0) {
+            text = text + "-" + pre_release;
+        }
+        if(build.size() != 0) {
+            text = text + "+" + build;
+        }
+        return text;
+    }
+
+    /**
+     * A hash code from the numbers and the pre-release part (not the build
+     * part, so versions that compare equal have equal hashes).
+     */
+    override def hash(): int {
+        result : decimal = ((major * 31 + minor) * 31 + patch) % 2147483647;
+        for(i : decimal = 0; i < pre_release.size(); i++) {
+            result = (result * 31 + pre_release.at(i).value) % 2147483647;
+        }
+        return result;
+    }
+}

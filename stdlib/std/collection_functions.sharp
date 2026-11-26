@@ -1,0 +1,1149 @@
+mod std;
+
+import (
+    std.collections
+)
+
+/**
+ * FUNCTIONS OF A LIST: filter, map, sorted_by, group_by ...
+ *
+ * What Kotlin has as extension functions of its collections, written as
+ * extension functions of `list<T>`. They are called on the list and take
+ * their block behind the call, with `it` for the element:
+ *
+ *      adults := people.filter { it.age >= 18 };
+ *      names  := people.map<string>() { it.name };
+ *      oldest := people.max_by { it.age };
+ *      text   := people.filter { it.age >= 18 }
+ *                      .sorted_by_text { it.name }
+ *                      .join_to_string(", ") { it.name };
+ *      by_city := people.group_by<string>() { it.city };
+ *
+ * A function that makes another type of thing names that type, and has `()`
+ * before its block: `map<string>() { ... }`.
+ *
+ * Another collection (a hash_set, a linked_list, a deque ...) becomes a
+ * list first: `seen.to_list().filter { ... }`. Where a function here takes
+ * a second collection (plus, minus, zip, contains_all) it takes any of them.
+ *
+ * Conventions
+ *   - the collection is never changed (the functions that change a list are
+ *     at the end of this file, and say so); what is produced is a new
+ *     `list<T>` in the order of the source
+ *   - a block that answers yes or no gives a bool: `{ it.age >= 18 }`
+ *   - a block that gives the number to judge an element by gives a plain
+ *     number: `{ it.age }`, `{ it.size() }`
+ *   - a question is answered with 1 or 0 (`if(people.any { it.age < 18 })`)
+ *   - "or_null" in a name: null instead of an exception when there is none
+ *   - equality (contains, distinct, minus ...) is `==`
+ *
+ *      Kotlin names: the same words with underscores (sortedBy is sorted_by).
+ *      Different: `single` is a word of the language - it is `only` here;
+ *      elementAt is `at` (a list has it). chunked, windowed, flatten
+ *      are collections<T>.chunked(items, 3) and so on (std.collections): a
+ *      function of every list cannot give a list of lists (list<list<T>>
+ *      would need its own, of list<list<list<T>>>, without end).
+ */
+
+// ----------------------------------------------------------------------
+// a list to start from
+// ----------------------------------------------------------------------
+
+/**
+ * A list of the elements of an array (an empty one for null):
+ * `list_of<string>(line.split(",")).filter { it.is_not_blank() }`.
+ * The array is copied; it stays what it was.
+ */
+def list_of<T>(items: T[]?) : list<T> {
+    made := new list<T>();
+    for(i : _int64 = 0; i < sizeof(items); i++) { made.add(items[i]); }
+    return made;
+}
+
+// ----------------------------------------------------------------------
+// keeping some of the elements
+// ----------------------------------------------------------------------
+
+/** the elements the block says yes to */
+def list<T>.filter(wanted: (T)(bool)) : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(wanted(items[i])) { made.add(items[i]); } }
+    return made;
+}
+
+/** the elements the block says no to */
+def list<T>.filter_not(unwanted: (T)(bool)) : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(!unwanted(items[i])) { made.add(items[i]); } }
+    return made;
+}
+
+/** filter, with the position of the element (0 for the first) given to the block as well */
+def list<T>.filter_indexed(wanted: (_int64, T)(bool)) : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(wanted(i, items[i])) { made.add(items[i]); } }
+    return made;
+}
+
+/** two lists: `first` the elements the block says yes to, `second` the rest */
+def list<T>.partition(wanted: (T)(bool)) : two_lists<T> {
+    halves := new two_lists<T>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        if(wanted(items[i])) { halves.first.add(items[i]); } else { halves.second.add(items[i]); }
+    }
+    return halves;
+}
+
+/** what partition gives: the elements its block said yes to, and the rest */
+class two_lists<T> {
+    first : list<T> = new list<T>();
+    second : list<T> = new list<T>();
+}
+
+/** the elements without the ones that are equal to an earlier one */
+def list<T>.distinct() : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(!made.contains(items[i])) { made.add(items[i]); } }
+    return made;
+}
+
+/** of the elements whose block gives an equal key, only the first */
+def list<T>.distinct_by<K>(key: (T)(K)) : list<T> {
+    made := new list<T>();
+    seen := new list<K>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        found := key(items[i]);
+        if(!seen.contains(found)) { seen.add(found); made.add(items[i]); }
+    }
+    return made;
+}
+
+// ----------------------------------------------------------------------
+// a part of the elements
+// ----------------------------------------------------------------------
+
+/** the first `count` elements (all of them when there are fewer) */
+def list<T>.take(count: _int64) : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items) && i < count; i++) { made.add(items[i]); }
+    return made;
+}
+
+/** the last `count` elements */
+def list<T>.take_last(count: _int64) : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    start : _int64 = sizeof(items) - count;
+    if(start < 0) { start = 0; }
+    for(i : _int64 = start; i < sizeof(items); i++) { made.add(items[i]); }
+    return made;
+}
+
+/** all but the first `count` elements */
+def list<T>.drop(count: _int64) : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    start : _int64 = count < 0 ? 0 : count;
+    for(i : _int64 = start; i < sizeof(items); i++) { made.add(items[i]); }
+    return made;
+}
+
+/** all but the last `count` elements */
+def list<T>.drop_last(count: _int64) : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    kept : _int64 = count < 0 ? sizeof(items) : sizeof(items) - count;
+    for(i : _int64 = 0; i < kept; i++) { made.add(items[i]); }
+    return made;
+}
+
+/** the elements from the start for as long as the block says yes */
+def list<T>.take_while(wanted: (T)(bool)) : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        if(!wanted(items[i])) { break; }
+        made.add(items[i]);
+    }
+    return made;
+}
+
+/** the elements at the end for as long as the block says yes, in their order */
+def list<T>.take_last_while(wanted: (T)(bool)) : list<T> {
+    items := get_elements();
+    start : _int64 = sizeof(items);
+    while(start > 0 && wanted(items[start - 1])) { start--; }
+    made := new list<T>();
+    for(i : _int64 = start; i < sizeof(items); i++) { made.add(items[i]); }
+    return made;
+}
+
+/** the elements from the first one the block says no to */
+def list<T>.drop_while(unwanted: (T)(bool)) : list<T> {
+    items := get_elements();
+    start : _int64 = 0;
+    while(start < sizeof(items) && unwanted(items[start])) { start++; }
+    made := new list<T>();
+    for(i : _int64 = start; i < sizeof(items); i++) { made.add(items[i]); }
+    return made;
+}
+
+/** the elements without the ones at the end the block says yes to */
+def list<T>.drop_last_while(unwanted: (T)(bool)) : list<T> {
+    items := get_elements();
+    end : _int64 = sizeof(items);
+    while(end > 0 && unwanted(items[end - 1])) { end--; }
+    made := new list<T>();
+    for(i : _int64 = 0; i < end; i++) { made.add(items[i]); }
+    return made;
+}
+
+/** the elements at positions from .. to - 1; positions outside the collection are left out */
+def list<T>.slice(from: _int64, to: _int64) : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    start : _int64 = from < 0 ? 0 : from;
+    for(i : _int64 = start; i < to && i < sizeof(items); i++) { made.add(items[i]); }
+    return made;
+}
+
+// ----------------------------------------------------------------------
+// one element
+// ----------------------------------------------------------------------
+
+/** the first element, or null when there is none */
+def list<T>.first_or_null() : T? {
+    items := get_elements();
+    if(sizeof(items) == 0) { return null; }
+    return items[0];
+}
+
+/** the last element, or null when there is none */
+def list<T>.last_or_null() : T? {
+    items := get_elements();
+    if(sizeof(items) == 0) { return null; }
+    return items[sizeof(items) - 1];
+}
+
+/** the first element the block says yes to; throws no_such_element_exception when there is none */
+def list<T>.first(wanted: (T)(bool)) : T {
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(wanted(items[i])) { return items[i]; } }
+    throw new no_such_element_exception("first: no element is what the block asks for");
+}
+
+/** the last element the block says yes to; throws no_such_element_exception when there is none */
+def list<T>.last(wanted: (T)(bool)) : T {
+    items := get_elements();
+    for(i : _int64 = sizeof(items) - 1; i >= 0; i--) { if(wanted(items[i])) { return items[i]; } }
+    throw new no_such_element_exception("last: no element is what the block asks for");
+}
+
+/** the first element the block says yes to, or null */
+def list<T>.first_or_null(wanted: (T)(bool)) : T? {
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(wanted(items[i])) { return items[i]; } }
+    return null;
+}
+
+/** the last element the block says yes to, or null */
+def list<T>.last_or_null(wanted: (T)(bool)) : T? {
+    items := get_elements();
+    for(i : _int64 = sizeof(items) - 1; i >= 0; i--) { if(wanted(items[i])) { return items[i]; } }
+    return null;
+}
+
+/** the first element the block says yes to, or null (the same as first_or_null) */
+def list<T>.find(wanted: (T)(bool)) : T? {
+    return first_or_null(wanted);
+}
+
+/** the last element the block says yes to, or null (the same as last_or_null) */
+def list<T>.find_last(wanted: (T)(bool)) : T? {
+    return last_or_null(wanted);
+}
+
+/** the one element there is; throws when there is none or more than one */
+def list<T>.only() : T {
+    items := get_elements();
+    if(sizeof(items) != 1) { throw new illegal_state_exception("only: there are " + sizeof(items) + " elements, not one"); }
+    return items[0];
+}
+
+/** the one element there is, or null when there is none or more than one */
+def list<T>.only_or_null() : T? {
+    items := get_elements();
+    if(sizeof(items) != 1) { return null; }
+    return items[0];
+}
+
+/** the one element the block says yes to, or null when it is none or more than one */
+def list<T>.only_or_null(wanted: (T)(bool)) : T? {
+    found : T? = null;
+    hits : _int64 = 0;
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        if(wanted(items[i])) { found = items[i]; hits++; }
+    }
+    if(hits != 1) { return null; }
+    return found;
+}
+
+/** the element at a position, or null when the collection has no such position */
+def list<T>.at_or_null(index: _int64) : T? {
+    items := get_elements();
+    if(index < 0 || index >= sizeof(items)) { return null; }
+    return items[index];
+}
+
+/** the element at a position, or `otherwise` when the collection has no such position */
+def list<T>.at_or(index: _int64, otherwise: T) : T {
+    items := get_elements();
+    if(index < 0 || index >= sizeof(items)) { return otherwise; }
+    return items[index];
+}
+
+/** an element picked at random; throws no_such_element_exception when there is none */
+def list<T>.random() : T {
+    items := get_elements();
+    if(sizeof(items) == 0) { throw new no_such_element_exception("random: the collection is empty"); }
+    return items[rand_int(0, sizeof(items) - 1).value];
+}
+
+/** an element picked at random, or null when there is none */
+def list<T>.random_or_null() : T? {
+    items := get_elements();
+    if(sizeof(items) == 0) { return null; }
+    return items[rand_int(0, sizeof(items) - 1).value];
+}
+
+/** the position of the first element the block says yes to, or -1 */
+def list<T>.index_of_first(wanted: (T)(bool)) : _int64 {
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(wanted(items[i])) { return i; } }
+    return 0 - 1;
+}
+
+/** the position of the last element the block says yes to, or -1 */
+def list<T>.index_of_last(wanted: (T)(bool)) : _int64 {
+    items := get_elements();
+    for(i : _int64 = sizeof(items) - 1; i >= 0; i--) { if(wanted(items[i])) { return i; } }
+    return 0 - 1;
+}
+
+// ----------------------------------------------------------------------
+// questions
+// ----------------------------------------------------------------------
+
+/** true when there is an element */
+def list<T>.is_not_empty() : bool {
+    return sizeof(get_elements()) > 0;
+}
+
+/** true when there is an element (the same as is_not_empty) */
+def list<T>.any() : bool {
+    return sizeof(get_elements()) > 0;
+}
+
+/** true when there is no element */
+def list<T>.none() : bool {
+    return sizeof(get_elements()) == 0;
+}
+
+/** true when the block says yes to at least one element */
+def list<T>.any(wanted: (T)(bool)) : bool {
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(wanted(items[i])) { return true; } }
+    return false;
+}
+
+/** true when the block says yes to every element (and when there is none) */
+def list<T>.all(wanted: (T)(bool)) : bool {
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(!wanted(items[i])) { return false; } }
+    return true;
+}
+
+/** true when the block says yes to no element */
+def list<T>.none(wanted: (T)(bool)) : bool {
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(wanted(items[i])) { return false; } }
+    return true;
+}
+
+/** true when every element of `others` is in this collection */
+def list<T>.contains_all(others: loopable<T>) : bool {
+    mine := get_elements();
+    theirs := others.get_elements();
+    for(i : _int64 = 0; i < sizeof(theirs); i++) {
+        found : decimal = 0;
+        for(j : _int64 = 0; j < sizeof(mine); j++) { if(mine[j] == theirs[i]) { found = 1; break; } }
+        if(!found) { return false; }
+    }
+    return true;
+}
+
+// ----------------------------------------------------------------------
+// counting and numbers
+// ----------------------------------------------------------------------
+
+/** how many elements there are */
+def list<T>.count() : _int64 {
+    return sizeof(get_elements());
+}
+
+/** how many elements equal `element` */
+def list<T>.count_of(element: T) : _int64 {
+    hits : _int64 = 0;
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(items[i] == element) { hits++; } }
+    return hits;
+}
+
+/** true when the other list has as many elements and an equal one at every position */
+def list<T>.equals(other: list<T>) : bool {
+    count : _int64 = size();
+    if(count != other.size()) { return false; }
+    for(i : _int64 = 0; i < count; i++) { if(at(i) != other.at(i)) { return false; } }
+    return true;
+}
+
+/**
+ * An `iterator` (has_next / next) from the first element to the last. It
+ * walks a copy, so the list may be changed while it is walked.
+ */
+def list<T>.iterator() : iterator<T> {
+    return new array_iterator<T>(to_array());
+}
+
+/** how many elements the block says yes to */
+def list<T>.count(wanted: (T)(bool)) : _int64 {
+    hits : _int64 = 0;
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { if(wanted(items[i])) { hits++; } }
+    return hits;
+}
+
+/** the numbers the block gives for the elements, added up */
+def list<T>.sum_of(number: (T)(decimal)) : decimal {
+    total : decimal = 0;
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { total += number(items[i]); }
+    return total;
+}
+
+/** the average of the numbers the block gives; 0 when there is no element */
+def list<T>.average_of(number: (T)(decimal)) : decimal {
+    items := get_elements();
+    if(sizeof(items) == 0) { return 0; }
+    total : decimal = 0;
+    for(i : _int64 = 0; i < sizeof(items); i++) { total += number(items[i]); }
+    return total / sizeof(items);
+}
+
+/** the smallest number the block gives; throws no_such_element_exception when there is no element */
+def list<T>.min_of(number: (T)(decimal)) : decimal {
+    items := get_elements();
+    if(sizeof(items) == 0) { throw new no_such_element_exception("min_of: the collection is empty"); }
+    best : decimal = number(items[0]);
+    for(i : _int64 = 1; i < sizeof(items); i++) {
+        found : decimal = number(items[i]);
+        if(found < best) { best = found; }
+    }
+    return best;
+}
+
+/** the largest number the block gives; throws no_such_element_exception when there is no element */
+def list<T>.max_of(number: (T)(decimal)) : decimal {
+    items := get_elements();
+    if(sizeof(items) == 0) { throw new no_such_element_exception("max_of: the collection is empty"); }
+    best : decimal = number(items[0]);
+    for(i : _int64 = 1; i < sizeof(items); i++) {
+        found : decimal = number(items[i]);
+        if(found > best) { best = found; }
+    }
+    return best;
+}
+
+/** the element the block gives the smallest number for (the first of them), or null when there is none */
+def list<T>.min_by_or_null(number: (T)(decimal)) : T? {
+    items := get_elements();
+    if(sizeof(items) == 0) { return null; }
+    best : _int64 = 0;
+    least : decimal = number(items[0]);
+    for(i : _int64 = 1; i < sizeof(items); i++) {
+        found : decimal = number(items[i]);
+        if(found < least) { least = found; best = i; }
+    }
+    return items[best];
+}
+
+/** the element the block gives the largest number for (the first of them), or null when there is none */
+def list<T>.max_by_or_null(number: (T)(decimal)) : T? {
+    items := get_elements();
+    if(sizeof(items) == 0) { return null; }
+    best : _int64 = 0;
+    most : decimal = number(items[0]);
+    for(i : _int64 = 1; i < sizeof(items); i++) {
+        found : decimal = number(items[i]);
+        if(found > most) { most = found; best = i; }
+    }
+    return items[best];
+}
+
+/** the element the block gives the smallest number for; throws no_such_element_exception when there is none */
+def list<T>.min_by(number: (T)(decimal)) : T {
+    found := min_by_or_null(number);
+    if(found == null) { throw new no_such_element_exception("min_by: the collection is empty"); }
+    return found!!;
+}
+
+/** the element the block gives the largest number for; throws no_such_element_exception when there is none */
+def list<T>.max_by(number: (T)(decimal)) : T {
+    found := max_by_or_null(number);
+    if(found == null) { throw new no_such_element_exception("max_by: the collection is empty"); }
+    return found!!;
+}
+
+/** the element that comes first by `compare` (negative: the first argument comes first), or null when there is none */
+def list<T>.min_with_or_null(compare: (T, T)(decimal)) : T? {
+    items := get_elements();
+    if(sizeof(items) == 0) { return null; }
+    best : _int64 = 0;
+    for(i : _int64 = 1; i < sizeof(items); i++) { if(compare(items[i], items[best]) < 0) { best = i; } }
+    return items[best];
+}
+
+/** the element that comes last by `compare`, or null when there is none */
+def list<T>.max_with_or_null(compare: (T, T)(decimal)) : T? {
+    items := get_elements();
+    if(sizeof(items) == 0) { return null; }
+    best : _int64 = 0;
+    for(i : _int64 = 1; i < sizeof(items); i++) { if(compare(items[i], items[best]) > 0) { best = i; } }
+    return items[best];
+}
+
+// ----------------------------------------------------------------------
+// another order
+// ----------------------------------------------------------------------
+
+/** the elements in the order `compare` gives (negative: the first argument comes first). Equal ones keep their order. */
+def list<T>.sorted_with(compare: (T, T)(decimal)) : list<T> {
+    made := to_list();
+    made.sort(compare);
+    return made;
+}
+
+/** the elements by the number the block gives, smallest first */
+def list<T>.sorted_by(number: (T)(decimal)) : list<T> {
+    return ordered_by_number(number, 0);
+}
+
+/** the elements by the number the block gives, largest first */
+def list<T>.sorted_by_descending(number: (T)(decimal)) : list<T> {
+    return ordered_by_number(number, 1);
+}
+
+/** the elements by the text the block gives, in the order of a dictionary ("a" before "b") */
+def list<T>.sorted_by_text(text: (T)(string)) : list<T> {
+    return ordered_by_text(text, 0);
+}
+
+/** the elements by the text the block gives, from the end of the dictionary */
+def list<T>.sorted_by_text_descending(text: (T)(string)) : list<T> {
+    return ordered_by_text(text, 1);
+}
+
+/** (the work of sorted_by: the block is asked once for each element, then the positions are put in the order of the numbers) */
+def list<T>.ordered_by_number(number: (T)(decimal), backwards: decimal) : list<T> {
+    items := get_elements();
+    count : _int64 = sizeof(items);
+    made := new list<T>();
+    if(count == 0) { return made; }
+    keys := new decimal[count];
+    for(i : _int64 = 0; i < count; i++) { keys[i] = backwards ? 0 - number(items[i]) : number(items[i]); }
+
+    // equal keys keep their order
+    order := var_arrays.order_of(keys);
+    for(i : _int64 = 0; i < count; i++) { made.add(items[order[i]]); }
+    return made;
+}
+
+/** (the work of sorted_by_text: the block is asked once for each element, then the positions are sorted by their texts) */
+def list<T>.ordered_by_text(text: (T)(string), backwards: decimal) : list<T> {
+    items := get_elements();
+    count : _int64 = sizeof(items);
+    made := new list<T>();
+    if(count == 0) { return made; }
+    keys := new string[count];
+    for(i : _int64 = 0; i < count; i++) { keys[i] = text(items[i]); }
+
+    order := new list<int>();
+    for(i : _int64 = 0; i < count; i++) { order.add(i); }
+    order.sort({ a: int, b: int -> (decimal)
+        way : decimal = keys[a.value].compare_to(keys[b.value]);
+        return backwards ? 0 - way : way;
+    });
+    for(i : _int64 = 0; i < count; i++) { made.add(items[order.at(i).value]); }
+    return made;
+}
+
+/** true when no element sorts before the one in front of it, by a comparison of two elements (also for an empty list) */
+def list<T>.is_sorted_with(compare: (T, T)(decimal)) : bool {
+    items := get_elements();
+    for(i : _int64 = 1; i < sizeof(items); i++) { if(compare(items[i - 1], items[i]) > 0) { return false; } }
+    return true;
+}
+
+/**
+ * Where `key` is in a list that is SORTED by `compare`, found by halving
+ * the range: O(log n).
+ *
+ * When no element compares equal to the key the answer is negative:
+ * -(insertion point) - 1, the insertion point being where the key would
+ * have to go to keep the list sorted. So the answer is 0 or more exactly
+ * when the key was found.
+ */
+def list<T>.binary_search(key: T, compare: (T, T)(decimal)) : _int64 {
+    low : _int64 = 0;
+    high : _int64 = size() - 1;
+    while(low <= high) {
+        middle : _int64 = (low + high) >> 1;
+        order : decimal = compare(at(middle), key);
+        if(order == 0) { return middle; }
+        if(order < 0) { low = middle + 1; }
+        else { high = middle - 1; }
+    }
+    return 0 - low - 1;
+}
+
+/** true when the numbers the block gives never go down from one element to the next */
+def list<T>.is_sorted_by(number: (T)(decimal)) : bool {
+    items := get_elements();
+    for(i : _int64 = 1; i < sizeof(items); i++) { if(number(items[i]) < number(items[i - 1])) { return false; } }
+    return true;
+}
+
+/** the elements from the last to the first */
+def list<T>.reversed() : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    for(i : _int64 = sizeof(items) - 1; i >= 0; i--) { made.add(items[i]); }
+    return made;
+}
+
+/** the elements in an order picked at random */
+def list<T>.shuffled() : list<T> {
+    made := to_list();
+    made.shuffle();
+    return made;
+}
+
+// ----------------------------------------------------------------------
+// with other collections
+// ----------------------------------------------------------------------
+
+/** a new list with the same elements */
+def list<T>.to_list() : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { made.add(items[i]); }
+    return made;
+}
+
+/** the elements, then the elements of `others` */
+def list<T>.plus(others: loopable<T>) : list<T> {
+    made := to_list();
+    theirs := others.get_elements();
+    for(i : _int64 = 0; i < sizeof(theirs); i++) { made.add(theirs[i]); }
+    return made;
+}
+
+/** the elements, then `element` */
+def list<T>.plus_one(element: T) : list<T> {
+    made := to_list();
+    made.add(element);
+    return made;
+}
+
+/** the elements that are not in `others` */
+def list<T>.minus(others: loopable<T>) : list<T> {
+    made := new list<T>();
+    mine := get_elements();
+    theirs := new list<T>();
+    theirs.add_every(others);
+    for(i : _int64 = 0; i < sizeof(mine); i++) { if(!theirs.contains(mine[i])) { made.add(mine[i]); } }
+    return made;
+}
+
+/** the elements without the first one equal to `element` */
+def list<T>.minus_one(element: T) : list<T> {
+    made := to_list();
+    made.remove(element);
+    return made;
+}
+
+/** the elements that are in `others` as well, each once */
+def list<T>.intersect(others: loopable<T>) : list<T> {
+    made := new list<T>();
+    mine := get_elements();
+    theirs := new list<T>();
+    theirs.add_every(others);
+    for(i : _int64 = 0; i < sizeof(mine); i++) {
+        if(theirs.contains(mine[i]) && !made.contains(mine[i])) { made.add(mine[i]); }
+    }
+    return made;
+}
+
+/** the elements of both, each once */
+def list<T>.union(others: loopable<T>) : list<T> {
+    return plus(others).distinct();
+}
+
+/** pairs of the elements at the same position in both; as long as the shorter of the two */
+def list<T>.zip<R>(others: loopable<R>) : list<pair<T, R> > {
+    made := new list<pair<T, R> >();
+    mine := get_elements();
+    theirs := others.get_elements();
+    for(i : _int64 = 0; i < sizeof(mine) && i < sizeof(theirs); i++) { made.add(new pair<T, R>(mine[i], theirs[i])); }
+    return made;
+}
+
+// ----------------------------------------------------------------------
+// something else made of the elements
+// ----------------------------------------------------------------------
+
+/** what the block makes of each element: `names := people.map<string>() { it.name };` */
+def list<T>.map<R>(made_of: (T)(R)) : list<R> {
+    made := new list<R>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { made.add(made_of(items[i])); }
+    return made;
+}
+
+/** map, with the position of the element given to the block as well */
+def list<T>.map_indexed<R>(made_of: (_int64, T)(R)) : list<R> {
+    made := new list<R>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { made.add(made_of(i, items[i])); }
+    return made;
+}
+
+/** map, without the elements the block gives null for */
+def list<T>.map_not_null<R>(made_of: (T)(R?)) : list<R> {
+    made := new list<R>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        found := made_of(items[i]);
+        if(found != null) { made.add(found!!); }
+    }
+    return made;
+}
+
+/** the block gives a list for each element; all of those lists as one */
+def list<T>.flat_map<R>(made_of: (T)(list<R>)) : list<R> {
+    made := new list<R>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { made.add_all(made_of(items[i])); }
+    return made;
+}
+
+/** what the block first gives something other than null for; null when it never does */
+def list<T>.first_not_null_of<R>(made_of: (T)(R?)) : R? {
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        found := made_of(items[i]);
+        if(found != null) { return found; }
+    }
+    return null;
+}
+
+/**
+ * One value made of all elements: it starts as `start`, and the block gives
+ * the next value from the value so far and each element.
+ *
+ *      total := prices.fold<int>(0) { so_far, price -> so_far + price }
+ */
+def list<T>.fold<R>(start: R, next: (R, T)(R)) : R {
+    value := start;
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { value = next(value, items[i]); }
+    return value;
+}
+
+/** fold from the last element to the first */
+def list<T>.fold_right<R>(start: R, next: (T, R)(R)) : R {
+    value := start;
+    items := get_elements();
+    for(i : _int64 = sizeof(items) - 1; i >= 0; i--) { value = next(items[i], value); }
+    return value;
+}
+
+/** every value fold goes through, `start` first */
+def list<T>.running_fold<R>(start: R, next: (R, T)(R)) : list<R> {
+    made := new list<R>();
+    value := start;
+    made.add(value);
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        value = next(value, items[i]);
+        made.add(value);
+    }
+    return made;
+}
+
+/** fold that starts with the first element; throws no_such_element_exception when there is none */
+def list<T>.reduce(next: (T, T)(T)) : T {
+    items := get_elements();
+    if(sizeof(items) == 0) { throw new no_such_element_exception("reduce: the collection is empty"); }
+    value := items[0];
+    for(i : _int64 = 1; i < sizeof(items); i++) { value = next(value, items[i]); }
+    return value;
+}
+
+/** reduce, or null when there is no element */
+def list<T>.reduce_or_null(next: (T, T)(T)) : T? {
+    items := get_elements();
+    if(sizeof(items) == 0) { return null; }
+    value := items[0];
+    for(i : _int64 = 1; i < sizeof(items); i++) { value = next(value, items[i]); }
+    return value;
+}
+
+/** every value reduce goes through, the first element first */
+def list<T>.running_reduce(next: (T, T)(T)) : list<T> {
+    made := new list<T>();
+    items := get_elements();
+    if(sizeof(items) == 0) { return made; }
+    value := items[0];
+    made.add(value);
+    for(i : _int64 = 1; i < sizeof(items); i++) {
+        value = next(value, items[i]);
+        made.add(value);
+    }
+    return made;
+}
+
+/** the elements in lists by the key the block gives; the keys in the order they first came up */
+def list<T>.group_by<K>(key: (T)(K)) : linked_hash_map<K, list<T> > {
+    groups := new linked_hash_map<K, list<T> >();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        found := key(items[i]);
+        group := groups.at(found);
+        if(group == null) {
+            started := new list<T>();
+            started.add(items[i]);
+            groups.put(found, started);
+        } else {
+            group!!.add(items[i]);
+        }
+    }
+    return groups;
+}
+
+/** how many elements the block gives each key for */
+def list<T>.count_by<K>(key: (T)(K)) : linked_hash_map<K, int> {
+    counts := new linked_hash_map<K, int>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        found := key(items[i]);
+        so_far := counts.at(found);
+        counts.put(found, so_far == null ? new int(1) : new int(so_far!!.value + 1));
+    }
+    return counts;
+}
+
+/** a map from the key the block gives to its element (the last one, when two give the same key) */
+def list<T>.associate_by<K>(key: (T)(K)) : linked_hash_map<K, T> {
+    made := new linked_hash_map<K, T>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { made.put(key(items[i]), items[i]); }
+    return made;
+}
+
+/** a map from each element to what the block gives for it */
+def list<T>.associate_with<V>(value: (T)(V)) : linked_hash_map<T, V> {
+    made := new linked_hash_map<T, V>();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { made.put(items[i], value(items[i])); }
+    return made;
+}
+
+/** the elements as one text, `between` between them (each element's to_string) */
+def list<T>.join_to_string(between: string) : string {
+    text := new string_builder();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        if(i > 0) { text.append(between); }
+        shown := element_text(items[i]);
+        if(shown != null) { text.append(shown!!); }
+    }
+    return text.to_string()!!;
+}
+
+/** to_string() of whatever a list holds (null for null) */
+def element_text(element: object?) : string? {
+    if(element == null) { return null; }
+    return (element as _object_).to_string();
+}
+
+/** what the block gives for each element as one text: `people.join_to_string(", ") { it.name }` */
+def list<T>.join_to_string(between: string, shown: (T)(string)) : string {
+    text := new string_builder();
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) {
+        if(i > 0) { text.append(between); }
+        text.append(shown(items[i]));
+    }
+    return text.to_string()!!;
+}
+
+/** join_to_string with a text before the first and after the last element: `numbers.join_to_string(", ", "[", "]")` */
+def list<T>.join_to_string(between: string, before: string, after: string) : string {
+    text := new string_builder();
+    text.append(before);
+    text.append(join_to_string(between));
+    text.append(after);
+    return text.to_string()!!;
+}
+
+// ----------------------------------------------------------------------
+// doing something with each element
+// ----------------------------------------------------------------------
+
+/** runs the block for each element */
+def list<T>.for_each(action: (T)()) {
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { action(items[i]); }
+}
+
+/** runs the block for each element with its position: `names.for_each_indexed { at, name -> ... };` */
+def list<T>.for_each_indexed(action: (_int64, T)()) {
+    items := get_elements();
+    for(i : _int64 = 0; i < sizeof(items); i++) { action(i, items[i]); }
+}
+
+// ----------------------------------------------------------------------
+// lists of numbers and of texts
+// ----------------------------------------------------------------------
+
+/** the numbers added up */
+def list<int>.sum() : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < size(); i++) { total += at(i).value; }
+    return total;
+}
+
+/** the average of the numbers; 0 for an empty list */
+def list<int>.average() : decimal {
+    if(size() == 0) { return 0; }
+    total : decimal = sum();
+    return total / size();
+}
+
+/** the smallest number; throws no_such_element_exception for an empty list */
+def list<int>.min() : _int64 {
+    if(size() == 0) { throw new no_such_element_exception("min: the list is empty"); }
+    best : _int64 = at(0).value;
+    for(i : _int64 = 1; i < size(); i++) { if(at(i).value < best) { best = at(i).value; } }
+    return best;
+}
+
+/** the largest number; throws no_such_element_exception for an empty list */
+def list<int>.max() : _int64 {
+    if(size() == 0) { throw new no_such_element_exception("max: the list is empty"); }
+    best : _int64 = at(0).value;
+    for(i : _int64 = 1; i < size(); i++) { if(at(i).value > best) { best = at(i).value; } }
+    return best;
+}
+
+/** the numbers, smallest first */
+def list<int>.sorted() : list<int> {
+    return sorted_by { it.value };
+}
+
+/** the numbers, largest first */
+def list<int>.sorted_descending() : list<int> {
+    return sorted_by_descending { it.value };
+}
+
+/** the numbers added up */
+def list<long>.sum() : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < size(); i++) { total += at(i).value; }
+    return total;
+}
+
+/** the numbers, smallest first */
+def list<long>.sorted() : list<long> {
+    return sorted_by { it.value };
+}
+
+/** the numbers added up */
+def list<double>.sum() : decimal {
+    total : decimal = 0;
+    for(i : _int64 = 0; i < size(); i++) { total += at(i).value; }
+    return total;
+}
+
+/** the average of the numbers; 0 for an empty list */
+def list<double>.average() : decimal {
+    if(size() == 0) { return 0; }
+    return sum() / size();
+}
+
+/** the smallest number; throws no_such_element_exception for an empty list */
+def list<double>.min() : decimal {
+    return min_of { it.value };
+}
+
+/** the largest number; throws no_such_element_exception for an empty list */
+def list<double>.max() : decimal {
+    return max_of { it.value };
+}
+
+/** the numbers, smallest first */
+def list<double>.sorted() : list<double> {
+    return sorted_by { it.value };
+}
+
+/** the texts in the order of a dictionary */
+def list<string>.sorted() : list<string> {
+    return sorted_by_text { it };
+}
+
+/** the texts from the end of the dictionary */
+def list<string>.sorted_descending() : list<string> {
+    return sorted_by_text_descending { it };
+}
+
+// ----------------------------------------------------------------------
+// CHANGING a list (these change the list they are called on)
+// ----------------------------------------------------------------------
+
+/** adds every element of another collection (a list, a set, a queue ...) at the end */
+def list<T>.add_every(others: loopable<T>) {
+    theirs := others.get_elements();
+    for(i : _int64 = 0; i < sizeof(theirs); i++) { add(theirs[i]); }
+}
+
+/** takes out every element the block says yes to; answers how many went */
+def list<T>.remove_all(unwanted: (T)(bool)) : _int64 {
+    kept := filter_not(unwanted);
+    gone : _int64 = size() - kept.size();
+    if(gone > 0) { clear(); add_all(kept); }
+    return gone;
+}
+
+/** keeps only the elements the block says yes to; answers how many went */
+def list<T>.retain_all(wanted: (T)(bool)) : _int64 {
+    kept := filter(wanted);
+    gone : _int64 = size() - kept.size();
+    if(gone > 0) { clear(); add_all(kept); }
+    return gone;
+}
+
+/** puts the list in the order of the number the block gives, smallest first */
+def list<T>.sort_by(number: (T)(decimal)) {
+    ordered := sorted_by(number);
+    clear();
+    add_all(ordered);
+}
+
+/** puts the list in the order of the number the block gives, largest first */
+def list<T>.sort_by_descending(number: (T)(decimal)) {
+    ordered := sorted_by_descending(number);
+    clear();
+    add_all(ordered);
+}
+
+/** puts the list in the order of the text the block gives */
+def list<T>.sort_by_text(text: (T)(string)) {
+    ordered := sorted_by_text(text);
+    clear();
+    add_all(ordered);
+}
+
+/** puts the elements in an order picked at random */
+def list<T>.shuffle() {
+    for(i : _int64 = size() - 1; i > 0; i--) {
+        other : _int64 = rand_int(0, i).value;
+        held := at(i);
+        put(i, at(other));
+        put(other, held);
+    }
+}
+
+/** every position gets `element` */
+def list<T>.fill(element: T) {
+    for(i : _int64 = 0; i < size(); i++) { put(i, element); }
+}
+
+/** the elements at two positions change places; throws out_of_bounds_exception for a position outside the list */
+def list<T>.swap(first: _int64, second: _int64) {
+    held := at(first);
+    put(first, at(second));
+    put(second, held);
+}
+
+/**
+ * Puts the elements of another collection in at `index`: the first of them
+ * ends up there, and what was there moves back. insert_all(size(), others)
+ * adds them at the end. A list can be put into itself.
+ * Throws out_of_bounds_exception when index < 0 or index > size().
+ */
+def list<T>.insert_all(index: _int64, others: loopable<T>) {
+    count : _int64 = size();
+    if(index < 0 || index > count) {
+        throw new out_of_bounds_exception("insert_all: position " + index + " is outside the list (size " + count + ")");
+    }
+
+    // (copies first, so that a list can be put into itself)
+    mine := to_array();
+    theirs := others.get_elements();
+    if(sizeof(theirs) == 0) { return; }
+
+    clear();
+    for(i : _int64 = 0; i < index; i++) { add(mine[i]); }
+    for(i : _int64 = 0; i < sizeof(theirs); i++) { add(theirs[i]); }
+    for(i : _int64 = index; i < count; i++) { add(mine[i]); }
+}
+
+/**
+ * Takes out the elements at positions from .. to - 1; the elements behind
+ * them move up.
+ * Throws out_of_bounds_exception when from < 0, to > size() or from > to.
+ */
+def list<T>.remove_range(from: _int64, to: _int64) {
+    count : _int64 = size();
+    if(from < 0 || to > count || from > to) {
+        throw new out_of_bounds_exception("remove_range: " + from + ".." + to + " is outside the list (size " + count + ")");
+    }
+
+    gone : _int64 = to - from;
+    if(gone == 0) { return; }
+    for(i : _int64 = to; i < count; i++) { put(i - gone, at(i)); }
+    for(i : _int64 = 0; i < gone; i++) { pop_back(); }
+}
+
+/** takes out EVERY element that equals `element` (remove takes the first only); answers how many went */
+def list<T>.remove_every(element: T) : _int64 {
+    count : _int64 = size();
+    kept : _int64 = 0;
+    for(i : _int64 = 0; i < count; i++) {
+        current := at(i);
+        if(current == element) { continue; }
+        put(kept, current);
+        kept++;
+    }
+    for(i : _int64 = kept; i < count; i++) { pop_back(); }
+    return count - kept;
+}

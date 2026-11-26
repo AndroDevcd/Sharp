@@ -1,0 +1,13 @@
+// expect: E0504
+// help: x.counts.size
+// replace: x.counts.size()
+mod tests.helps;
+import (std, std.io);
+
+class counter { size : _int64; }
+class tally { counts := new counter(); }
+
+def main() {
+    x := new tally();
+    n : _int64 = x.counts.size();
+}

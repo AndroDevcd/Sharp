@@ -1,0 +1,106 @@
+mod backend.postprocessor.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.inheritance,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * WHAT AN INTERFACE MAY DECLARE
+ *
+ *      interface printable {
+ *          def show() : string;        yes: a function for the implementing classes to define
+ *          alias list<string> as lines;    yes: a name for a type
+ *          count : decimal;            no:  E0379
+ *          printable() { }             no:  E0379
+ *          init { }                    no:  E0379
+ *          def hello() { ... }         no:  E0379  a function WITH a body
+ *          class part { }              no:  E0379  a class, interface or enum inside
+ *      }
+ *
+ * An interface is a list of promises: functions every class that lists it
+ * must have. It has no objects of its own, so it has nothing to store a
+ * field in, nothing to construct or initialise, and no code of its own.
+ *
+ *      E0379   an interface declares something other than a function without
+ *              a body (or an alias)
+ *
+ *      C++ comparison: its PARSER refuses all of these ("unexpected variable
+ *      declaration", "unexpected method declaration", "expected delegate
+ *      declaration"). The bootstrap parser reads them, so that this message
+ *      can say what to do instead.
+ *
+ * A function ADDED to an interface from outside (`def printable.twice()`,
+ * extension_functions.sharp) has a body by nature and is not refused here.
+ * Nor is one added by a `mutate` block:
+ *
+ *      interface i { }
+ *      mutate i { def f() { println("from mutate"); } }
+ *
+ * The C++ compiler accepts this and gives it a meaning (checked by running
+ * it): `f` is a function of the interface itself, with its code, called
+ * through any `i` - exactly what an extension function of `i` is. It is not
+ * asked of the classes that implement `i` (it has a body).
+ */
+def check_interface_members(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        declared := prog.all_classes.at(i);
+        if(declared.kind != D_INTERFACE) { continue; }
+
+        for(j : _int64 = 0; j < declared.fields.size(); j++) {
+            field := declared.fields.at(j);
+            problems.add(error_at_node("E0379", "interface `" + declared.name + "` cannot have the field `" + field.name + "`",
+                                       field.unit, field.node)
+                .with_label("an interface has no objects to keep a field in")
+                .with_note("an interface only lists functions that the classes implementing it must define")
+                .with_help("ask for the value through a function instead:  def " + field.name + "() : " + type_or_placeholder(field) + ";")
+                .with_help("or make `" + declared.name + "` a class and inherit from it with `base " + declared.name + "`"));
+        }
+
+        for(j : _int64 = 0; j < declared.constructors.size(); j++) {
+            constructor := declared.constructors.at(j);
+            problems.add(error_at_node("E0379", "interface `" + declared.name + "` cannot have a constructor",
+                                       constructor.unit, constructor.node)
+                .with_label("nothing is ever made with `new " + declared.name + "(...)`")
+                .with_note("objects are made of the CLASSES that implement an interface; each has its own constructors")
+                .with_help("remove it; if this was meant to be a function, start it with `def`"));
+        }
+
+        for(j : _int64 = 0; j < declared.functions.size(); j++) {
+            function := declared.functions.at(j);
+            if(!function.has_body() || function.extension_of != null || function.extends != null || function.has(FLAG_MUTATED)) { continue; }
+            problems.add(error_at_node("E0379", "the function `" + function.name + "` of interface `" + declared.name + "` cannot have a body",
+                                       function.unit, function.node)
+                .with_label("an interface only says which functions exist; it has no code of its own")
+                .with_note("the classes that implement `" + declared.name + "` define the function, each in its own way")
+                .with_help("end the declaration with `;` and move the body into the implementing classes:  def " + function_text(function, null) + ";")
+                .with_help("for code every implementing class shares, move the function out of the interface into a `mutate` of it:  mutate " + declared.name + " { def " + function_text(function, null) + " { ... } }"));
+        }
+
+        for(j : _int64 = 0; j < declared.classes.size(); j++) {
+            inner := declared.classes.at(j);
+            problems.add(error_at_node("E0379", "interface `" + declared.name + "` cannot have the " + declaration_kind_name(inner.kind)
+                                       + " `" + inner.name + "` inside it", inner.unit, inner.node)
+                .with_label("an interface only lists functions")
+                .with_help("declare `" + inner.name + "` next to `" + declared.name + "`, outside it"));
+        }
+
+        for(j : _int64 = 0; j < declared.init_blocks.size(); j++) {
+            block := declared.init_blocks.at(j);
+            problems.add(error_at_node("E0379", "interface `" + declared.name + "` cannot have an init block", block.unit, block.node)
+                .with_label("an interface has no objects to initialise")
+                .with_help("move the code into the classes that implement `" + declared.name + "`"));
+        }
+    }
+}
+
+/** the type of a field as written, or a word to stand for it */
+def type_or_placeholder(field: sharp_field) : string {
+    if(field.type != null) { return field.type!!.to_text(); }
+    return "its_type";
+}

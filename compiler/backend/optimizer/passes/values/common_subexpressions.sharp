@@ -1,0 +1,153 @@
+mod backend.optimizer.passes.values;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * COMMON SUBEXPRESSION ELIMINATION: what was computed already is not computed again
+ *
+ *      get_field   %4, %0.count                    get_field   %9, %0.count
+ *      int_binary add %5, %4, %1                   copy        %4, %9
+ *      ...                 (nothing writes   ->    int_binary add %5, %4, %1
+ *      get_field   %6, %0.count   %0.count)        ...
+ *      int_binary mul %7, %6, %2                   copy        %6, %9          (no second read)
+ *                                                  int_binary mul %7, %6, %2
+ *
+ * The second `get_field` reads what the first one read, and nothing in
+ * between can have changed it: its value is still at hand. The copies that
+ * are left are for the passes that follow (copy propagation makes `mul` read
+ * %9, dead stores then removes the copies nobody needs).
+ *
+ * THE METHOD is the textbook's "available expressions" (the dragon book
+ * 9.2.6; Muchnick 13.1), and it works across the whole function, through
+ * every `if` and loop:
+ *
+ *   1. the expressions of the function are numbered (expressions.sharp); only
+ *      those computed at least twice are of interest;
+ *   2. for every block, which expressions are AVAILABLE where it begins: on
+ *      EVERY way into the block the expression was computed and nothing
+ *      ended it afterwards. A block's own set follows from the sets at the
+ *      end of the blocks before it, so the sets are worked out round and
+ *      round until they stop changing (a "forward data-flow problem" whose
+ *      meeting rule is "in all of them": it starts from "everything" and
+ *      only takes away);
+ *   3. an instruction that computes an expression available just before it
+ *      is redundant. The expression gets a slot of its own, `%t`; every
+ *      instruction that computes it now computes it into %t and copies it to
+ *      where it went (`%t = e ; copy %d, %t`), and the redundant ones become
+ *      just the copy. Wherever the expression is available, %t holds it:
+ *      only its computations write %t.
+ *
+ * Not for a function with a `try`: an exception enters a handler from the
+ * middle of a block, with only part of the block done.
+ *
+ *      C++ comparison: the C++ optimizer has no such pass. GCC's `-fgcse`
+ *      and LLVM's EarlyCSE / GVN do this job (on SSA form, where "the same
+ *      slots" is "the same values" and no sets are needed).
+ */
+def eliminate_common_subexpressions(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    if(code.tries.size() > 0) { return 0; }
+    total : _int64 = code.instructions.size();
+    table := new expression_table(code, 2);
+    if(table.count == 0) { return 0; }
+    graph := analyses.graph();
+    blocks : _int64 = graph.blocks;
+
+    // ---- 2. what is available where each block ends (`out`), starting from "everything"
+    walking := new slot_set(table.count);
+    width : _int64 = walking.width();
+    out := new _int64[blocks * width + 1];
+    for(e : _int64 = 0; e < table.count; e++) { walking.add(e); }
+    for(b : _int64 = 0; b < blocks; b++) { walking.store(out, b * width); }
+    changed : _int64 = 1;
+    before := new slot_set(table.count);
+    while(changed == 1) {
+        changed = 0;
+        for(b : _int64 = 0; b < blocks; b++) {
+            available_into(graph, out, width, b, walking);
+            for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) { table.step(i, walking); }
+            before.load(out, b * width);
+            if(!same_set(before, walking)) {
+                walking.store(out, b * width);
+                changed = 1;
+            }
+        }
+    }
+
+    // ---- 3. the redundant computations, and the expressions that have one
+    redundant := new _int64[total + 1];
+    slot_of := new _int64[table.count + 1];         // per expression: its own slot, -1 when none is redundant
+    for(e : _int64 = 0; e < table.count; e++) { slot_of[e] = 0 - 1; }
+    found : _int64 = 0;
+    for(b : _int64 = 0; b < blocks; b++) {
+        available_into(graph, out, width, b, walking);
+        for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+            e : _int64 = table.of[i];
+            if(e >= 0 && walking.has(e)) {
+                redundant[i] = 1;
+                found++;
+                if(slot_of[e] < 0) {
+                    slot_of[e] = code.slot_kinds.count;
+                    code.slot_kinds.add(code.slot_kinds.at(code.instructions.at(i).target));
+                }
+            }
+            table.step(i, walking);
+        }
+    }
+    if(found == 0) { return 0; }
+
+    made_list := new list<ir_instruction>();
+    for(i : _int64 = 0; i < total; i++) {
+        made := code.instructions.at(i);
+        e : _int64 = table.of[i];
+        if(e < 0 || slot_of[e] < 0) {
+            made_list.add(made);
+            continue;
+        }
+        goes_to : _int64 = made.target;
+        if(redundant[i] == 0) {
+            made.target = slot_of[e];
+            made_list.add(made);
+        }
+        copy := new ir_instruction(IR_COPY);
+        copy.target = goes_to;
+        copy.first = slot_of[e];
+        copy.number = NARROW_NONE;
+        made_list.add(copy);
+    }
+    code.instructions = made_list;
+    analyses.changed();
+    return found;
+}
+
+/**
+ * `into` becomes what is available where block `b` begins: what is available
+ * at the end of EVERY block that leads into it. Nothing, for the first block
+ * of the function and for a block nothing leads into.
+ */
+def available_into(graph: flow_graph, out: _int64[], width: _int64, b: _int64, into: slot_set) {
+    first : _int64 = graph.first_predecessor[b];
+    last : _int64 = graph.first_predecessor[b + 1];
+    if(b == 0 || first == last) {
+        into.clear();
+        return;
+    }
+    into.load(out, graph.predecessors[first] * width);
+    for(k : _int64 = first + 1; k < last; k++) {
+        row : _int64 = graph.predecessors[k] * width;
+        for(w : _int64 = 0; w < width; w++) { into.words[w] = into.words[w] & out[row + w]; }
+    }
+}
+
+/** do the two sets hold the same? */
+def same_set(a: slot_set, b: slot_set) : _int64 {
+    for(w : _int64 = 0; w < sizeof(a.words); w++) {
+        if(a.words[w] != b.words[w]) { return 0; }
+    }
+    return 1;
+}

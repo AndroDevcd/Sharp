@@ -1,0 +1,137 @@
+mod main;
+
+// output:
+// 8
+// 7
+// 28
+// 3
+// 2
+// 11
+// 8
+// 2.5
+// 1.25
+// 3.75
+// 3.5
+// 4.5
+// 7
+// 8
+// 8
+// 10
+// 10
+// 9
+// -56
+// -55
+// 2
+// 1
+// 2
+// 3
+// 4
+// 5
+// 99
+// 100
+// 4294967295
+// 0
+// 15
+// 1
+// 115
+// 2
+// 1
+// 0
+// 2
+// -126
+// -32768
+// 7
+// 14
+// 44
+// 9
+// -56
+// -56
+
+/*
+ * Assignments into every kind of storage (doc/codegen.md 6.2, 6.4): a local,
+ * an instance field, a static field, a global, an array element, each with
+ * `=`, every `op=`, `++` / `--` (prefix and postfix, as statements and as
+ * values), the narrowing of each store to its type (`_int8`, `_uint8`,
+ * `_int16`, `_uint32`), decimals, and the value of an assignment used in an
+ * expression; the parts of a target evaluated once (`a[next()] += 1`).
+ */
+class counter {
+    count : _int64;
+    small : _int8;
+    level : decimal = 0.5;
+    static total : _int64 = 0;
+    static tiny : _uint8 = 250;
+}
+
+total : _int64 = 100;
+wide : _uint32 = 0;
+
+position : _int64 = 0;
+
+def next() : _int64 {
+    position++;
+    show(position);
+    return position;
+}
+
+def main() {
+    x : _int64 = 5;
+    x += 3; show(x);
+    x -= 1; show(x);
+    x *= 4; show(x);
+    x %= 5; show(x);
+    x &= 6; show(x);
+    x |= 9; show(x);
+    x ^= 3; show(x);
+    d : decimal = 1.5;
+    d += 1; show_decimal(d);
+    d /= 2; show_decimal(d);
+    d *= 3; show_decimal(d);
+    d -= 0.25; show_decimal(d);
+    d++; show_decimal(d);
+
+    c := new counter();
+    c.count += 7; show(c.count);
+    c.count++; show(c.count);
+    show(c.count++);
+    show(++c.count);
+    show(c.count--);
+    show(c.count);
+    c.small = 100;
+    c.small += 100; show(c.small);
+    c.small++; show(c.small);
+    c.level *= 4; show_decimal(c.level);
+    c.level--; show_decimal(c.level);
+
+    counter.total += 2; show(counter.total);
+    counter.total++; show(counter.total);
+    counter.tiny += 10; show(counter.tiny);
+    counter.tiny++; show(counter.tiny);
+    total -= 1; show(total);
+    total++; show(total);
+    wide -= 1; show(wide);
+    wide++; show(wide);
+
+    a := new _int64[4];
+    a[1] = 10;
+    a[1] += 5; show(a[1]);
+    a[next()] += 100; show(a[1]);
+    a[next()]++; show(a[2]);
+    show(a[3]++);
+    show(++a[3]);
+    bytes := new _int8[2];
+    bytes[0] = 120;
+    bytes[0] += 10; show(bytes[0]);
+    shorts := new _int16[1];
+    shorts[0] = 32767;
+    shorts[0]++; show(shorts[0]);
+
+    y : _int64 = 0;
+    z : _int64 = (y = 7) * 2;
+    show(y); show(z);
+    show(c.small = 300);
+    show(c.count = 9);
+    q : _int8 = 0;
+    show(q += 200);
+    show(q);
+}

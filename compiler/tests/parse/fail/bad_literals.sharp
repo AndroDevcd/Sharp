@@ -1,0 +1,16 @@
+// expect: E0113 E0113 E0114 E0114 E0112 E0110 E0111 E0115 E0115
+//
+// Numbers, characters and strings that are written wrong.
+mod tests.fail;
+
+def main(args: string[]) {
+    a := 'ab';
+    b := '';
+    c := "bad \q escape";
+    d := '\q';
+    e := 10L;
+    f := 0x;
+    g := 0xfffffffffffffffff;
+    h := "never closed;
+    i := 'x;
+}

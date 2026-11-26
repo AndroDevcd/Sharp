@@ -1,0 +1,296 @@
+mod backend.reports;
+
+import (
+    std.io,
+    backend.postprocessor.generics,
+    backend.postprocessor.inheritance,
+    backend.postprocessor.members,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * PRINTING THE OBJECTS  (the -declarations option)
+ *
+ * Shows what the backend built from the source, one line per declaration:
+ *
+ *      module shapes
+ *        class circle<T> base shape : printable
+ *          field     private radius : decimal = ...
+ *          init      circle(decimal)
+ *          function  public area() : decimal
+ *          class circle.segment
+ *
+ * A type whose name was looked up is printed with the full name of what it
+ * means (`std#string`); one that was not is printed as written, so the
+ * output also shows how far the postprocessor got.
+ *
+ * What stage 5 (generics and members) worked out is shown as well:
+ *
+ *      class circle base shape    (a real class; inherits 7 members)
+ *          field     public radius : decimal   -> decimal            "->": the resolved type
+ *          construct public circle()    (added by the compiler)
+ *      class box<T>    (a blueprint: 2 instances)
+ *          field     public item : T   -> T
+ *          instance box<string>    (inherits 5 members)
+ *            field     public item : T   -> string
+ *
+ * and the listing ends with a summary: how many generic instances were
+ * made, generic functions, components.
+ */
+def print_declarations(prog: sharp_program) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+        if(sizeof(module.name.data) == 0) { println("module (no name)"); }
+        else { println("module " + module.name); }
+
+        print_classes(prog, module.classes, "  ");
+        print_aliases(module.aliases, "  ");
+        print_fields(module.fields, "  ");
+        print_functions(module.functions, "function ", "  ");
+        for(j : _int64 = 0; j < module.components.size(); j++) {
+            declared := module.components.at(j);
+            println("  component " + declared.name);
+            for(k : _int64 = 0; k < declared.definitions.size(); k++) {
+                definition := declared.definitions.at(k);
+                line := new string_builder("    ");
+                if(definition.is_factory == 1) { line.append("factory"); } else { line.append("single"); }
+                if(definition.name != null) { line.append(" \"" + definition.name!! + "\""); }
+                println(line.build());
+            }
+        }
+    }
+
+    if(prog.well_known != null) {
+        println("generics and members: " + prog.generic_instances.size() + " class(es) made from generic classes, "
+                + prog.generic_functions.size() + " generic function(s), "
+                + prog.components.size() + " component(s), "
+                + prog.unresolved_in_real_class + " type(s) left unresolved");
+    }
+}
+
+/** how many instances were made from a generic class */
+def instance_count(declared: sharp_class) : _int64 {
+    if(declared.instance_list == null) { return 0; }
+    return declared.instance_list!!.size();
+}
+
+/** what stage 5 found out about a class, for the end of its line */
+def class_summary(prog: sharp_program, declared: sharp_class) : string {
+    if(prog.well_known == null) { return ""; }      // stage 5 did not run
+
+    if(declared.type_parameters.size() > 0) {
+        return "    (a blueprint: " + instance_count(declared) + " instance(s))";
+    }
+    if(declared.is_open()) { return "    (inside a blueprint)"; }
+
+    text := new string_builder("    (");
+    if(declared.base_class != null) { text.append("base " + class_key(declared.base_class!!) + "; "); }
+    for(i : _int64 = 0; i < declared.interfaces.size(); i++) {
+        text.append("implements " + class_key(declared.interfaces.at(i)) + "; ");
+    }
+    text.append("inherits " + count_inherited_members(prog, declared) + " member(s))");
+    return text.build();
+}
+
+/**
+ * What a class has from the classes above it, each name asked through
+ * find_member (member_lookup.sharp) - the question the body stages will ask:
+ *
+ *      reaches   name: field of shape;  area: 2 functions, nearest in circle;  outline: 1 function, nearest in circle
+ *
+ * `std#_object_`, which every class inherits from, is left out to keep the
+ * listing readable.
+ */
+def print_inherited(prog: sharp_program, declared: sharp_class, indent: string) {
+    if(prog.well_known == null || declared.is_open()) { return; }
+
+    line := new string_builder("");
+    asked := new list<string>();
+    current := real_base_of(prog, declared);
+    for(depth : _int64 = 0; current != null && current != prog.well_known!!.object_class && depth < 256; depth++) {
+        ensure_members(prog, current!!);
+        names : scope = current!!.members!!;
+        for(i : _int64 = 0; i < names.ordered.size(); i++) {
+            member := names.ordered.at(i);
+            if(member.kind != D_FIELD && member.kind != D_FUNCTION && member.kind != D_ENUM_VALUE) { continue; }
+
+            already : _int64 = 0;
+            for(j : _int64 = 0; j < asked.size(); j++) {
+                if(asked.at(j) == member.name) { already = 1; }
+            }
+            if(already == 1) { continue; }
+            asked.add(member.name);
+
+            found := find_member(prog, declared, member.name);
+            if(line.size() > 0) { line.append(";  "); }
+            line.append(member.name + ": ");
+            if(found.declaration != null) {
+                line.append(declaration_kind_name(found.declaration!!.kind));
+                if(found.declaration!!.owner != null) { line.append(" of " + found.declaration!!.owner!!.qualified_name()); }
+                if(found.functions.size() > 0) { line.append(" and "); }
+            }
+            if(found.functions.size() > 0) {
+                line.append("" + found.functions.size() + " function(s), nearest in "
+                            + found.functions.at(0).owner!!.qualified_name());
+            }
+        }
+        current = real_base_of(prog, current!!);
+    }
+    if(line.size() > 0) { println(indent + "reaches   " + line.build()); }
+}
+
+/** the members of a class made from a generic class, with the types they have there */
+def print_instance(prog: sharp_program, instance: sharp_class, indent: string) {
+    println(indent + "instance " + instance.qualified_name() + class_summary(prog, instance));
+
+    inner := indent + "  ";
+    for(j : _int64 = 0; j < instance.enum_values.size(); j++) {
+        println(inner + "value     " + enum_value_text(instance.enum_values.at(j)));
+    }
+    print_fields(instance.fields, inner);
+    print_functions(instance.init_blocks, "init      ", inner);
+    print_functions(instance.constructors, "construct ", inner);
+    print_functions(instance.functions, "function  ", inner);
+    print_inherited(prog, instance, inner);
+    for(j : _int64 = 0; j < instance.classes.size(); j++) {
+        print_instance(prog, instance.classes.at(j), inner);
+    }
+    for(j : _int64 = 0; j < instance_count(instance); j++) {
+        print_instance(prog, instance.instance_list!!.at(j), inner);
+    }
+}
+
+/** the classes of one place, each with its members and - for a blueprint - its instances */
+def print_classes(prog: sharp_program, classes: list<sharp_class>, indent: string) {
+    for(i : _int64 = 0; i < classes.size(); i++) {
+        declared := classes.at(i);
+
+        line := new string_builder(indent + flags_text(declared.flags) + declaration_kind_name(declared.kind) + " "
+                                   + declared.qualified_name());
+        if(declared.type_parameters.size() > 0) {
+            line.append("<" + type_parameters_text(declared.type_parameters) + ">");
+        }
+        if(declared.base_type != null) {
+            line.append(" base " + type_text(declared.base_type));
+        }
+        for(j : _int64 = 0; j < declared.interface_types.size(); j++) {
+            if(j == 0) { line.append(" : "); } else { line.append(", "); }
+            line.append(type_text(declared.interface_types.at(j)));
+        }
+        if(declared.has(FLAG_MUTATED)) { line.append("    (added by mutate)"); }
+        line.append(class_summary(prog, declared));
+        println(line.build());
+
+        inner := indent + "  ";
+        for(j : _int64 = 0; j < declared.enum_values.size(); j++) {
+            println(inner + "value     " + enum_value_text(declared.enum_values.at(j)));
+        }
+        print_aliases(declared.aliases, inner);
+        print_fields(declared.fields, inner);
+        print_functions(declared.init_blocks, "init      ", inner);
+        print_functions(declared.constructors, "construct ", inner);
+        print_functions(declared.functions, "function  ", inner);
+        print_inherited(prog, declared, inner);
+        print_classes(prog, declared.classes, inner);
+        for(j : _int64 = 0; j < instance_count(declared); j++) {
+            print_instance(prog, declared.instance_list!!.at(j), inner);
+        }
+    }
+}
+
+/** `green = 5` for a value whose number the declaration fixes, `red` for one it does not */
+def enum_value_text(value: sharp_enum_value) : string {
+    if(value.has_number == 1) { return value.name + " = " + value.number; }
+    if(value.value_node >= 0) { return value.name + " = ..."; }
+    return value.name;
+}
+
+/** one line per field: flags, name, written type, resolved type */
+def print_fields(fields: list<sharp_field>, indent: string) {
+    for(i : _int64 = 0; i < fields.size(); i++) {
+        declared := fields.at(i);
+        line := new string_builder(indent + "field     " + flags_text(declared.flags) + declared.name);
+        if(declared.type != null) { line.append(" : " + type_text(declared.type)); }
+        if(declared.value_type != null) { line.append("   -> " + declared.value_type!!.key()); }
+        if(declared.has_initializer()) { line.append(" = ..."); }
+        if(declared.getter != null) { line.append("  get"); }
+        if(declared.setter != null) { line.append("  set"); }
+        if(declared.has(FLAG_MUTATED)) { line.append("    (added by mutate)"); }
+        println(line.build());
+    }
+}
+
+/** one line per function: flags, signature as written, resolved signature, override links */
+def print_functions(functions: list<sharp_function>, label: string, indent: string) {
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        declared := functions.at(i);
+        line := new string_builder(indent + label + flags_text(declared.flags));
+        if(declared.extends != null) { line.append(type_text(declared.extends) + "."); }
+        line.append(declared.name);
+        if(declared.type_parameters.size() > 0) {
+            line.append("<" + type_parameters_text(declared.type_parameters) + ">");
+        }
+
+        line.append("(");
+        for(j : _int64 = 0; j < declared.parameters.size(); j++) {
+            if(j > 0) { line.append(", "); }
+            parameter := declared.parameters.at(j);
+            line.append(parameter.name);
+            if(parameter.type != null) { line.append(": " + type_text(parameter.type)); }
+        }
+        line.append(")");
+
+        if(declared.return_type != null) { line.append(" : " + type_text(declared.return_type)); }
+        else if(declared.returns_nil == 1) { line.append(" : nil"); }
+
+        // what stage 5 resolved: (parameter types) result
+        if(declared.result_type != null) {
+            line.append("   -> (");
+            for(j : _int64 = 0; j < declared.parameters.size(); j++) {
+                if(j > 0) { line.append(", "); }
+                if(declared.parameters.at(j).value_type != null) { line.append(declared.parameters.at(j).value_type!!.key()); }
+                else { line.append("?"); }
+            }
+            line.append(")");
+            line.append(" " + declared.result_type!!.key());
+        }
+        if(declared.is_synthesized == 1) { line.append("    (added by the compiler)"); }
+        else if(!declared.has_body()) { line.append("    (no body)"); }
+        if(declared.overrides != null) { line.append("    (overrides " + class_key(declared.overrides!!.owner!!) + "." + declared.overrides!!.name + ")"); }
+        if(declared.extension_of != null) { line.append("    (extension function)"); }
+        if(declared.has(FLAG_MUTATED)) { line.append("    (added by mutate)"); }
+        println(line.build());
+    }
+}
+
+/** one line per alias: flags, name, the type it stands for */
+def print_aliases(aliases: list<sharp_alias>, indent: string) {
+    for(i : _int64 = 0; i < aliases.size(); i++) {
+        declared := aliases.at(i);
+        println(indent + "alias     " + flags_text(declared.flags) + declared.name + " = " + type_text(declared.target));
+    }
+}
+
+/** T, U base number */
+def type_parameters_text(parameters: list<sharp_type_parameter>) : string {
+    text := new string_builder("");
+    for(i : _int64 = 0; i < parameters.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        parameter := parameters.at(i);
+        text.append(parameter.name);
+        if(parameter.constraint != null) { text.append(" base " + type_text(parameter.constraint)); }
+    }
+    return text.build();
+}
+
+/** a type for this listing: like sharp_type.to_text(), with the module of a resolved name in front */
+def type_text(type: sharp_type?) : string {
+    if(type == null) { return "?"; }
+    declared := type!!.declaration;
+    if(declared != null && declared!!.kind != D_TYPE_PARAMETER && sizeof(declared!!.module.name.data) > 0) {
+        return declared!!.module.name + "#" + type!!.to_text();
+    }
+    return type!!.to_text();
+}

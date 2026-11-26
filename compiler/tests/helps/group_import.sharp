@@ -1,0 +1,11 @@
+// expect: E0301
+// help: new u#range(1, 5)
+// replace: new range(1, 5)
+mod tests.helps;
+import (std, std.io);
+
+import (std.util) as u;
+
+def main() {
+    r := new range(1, 5);
+}

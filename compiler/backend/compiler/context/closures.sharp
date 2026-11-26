@@ -1,0 +1,165 @@
+mod backend.compiler.context;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * CAPTURES: a lambda uses a variable, or `self`, of a function around it
+ *
+ *      def make_counter() : ()(int) {
+ *          total := 0;
+ *          return { -> (int) total++; return total; };     `total`: captured, depth 1
+ *      }
+ *
+ * Name lookup finds `total` by walking the scope chain outward; the lambda's
+ * first scope continues into the scope it is written in, so the walk crosses
+ * from the lambda's function into make_counter's. Counting those crossings
+ * gives the DEPTH of the use; a depth above 0 is a capture (name_lookup.sharp
+ * counts, this file records). What a capture needs, by the design of
+ * doc/backend.md 4.3 (types/declarations/closure_record.sharp):
+ *
+ *   - the variable is marked `is_captured` and added to the closure record of
+ *     the function it belongs to: it lives there, not in the stack frame;
+ *   - every lambda between the use and that function is handed the record of
+ *     the function around it (`takes_record`), and every function in between
+ *     gets a record too, whose `parent` is the record it was handed - so the
+ *     use, `depth` functions away, reaches the variable by following `parent`.
+ *
+ *      def outer() {
+ *          n := 0;
+ *          run { -> run { -> n++; }; };    the inner lambda: n at depth 2
+ *      }                                   outer's record holds n; the middle
+ *                                          lambda gets a record whose parent
+ *                                          is outer's; both lambdas take a record
+ *
+ * `self` is captured the same way: a lambda written in an instance function
+ * (or several lambdas deep in one) uses the object of that function, which
+ * is kept in its record (`captures_self`). A lambda written in the value of
+ * an instance field has no function around it: the record then belongs to
+ * the field (`closure_record.field`).
+ *
+ *      C++ comparison: dependency/closure_capture.cpp (`capture_enclosing_local`,
+ *      `capture_enclosing_self`, `reach_closure_of`).
+ */
+
+/** `variable` is used `depth` function boundaries away from where it is declared (depth > 0) */
+def note_local_capture(context: analysis_context, variable: local_variable, depth: _int64) {
+    // an asm block of its own function named it before this lambda was read: E0925, once
+    if(variable.is_captured == 0 && variable.asm_operand >= 0) {
+        report_asm_local_without_frame_slot(context, variable, variable.asm_operand);
+    }
+    variable.is_captured = 1;
+    if(variable.function != null) { record_of_function(variable.function!!).add(variable); }
+    link_records(context.function, depth);
+}
+
+/**
+ * E0925: `[name]` in an asm block, where `name` is a local that does not
+ * live in the stack frame. `[name]` stands for a slot of the frame; a
+ * variable a lambda captures lives in the closure record instead, and a
+ * `localized` one in its fiber, so there is no slot to name.
+ *
+ *      n : _int64 = 5;
+ *      run({ -> n++; });           `n` is captured: it lives in the closure record
+ *      asm { loadl ebx, [n] }      E0925
+ *
+ * Called from two places, because the asm block and the lambda may come in
+ * either order: by the asm operand when the variable is already captured or
+ * is `localized` (statements/assembly/asm_operands.sharp), and by
+ * `note_local_capture` above when the capture comes after the asm block.
+ * `operand` is the `[name]` node; it is in the same file as the code being
+ * analysed, because a lambda and the function around it are.
+ *
+ *      C++ comparison: accepted. There a captured variable is kept in the
+ *      frame AND in the record (doc/codegen.md 10, G11), so `[n]` names the
+ *      frame's copy - which a lambda's writes never reach.
+ */
+def report_asm_local_without_frame_slot(context: analysis_context, variable: local_variable, operand: _int64) {
+    name := variable.name;
+    where := "a lambda uses it, so it lives in the closure record of the function";
+    if(variable.is_localized == 1) { where = "it is `localized`, so it lives in its fiber"; }
+    d := problem_at(context, "E0925", "`" + name + "` is not in the stack frame: asm cannot name it", operand);
+    d.with_label(where);
+    d.with_related_place(place_of_node(variable.unit, variable.node, "`" + name + "` is declared here"));
+    d.with_note("`[name]` in an asm block is a slot in the frame of the function the block is in; only a plain local or parameter has one");
+    d.with_help("copy it into a plain local first (`mine := " + name + ";`) and name that: `[mine]`");
+    report(context, d);
+}
+
+/**
+ * `self` (or a field or function of the object) is used here. Returns how
+ * many lambdas lie between this code and the function whose object it is:
+ * 0 outside a lambda. The object is kept in that function's record.
+ */
+def note_self_capture(context: analysis_context) : _int64 {
+    current : sharp_function? = context.function;
+    if(current == null || current!!.is_lambda == 0) { return 0; }
+
+    depth : _int64 = 0;
+    while(current != null && current!!.is_lambda == 1) {
+        lambda : sharp_function = current!!;
+        lambda.takes_record = 1;
+        outer : sharp_function? = lambda.enclosing;
+        if(outer == null) {
+            // written in the value of a field: the object is the one being initialised
+            if(lambda.enclosing_field != null) {
+                held := record_of_field(lambda.enclosing_field!!);
+                held.captures_self = 1;
+                if(depth > 0) { record_of_function(lambda).parent = held; }
+            }
+            return depth + 1;
+        }
+        held := record_of_function(outer!!);
+        if(depth > 0) { record_of_function(lambda).parent = held; }
+        depth++;
+        current = outer;
+    }
+    if(current != null) { record_of_function(current!!).captures_self = 1; }
+    return depth;
+}
+
+/**
+ * The lambdas from the one being analysed outward, `depth` of them, each
+ * take the record of the function around them; each of those functions has
+ * a record, linked to the one further out.
+ */
+def link_records(start: sharp_function?, depth: _int64) {
+    current : sharp_function? = start;
+    for(k : _int64 = 0; k < depth && current != null; k++) {
+        lambda : sharp_function = current!!;
+        lambda.takes_record = 1;
+        outer : sharp_function? = lambda.enclosing;
+        if(outer == null) { return; }
+        held := record_of_function(outer!!);
+        if(k > 0) { record_of_function(lambda).parent = held; }
+        current = outer;
+    }
+}
+
+/** the closure record of a function, made the first time it is needed */
+def record_of_function(function: sharp_function) : closure_record {
+    if(function.closure == null) { function.closure = new closure_record(function, null); }
+    return function.closure!!;
+}
+
+/** the closure record of a field whose value holds a lambda that uses `self` */
+def record_of_field(field: sharp_field) : closure_record {
+    if(field.closure == null) { field.closure = new closure_record(null, field); }
+    return field.closure!!;
+}
+
+/**
+ * The name of the function whose `self` code here would use: for code in a
+ * lambda, the function the lambda is written in (several lambdas deep: the
+ * outermost). For messages such as "`make` is static".
+ */
+def static_owner_name(context: analysis_context) : string {
+    current : sharp_function? = context.function;
+    while(current != null && current!!.is_lambda == 1 && current!!.enclosing != null) { current = current!!.enclosing; }
+    if(current == null) { return "this code"; }
+    return current!!.name;
+}

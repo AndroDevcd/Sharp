@@ -1,0 +1,122 @@
+mod backend.ide.positions;
+
+import (
+    std.io,
+    frontend.lexer
+)
+
+/**
+ * WHERE A BLOCK ENDS
+ *
+ * The syntax tree knows WHERE a node starts (the one token it is at) but not
+ * where it stops. The editor needs the ends: which function or class is the
+ * caret in, how far can a local variable be seen. They are found from the
+ * TOKENS, which are easy to match:
+ *
+ *      def area() {              `{` is token 12
+ *          if(x) { ... }         ...
+ *      }                         `}` is token 40       closer[12] = 40
+ *
+ * One pass with a stack over a file's tokens gives `closer[t]` for every `{`.
+ * (`${` and the `}` that ends it are tokens of their own kinds, and the braces
+ * of code inside a string's `${ }` are balanced, so a string cannot upset the
+ * count; comments are not tokens at all.)
+ *
+ * For a statement that is not a block (`for(...) x = 1;`, a one-line function
+ * `def f() := e;`) the end is the first `;` that is outside every bracket
+ * opened since: `end_of_statement_from`.
+ *
+ * These are the "good enough" ends for the two questions asked of them; they
+ * are not a promise of where the text of a node stops in every odd program.
+ *
+ *      C++ comparison: what a brace-matching pass of a syntax highlighter does.
+ */
+class block_ends {
+    table : token_table;
+    closer : _int32[];              // for a `{` token: the token of its `}`; -1 for any other token
+
+    block_ends(table: token_table) {
+        self->table = table;
+        count : _int64 = table.count;
+        closer = new _int32[count + 1];
+        stack := new _int32[count + 1];
+        open : _int64 = 0;
+        kinds : _uint8[] = table.kinds!!;
+
+        for(t : _int64 = 0; t < count; t++) {
+            closer[t] = 0 - 1;
+            kind : _int64 = kinds[t];
+            if(kind == P_LBRACE) {
+                stack[open] = t;
+                open++;
+            } else if(kind == P_RBRACE && open > 0) {
+                open--;
+                closer[stack[open]] = t;
+            }
+        }
+    }
+
+    /** the token of the `}` closing the `{` at `token`, or -1 */
+    def closer_of(token: _int64) : _int64 {
+        if(token < 0 || token >= table.count) { return 0 - 1; }
+        return closer[token];
+    }
+
+    /** the first `{` token at or after `token` (stopping at the end of the file), or -1 */
+    def open_brace_from(token: _int64) : _int64 {
+        kinds : _uint8[] = table.kinds!!;
+        for(t : _int64 = token; t >= 0 && t < table.count; t++) {
+            if(kinds[t] == P_LBRACE) { return t; }
+        }
+        return 0 - 1;
+    }
+
+    /** the byte index just after the `}` that closes the `{` at `open_token`, or -1 */
+    def end_of_block(open_token: _int64) : _int64 {
+        c : _int64 = closer_of(open_token);
+        if(c < 0) { return 0 - 1; }
+        return table.ends!![c];
+    }
+
+    /**
+     * The byte index just after the first `;` at or after token `from_token` that is
+     * not inside brackets opened since. -1 when the file ends first.
+     */
+    def end_of_semicolon_from(from_token: _int64) : _int64 {
+        kinds : _uint8[] = table.kinds!!;
+        depth : _int64 = 0;
+        for(t : _int64 = from_token; t >= 0 && t < table.count; t++) {
+            kind : _int64 = kinds[t];
+            if(kind == P_LPAREN || kind == P_LBRACKET || kind == P_LBRACE) { depth++; }
+            else if(kind == P_RPAREN || kind == P_RBRACKET || kind == P_RBRACE) {
+                depth--;
+                if(depth < 0) { return table.starts!![t]; }     // the enclosing block ended without a `;`
+            }
+            else if(kind == P_SEMICOLON && depth == 0) { return table.ends!![t]; }
+        }
+        return 0 - 1;
+    }
+
+    /**
+     * The end of the statement whose first token is `token`: `for(...) { ... }`,
+     * `foreach(...) x;`, `catch(...) { ... }`. A parenthesised header is skipped,
+     * then either a block or a statement up to its `;` follows.
+     */
+    def end_of_statement_from(token: _int64) : _int64 {
+        kinds : _uint8[] = table.kinds!!;
+        t : _int64 = token + 1;
+        if(t < table.count && kinds[t] == P_LPAREN) {
+            depth : _int64 = 0;
+            while(t < table.count) {
+                if(kinds[t] == P_LPAREN) { depth++; }
+                else if(kinds[t] == P_RPAREN) {
+                    depth--;
+                    if(depth == 0) { t++; break; }
+                }
+                t++;
+            }
+        }
+        if(t < table.count && kinds[t] == P_LBRACE) { return end_of_block(t); }
+        return end_of_semicolon_from(t);
+    }
+}

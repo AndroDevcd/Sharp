@@ -1,0 +1,59 @@
+mod platform.kernel;
+
+/**
+ * What a function value holds at run time.
+ *
+ *      add := { a: int, b: int -> (int) return a + b; };
+ *
+ * `add` is an instance of this class. The compiler makes one wherever a
+ * function is used as a value (a lambda, or the name of a function), and the
+ * runtime reads it when the value is called (runtime/memory/function_value.h).
+ *
+ *      address     which function: its index in the program's method table
+ *      captured    the variables the function uses from the function that
+ *                  created it; null when it uses none
+ *
+ * A function used to be only the index, a plain number. The variables a lambda
+ * captured were then kept apart from it, one set per fiber, and a lambda run on
+ * another fiber (or created by a function that calls itself) found the wrong
+ * ones. Now they travel with the function.
+ *
+ *      C++ comparison: std::function, a callable together with its captures,
+ *      instead of a raw function pointer.
+ *
+ * Programs do not use this class by name; write the function type instead:
+ * `callback : (int)(int)`.
+ */
+stable class function_value {
+    address : _int64;
+    captured : object?;
+
+    /**
+     * `f == g`: 1 when both are the same function with the same captured
+     * variables (or both are null). The compiler calls this for `==` between
+     * two function values; using the name of a function makes a new
+     * function_value every time, so "the same object" would be the wrong test:
+     *
+     *      f := twice;
+     *      f == twice      // true: same function, nothing captured
+     */
+    static def same(a: object?, b: object?) : _int8 {
+        if(a == null) {
+            if(b == null) { return 1; }
+            return 0;
+        }
+        if(b == null) { return 0; }
+
+        x := a as function_value;
+        y := b as function_value;
+        if(x.address != y.address) { return 0; }
+        if(x.captured == y.captured) { return 1; }
+        return 0;
+    }
+
+    /** `f != g`: the opposite of same() */
+    static def different(a: object?, b: object?) : _int8 {
+        if(same(a, b) == 1) { return 0; }
+        return 1;
+    }
+}

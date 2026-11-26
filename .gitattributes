@@ -1,0 +1,23 @@
+# Files that Linux / WSL reads must keep Unix line endings on every machine, also on a Windows
+# checkout: bash cannot run a script with Windows line endings, and the tests compare their
+# expected output byte by byte.
+*.sh                                        text eol=lf
+*.py                                        text eol=lf
+build-scripts/internal/zip-contents/linux/* text eol=lf
+compiler/tests/**                       text eol=lf
+tests/suite/**                              text eol=lf
+
+# ... and what only Windows runs keeps Windows line endings
+*.cmd                                       text eol=crlf
+*.bat                                       text eol=crlf
+
+# the plugin's test fixtures are compiler output with the hash of each source file inside: the bytes must not change
+tools/clion-plugin/src/test/resources/**    text eol=lf
+tools/clion-plugin/src/test/resources/compiler-output/wide/source.sharp -text
+# (the packed ones are not text: a byte pair that looks like a line end must stay as it is)
+tools/clion-plugin/src/test/resources/**/*.gz binary
+
+# the benchmarks (benchmark/game) run in Linux / WSL; their expected output is compared byte by byte,
+# and one of them is a picture, not text
+benchmark/game/**                           text eol=lf
+benchmark/game/expected/mandelbrot_*.txt    binary

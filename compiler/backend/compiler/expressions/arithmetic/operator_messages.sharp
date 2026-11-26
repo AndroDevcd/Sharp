@@ -1,0 +1,212 @@
+mod backend.compiler.expressions.arithmetic;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * THE MESSAGES FOR AN OPERATOR THAT DOES NOT APPLY
+ *
+ *      E0511   the operator is not defined for these operand types: a class without that
+ *              operator function (or none that takes the right side), `null == x` ...
+ *      E0512   an operator on `object`: what it is must be said first (`x as t`)
+ *      E0513   an operator other than `==` / `!=` on an array
+ *      E0514   `-`, `!`, `++`, `--` on something they do not apply to (an array, text ...)
+ *      W1010   `!` on a literal: the result is known (`!0` is `true`)
+ *
+ * Each names the operand types and, where there is one, the way out: the
+ * operand order that would work, the overloads the class does have, the cast.
+ */
+
+/** E0511 for `left <text> right` where the left side's class has no operator function that takes the right side */
+def report_no_operator(context: analysis_context, node: _int64, left: bound_expression, right: bound_expression) {
+    text := name_at(context, node);
+    owner : sharp_class = left.type.class_of!!;
+    if(reported_as_misdeclared(context, node, owner, "operator" + text, 1)) { return; }
+    d := problem_at(context, "E0511", "`" + left.type.to_text() + " " + text + " " + right.type.to_text() + "`: `"
+                    + owner.written.name + "` has no `operator" + text + "` that takes " + described_value(right), node);
+    d.with_label("no such operator");
+    has := operator_overloads_text(context, owner, "operator" + text);
+    if(has.size() > 0) {
+        d.with_note("`" + owner.written.name + "` has `operator" + text + "` for " + has);
+    } else if(owner.written.module.is_library()) {
+        // not "declare it in `string`": the standard library is not the programmer's to edit
+        d.with_note("an operator on an object is a function of its class, and the library's `" + owner.written.name + "` has no `operator" + text + "`");
+    } else {
+        d.with_note("an operator on an object is a function of its class: `def operator" + text + "(other: "
+                    + right.type.as_non_null().to_text() + ") : ...` in `" + owner.written.name + "`");
+    }
+    if(right.type.kind == RT_CLASS && right.type.is_array == 0 && right.type.class_of != owner
+       && call_would_work_the_other_way(context, right, left, text)) {
+        d.with_help("the other order works: `" + source_text_of(context, right.node) + " " + text + " "
+                    + source_text_of(context, left.node) + "`");
+    }
+    add_compare_to(context, d, owner, left, right, text);
+    add_call_it(context, d, right);         // `"total: " + total` - the function named, not called
+    report(context, d);
+}
+
+/**
+ * `word < other` on two strings: the class has no `operator<`, but it has
+ * `compare_to` - the usual way to ORDER objects (it gives less than 0, 0 or
+ * more than 0). Offered for `<`, `>`, `<=` and `>=` when the left side's
+ * class has a `compare_to` that takes the right side.
+ *
+ * @param left_text  the left operand as it is to be written in the help
+ */
+def add_compare_to(context: analysis_context, d: diagnostic, owner: sharp_class, left: bound_expression, right: bound_expression, text: string) {
+    if(!(text == "<" || text == ">" || text == "<=" || text == ">=")) { return; }
+    functions := operator_functions(context, owner, "compare_to");
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        function := functions.at(i);
+        if(function.parameters.size() != 1 || function.parameters.at(0).value_type == null) { continue; }
+        if(!find_conversion(context.session, right.type, function.parameters.at(0).value_type!!, 1).converts()) { continue; }
+        receiver := source_text_of(context, left.node);
+        if(left.literal == LIT_TEXT) { receiver = "new string(" + receiver + ")"; }
+        d.with_help("to put two `" + owner.written.name + "`s in order, compare them with `compare_to` (less than 0, 0 or more than 0): `"
+                    + receiver + ".compare_to(" + source_text_of(context, right.node) + ") " + text + " 0`");
+        return;
+    }
+}
+
+/**
+ * `class v { def operator+(a: v, b: v) : v { ... } }` and then `a + b`,
+ * `c + d` ...: the operator was DECLARED wrong - with the left operand as a
+ * parameter as well (W1025 at the declaration) - so every use of it fails.
+ * That is one mistake. The first use gets one E0511 that says so, pointing
+ * at the declaration; every later use of the same operator of the same
+ * class is a place of that message ("used here too"), not a message of its
+ * own. (Textbook: report the cause once, not each symptom.)
+ *
+ * @param wanted  the number of parameters the operator takes: 1 for `a + b`, 0 for `-a`
+ * @return 1 when the operator is declared, but only with the wrong number of
+ *         parameters - the use was then reported (or added to the report)
+ */
+def reported_as_misdeclared(context: analysis_context, node: _int64, owner: sharp_class, name: string, wanted: _int64) : _int64 {
+    functions := operator_functions(context, owner, name);
+    if(functions.size() == 0) { return 0; }
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        if(functions.at(i).parameters.size() == wanted) { return 0; }
+    }
+
+    key := "misdeclared:" + owner.qualified_name() + ":" + name;
+    first : diagnostic? = context.session.unknown_names.at(key);
+    p : parse_state = context.state;
+    token : _int64 = context.tree.tokens!![node];
+    if(first != null) {
+        if(first!!.related.size() < 4) { first!!.with_related(p.start_of(token), p.end_of(token), "used here too"); }
+        return 1;
+    }
+    declared := functions.at(0);
+    d := problem_at(context, "E0511", "`" + owner.written.name + "." + name + "` is declared with " + declared.parameters.size()
+                    + " parameter(s), so `" + name_at(context, node) + "` cannot use it", node);
+    d.with_label("no `" + name + "` with " + wanted + " parameter(s)");
+    d.with_related_place(place_of_declaration(declared, "declared here, with " + declared.parameters.size() + " parameter(s)"));
+    if(wanted == 1) {
+        d.with_note("`a " + name_at(context, node) + " b` calls `a." + name + "(b)`: the left operand is `self`, so the function takes ONE parameter, the right operand");
+        if(declared.parameters.size() == 2 && declared.parameters.at(1).value_type != null && declared.result_type != null) {
+            d.with_help("declare it with the right operand only (and use `self` for the left):  def " + name + "("
+                        + declared.parameters.at(1).name + ": " + declared.parameters.at(1).value_type!!.to_text() + ") : "
+                        + declared.result_type!!.to_text() + " { ... }");
+        }
+    } else {
+        d.with_note("`" + name_at(context, node) + "a` calls `a." + name + "()`: the operand is `self`, so the function takes no parameter");
+    }
+    context.session.unknown_names.put(key, d);
+    report(context, d);
+    return 1;
+}
+
+/** does the right operand's class have the operator for the left operand's type? (for the "other order" help) */
+def call_would_work_the_other_way(context: analysis_context, right: bound_expression, left: bound_expression, text: string) : _int64 {
+    functions := operator_functions(context, right.type.class_of!!, "operator" + text);
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        function := functions.at(i);
+        if(function.parameters.size() != 1 || function.parameters.at(0).value_type == null) { continue; }
+        if(find_conversion(context.session, left.type, function.parameters.at(0).value_type!!, 1).converts()) { return 1; }
+    }
+    return 0;
+}
+
+/** E0511 for an operator that has no meaning for this pair of operands at all */
+def report_operands_do_not_fit(context: analysis_context, node: _int64, left: bound_expression, right: bound_expression,
+                               note: string, help: string) {
+    text := name_at(context, node);
+    d := problem_at(context, "E0511", "`" + text + "` cannot be used with " + described_value(left) + " and "
+                    + described_value(right), node);
+    d.with_label("not defined for these operands");
+    if(note.size() > 0) { d.with_note(note); }
+    if(help.size() > 0) { d.with_help(help); }
+    // `total + 1` with a function `total`: the `( )` is missing
+    if(add_call_it(context, d, left) == 0) { add_call_it(context, d, right); }
+    report(context, d);
+}
+
+/**
+ * `-s`, `s++` on a `string`: arithmetic on text. When the text holds a
+ * number, it is read with `to_int()` / `to_double()` (std.text) and the
+ * arithmetic is done on that.
+ */
+def add_number_in_text_help(context: analysis_context, d: diagnostic, operand: bound_expression, text: string) {
+    if(operand.type != context.session.string_type() && operand.type != context.session.string_type().as_nullable()) { return; }
+    written := as_operand_text(context, operand.node);
+    d.with_note("a `string` is text: `" + text + "` counts with numbers");
+    if(text == "++" || text == "--") {
+        d.with_help("to count with the number the text holds, read it first: `n := " + written + ".to_int();` then `n" + text + "`");
+    } else {
+        d.with_help("to count with the number the text holds, read it first: `" + text + written + ".to_int()`");
+    }
+}
+
+/** E0512: `x + 1` with `x : object` */
+def report_operator_on_object(context: analysis_context, node: _int64, operand: bound_expression) {
+    text := name_at(context, node);
+    written := source_text_of(context, operand.node);
+    d := problem_at(context, "E0512", "`" + text + "` cannot be used on `object`: it could be anything", node);
+    d.with_label("`" + written + "` is an `object`");
+    d.with_note("on an `object` only `==` and `!=` work (\"the same object?\"); every other operator needs to know what it is");
+    kind : _int64 = context.tree.kinds!![node];
+    if(kind == N_BINARY) { d.with_help("say what it is first: `(" + written + " as <type>) " + text + " ...`"); }
+    else if(text == "++" || text == "--") { d.with_help("say what it is first, in a variable of that type: `n := " + written + " as <type>;` then `n" + text + "`"); }
+    else { d.with_help("say what it is first: `" + text + "(" + written + " as <type>)`"); }
+    report(context, d);
+}
+
+/** E0513: `a + b` with `a` an array */
+def report_operator_on_array(context: analysis_context, node: _int64, operand: bound_expression) {
+    text := name_at(context, node);
+    written := source_text_of(context, operand.node);
+    d := problem_at(context, "E0513", "`" + text + "` cannot be used on an array (`" + operand.type.to_text() + "`)", node);
+    d.with_label("`" + written + "` is an array");
+    d.with_note("on an array only `==` and `!=` work (\"the same array?\"); its items are reached with `" + written + "[i]`");
+    report(context, d);
+}
+
+/** E0514: `-`, `!`, `++`, `--` on something they do not apply to */
+def report_unary_does_not_apply(context: analysis_context, node: _int64, operand: bound_expression) {
+    text := name_at(context, node);
+    d := problem_at(context, "E0514", "`" + text + "` cannot be used on " + described_value(operand), node);
+    d.with_label("`" + text + "` needs a number, or an object whose class has `operator" + text + "`");
+    if(operand.literal == LIT_TEXT) { d.with_note("a text literal is not a number"); }
+    else if(operand.type.is_array == 1) { d.with_note("an array is not a number; its length is `sizeof(...)`"); }
+    report(context, d);
+}
+
+/** W1010: `!5`, `!true` - the answer is known while compiling */
+def warn_not_on_literal(context: analysis_context, node: _int64, value: _int64) {
+    answer := "false";
+    if(value != 0) { answer = "true"; }
+    d := problem_at(context, "W1010", "this is always `" + answer + "`", node);
+    d.with_label("`!` on a literal");
+    d.with_help("write `" + answer + "`");
+    report(context, d);
+}

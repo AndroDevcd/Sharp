@@ -1,0 +1,120 @@
+mod backend.compiler.context;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.preprocessor
+)
+
+/**
+ * READING THE SYNTAX TREE FROM AN ANALYSIS FUNCTION
+ *
+ * The tree is flat arrays (frontend/syntax/tree/syntax_tree.sharp); these
+ * helpers keep the analysis code readable: "the name at this node", "the
+ * second child", "the token kind of this node".
+ */
+
+/**
+ * The text of the token at a node: the name of an identifier, the word of an
+ * operator. Making a string from the source text costs an allocation, and
+ * the same node is asked for once per generic instance its body belongs to,
+ * so the text is remembered beside the tree (one slot per node).
+ */
+def name_at(context: analysis_context, node: _int64) : string {
+    file : sharp_file = context.file;
+    if(file.node_names == null) { file.node_names = new string[context.tree.count]; }
+    known := file.node_names!![node];
+    if(known != null) { return known!!; }
+    // `operator+(other)`: the name of an operator function is the word and the operator together
+    text := function_name(context.unit, node);
+    file.node_names!![node] = text;
+    return text;
+}
+
+/** the kind (N_...) of a node */
+def kind_at(context: analysis_context, node: _int64) : _int64 {
+    return context.tree.kinds!![node];
+}
+
+/** the kind of the TOKEN at a node: P_DOT, K_TRUE ... (frontend/lexer/token_kinds.sharp) */
+def token_kind_at(context: analysis_context, node: _int64) : _int64 {
+    return context.state.kinds[context.tree.tokens!![node]];
+}
+
+/** the first child of a node; -1 when it has none */
+def first_child_of(context: analysis_context, node: _int64) : _int64 {
+    return context.tree.first_child!![node];
+}
+
+/** the node after this one under the same parent; -1 when it is the last */
+def next_of(context: analysis_context, node: _int64) : _int64 {
+    return context.tree.next_sibling!![node];
+}
+
+/** the second child of a node; -1 when it has fewer */
+def second_child_of(context: analysis_context, node: _int64) : _int64 {
+    first : _int64 = context.tree.first_child!![node];
+    if(first < 0) { return 0 - 1; }
+    return context.tree.next_sibling!![first];
+}
+
+/** the first child that is not of the given kind: the expression of a node that may start with a type, modifiers ... */
+def first_child_not_of_kind(context: analysis_context, node: _int64, skipped: _int64) : _int64 {
+    child : _int64 = context.tree.first_child!![node];
+    while(child >= 0 && context.tree.kinds!![child] == skipped) {
+        child = context.tree.next_sibling!![child];
+    }
+    return child;
+}
+
+/** the line a node is on, counted from 1 */
+def line_at(context: analysis_context, node: _int64) : _int64 {
+    p : parse_state = context.state;
+    return line_of(p.table, p.start_of(context.tree.tokens!![node]));
+}
+
+/** the source text of an expression, for a help that shows the corrected line; "<value>" when it is long */
+def source_text_of(context: analysis_context, node: _int64) : string {
+    return written_text(context.state, node);
+}
+
+/**
+ * source_text_of for a node of any file: `p` is that file's parse_state
+ * (`unit.parsed!!`). For a message about code in another file than the one
+ * being analysed - a component definition, a declaration.
+ */
+def written_text(p: parse_state, node: _int64) : string {
+    // the NAME of a member (`m` of `x.m`) is where a member's value is bound, but the
+    // text the programmer wrote for that value is the whole chain: `x.m`, so a help
+    // such as `x.m?.n` can be pasted as it is
+    tree : syntax_tree = p.tree;
+    parent : _int64 = tree.parents!![node];
+    if(parent >= 0 && tree.kinds!![parent] == N_MEMBER && tree.last_child!![parent] == node && tree.first_child!![parent] != node) {
+        node = parent;
+    }
+    from : _int64 = p.start_of(first_token_of(tree, node));
+    to : _int64 = p.end_of(last_token_of(tree, node));
+    // a closing `)` or `]` has no node of its own (`add(1, 2)`, `new plain()`):
+    // take as many as the text opens and does not close
+    open : _int64 = 0;
+    for(i : _int64 = from; i < to && i < sizeof(p.source); i++) {
+        if(p.source[i] == '(' || p.source[i] == '[') { open++; }
+        else if(p.source[i] == ')' || p.source[i] == ']') { open--; }
+    }
+    while(open > 0 && to < sizeof(p.source)) {
+        character : _int8 = p.source[to];
+        if(character == ')' || character == ']') { open--; }
+        else if(character != ' ') { break; }
+        to++;
+    }
+    if(to <= from || to - from > 40) { return "<value>"; }
+    for(i : _int64 = from; i < to; i++) {
+        if(p.source[i] == '\n') { return "<value>"; }
+    }
+    return new string(p.source, from, to);
+}

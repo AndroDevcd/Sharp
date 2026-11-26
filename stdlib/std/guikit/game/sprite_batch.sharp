@@ -1,0 +1,75 @@
+mod std.guikit.game;
+
+import (
+    std.io,
+    std.guikit.*
+)
+
+/**
+ * sprite_batch - many sprites of ONE sheet, painted with one call.
+ *
+ *      coins := new sprite_batch(items);            // once: items is a sprite_sheet
+ *
+ *      coins.clear();                               // every frame
+ *      for(...) { coins.add(spin.frame_at(f.time), x, y); }
+ *      p.draw(coins);
+ *
+ * The same idea as shape_batch: p.sprite(...) crosses into the graphics side
+ * for every sprite, a batch crosses once for all of them. Use it wherever many
+ * sprites come from the same sheet - a crowd, bullets, coins, particles.
+ * They are painted in the order they were added.
+ */
+stable class sprite_batch {
+    sheet : sprite_sheet;
+    sources : decimal[];            // for sprite i, at [i * 4 ...]: its box in the picture (a width below 0: mirrored)
+    places : decimal[];             // ... and where it goes: x y w h
+    count : _int64 = 0;
+
+    private room : _int64 = 0;
+
+    sprite_batch(from: sprite_sheet) {
+        sheet = from;
+        room = 64;
+        sources = new decimal[room * 4];
+        places = new decimal[room * 4];
+    }
+
+    /** forget every sprite (the lists are kept) */
+    def clear() {
+        count = 0;
+    }
+
+    /** a frame at its own size */
+    def add(frame: _int64, x: decimal, y: decimal) {
+        put(frame, x, y, sheet.frame_width, sheet.frame_height, false);
+    }
+
+    /** a frame stretched to w x h */
+    def add(frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal) {
+        put(frame, x, y, w, h, false);
+    }
+
+    /** a frame stretched to w x h, mirrored left to right when `flipped` */
+    def add(frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal, flipped: bool) {
+        put(frame, x, y, w, h, flipped);
+    }
+
+    private def put(frame: _int64, x: decimal, y: decimal, w: decimal, h: decimal, flipped: bool) {
+        if(count == room) {
+            room = room * 2;
+            realloc(sources, room * 4);
+            realloc(places, room * 4);
+        }
+        at : _int64 = count * 4;
+        sources[at] = sheet.frame_x(frame);
+        sources[at + 1] = sheet.frame_y(frame);
+        sources[at + 2] = sheet.frame_width;
+        if(flipped) { sources[at + 2] = 0 - sheet.frame_width; }
+        sources[at + 3] = sheet.frame_height;
+        places[at] = x;
+        places[at + 1] = y;
+        places[at + 2] = w;
+        places[at + 3] = h;
+        count = count + 1;
+    }
+}

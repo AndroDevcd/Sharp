@@ -1,0 +1,158 @@
+mod backend.postprocessor.checks;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * DECLARED TWICE
+ *
+ * In one place - a module, or the body of a class - a name may be used for
+ * several things, but not for two that could not be told apart when used:
+ *
+ *      E0330   two fields / global variables / enum values with one name
+ *      E0331   two functions with one name AND the same parameter types
+ *              (overloads must differ in their parameters; what they return
+ *              does not tell them apart, because a call does not say it)
+ *      E0332   two constructors with the same parameter types
+ *      E0333   two `init(x)` conversion blocks with the same parameter types
+ *
+ * (Two TYPES with one name: E0302, found by the preprocessor as it builds
+ * them. The functions can only be compared here, where the types of their
+ * parameters are known.)
+ *
+ * Each pair is reported once, at the second declaration, with the first shown.
+ *
+ * Members added by a `mutate` block are members of the class like any other,
+ * so a mutate block that adds what the class already has is caught here too.
+ */
+def check_duplicates(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+        where : string = "module `" + module.name + "`";
+        if(sizeof(module.name.data) == 0) { where = "this module"; }
+        check_scope(module.declared, where, problems);
+    }
+
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        declared := prog.all_classes.at(i);
+        check_scope(declared.members!!, "`" + declared.qualified_name() + "`", problems);
+        check_init_blocks(declared, problems);
+    }
+}
+
+def check_scope(names: scope, where: string, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < names.ordered.size(); i++) {
+        declared := names.ordered.at(i);
+
+        // everything with this name is looked at together, when the first of them comes by
+        same_name : list<sharp_declaration> = names.find(declared.name)!!;
+        if(same_name.size() < 2 || same_name.at(0) != declared) { continue; }
+
+        for(second : _int64 = 1; second < same_name.size(); second++) {
+            for(first : _int64 = 0; first < second; first++) {
+                if(report_if_same(same_name.at(first), same_name.at(second), where, problems)) {
+                    break;      // one message for the second is enough
+                }
+            }
+        }
+    }
+}
+
+/** a field, a global variable or an enum value: the things that hold a value under a name */
+def holds_a_value(kind: _int64) : _int64 {
+    return kind == D_FIELD || kind == D_ENUM_VALUE;
+}
+
+/** report `second` when it cannot be told apart from `first`; 1 when it was reported */
+def report_if_same(first: sharp_declaration, second: sharp_declaration, where: string,
+                   problems: list<diagnostic>) : _int64 {
+    if(holds_a_value(first.kind) && holds_a_value(second.kind)) {
+        problems.add(error_at_node("E0330", "`" + second.name + "` is declared twice in " + where, second.unit, second.node)
+            .with_label("a second " + declaration_kind_name(second.kind) + " with this name")
+            .with_related_place(place_of_node(first.unit, first.node, "the first one is here"))
+            .with_help("rename one of them, or delete the one that is not meant to exist"));
+        return 1;
+    }
+
+    if(first.kind == D_FUNCTION && second.kind == D_FUNCTION) {
+        a : sharp_function = first as sharp_function;
+        b : sharp_function = second as sharp_function;
+
+        // def string.shout() and def int.shout() are functions of different types
+        if((a.extends == null) != (b.extends == null)) { return 0; }
+        if(a.extends != null && !same_type(a.extends, b.extends, null, 0)) { return 0; }
+        // `def find<T>(key: string) : T` beside `def find(key: string) : entry`: a call says which it means by
+        // writing type arguments or not (`find<user>("a")`, `find("a")`), so the two are told apart. (Two generic
+        // functions of one name are E0358's: generic_functions.sharp.)
+        if(a.is_generic() != b.is_generic()) { return 0; }
+        if(!same_parameters(a, b, null, 0)) { return 0; }
+
+        b.declared_twice = 1;
+        d := error_at_node("E0331", "function `" + b.signature() + "` is declared twice in " + where, b.unit, b.node)
+            .with_label("the same name and the same parameter types as an earlier function")
+            .with_related_place(place_of_node(a.unit, a.node, "the first one is here"));
+        if(!same_result(a, b, null)) {
+            d.with_note("they return different types, but that does not tell them apart: a call `" + b.name
+                        + "(...)` does not say which result it wants");
+        }
+        d.with_help("give one of them another name, or different parameters");
+        problems.add(d);
+        return 1;
+    }
+
+    if(first.kind == D_CONSTRUCTOR && second.kind == D_CONSTRUCTOR) {
+        a : sharp_function = first as sharp_function;
+        b : sharp_function = second as sharp_function;
+        if(!same_parameters(a, b, null, 0)) { return 0; }
+
+        b.declared_twice = 1;
+        problems.add(error_at_node("E0332", "constructor `" + b.signature() + "` is declared twice in " + where, b.unit, b.node)
+            .with_label("the same parameter types as an earlier constructor")
+            .with_related_place(place_of_node(a.unit, a.node, "the first one is here"))
+            .with_help("`new " + b.name + "(...)` picks a constructor by the arguments it is given; two that take the same ones cannot be told apart"));
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * E0333: two `init(x)` conversion blocks of one class with the same
+ * parameter types.
+ *
+ *      class c { init(x: _int64) { } init(y: _int64) { } }
+ *
+ * An `init(x)` block is how a value becomes an object of the class without
+ * `new` (`v : c = 5;`, 7.5.4). It is never called by name, so it is not in
+ * the class's names (`members`) and check_scope does not see it; two that
+ * take the same value could never be told apart. Blocks without parameters
+ * (`init { }`) only run when an object is made, and a class may have several
+ * (the C++ compiler accepts that too).
+ *
+ *      C++ comparison: "function `init<c>` is already defined" (the init
+ *      blocks are functions named `init<c>` there, checked like any other).
+ */
+def check_init_blocks(declared: sharp_class, problems: list<diagnostic>) {
+    blocks := declared.init_blocks;
+    for(second : _int64 = 1; second < blocks.size(); second++) {
+        b := blocks.at(second);
+        if(b.parameters.size() == 0) { continue; }
+        for(first : _int64 = 0; first < second; first++) {
+            a := blocks.at(first);
+            if(a.parameters.size() == 0 || a.declared_twice == 1 || !same_parameters(a, b, null, 0)) { continue; }
+            b.declared_twice = 1;
+            problems.add(error_at_node("E0333", "`" + b.signature() + "` is declared twice in `" + declared.qualified_name() + "`", b.unit, b.node)
+                .with_label("the same parameter types as an earlier init block")
+                .with_related_place(place_of_node(a.unit, a.node, "the first one is here"))
+                .with_note("an `init(x)` block makes an object from a value without `new` (`v : " + declared.written.name
+                           + " = value;`); two that take the same value cannot be told apart")
+                .with_help("delete one of them, or merge their bodies into one block"));
+            break;
+        }
+    }
+}

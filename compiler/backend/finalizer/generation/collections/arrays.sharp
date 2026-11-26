@@ -1,0 +1,111 @@
+mod backend.finalizer.generation.collections;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation
+)
+
+/**
+ * ARRAYS, STRING TEMPLATES, DICTIONARIES (doc/codegen.md 6.6, 6.7)
+ *
+ * The values made of several values:
+ *
+ *      a[i]                    an element: `checklen` raises out_of_bounds_exception (this file)
+ *      new t[n]                an array of n elements, every one 0 / null (this file)
+ *      new t[] { 1, 2 }        an array, then each element stored in order (this file)
+ *      "total ${n} for $name"  a `string`, then each piece appended to it (templates.sharp)
+ *      { "a" : 1, "b" : 2 }    pairs in an array, given to a dictionary's constructor (dictionaries.sharp)
+ *
+ * The files of this package (module `backend.finalizer.generation.collections`):
+ *
+ *      arrays.sharp            this front door: elements, new arrays, array literals
+ *      templates.sharp         string templates
+ *      dictionaries.sharp      dictionary literals
+ */
+
+/**
+ * `a[i]` (6.7): the array, then the index; `checklen` raises
+ * out_of_bounds_exception for a position outside it (and nullptr_exception
+ * for a null array). An element of a number array is read at its type's
+ * width and sign; one of an array of objects is a reference.
+ */
+def element_value(g: generator, e: bound_index) : _int64 {
+    array : _int64 = held_over(g, value_of(g, e.array), e.index);
+    index : _int64 = value_of(g, e.index);
+    target : _int64 = g.temp_for(e.type);
+    made := g.b.emit(IR_GET_ELEMENT);
+    made.target = target;
+    made.first = array;
+    made.second = index;
+    made.number = element_code_of(e.type);
+    g.b.release(array);
+    g.b.release(index);
+    return target;
+}
+
+/** a[i] = value: the store of 6.7 (a number is cut to the element's width by the VM itself) */
+def store_element(g: generator, array: _int64, index: _int64, value: _int64, element: resolved_type) {
+    made := g.b.emit(IR_SET_ELEMENT);
+    made.first = array;
+    made.second = index;
+    made.detail = value;
+    made.number = element_code_of(element);
+}
+
+/** ELEMENT_... for an element of this type: the VM number type of a number, or a reference */
+def element_code_of(element: resolved_type) : _int64 {
+    number : _int64 = vm_number_type(element);
+    if(number >= 0) { return number; }
+    return ELEMENT_REFERENCE;
+}
+
+/**
+ * `new t[n]` and `new t[] { items }` (6.7): `newarray` for numbers,
+ * `newclassarray` for objects of one class, `newobjarray` for anything else
+ * that is a reference (`object`, function values, arrays of arrays).
+ */
+def new_array_value(g: generator, e: bound_new_array) : _int64 {
+    if(e.items != null) { return array_of_items(g, e.element, e.items!!, e); }
+    if(e.size == null) { g.stop("a new array without a size", e.unit, e.node); }
+    size : _int64 = value_of(g, e.size!!);
+    target : _int64 = make_array(g, e.element, size);
+    g.b.release(size);
+    return target;
+}
+
+/** an array made of the size in a slot */
+def make_array(g: generator, element: resolved_type, size: _int64) : _int64 {
+    target : _int64 = g.b.temp(SLOT_REF);
+    made := g.b.emit(IR_NEW_ARRAY);
+    made.target = target;
+    made.first = size;
+    made.number = element_code_of(element);
+    made.detail = 0 - 1;
+    if(made.number == ELEMENT_REFERENCE) {
+        holder := element.class_or_null();
+        if(holder != null && holder!!.address >= 0) { made.detail = holder!!.address; }
+    }
+    return target;
+}
+
+/** an array of the given items, each stored in order (`{ 1, 2, 3 }`) */
+def array_of_items(g: generator, element: resolved_type, items: list<bound_expression>, at: bound_expression) : _int64 {
+    count : _int64 = g.b.temp(SLOT_INT);
+    g.b.int_constant(count, items.size());
+    target : _int64 = make_array(g, element, count);
+    g.b.release(count);
+    for(i : _int64 = 0; i < items.size(); i++) {
+        value : _int64 = value_of(g, items.at(i));
+        index : _int64 = g.b.temp(SLOT_INT);
+        g.b.int_constant(index, i);
+        store_element(g, target, index, value, element);
+        g.b.release(index);
+        g.b.release(value);
+    }
+    return target;
+}

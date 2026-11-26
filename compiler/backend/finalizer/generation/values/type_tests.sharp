@@ -1,0 +1,89 @@
+mod backend.finalizer.generation.values;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation
+)
+
+/**
+ * TESTS OF A VALUE: `is` AND `sizeof` (doc/codegen.md 4.5, 6.7, 6.8)
+ *
+ *      shape is square         movl %shape; is ebx, <address of square>      1 or 0; null gives 0
+ *      value is _int8[]        movl %value; is ebx, <VM type of _int8>       a number array of that type
+ *      value is object         "is not null": `object` is every object and every array (`is_an_object`)
+ *      sizeof(items)           movl %items; sizeof ebx                        the length; 0 for null
+ *      sizeof(new point())     the same instruction on an object: the number of its KEPT instance
+ *                              fields (a field no code names is not in the object: codegen.md 5.5, Q10)
+ *
+ * `is` follows base classes and interfaces (the VM compares class guids,
+ * which are the addresses). An `is` whose answer analysis already knows has
+ * a `constant`: the operand is still evaluated when it has an effect, then the
+ * answer is written (`value_of`).
+ */
+def is_value(g: generator, e: bound_is) : _int64 {
+    value : _int64 = value_of(g, e.operand);
+    if(e.constant != null) {
+        // known while compiling (`5 is _int64`, a class tested against itself): the operand ran for its effect
+        g.b.release(value);
+        target : _int64 = g.b.temp(SLOT_INT);
+        g.b.int_constant(target, e.constant!!.integer);
+        return target;
+    }
+    if(g.b.kind_of(value) != SLOT_REF) { g.stop("`is` on a plain number", e.unit, e.node); }
+    tested : resolved_type = e.tested;
+    if(tested.kind == RT_OBJECT) { return is_an_object(g, value); }
+    made := g.b.emit(IR_IS);
+    made.first = value;
+    if(tested.is_array == 1 && tested.kind == RT_INTEGER) {
+        made.detail = 1;
+        made.number = integer_type_number(tested);
+    } else if(tested.is_array == 1 && tested.kind == RT_DECIMAL) {
+        made.detail = 1;
+        made.number = VM_TYPE_DECIMAL;
+    } else if(tested.kind == RT_CLASS && tested.class_of != null && tested.class_of!!.address >= 0) {
+        // a class, or an array of one: tested against the class, as by the C++ compiler (the `[]` is ignored
+        // there, create_is_operation; the same as for a cast)
+        made.number = tested.class_of!!.address;
+    } else {
+        g.stop("`is " + tested.to_text() + "`", e.unit, e.node);
+    }
+    g.b.release(value);
+    target : _int64 = g.b.temp(SLOT_INT);
+    made.target = target;
+    return target;
+}
+
+/**
+ * `x is object`, `x is object[]`: 1 when there is an object, 0 for null.
+ * `object` is every object and every array, and the VM cannot tell an array
+ * of objects from any other object, so "is not null" is all there is to ask
+ * (the C++ compiler answers 1 without looking, for null too: codegen.md 10, G29).
+ */
+def is_an_object(g: generator, value: _int64) : _int64 {
+    g.b.release(value);
+    target : _int64 = g.b.temp(SLOT_INT);
+    test := g.b.emit(IR_IS_NULL);
+    test.target = target;
+    test.first = value;
+    flipped := g.b.emit(IR_NOT);            // "is null" turned into "is an object"
+    flipped.target = target;
+    flipped.first = target;
+    return target;
+}
+
+/** `sizeof(v)`: the length of an array, the number of kept fields of an object; 0 for null (above) */
+def sizeof_value(g: generator, e: bound_sizeof) : _int64 {
+    value : _int64 = value_of(g, e.operand);
+    if(g.b.kind_of(value) != SLOT_REF) { g.stop("`sizeof` of a plain number", e.unit, e.node); }
+    g.b.release(value);
+    target : _int64 = g.b.temp(SLOT_INT);
+    length := g.b.emit(IR_LENGTH);
+    length.target = target;
+    length.first = value;
+    return target;
+}

@@ -1,0 +1,220 @@
+mod std.net;
+
+import ( std.c, std.io, platform )
+
+/**
+ * NETWORKING WITHOUT CONNECTIONS (UDP), and looking up names (DNS)
+ *
+ *      // one side
+ *      ear := udp_socket.bind(9000);                   // listen on port 9000
+ *      got := ear.receive();                           // waits for a datagram
+ *      print(got.text() + " from " + got.host + ":" + got.port + "\n");
+ *      ear.send_text(got.host, got.port, "pong");      // answer where it came from
+ *
+ *      // the other
+ *      mouth := udp_socket.open();                     // any free port
+ *      mouth.send_text("192.168.1.20", 9000, "ping");
+ *      answer := mouth.set_timeout(1000).receive();
+ *
+ * TCP is a connection: everything arrives, in order, or the connection
+ * breaks. UDP sends single DATAGRAMS - a block of bytes to an address -
+ * with no connection and no promise: one may be lost, come twice, or come
+ * out of order, and nobody says so. In return there is no setup and no
+ * waiting, which is what games, voice, sensors and "who is on this
+ * network?" broadcasts want. A datagram arrives whole or not at all; keep
+ * them under about 1200 bytes and they travel in one piece.
+ *
+ *      udp_socket.open()                   a socket on any free port
+ *      udp_socket.bind(port)               ... on that port, reachable from other machines
+ *      udp_socket.bind(port, true)         ... from this machine only
+ *      send(host, port, bytes)   send_text(host, port, text)
+ *      receive()                           the next datagram (waits; socket_timeout after set_timeout's time)
+ *      allow_broadcast()                   may send to "255.255.255.255": everyone on the local network
+ *      port()   close()
+ *
+ *      dns.lookup("example.com")           every address (version 4) the name has, as texts
+ *      dns.first("example.com")            the first of them
+ *
+ *      Java comparison: DatagramSocket / DatagramPacket, InetAddress.getAllByName.
+ */
+class datagram {
+    data : _int8[];
+    /** the address it came from */
+    host : string;
+    port : _int64;
+
+    datagram(data: _int8[], host: string, port: _int64) {
+        self->data = data;
+        self->host = host;
+        self->port = port;
+    }
+
+    def text() : string {
+        if(sizeof(data) == 0) { return ""; }
+        return new string(data, 0, sizeof(data));
+    }
+
+    def size() : _int64 { return sizeof(data); }
+}
+
+/** the two calls tcp does not need, per system (the rest are in system_sockets.sharp) */
+class udp_posix {
+    extern "unix:c" {
+        static def sendto(s: c_int, data: _int8[], count: c_size, flags: c_int, to: socket_address?, length: c_uint) : c_ssize;
+        static def recvfrom(s: c_int, into: _int8[], count: c_size, flags: c_int, from: socket_address?, length: _int32[]) : c_ssize;
+    }
+}
+
+class udp_windows {
+    extern "windows:ws2_32" {
+        static def sendto(s: pointer, data: _int8[], count: c_int, flags: c_int, to: socket_address?, length: c_int) : c_int;
+        static def recvfrom(s: pointer, into: _int8[], count: c_int, flags: c_int, from: socket_address?, length: _int32[]) : c_int;
+    }
+}
+
+class udp_socket {
+    private handle : _int64 = 0 - 1;
+    private live : bool = false;
+    private bound_port : _int64 = 0;
+    private chunk := new _int8[65536];
+
+    private udp_socket(port: _int64, local_only: bool) {
+        if(port < 0 || port > 65535) { throw new illegal_argument_exception("udp_socket: a port is 0 to 65535, not " + port); }
+        socket_system.start();
+        // 2: the internet (version 4), 2: datagrams, 17: UDP
+        if(socket_system.is_windows()) { handle = windows_sockets.socket(2, 2, 17); }
+        else { handle = posix_sockets.socket(2, 2, 17); }
+        if(handle == socket_system.NONE || handle < 0) { throw new socket_exception("no socket could be made: " + socket_system.last_error()); }
+
+        host_address : _int64 = 0;
+        if(local_only) { host_address = socket_system.address_of("127.0.0.1"); }
+        address := socket_system.address(host_address, port);
+        result : _int64 = 0;
+        if(socket_system.is_windows()) { result = windows_sockets.bind(handle, address, 16); }
+        else { result = posix_sockets.bind(handle, address, 16); }
+        if(result != 0) {
+            why : string = socket_system.last_error();
+            socket_system.close(handle);
+            throw new socket_exception("could not take port " + port + ": " + why);
+        }
+        bound := new socket_address();
+        length := new _int32[1];
+        length[0] = 16;
+        if(socket_system.is_windows()) { windows_sockets.getsockname(handle, bound, length); }
+        else { posix_sockets.getsockname(handle, bound, length); }
+        bound_port = socket_system.network_port(bound.port);
+        live = true;
+    }
+
+    static def open() : udp_socket { return new udp_socket(0, false); }
+    static def bind(port: _int64) : udp_socket { return new udp_socket(port, false); }
+    static def bind(port: _int64, local_only: bool) : udp_socket { return new udp_socket(port, local_only); }
+
+    def is_open() : bool { return live; }
+    def port() : _int64 { return bound_port; }
+
+    private def usable() {
+        if(!live) { throw new socket_exception("the socket is closed"); }
+    }
+
+    /** receive() gives up after this long (0: waits for as long as it takes) */
+    def set_timeout(milliseconds: _int64) : udp_socket {
+        usable();
+        if(milliseconds < 0) { milliseconds = 0; }
+        if(socket_system.is_windows()) {
+            value := new _int32[1];
+            value[0] = milliseconds;
+            windows_sockets.setsockopt(handle, 0xFFFF, 0x1006, value, 4);
+        } else {
+            time := new socket_time();
+            time.seconds = (milliseconds / 1000) as _int64;
+            time.microseconds = (milliseconds % 1000) * 1000;
+            posix_sockets.setsockopt(handle, 1, 20, time, 2 * c_memory.pointer_size());
+        }
+        return self;
+    }
+
+    /** let this socket send to a broadcast address ("255.255.255.255": every machine of the local network) */
+    def allow_broadcast() : udp_socket {
+        usable();
+        yes := new _int32[1];
+        yes[0] = 1;
+        if(socket_system.is_windows()) { windows_sockets.setsockopt(handle, 0xFFFF, 0x0020, yes, 4); }
+        else { posix_sockets.setsockopt(handle, 1, 6, yes, 4); }
+        return self;
+    }
+
+    /** send one datagram to `port` of `host`; returns the bytes sent. Throws socket_exception when the system refuses it. */
+    def send(host: string, port: _int64, data: _int8[]?) : _int64 {
+        usable();
+        if(port < 1 || port > 65535) { throw new illegal_argument_exception("udp_socket.send: a port is 1 to 65535, not " + port); }
+        to := socket_system.address(socket_system.address_of(host), port);
+        bytes : _int8[] = data ?: new _int8[1];
+        sent : _int64 = 0;
+        if(socket_system.is_windows()) { sent = udp_windows.sendto(handle, bytes, sizeof(data), 0, to, 16); }
+        else { sent = udp_posix.sendto(handle, bytes, sizeof(data), 0, to, 16); }
+        if(sent < 0) { throw new socket_exception("the datagram to " + host + ":" + port + " was not sent: " + socket_system.last_error()); }
+        return sent;
+    }
+
+    def send_text(host: string, port: _int64, text: string) : _int64 {
+        return send(host, port, text.data);
+    }
+
+    /** wait for the next datagram. Throws socket_timeout when a timeout is set and none came. */
+    def receive() : datagram {
+        usable();
+        from := new socket_address();
+        length := new _int32[1];
+        length[0] = 16;
+        got : _int64 = 0;
+        if(socket_system.is_windows()) { got = udp_windows.recvfrom(handle, chunk, sizeof(chunk), 0, from, length); }
+        else { got = udp_posix.recvfrom(handle, chunk, sizeof(chunk), 0, from, length); }
+        if(got < 0) {
+            code : _int64 = socket_system.last_code();
+            if(socket_system.timed_out(code)) { throw new socket_timeout("no datagram came within the socket's timeout"); }
+            if(!live) { throw new socket_exception("the socket was closed"); }
+            throw new socket_exception("receiving failed: " + socket_system.describe(code));
+        }
+        data : _int8[] = new _int8[0];
+        if(got > 0) { data = copy(chunk, 0, got)!!; }
+        return new datagram(data, socket_system.address_text(from.address), socket_system.network_port(from.port));
+    }
+
+    def close() {
+        if(!live) { return; }
+        live = false;
+        socket_system.close(handle);
+    }
+}
+
+class dns {
+    /**
+     * Every internet address (version 4) of a name, as texts like
+     * "93.184.216.34". An address given as a text comes back as it is.
+     * Throws socket_exception when the name has none.
+     */
+    static def lookup(host: string) : list<string> {
+        socket_system.start();
+        entry : pointer = 0;
+        if(socket_system.is_windows()) { entry = windows_sockets.gethostbyname(host); }
+        else { entry = posix_sockets.gethostbyname(host); }
+        if(entry == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
+        // struct hostent: two addresses, two numbers (8 bytes together), then the list of addresses
+        size : _int64 = c_memory.pointer_size();
+        list_at : pointer = c_memory.view(entry, 3 * size + 8).pointer_at(2 * size + 8);
+        found := new list<string>();
+        if(list_at == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
+        for(i : _int64 = 0; i < 64; i++) {
+            one : pointer = c_memory.view(list_at + i * size, size).pointer_at(0);
+            if(one == 0) { break; }
+            found.add(socket_system.address_text(c_memory.view(one, 4).uint32_at(0)));
+        }
+        if(found.size() == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
+        return found;
+    }
+
+    static def first(host: string) : string {
+        return lookup(host).at(0);
+    }
+}

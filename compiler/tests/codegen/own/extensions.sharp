@@ -1,0 +1,54 @@
+mod main;
+
+// output:
+// 11
+// 21
+// hello!
+// 42
+// pair of x
+// 7
+
+/*
+ * Extension functions and `mutate` (doc/codegen.md 9.4): an extension
+ * function is an ordinary function of the class it extends (an instance
+ * function there: `self` is the object), and what `mutate` adds to a class -
+ * a field with a value, a function - is part of the class like what it
+ * declares itself (the field's value runs in init<C>).
+ *
+ * Not checked against the C++ compiler: it refuses an extension function
+ * written at the top of a file ("internal error: unknown ast type: 16" for
+ * `def string.shout()`, and `n` unresolved in `def counter.twice()`).
+ * `mutate` alone it builds the same (11 21).
+ *
+ *      counter.bump twice: 1 + 10, then 21; "hello" + "!"; 21 * 2; the
+ *      extension of one generic instance; an extension of the number class `int`
+ */
+class counter {
+    n : _int64 = 1;
+}
+
+mutate counter {
+    step : _int64 = 10;
+    def bump() : _int64 { n += step; return n; }
+}
+
+def string.shout() : string { return self + "!"; }
+def counter.twice() : _int64 { return n * 2; }
+
+class pair<A> {
+    first : A;
+    pair(a: A) { first = a; }
+}
+def pair<string>.describe() : string { return "pair of " + first; }
+
+def int.plus_two() : _int64 { return value + 2; }
+
+def main() {
+    c := new counter();
+    show(c.bump());
+    show(c.bump());
+    println("hello".shout());
+    show(c.twice());
+    println(new pair<string>("x").describe());
+    show(new int(5).plus_two());
+}

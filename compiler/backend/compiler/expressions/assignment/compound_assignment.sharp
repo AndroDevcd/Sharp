@@ -1,0 +1,207 @@
+mod backend.compiler.expressions.assignment;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions,
+    backend.compiler.expressions.calls,
+    backend.compiler.expressions.arithmetic
+)
+
+/**
+ * `target += value`, and -=  *=  /=  %=  &=  |=  ^=
+ *
+ *      total += price;         a number: worked out like `total + price` (number_operators.sharp)
+ *                              and the result converted back to total's type (`small += 1`
+ *                              with small : _int8 cuts the sum to 8 bits): a bound_assign
+ *      p.count += 1;           a property: read through the getter, worked out, written through
+ *                              the setter (a getter without a setter: stored into the field)
+ *      text += "x";            an object: the class's operator+= (AS_ASSIGN_OPERATOR)
+ *      names[0] += 1;          an object indexed: operator+= on what operator[] returned
+ *
+ *      E0712   there is no compound assignment for this type (an object whose class has
+ *              no fitting operator+=, `object`, an array, a function value)
+ *      E0711   the target is not a place that holds a value
+ *
+ *      C++ comparison: the `else` half of `compile_assignment` and
+ *      `compile_property_compound_assignment` in assign_expression.cpp.
+ */
+def compound_assignment(context: analysis_context, node: _int64, target: assign_target, value_node: _int64,
+                        operation: _int64) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    value := analyse_value(context, value_node, null);
+    if(target.kind == TARGET_ERROR || value.type.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+    type : resolved_type = target.type;
+    if(target.read.kind == BX_ENUM_VALUE) {
+        // `color.red += 1`: an enum value is a constant, not a place - E0711, as for `color.red = x`
+        report_not_assignable(context, target, node, "changed with `" + name_at(context, node) + "`");
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    // an object: its operator+= (on the indexed object: on what operator[] returned)
+    if(type.kind == RT_CLASS && type.is_array == 0 && target.kind != TARGET_PROPERTY) {
+        on : bound_expression = target.read;
+        called := call_operator(context, node, on, "operator" + name_at(context, node), one_argument(value));
+        if(called != null) {
+            if(called!!.kind == BX_CALL) { (called as bound_call).written_as = AS_ASSIGN_OPERATOR; }
+            return called!!;
+        }
+        report_no_compound(context, node, target, value);
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(type.kind == RT_CLASS && type.is_array == 0) { return compound_on_class_property(context, node, target, value); }
+    if(target.kind == TARGET_NONE || target.kind == TARGET_INDEX) {
+        report_not_assignable(context, target, node, "assigned to");
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(!type.is_number()) {
+        report_no_compound(context, node, target, value);
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    // numbers, also through a property
+    number := as_plain_number(context, value, 0);
+    if(number == null) {
+        report_right_not_a_number(context, node, target.read, value);
+        return new bound_error(context.unit, node, error_type);
+    }
+    check_const(context, target, node);
+    // `x /= 0` and `x %= 0`: the same rules as `x / 0` (W1044) and `x % 0` (E0427)
+    if(operation == P_SLASH && is_whole_zero(number!!)) { warn_division_by_zero(context, number!!); }
+    if(operation == P_PERCENT && number!!.constant != null && number!!.constant!!.kind != CONST_TEXT && whole_of(number!!.constant!!) == 0) {
+        report_remainder_by_zero(context, number!!);
+        return new bound_error(context.unit, node, error_type);
+    }
+    operands : _int64 = operands_of(operation, type, number!!.type);
+    result_type := number_result_type(context.session.types, operation, type, number!!.type);
+    made := new bound_assign(context.unit, node, target.storage!!, number!!);
+    made.operation = operation;
+    made.operands = operands;
+    made.store = find_conversion(context.session, result_type, type, 0);
+    made.getter = target.getter;
+    made.setter = target.setter;
+    return made;
+}
+
+/** P_PLUS for `+=`, P_MINUS for `-=` ...: the arithmetic of a compound assignment operator */
+def arithmetic_of(compound: _int64) : _int64 {
+    if(compound == P_PLUSEQ) { return P_PLUS; }
+    if(compound == P_MINUSEQ) { return P_MINUS; }
+    if(compound == P_MULTEQ) { return P_STAR; }
+    if(compound == P_DIVEQ) { return P_SLASH; }
+    if(compound == P_MODEQ) { return P_PERCENT; }
+    if(compound == P_ANDEQ) { return P_AND; }
+    if(compound == P_OREQ) { return P_OR; }
+    if(compound == P_XOREQ) { return P_XOR; }
+    return 0;
+}
+
+/** does `owner` have an operator function `name` that takes `value`? (for the help of E0712) */
+def takes_operator(context: analysis_context, owner: sharp_class, name: string, value: bound_expression) : _int64 {
+    functions := operator_functions(context, owner, name);
+    if(functions.size() == 0) { return 0; }
+    return resolve_overload(context, functions, one_argument(value), null, owner).best != null;
+}
+
+/** E0712: `target <op>= value` has no meaning for the target's type */
+def report_no_compound(context: analysis_context, node: _int64, target: assign_target, value: bound_expression) {
+    text := name_at(context, node);
+    type : resolved_type = target.type;
+    d := problem_at(context, "E0712", "`" + text + "` is not available for " + described_type(type), node);
+    d.with_label("no `" + text + "` for `" + type.to_text() + "` with " + described_value(value));
+    if(type.kind == RT_CLASS && type.is_array == 0 && type.class_of!!.is_enum()) {
+        // an enum is a fixed list of values: an operator added to it would be no fix
+        explain_enum_arithmetic(context, d, target.read);
+    } else if(type.kind == RT_CLASS && type.is_array == 0) {
+        has := operator_overloads_text(context, type.class_of!!, "operator" + text);
+        if(has.size() > 0) { d.with_note("`" + type.class_of!!.written.name + "` has `operator" + text + "` for " + has); }
+        else { d.with_note("on an object `" + text + "` calls the function `operator" + text + "` of its class, and `"
+                           + type.class_of!!.written.name + "` has none"); }
+        // `a += b` is not turned into `a = a + b` for objects; when the class has that `+`, say so
+        arithmetic := text.substring(0, text.size() - 1);
+        written := source_text_of(context, target.read.node);
+        if(target.kind == TARGET_STORAGE && takes_operator(context, type.class_of!!, "operator" + arithmetic, value)) {
+            d.with_help("`" + type.class_of!!.written.name + "` does have `operator" + arithmetic + "` for this: write `" + written + " = "
+                        + written + " " + arithmetic + " " + source_text_of(context, value.node) + "`");
+        } else if(type.class_of!!.written.module == context.file.module) {
+            // a class of the program's own module: the programmer can add the operator
+            d.with_help("declare it in `" + type.class_of!!.written.name + "`: `def operator" + text + "(other: "
+                        + value.type.as_non_null().to_text() + ") : " + type.class_of!!.written.name + " { ... }`");
+        }
+    } else if(type.kind == RT_OBJECT) {
+        d.with_note("an `object` could be anything; say what it is first with `as`");
+    } else if(type.is_array == 1) {
+        written := source_text_of(context, target.read.node);
+        d.with_note("an array has a fixed size and no arithmetic of its own; `" + text + "` works on numbers, and on objects whose class has the operator");
+        if(value.type.is_number()) {
+            d.with_help("to change every item, loop over it: `for(i := 0; i < sizeof(" + written + "); i++) { " + written + "[i] " + text + " "
+                        + source_text_of(context, value.node) + "; }`");
+        }
+        d.with_help("for a collection that can grow, use a `list`: `items := new list<" + type.as_non_null().element_type().to_text() + ">(); items.add(...);`");
+    } else {
+        d.with_note("compound assignment works on numbers, and on objects whose class has the operator");
+    }
+    report(context, d);
+}
+
+/**
+ * E0511 / E0712 on a value of an enum (`x++`, `x += 1` with `x : colour`):
+ * an enum is a fixed list of named values, so there is nothing to count up
+ * and no operator to add. What the programmer can do: give the variable
+ * another value by name, or work with the value's number, `ordinal`.
+ */
+def explain_enum_arithmetic(context: analysis_context, d: diagnostic, read: bound_expression) {
+    owner : sharp_class = read.type.class_of!!;
+    written := source_text_of(context, read.node);
+    d.with_note("an enum is a fixed list of named values (`" + owner.written.name + "` has " + enum_value_names(owner)
+                + "); its values are not numbers and cannot be counted up or added to");
+    if(owner.enum_values.size() > 1 && !(written == "<value>")) {
+        d.with_help("give it another value by name: `" + written + " = " + owner.written.name + "." + owner.enum_values.at(1).name + ";`");
+    }
+    if(!(written == "<value>")) {
+        d.with_help("or count with the value's number: `n := " + written + ".ordinal + 1;`");
+    }
+}
+
+/** "`red`, `green` and `blue`": the values of an enum, at most four */
+def enum_value_names(owner: sharp_class) : string {
+    text := new string_builder("");
+    count : _int64 = owner.enum_values.size();
+    for(i : _int64 = 0; i < count && i < 4; i++) {
+        if(i > 0 && (i == count - 1 || i == 3)) { text.append(" and "); }
+        else if(i > 0) { text.append(", "); }
+        text.append("`" + owner.enum_values.at(i).name + "`");
+    }
+    if(count > 4) { text.append(" ..."); }
+    return text.build();
+}
+
+/**
+ * `p.label += "x"` where `label` is a property of a class type: read through
+ * the getter, the class's `operator+` (not `+=`: the result is a new value),
+ * written back through the setter - or into the field when there is no
+ * setter. (C++: `compile_property_compound_assignment`.)
+ */
+def compound_on_class_property(context: analysis_context, node: _int64, target: assign_target, value: bound_expression) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    text := name_at(context, node);
+    arithmetic := text.substring(0, text.size() - 1);
+    combined := call_operator(context, node, target.read, "operator" + arithmetic, one_argument(value));
+    if(combined == null) {
+        report_no_compound(context, node, target, value);
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(combined!!.type.kind == RT_ERROR) { return combined!!; }
+    check_const(context, target, node);
+    if(target.setter != null) { return assign_through_setter(context, node, target, combined!!); }
+    return assign_into(context, node, target.storage!!, combined!!);
+}

@@ -1,0 +1,267 @@
+mod std.reflect;
+
+import ( std.io )
+
+/**
+ * A FUNCTION, A CONSTRUCTOR OR AN OPERATOR of a class (see reflect.sharp)
+ *
+ *      greet := shape.function("greet")!!;
+ *      greet.name                          // "greet"
+ *      greet.parameters                    // a type_info for each parameter
+ *      greet.result                        // the type_info of what it gives
+ *      greet.is_static
+ *
+ *      greet.call(someone, "bob")          // someone.greet("bob"): what it gives, as an object
+ *      count.call_static()                 // a static function
+ *
+ * What a call gives is an object: a number comes in its number class
+ * (`(found as int).value`), nothing comes as null. An argument for a number
+ * parameter is an object of a number class: `new int(31)`.
+ *
+ * A call runs the function that this function_info is - the one written in
+ * its class. To run what an object's own class has for a name, ask that
+ * class: `reflect.of(thing)!!.function("area")`, or `reflect.on(thing).call("area")`.
+ *
+ * A private or protected function is not called until it is opened:
+ * `shape.function("check")!!.open().call(someone)`, or `shape.open()` for
+ * the whole class. open() gives another function_info; this one stays closed.
+ *
+ * The names of parameters are not kept in a program; their types are.
+ */
+class function_info {
+    // `kind` is one of these
+    static const FUNCTION : _int64 = 1;
+    static const CONSTRUCTOR : _int64 = 2;
+    static const SETUP : _int64 = 3;            // an `init` block
+    static const OPERATOR : _int64 = 4;
+
+    /** the VM's number for the function */
+    id : _int64;
+    name : string;
+    /** with the module and the class: "app.models#user.greet" */
+    full_name : string;
+    kind : _int64;
+    /** the type of each parameter, in order */
+    parameters : list<type_info> = new list<type_info>();
+    /** the type of what it gives (`result.is_nothing` for a function that gives nothing) */
+    result : type_info;
+    is_static : decimal;
+    is_constructor : decimal;
+    /** 1 for an `init` block */
+    is_setup : decimal;
+    is_public : decimal;
+    is_private : decimal;
+    is_protected : decimal;
+
+    /** the VM's number of the class it is written in; -1 for a function of a module */
+    owner_id : _int64;
+
+    // what the protection goes by (not the public fields above, which a program can change)
+    private guarded : decimal;
+    private hidden_as : string = "private";
+
+    function_info(id: _int64) {
+        self->id = id;
+        said := reflect_vm.facts(4, id, 0);
+        flags : _int64 = said[0];
+        kind = said[1];
+        owner_id = said[2];
+        result = new type_info(said[4], said[5], said[6]);
+        for(i : _int64 = 0; i < said[3]; i++) { parameters.add(new type_info(said[8 + i * 3], said[9 + i * 3], said[10 + i * 3])); }
+        name = reflect_vm.text(3, id, 0);
+        full_name = reflect_vm.text(4, id, 0);
+        is_public = (flags & 1) != 0;
+        is_private = (flags & 2) != 0;
+        is_protected = (flags & 4) != 0;
+        is_static = (flags & 128) != 0 || owner_id < 0;
+        is_constructor = kind == CONSTRUCTOR;
+        is_setup = kind == SETUP;
+        guarded = is_private || is_protected;
+        if(is_protected) { hidden_as = "protected"; }
+    }
+
+    /** this function with its protection off: a private or protected one that can be called. This one stays as it is. */
+    def open() : function_info {
+        if(!guarded) { return self; }
+        made := new function_info(id);
+        made.guarded = 0;
+        return made;
+    }
+
+    /** true when a call is allowed: a public function, or one that was opened */
+    def is_open() : bool {
+        return !guarded;
+    }
+
+    /** the class the function is written in; null for a function of a module */
+    def owner() : class_info? {
+        if(owner_id < 0) { return null; }
+        return reflect.by_number(owner_id);
+    }
+
+    // ------------------------------------------------------------------ calling
+
+    /** call a function without parameters on an object */
+    def call(target: object?) : object? {
+        return call_on(target, null);
+    }
+
+    /** call the function on an object with these arguments */
+    def call(target: object?, first: object?) : object? {
+        values := new object[1];
+        values[0] = first;
+        return call_on(target, values);
+    }
+
+    def call(target: object?, first: object?, second: object?) : object? {
+        values := new object[2];
+        values[0] = first; values[1] = second;
+        return call_on(target, values);
+    }
+
+    def call(target: object?, first: object?, second: object?, third: object?) : object? {
+        values := new object[3];
+        values[0] = first; values[1] = second; values[2] = third;
+        return call_on(target, values);
+    }
+
+    def call(target: object?, first: object?, second: object?, third: object?, fourth: object?) : object? {
+        values := new object[4];
+        values[0] = first; values[1] = second; values[2] = third; values[3] = fourth;
+        return call_on(target, values);
+    }
+
+    /** call a static function without parameters */
+    def call_static() : object? {
+        return call_on(null, null);
+    }
+
+    /** call a static function with these arguments */
+    def call_static(first: object?) : object? {
+        values := new object[1];
+        values[0] = first;
+        return call_on(null, values);
+    }
+
+    def call_static(first: object?, second: object?) : object? {
+        values := new object[2];
+        values[0] = first; values[1] = second;
+        return call_on(null, values);
+    }
+
+    def call_static(first: object?, second: object?, third: object?) : object? {
+        values := new object[3];
+        values[0] = first; values[1] = second; values[2] = third;
+        return call_on(null, values);
+    }
+
+    /**
+     * Call the function: on `target` (which a static function does not look
+     * at) with one value for each parameter (null for none).
+     *
+     * @throws reflect_exception when the values are not what the parameters
+     *         take, a function of an object is called without an object, or
+     *         the function is private or protected and not opened
+     */
+    def call_on(target: object?, values: object[]?) : object? {
+        if(guarded) {
+            throw new reflect_exception("`" + full_name + "` is " + hidden_as + ": open() it (or its class_info) before calling it");
+        }
+        if(!takes(values)) {
+            throw new reflect_exception("`" + to_string()!! + "` cannot be called with " + shown(values));
+        }
+        count : _int64 = sizeof(values);
+        before : _int64 = is_static ? 0 : 1;
+        if(before == 1) {
+            if(target == null) { throw new reflect_exception("`" + to_string()!! + "` is a function of an object: it cannot be called without one"); }
+            mine := reflect.of(target);
+            if(mine == null || !mine!!.is_a(owner()!!)) {
+                throw new reflect_exception("`" + to_string()!! + "` is a function of `" + owner()!!.full_name + "`, and the object is "
+                    + (mine == null ? new string("not an object of a class") : "a `" + mine!!.full_name + "`"));
+            }
+        }
+        if(count + before == 0) { return reflect_vm.call(id, null); }
+        laid := new object[count + before];
+        if(before == 1) { laid[0] = target; }
+        for(i : _int64 = 0; i < count; i++) { laid[before + i] = for_parameter(i, values[i]); }
+        return reflect_vm.call(id, laid);
+    }
+
+    /** true when the values are what the parameters take: as many of them, a number for a number, an object of the right class for a class */
+    def takes(values: object[]?) : bool {
+        if(sizeof(values) != parameters.size()) { return false; }
+        for(i : _int64 = 0; i < sizeof(values); i++) {
+            wanted := parameters.at(i);
+            given := reflect.type_of(values[i]);
+            if(wanted.is_number) {
+                // a number travels in its number class, or as a number array of one item
+                if(given.is_class) { if(!is_number_class(given.full_name)) { return false; } }
+                else if(!(given.is_array && given.kind <= type_info.DECIMAL)) { return false; }
+                continue;
+            }
+            if(given.is_nothing || wanted.kind == type_info.OBJECT) { continue; }       // null goes anywhere a reference does
+            // a text in quotes, handed over as an object, is its characters
+            if(wanted.is_text && given.is_array && given.kind == type_info.INT8) { continue; }
+            if(wanted.kind == type_info.FUNCTION) { continue; }
+            if(!wanted.takes(given)) { return false; }
+        }
+        return true;
+    }
+
+    /** true when `other` has the same name and the same types of parameters: what replaces it in a class below */
+    def same_shape(other: function_info) : bool {
+        if(name != other.name || parameters.size() != other.parameters.size()) { return false; }
+        for(i : _int64 = 0; i < parameters.size(); i++) {
+            if(parameters.at(i).full_name != other.parameters.at(i).full_name) { return false; }
+        }
+        return true;
+    }
+
+    /** "greet(string) : string" */
+    override def to_string() : string? {
+        text := new string_builder();
+        text.append(name);
+        text.append("(");
+        for(i : _int64 = 0; i < parameters.size(); i++) {
+            if(i > 0) { text.append(", "); }
+            text.append(parameters.at(i).name);
+        }
+        text.append(")");
+        if(!result.is_nothing && !is_constructor) {
+            text.append(" : ");
+            text.append(result.name);
+        }
+        return text.to_string();
+    }
+
+    /** "(string, int)": the types of some values, for a message */
+    static def shown(values: object[]?) : string {
+        text := new string_builder();
+        text.append("(");
+        for(i : _int64 = 0; i < sizeof(values); i++) {
+            if(i > 0) { text.append(", "); }
+            if(values[i] == null) { text.append("null"); }
+            else { text.append(reflect.type_of(values[i]).name); }
+        }
+        text.append(")");
+        return text.to_string()!!;
+    }
+
+    /** the classes a number travels in */
+    static def is_number_class(full_name: string) : bool {
+        return full_name == "std#int" || full_name == "std#long" || full_name == "std#double" || full_name == "std#boolean"
+            || full_name == "std#char" || full_name == "std#short" || full_name == "std#uint" || full_name == "std#ulong"
+            || full_name == "std#ushort" || full_name == "std#uchar" || full_name == "std#byte";
+    }
+
+    /** a value as the parameter at a place takes it: the characters of a text in quotes become a string for a string parameter */
+    private def for_parameter(place: _int64, value: object?) : object? {
+        if(value == null || !parameters.at(place).is_text) { return value; }
+        given := reflect.type_of(value);
+        if(given.is_array && given.kind == type_info.INT8) {
+            characters : _int8[] = value as _int8[];
+            return new string(characters, 0, sizeof(characters));
+        }
+        return value;
+    }
+}

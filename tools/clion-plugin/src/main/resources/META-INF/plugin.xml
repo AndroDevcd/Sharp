@@ -1,0 +1,119 @@
+<!--
+  THE PLUGIN'S DESCRIPTION FOR THE PLATFORM
+
+  The platform reads this file first. It names the plugin and lists, one line
+  each, the classes that plug into the platform's extension points ("sockets":
+  something that colours tokens, something that folds code ...). Primer idea 1 in
+  doc/ide.md section 2. Every extension point of the plugin is listed below, grouped
+  by feature.
+
+  Only the platform module is depended on (no C++ module), so the plugin also
+  loads in IntelliJ IDEA.
+-->
+<idea-plugin>
+    <id>sharp.language.support</id>
+    <name>Sharp</name>
+    <vendor>Sharp</vendor>
+    <description><![CDATA[
+        <p>Support for the Sharp programming language: syntax highlighting, brace matching,
+        commenting, code folding and a colour settings page.</p>
+        <p>The compiler's errors and warnings are shown in the editor after a save, and code completion,
+        parameter hints, hover, go to declaration, the structure view and go to class / symbol answer from
+        the index the compiler writes on each run. A "Sharp Program" run configuration compiles a folder of
+        Sharp code and runs it, with the output in the Run console. All of this uses the installed Sharp
+        (the release's win-install / unix-install); highlighting works without it.</p>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <!-- completion inside a project's settings.json: only where the IDE has JSON support (sharp-json.xml) -->
+    <depends optional="true" config-file="sharp-json.xml">com.intellij.modules.json</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- the language and the .sharp file type -->
+        <fileType name="Sharp" implementationClass="sharp.ide.language.SharpFileType"
+                  fieldName="INSTANCE" language="Sharp" extensions="sharp"/>
+        <!-- a .sharp file is a Sharp file even when the IDE's own file-type settings say otherwise -->
+        <fileTypeOverrider implementation="sharp.ide.language.SharpFileTypeOverrider"/>
+        <lang.parserDefinition language="Sharp"
+                               implementationClass="sharp.ide.language.SharpParserDefinition"/>
+
+        <!-- colours -->
+        <lang.syntaxHighlighterFactory language="Sharp"
+                                       implementationClass="sharp.ide.highlighting.SharpSyntaxHighlighterFactory"/>
+        <colorSettingsPage implementation="sharp.ide.highlighting.SharpColorSettingsPage"/>
+
+        <!-- editing help -->
+        <lang.braceMatcher language="Sharp" implementationClass="sharp.ide.language.SharpBraceMatcher"/>
+        <lang.commenter language="Sharp" implementationClass="sharp.ide.language.SharpCommenter"/>
+        <lang.foldingBuilder language="Sharp" implementationClass="sharp.ide.language.SharpFoldingBuilder"/>
+        <quoteHandler fileType="Sharp" className="sharp.ide.language.SharpQuoteHandler"/>
+
+        <!-- errors from the compiler: the trigger, the marks in the editor, the links in their tooltips -->
+        <externalAnnotator language="Sharp" implementationClass="sharp.ide.annotator.SharpExternalAnnotator"/>
+        <codeInsight.linkHandler prefix="#sharp" handlerClass="sharp.ide.annotator.SharpTooltipLinkHandler"/>
+        <postStartupActivity implementation="sharp.ide.run.StartupRun"/>
+
+        <!-- completion: the list itself, and opening it by itself after a dot -->
+        <completion.contributor language="Sharp" implementationClass="sharp.ide.completion.SharpCompletionContributor"/>
+        <typedHandler implementation="sharp.ide.completion.SharpTypedHandler"/>
+
+        <!-- hover, go to declaration, parameter hints, the structure view, go to class / symbol: all from the index -->
+        <platform.backend.documentation.targetProvider implementation="sharp.ide.documentation.SharpDocumentationTargetProvider"/>
+        <gotoDeclarationHandler implementation="sharp.ide.navigation.SharpGotoDeclarationHandler"/>
+        <codeInsight.parameterInfo language="Sharp" implementationClass="sharp.ide.completion.SharpParameterInfoHandler"/>
+        <lang.psiStructureViewFactory language="Sharp" implementationClass="sharp.ide.structure.SharpStructureViewFactory"/>
+        <gotoClassContributor implementation="sharp.ide.navigation.SharpGotoClassContributor"/>
+        <gotoSymbolContributor implementation="sharp.ide.navigation.SharpGotoSymbolContributor"/>
+
+        <!-- the standard library, when it lies outside the project, listed under External Libraries -->
+        <additionalLibraryRootsProvider implementation="sharp.ide.library.SharpLibraryRootsProvider"/>
+
+        <!-- build and run: the "Sharp Program" run configuration, "Run" from a right-click, the program folder's mark -->
+        <configurationType implementation="sharp.ide.execution.SharpRunConfigurationType"/>
+        <runConfigurationProducer implementation="sharp.ide.execution.SharpRunConfigurationProducer"/>
+        <projectViewNodeDecorator implementation="sharp.ide.execution.SharpProgramFolderDecorator"/>
+
+        <!-- a project's tests: the green arrows beside tests, groups and functions in its tests folder, and what they run (sharp.ide.testing) -->
+        <runLineMarkerContributor language="Sharp" implementationClass="sharp.ide.testing.SharpTestRunLineMarker"/>
+        <runConfigurationProducer implementation="sharp.ide.testing.SharpTestRunProducer"/>
+
+        <!-- File > New > Project: "Sharp" makes the chosen folder a Sharp project with a run configuration -->
+        <directoryProjectGenerator implementation="sharp.ide.project.SharpProjectGenerator"/>
+
+        <!-- debugging: the Debug button of a "Sharp Program" configuration, breakpoints in .sharp files (sharp.ide.debug; it drives sdb) -->
+        <programRunner implementation="sharp.ide.debug.SharpDebugRunner"/>
+        <xdebugger.breakpointType implementation="sharp.ide.debug.SharpLineBreakpointType"/>
+
+        <!-- settings: the page and the quiet notifications -->
+        <projectConfigurable parentId="language" instance="sharp.ide.settings.SharpConfigurable"
+                             id="sharp.settings" displayName="Sharp"/>
+        <notificationGroup id="Sharp" displayType="BALLOON"/>
+    </extensions>
+
+    <!-- every file change in the IDE reaches this listener; it only asks for a run when a .sharp file of the program changed -->
+    <applicationListeners>
+        <listener class="sharp.ide.run.FileChangeListener"
+                  topic="com.intellij.openapi.vfs.newvfs.BulkFileListener"/>
+    </applicationListeners>
+
+    <!-- opening a file whose code the index knows nothing about asks for a run -->
+    <projectListeners>
+        <listener class="sharp.ide.run.EditorOpenListener"
+                  topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+    </projectListeners>
+
+    <actions>
+        <action id="Sharp.SetProgramFolder" class="sharp.ide.execution.SetSharpProgramFolderAction"
+                text="Set as Sharp Program Folder" description="The .sharp files of this folder are the program the IDE checks and runs">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        <action id="Sharp.NewProject" class="sharp.ide.execution.NewSharpProjectAction"
+                text="New Sharp Project Here" description="Make this folder a Sharp project: settings.json, src/main.sharp, build/">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </action>
+        <action id="Sharp.RunCheckNow" class="sharp.ide.run.RunSharpCheckNowAction"
+                text="Run Sharp Check Now" description="Run the Sharp compiler on the program now and show its errors">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>

@@ -1,0 +1,91 @@
+mod main;
+
+import ( std.testing, std.io )
+
+/**
+ * std.io folder_watcher: files added to, changed in and removed from a
+ * folder, seen at the next look.
+ */
+
+def kinds(changes: list<file_change>) : string {
+    text := new char_buffer();
+    for(i : _int64 = 0; i < changes.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        text.append(changes.at(i).to_string()!!);
+    }
+    return text.build();
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_io_folder_watcher") {
+        root : string = "watcher_case";
+        new file(root).delete_recursively();
+        new file(root + "/sub").mkdirs();
+        new file(root + "/a.txt").write_text("one");
+        new file(root + "/sub/b.txt").write_text("two");
+
+        watch := new folder_watcher(root);
+        test("nothing changed at first") { expect(watch.changes().size()).should_be(0); };
+
+        new file(root + "/c.txt").write_text("three");
+        test("a new file") { expect(kinds(watch.changes())).should_be("added watcher_case/c.txt"); };
+        test("it is not reported twice") { expect(watch.changes().size()).should_be(0); };
+
+        new file(root + "/a.txt").write_text("one, longer now");
+        changed := watch.changes();
+        test("a file with another size") { expect(kinds(changed)).should_be("changed watcher_case/a.txt"); };
+        test("is_changed") { expect_true(changed.at(0).is_changed() && !changed.at(0).is_added()); };
+
+        new file(root + "/sub/b.txt").remove();
+        test("a file that is gone") { expect(kinds(watch.changes())).should_be("removed watcher_case/sub/b.txt"); };
+
+        new file(root + "/sub/deep").mkdirs();
+        new file(root + "/sub/deep/d.txt").write_text("four");
+        test("a file in a new folder below") { expect(kinds(watch.changes())).should_be("added watcher_case/sub/deep/d.txt"); };
+
+        new file(root + "/e.log").write_text("5");
+        new file(root + "/f.txt").write_text("6");
+        new file(root + "/c.txt").remove();
+        several := watch.changes();
+        test("several at once") { expect(several.size()).should_be(3); };
+        test("... each with its kind") {
+            expect_true(io_strings.contains(kinds(several), "added watcher_case/e.log") && io_strings.contains(kinds(several), "added watcher_case/f.txt")
+                && io_strings.contains(kinds(several), "removed watcher_case/c.txt"));
+        };
+
+        // only some files
+        texts := new folder_watcher(root).only { it.has_extension("txt") };
+        new file(root + "/g.log").write_text("7");
+        new file(root + "/h.txt").write_text("8");
+        test("only: the files the block accepts") { expect(kinds(texts.changes())).should_be("added watcher_case/h.txt"); };
+
+        // waiting
+        started : _int64 = utc_mills().value;
+        none := watch.every(20).wait(120);
+        took : _int64 = utc_mills().value - started;
+        test("wait: nothing happens, the time is up") { expect_true(none.size() == 2 || none.size() == 0); };
+        // (the two files of the `only` test are news to this watcher: it returns at once with them)
+        watch.changes();
+        started = utc_mills().value;
+        quiet := watch.wait(120);
+        took = utc_mills().value - started;
+        test("wait: nothing changed") { expect(kinds(quiet)).should_be(""); };
+        test("wait: gives up after its time, not before") { expect_true(took >= 100); };
+        new file(root + "/i.txt").write_text("9");
+        started = utc_mills().value;
+        soon := watch.wait(5000);
+        took = utc_mills().value - started;
+        test("wait: returns with the change") { expect(kinds(soon)).should_be("added watcher_case/i.txt"); };
+        test("... long before its time is up") { expect_true(took < 4500); };
+
+        no_folder : decimal = 0;
+        try { new folder_watcher(root + "/not-there"); } catch(missing: io_exception) { no_folder = 1; }
+        test("a folder that is not there") { expect_true(no_folder); };
+
+        new file(root).delete_recursively();
+        gone := watch.changes();
+        test("the folder itself removed: every file is") { expect_true(gone.size() >= 5 && gone.at(0).is_removed()); };
+    };
+    finish_tests("lib_io_folder_watcher");
+}

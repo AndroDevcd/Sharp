@@ -1,0 +1,472 @@
+mod std.net;
+
+import ( std.c, std.io, platform )
+
+/**
+ * NETWORKING: connections between programs (TCP)
+ *
+ *      // a client
+ *      connection := tcp_socket.connect("example.com", 80);
+ *      connection.write_text("GET / HTTP/1.0\r\nHost: example.com\r\n\r\n");
+ *      page := connection.read_all_text();
+ *      connection.close();
+ *
+ *      // a server
+ *      server := new tcp_server(8080);
+ *      while(true) {
+ *          guest := server.accept();                   // waits for someone to connect
+ *          guest.write_text("hello\n");
+ *          guest.close();
+ *      }
+ *
+ * A tcp_socket is one end of a connection: what is written at one end is
+ * read at the other, in order, nothing lost. A tcp_server waits on a port for
+ * others to connect and hands out a tcp_socket for each.
+ *
+ * WAITING. connect, accept, read and write wait until they are done - a
+ * read until at least one byte has arrived or the other side has closed.
+ * Other threads go on meanwhile, so a server usually gives each guest a
+ * thread of its own. set_timeout(ms) makes read and write give up after that
+ * long (socket_timeout).
+ *
+ * WHEN SOMETHING GOES WRONG - nobody listens there, the name is unknown, the
+ * connection broke - a socket_exception says what the system said.
+ *
+ * Addresses are internet version 4 ("93.184.216.34", or a name that has such
+ * an address); nothing is encrypted.
+ *
+ * All of it is Sharp: the system's socket functions are called directly
+ * (system_sockets.sharp).
+ *
+ *      Java comparison: java.net.Socket and ServerSocket; Python: socket.
+ */
+class socket_exception base io_exception {
+    public socket_exception(message : string?) -> base(message) {}
+}
+
+/** a read or a write took longer than the socket's timeout */
+class socket_timeout base socket_exception {
+    public socket_timeout(message : string?) -> base(message) {}
+}
+
+/** what tcp_socket and tcp_server share: the system's calls, whichever system it is */
+class socket_system {
+    private static started : bool = false;
+    private static guard : object = new _object_();     // one thread at a time starts the network, and looks up a name
+    static const NONE : _int64 = 0 - 1;
+
+    static def is_windows() : bool {
+        return build.is_windows();
+    }
+
+    /**
+     * Winsock wants to be started once. Several threads may ask at the same
+     * moment: the others wait until the one that started it is done.
+     */
+    static def start() {
+        if(started) { return; }
+        lock(guard) {
+            if(started) { return; }
+            if(is_windows()) {
+                data := new _int8[512];
+                code : _int64 = windows_sockets.WSAStartup(0x0202, data);
+                if(code != 0) { throw new socket_exception("the network could not be started (Winsock error " + code + ")"); }
+            }
+            started = true;
+        }
+    }
+
+    /** a new TCP socket; throws when the system has none to give */
+    static def open() : _int64 {
+        start();
+        handle : _int64 = NONE;
+        if(is_windows()) { handle = windows_sockets.socket(2, 1, 6); }
+        else { handle = posix_sockets.socket(2, 1, 6); }
+        if(handle == NONE || handle < 0) { throw new socket_exception("no socket could be made: " + last_error()); }
+        return handle;
+    }
+
+    static def close(handle: _int64) {
+        if(is_windows()) { windows_sockets.shutdown(handle, 2); windows_sockets.closesocket(handle); }
+        else { posix_sockets.shutdown(handle, 2); posix_sockets.close(handle); }
+    }
+
+    /** the number of the last error of this thread's socket calls */
+    static def last_code() : _int64 {
+        if(is_windows()) { return windows_sockets.WSAGetLastError(); }
+        return c_memory.view(posix_sockets.__errno_location(), 4).int32_at(0);
+    }
+
+    /** was the last error "it took too long"? */
+    static def timed_out(code: _int64) : bool {
+        if(is_windows()) { return code == 10060; }
+        return code == 11 || code == 110;              // EAGAIN (a timeout on a blocking socket), ETIMEDOUT
+    }
+
+    /** the last error in words */
+    static def last_error() : string {
+        return describe(last_code());
+    }
+
+    static def describe(code: _int64) : string {
+        if(!is_windows()) { return posix_sockets.strerror(code) + " (error " + code + ")"; }
+        said : string = "Winsock error " + code;
+        if(code == 10061) { said = "nothing is listening there: the connection was refused"; }
+        else if(code == 10060) { said = "it took too long: timed out"; }
+        else if(code == 10048) { said = "the port is already in use"; }
+        else if(code == 10054) { said = "the other side broke the connection"; }
+        else if(code == 10053) { said = "the connection was broken off"; }
+        else if(code == 10051 || code == 10065) { said = "the network or host cannot be reached"; }
+        else if(code == 11001) { said = "no host of that name"; }
+        if(code >= 10000 && said.data!![0] != 'W') { said = said + " (Winsock error " + code + ")"; }
+        return said;
+    }
+
+    /** the port as the network carries it: its two bytes the other way round */
+    static def network_port(port: _int64) : _int64 {
+        return ((port & 0xFF) << 8) | ((port >> 8) & 0xFF);
+    }
+
+    /**
+     * The internet address of `host` - "127.0.0.1" or a name - as the
+     * network carries it. Throws socket_exception when the name has none.
+     */
+    static def address_of(host: string) : _int64 {
+        start();
+        // (the system answers into memory of its own, which the next lookup may write over: one at a time)
+        lock(guard) {
+            entry : pointer = 0;
+            if(is_windows()) { entry = windows_sockets.gethostbyname(host); }
+            else { entry = posix_sockets.gethostbyname(host); }
+            if(entry == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
+            // struct hostent: two addresses, two numbers (8 bytes together), then the list of addresses
+            size : _int64 = c_memory.pointer_size();
+            list : pointer = c_memory.view(entry, 3 * size + 8).pointer_at(2 * size + 8);
+            if(list == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
+            first : pointer = c_memory.view(list, size).pointer_at(0);
+            if(first == 0) { throw new socket_exception("no internet address for `" + host + "`"); }
+            return c_memory.view(first, 4).uint32_at(0);
+        }
+    }
+
+    /** an address the system's calls take: this host (0: every address of this machine) and port */
+    static def address(host_address: _int64, port: _int64) : socket_address {
+        made := new socket_address();
+        made.family = 2;
+        made.port = network_port(port);
+        made.address = host_address;
+        return made;
+    }
+
+    /** "93.184.216.34" from an address as the network carries it */
+    static def address_text(address: _int64) : string {
+        return "" + (address & 0xFF) + "." + ((address >> 8) & 0xFF) + "." + ((address >> 16) & 0xFF) + "." + ((address >> 24) & 0xFF);
+    }
+}
+
+class tcp_socket : connection {
+    private handle : _int64 = 0 - 1;
+    private open : bool = false;
+    private other_side : string = "";
+    private other_port : _int64 = 0;
+    private chunk := new _int8[8192];
+
+    private tcp_socket(handle: _int64, other_side: string, other_port: _int64) {
+        self->handle = handle;
+        self->other_side = other_side;
+        self->other_port = other_port;
+        open = true;
+    }
+
+    /** (for tcp_server.accept) */
+    static def of_accepted(handle: _int64, other_side: string, other_port: _int64) : tcp_socket {
+        return new tcp_socket(handle, other_side, other_port);
+    }
+
+    /**
+     * Connect to `port` of `host` (a name, or an address like "127.0.0.1").
+     * Throws socket_exception when the host is unknown or nothing accepts
+     * the connection, and illegal_argument_exception for a port that is not
+     * 1 to 65535.
+     */
+    static def connect(host: string, port: _int64) : tcp_socket {
+        if(port < 1 || port > 65535) { throw new illegal_argument_exception("tcp_socket.connect: a port is 1 to 65535, not " + port); }
+        address := socket_system.address(socket_system.address_of(host), port);
+        handle : _int64 = socket_system.open();
+        result : _int64 = 0;
+        if(socket_system.is_windows()) { result = windows_sockets.connect(handle, address, 16); }
+        else { result = posix_sockets.connect(handle, address, 16); }
+        if(result != 0) {
+            why : string = socket_system.last_error();
+            socket_system.close(handle);
+            throw new socket_exception("could not connect to " + host + ":" + port + ": " + why);
+        }
+        return new tcp_socket(handle, host, port);
+    }
+
+    /** is this end still open? (close() was not called; the other side may be gone all the same) */
+    def is_open() : bool {
+        return open;
+    }
+
+    /** the host this is connected to: the name it was connected with, or the address of a guest */
+    def host() : string {
+        return other_side;
+    }
+
+    /** the port at the other side */
+    def port() : _int64 {
+        return other_port;
+    }
+
+    /** the system's own number for this socket (for code that calls the system itself: tls_socket) */
+    def system_handle() : _int64 {
+        return handle;
+    }
+
+    private def usable() {
+        if(!open) { throw new socket_exception("the socket is closed"); }
+    }
+
+    /**
+     * Give up a read or a write that takes longer than this (0: wait for as
+     * long as it takes, which is how a socket starts out).
+     */
+    def set_timeout(milliseconds: _int64) : tcp_socket {
+        usable();
+        if(milliseconds < 0) { milliseconds = 0; }
+        if(socket_system.is_windows()) {
+            value := new _int32[1];
+            value[0] = milliseconds;
+            windows_sockets.setsockopt(handle, 0xFFFF, 0x1006, value, 4);       // receiving
+            windows_sockets.setsockopt(handle, 0xFFFF, 0x1005, value, 4);       // sending
+        } else {
+            time := new socket_time();
+            time.seconds = (milliseconds / 1000) as _int64;
+            time.microseconds = (milliseconds % 1000) * 1000;
+            length : _int64 = 2 * c_memory.pointer_size();
+            posix_sockets.setsockopt(handle, 1, 20, time, length);
+            posix_sockets.setsockopt(handle, 1, 21, time, length);
+        }
+        return self;
+    }
+
+    /**
+     * Send all of `data`. Returns how many bytes that was.
+     * Throws socket_exception when the connection is broken, socket_timeout
+     * when it took longer than the timeout.
+     */
+    def write(data: _int8[]) : _int64 {
+        return write(data, sizeof(data));
+    }
+
+    /** send the first `count` bytes of `data` */
+    override def write(data: _int8[], count: _int64) : _int64 {
+        usable();
+        if(count > sizeof(data)) { count = sizeof(data); }
+        sent : _int64 = 0;
+        while(sent < count) {
+            // (the system takes as much as it has room for: the rest is sent in the next round)
+            rest : _int8[] = data;
+            if(sent > 0) { rest = copy(data, sent, count)!!; }
+            took : _int64 = 0;
+            if(socket_system.is_windows()) { took = windows_sockets.send(handle, rest, count - sent, 0); }
+            else { took = posix_sockets.send(handle, rest, count - sent, 0x4000); }    // 0x4000: an exception, not a signal, when the other side is gone
+            if(took < 0) { failed("write"); }
+            sent = sent + took;
+        }
+        return sent;
+    }
+
+    /** send a text, as its bytes */
+    def write_text(text: string) : _int64 {
+        if(sizeof(text.data) == 0) { return 0; }
+        return write(text.data!!);
+    }
+
+    /**
+     * Wait for bytes to arrive and return them: at least one and at most
+     * `most`. An EMPTY array means the other side has closed the connection
+     * and everything it sent has been read.
+     */
+    override def read(most: _int64) : _int8[] {
+        usable();
+        if(most < 1) { return new _int8[0]; }
+        if(most > sizeof(chunk)) { most = sizeof(chunk); }
+        got : _int64 = 0;
+        if(socket_system.is_windows()) { got = windows_sockets.recv(handle, chunk, most, 0); }
+        else { got = posix_sockets.recv(handle, chunk, most, 0); }
+        if(got < 0) { failed("read"); }
+        if(got == 0) { return new _int8[0]; }
+        return copy(chunk, 0, got)!!;
+    }
+
+    /** read as read() does, as a text ("" when the other side has closed) */
+    def read_text(most: _int64) : string {
+        bytes := read(most);
+        if(sizeof(bytes) == 0) { return ""; }
+        return new string(bytes, 0, sizeof(bytes));
+    }
+
+    /**
+     * Read exactly `count` bytes, waiting for as many rounds as it takes.
+     * Throws socket_exception when the other side closes before that many came.
+     */
+    def read_exactly(count: _int64) : _int8[] {
+        whole := new _int8[count];
+        have : _int64 = 0;
+        while(have < count) {
+            part := read(count - have);
+            if(sizeof(part) == 0) { throw new socket_exception("the other side closed the connection after " + have + " of " + count + " bytes"); }
+            for(i : _int64 = 0; i < sizeof(part); i++) { whole[have + i] = part[i]; }
+            have = have + sizeof(part);
+        }
+        return whole;
+    }
+
+    /** read until the other side closes: everything it sent */
+    def read_all() : _int8[] {
+        whole := new byte_buffer();
+        while(true) {
+            part := read(sizeof(chunk));
+            if(sizeof(part) == 0) { break; }
+            whole.put_bytes(part);
+        }
+        return whole.to_array() ?: new _int8[0];
+    }
+
+    /** read until the other side closes, as a text */
+    def read_all_text() : string {
+        bytes := read_all();
+        if(sizeof(bytes) == 0) { return ""; }
+        return new string(bytes, 0, sizeof(bytes));
+    }
+
+    /**
+     * Read one line: the text up to the next "\n" (which is not part of it;
+     * a "\r" in front of it is dropped too). Null when the other side has
+     * closed and nothing is left. Reads a byte at a time, so it never takes
+     * more than the line: for a few lines of a conversation, not for megabytes.
+     */
+    def read_line() : string? {
+        line := new char_buffer();
+        any : bool = false;
+        held_back : bool = false;       // a `\r` was read: it is part of the line unless a `\n` follows
+        while(true) {
+            one := read(1);
+            if(sizeof(one) == 0) {
+                if(!any) { return null; }
+                break;
+            }
+            any = true;
+            if(one[0] == '\n') { break; }
+            if(held_back) { line.append_char('\r'); }
+            held_back = one[0] == '\r';
+            if(!held_back) { line.append_char(one[0]); }
+        }
+        return line.build();
+    }
+
+    /** a read or write failed: as the exception that says how */
+    private def failed(what: string) {
+        code : _int64 = socket_system.last_code();
+        if(socket_system.timed_out(code)) { throw new socket_timeout("the " + what + " took longer than the socket's timeout"); }
+        throw new socket_exception("the " + what + " failed: " + socket_system.describe(code));
+    }
+
+    /** close this end; the other side then reads "closed". Closing twice does nothing. */
+    override def close() {
+        if(!open) { return; }
+        open = false;
+        socket_system.close(handle);
+    }
+}
+
+class tcp_server {
+    private handle : _int64 = 0 - 1;
+    private open : bool = false;
+    private listening_on : _int64 = 0;
+
+    /**
+     * Listen on `port` of this machine (0: any port that is free - port()
+     * says which). Throws socket_exception when the port is taken or not
+     * allowed (below 1024 needs rights on most systems).
+     */
+    tcp_server(port: _int64) {
+        listen_on(port, 0);
+    }
+
+    /** ... reachable only from this machine itself ("127.0.0.1") when `local_only` */
+    tcp_server(port: _int64, local_only: bool) {
+        listen_on(port, local_only ? 1 : 0);
+    }
+
+    private def listen_on(port: _int64, local_only: _int64) {
+        if(port < 0 || port > 65535) { throw new illegal_argument_exception("tcp_server: a port is 0 to 65535, not " + port); }
+        host_address : _int64 = 0;
+        if(local_only == 1) { host_address = socket_system.address_of("127.0.0.1"); }
+        address := socket_system.address(host_address, port);
+        handle = socket_system.open();
+        result : _int64 = 0;
+        if(socket_system.is_windows()) {
+            result = windows_sockets.bind(handle, address, 16);
+            if(result == 0) { result = windows_sockets.listen(handle, 64); }
+        } else {
+            // (a port just used by a program that ended can be taken again at once)
+            yes := new _int32[1];
+            yes[0] = 1;
+            posix_sockets.setsockopt(handle, 1, 2, yes, 4);
+            result = posix_sockets.bind(handle, address, 16);
+            if(result == 0) { result = posix_sockets.listen(handle, 64); }
+        }
+        if(result != 0) {
+            why : string = socket_system.last_error();
+            socket_system.close(handle);
+            throw new socket_exception("could not listen on port " + port + ": " + why);
+        }
+        // which port it is (asked for, or the free one the system picked)
+        bound := new socket_address();
+        length := new _int32[1];
+        length[0] = 16;
+        if(socket_system.is_windows()) { windows_sockets.getsockname(handle, bound, length); }
+        else { posix_sockets.getsockname(handle, bound, length); }
+        listening_on = socket_system.network_port(bound.port);
+        open = true;
+    }
+
+    /** the port this server listens on */
+    def port() : _int64 {
+        return listening_on;
+    }
+
+    def is_open() : bool {
+        return open;
+    }
+
+    /**
+     * Wait until someone connects and return the connection to them.
+     * Throws socket_exception when the server is closed (also by another
+     * thread, while this one waits here).
+     */
+    def accept() : tcp_socket {
+        if(!open) { throw new socket_exception("the server is closed"); }
+        from := new socket_address();
+        length := new _int32[1];
+        length[0] = 16;
+        guest : _int64 = 0 - 1;
+        if(socket_system.is_windows()) { guest = windows_sockets.accept(handle, from, length); }
+        else { guest = posix_sockets.accept(handle, from, length); }
+        if(guest == socket_system.NONE || guest < 0) {
+            if(!open) { throw new socket_exception("the server was closed"); }
+            throw new socket_exception("no connection could be accepted: " + socket_system.last_error());
+        }
+        return tcp_socket.of_accepted(guest, socket_system.address_text(from.address), socket_system.network_port(from.port));
+    }
+
+    /** stop listening. Connections already handed out stay open. */
+    def close() {
+        if(!open) { return; }
+        open = false;
+        socket_system.close(handle);
+    }
+}

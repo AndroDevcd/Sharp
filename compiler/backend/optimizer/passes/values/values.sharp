@@ -1,0 +1,37 @@
+mod backend.optimizer.passes.values;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * THE PASSES ABOUT VALUES: what a slot holds, known earlier or moved fewer times
+ *
+ * The generator gives every value it makes a slot of its own and copies
+ * values between slots freely (codegen.md 5.1, 5.3): simple and always right,
+ * but a loop step like `i++` becomes
+ *
+ *      copy %5, %2;  int_constant %3, 1;  int_binary add %4, %5, %3;  copy %2, %4
+ *
+ * The passes of this package take that apart, each with one textbook idea,
+ * and together (with the removal passes after them) leave
+ *
+ *      int_immediate add %2, %2, 1                 (one VM instruction: iaddl 2, 1)
+ *
+ * The files of this package (module `backend.optimizer.passes.values`):
+ *
+ *      values.sharp                this front door
+ *      copy_propagation.sharp      after `copy %a, %b`, reads of %a read %b ("available copies")
+ *      copy_coalescing.sharp       a value made only to be copied is made in the copy's target
+ *      constant_propagation.sharp  values known while compiling are computed; branches on them decided
+ *      branch_threading.sharp      a jump into a test whose answer is known on the way in goes past it
+ *      folding.sharp               the arithmetic of constant propagation, exactly as the VM does it
+ *      common_subexpressions.sharp  what was computed already is not computed again (available expressions)
+ *      null_checks.sharp           a test for null whose answer is known is not made
+ *      immediates.sharp            a known number written into the instruction (`iaddl n, k`)
+ *
+ * Each pass is one function from an `ir_function` to the number of changes it
+ * made (0: nothing to do). The optimizer's driver (backend/optimizer) runs
+ * them again and again with the others until none changes anything.
+ */

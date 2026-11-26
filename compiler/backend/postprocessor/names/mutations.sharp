@@ -1,0 +1,203 @@
+mod backend.postprocessor.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.postprocessor.generics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.preprocessor
+)
+
+/**
+ * MUTATE BLOCKS: MEMBERS ADDED TO A CLASS FROM ANOTHER PLACE
+ * (the C++ compiler: postprocessor/mutation_processor.cpp)
+ *
+ *      class circle { radius : decimal; }
+ *
+ *      mutate circle : printable {                 somewhere else, maybe in another file
+ *          colour : string = "";
+ *          override def show() : string { ... }
+ *      }
+ *
+ * After this step `circle` has the field `colour`, the function `show` and
+ * the interface `printable`, exactly as if they had been written in the
+ * class. It runs at the very start of stage 3 (type_names.sharp calls
+ * apply_mutations), so every stage after it sees one complete class and none
+ * of them has to know that `mutate` exists. The added members are marked
+ * FLAG_MUTATED.
+ *
+ * A generic class is changed as a whole: the members go to the blueprint,
+ * may use its type parameters, and every instance has them.
+ *
+ *      E0380   the target is not a class               mutate an_alias { }
+ *      E0381   the class is `stable`                   "nobody may add to this"
+ *      E0382   a base class for a class that has one
+ *      E0383   type arguments on the target            mutate box<int> { }
+ */
+
+/**
+ * `mutate target { members }` at the top of a file or in a class: the members
+ * are declared in the class `target` names, as if they had been written there.
+ */
+def apply_mutations(prog: sharp_program, problems: list<diagnostic>) {
+    // (by index: a mutate block inside a mutate block adds to the list while it is walked)
+    for(i : _int64 = 0; i < prog.mutations.size(); i++) {
+        mutation := prog.mutations.at(i);
+        file := mutation.file;
+        tree : syntax_tree = file.unit.parsed!!.tree;
+
+        target := mutate_target(prog, file, mutation.node);
+        members : _int64 = tree.child_of_kind(mutation.node, N_MEMBERS);
+        if(target != null && !may_be_mutated(file, mutation.node, target!!, problems)) { continue; }
+
+        if(target != null && is_class_kind(target!!.kind)) {
+            add_base_and_interfaces(file, mutation.node, target as sharp_class, problems);
+        }
+        if(target != null && is_class_kind(target!!.kind) && members >= 0) {
+            // the same code that declares the members of a class written in
+            // one piece; each member is marked FLAG_MUTATED
+            declare_children(prog, file, members, target as sharp_class, FLAG_MUTATED, problems);
+        }
+        // (a target that does not exist is reported when its type name is resolved)
+    }
+}
+
+/**
+ * Can this be the target of a `mutate` block? (mutation_processor.cpp)
+ *
+ *      E0380   it is not a class       mutate an_alias { }   mutate T { }
+ *      E0381   the class is `stable`   stable class settings { }   - "nobody may add to this"
+ *      E0383   type arguments          mutate box<int> { }   - a mutate changes the class as
+ *                                      written, for every use of it; it cannot pick one instance
+ */
+def may_be_mutated(file: sharp_file, mutate_node: _int64, target: sharp_declaration, problems: list<diagnostic>) : _int64 {
+    unit := file.unit;
+    name_node : _int64 = unit.parsed!!.tree.child_of_kind(mutate_node, N_TYPE_NAME);
+
+    if(!is_class_kind(target.kind)) {
+        d := error_at_node("E0380", "`" + target.name + "` is " + a_or_an(declaration_kind_name(target.kind))
+                           + "; only a class can be changed with `mutate`", unit, name_node)
+            .with_label("not a class, interface or enum")
+            .with_related_place(place_of_node(target.unit, target.node, "`" + target.name + "` is declared here"));
+        if(target.kind == D_ALIAS) { d.with_help("name the class the alias stands for"); }
+        problems.add(d);
+        return 0;
+    }
+
+    if(target.has(FLAG_STABLE)) {
+        problems.add(error_at_node("E0381", "`" + target.name + "` is `stable` and cannot be changed with `mutate`", unit, name_node)
+            .with_label("a stable class is complete as written")
+            .with_related_place(place_of_node(target.unit, target.node, "declared `stable` here"))
+            .with_note("`stable` is the author's promise that the class has exactly the members it shows; code elsewhere may rely on that")
+            .with_help("write a class of your own that inherits from it:  class my_" + target.name + " base " + target.name + " { ... }")
+            .with_help("or write a function that takes one:  def name(value: " + target.name + ") { ... }"));
+        return 0;
+    }
+    return !report_if_mutating_one_instance(unit, name_node, target as sharp_class, problems);
+}
+
+/**
+ * E0383: `mutate box<int> { }`. The members of a `mutate` are added to the
+ * class as written - for a generic class to the blueprint, so every instance
+ * has them. Written with type arguments it would read as "only box<int>",
+ * which is not what happens; `mutate box { }` and `mutate box<T> { }` (the
+ * class's own parameter names) say what does.
+ *
+ * (The C++ compiler takes `mutate box<int>` without a word and adds nothing
+ * that any other instance can see; `mutate box<T>` it cannot resolve.)
+ *
+ * @return 1 when it was reported
+ */
+def report_if_mutating_one_instance(unit: source_unit, name_node: _int64, target: sharp_class, problems: list<diagnostic>) : _int64 {
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    // the type arguments are the N_TYPE children of the last part of the name
+    last_part : _int64 = 0 - 1;
+    part : _int64 = tree.first_child!![name_node];
+    while(part >= 0) {
+        if(tree.kinds!![part] == N_TYPE_PART) { last_part = part; }
+        part = tree.next_sibling!![part];
+    }
+    if(last_part < 0) { return 0; }
+
+    own_names : _int64 = 1;
+    count : _int64 = 0;
+    argument : _int64 = tree.first_child!![last_part];
+    while(argument >= 0) {
+        if(tree.kinds!![argument] == N_TYPE) {
+            if(count >= target.type_parameters.size()
+               || make_type(unit, argument).to_text() != target.type_parameters.at(count).name) {
+                own_names = 0;
+            }
+            count++;
+        }
+        argument = tree.next_sibling!![argument];
+    }
+    if(count == 0 || (own_names == 1 && count == target.type_parameters.size())) { return 0; }
+
+    d := error_at_node("E0383", "`mutate` cannot be given type arguments: it changes `" + target.name + "` itself", unit, name_node)
+        .with_label("the members are added to `" + target.name + "` as written")
+        .with_related_place(place_of_node(target.unit, target.node, "`" + target.name + "` is declared here"));
+    if(target.type_parameters.size() > 0) {
+        d.with_note("a generic class is changed as a whole: every `" + target.name + "<...>` gets the new members, and they may use the type parameters of the class");
+        d.with_help("write:  mutate " + target.name + " { ... }");
+        d.with_help("for a function that only one instance needs, write a function that takes it:  def name(value: " + make_named_type(unit, name_node).to_text() + ") { ... }");
+    } else {
+        d.with_note("`" + target.name + "` is not generic");
+        d.with_help("write:  mutate " + target.name + " { ... }");
+    }
+    problems.add(d);
+    return 1;
+}
+
+/**
+ * `mutate circle base shape : printable { }` also gives the class a base
+ * class and more interfaces. They are added to what the class says itself,
+ * so the stages that check bases and interfaces see them like the written
+ * ones.
+ *
+ *      E0382   the class already has a base class (a class has one)
+ */
+def add_base_and_interfaces(file: sharp_file, mutate_node: _int64, target: sharp_class, problems: list<diagnostic>) {
+    unit := file.unit;
+    tree : syntax_tree = unit.parsed!!.tree;
+
+    base_node : _int64 = tree.child_of_kind(mutate_node, N_BASE);
+    if(base_node >= 0) {
+        name_node : _int64 = tree.child_of_kind(base_node, N_TYPE_NAME);
+        if(name_node >= 0 && target.base_type == null) {
+            target.base_type = make_named_type(unit, name_node);
+        } else if(name_node >= 0) {
+            first : sharp_type = target.base_type!!;
+            problems.add(error_at_node("E0382", "`" + target.name + "` already has the base class `" + first.to_text() + "`",
+                                       unit, name_node)
+                .with_label("a second base class")
+                .with_related_place(place_of_node(first.unit, first.node, "its base class is named here"))
+                .with_note("a class inherits from one class; it can implement any number of interfaces")
+                .with_help("remove `base " + written_name(unit, name_node) + "` from the `mutate`; if it is an interface, list it after a `:`"));
+        }
+    }
+
+    interfaces : _int64 = tree.child_of_kind(mutate_node, N_INTERFACES);
+    if(interfaces >= 0) {
+        name_node : _int64 = tree.first_child!![interfaces];
+        while(name_node >= 0) {
+            if(tree.kinds!![name_node] == N_TYPE_NAME) {
+                target.interface_types.add(make_named_type(unit, name_node));
+            }
+            name_node = tree.next_sibling!![name_node];
+        }
+    }
+}
+
+/** the class a `mutate` block adds to, or null */
+def mutate_target(prog: sharp_program, file: sharp_file, mutate_node: _int64) : sharp_declaration? {
+    tree : syntax_tree = file.unit.parsed!!.tree;
+    name_node : _int64 = tree.child_of_kind(mutate_node, N_TYPE_NAME);
+    if(name_node < 0) { return null; }
+    return resolve_type_name(prog, file, name_node, null, 0, null);
+}

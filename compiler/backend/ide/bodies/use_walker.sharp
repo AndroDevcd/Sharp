@@ -1,0 +1,280 @@
+mod backend.ide.bodies;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.ide.files,
+    backend.ide.types,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements
+)
+
+/**
+ * THE TABLE OF USES
+ *
+ * For hover ("what is this, what type has it") and go-to-definition the
+ * editor needs to know, for a piece of text in a function body, WHAT IT NAMES.
+ * The compiler knows that exactly - it bound every name to the declaration it
+ * means - and this file walks the typed trees and writes it down: one entry
+ * per name,
+ *
+ *      [ from, to, kind, file, node, type ]
+ *
+ *      kind   1 a type  2 a field or global (also when a `get`/`set` block runs)  3 a function (the exact
+ *             overload that was bound)  4 a constructor  5 an enum value  6 a local variable or parameter
+ *             (`node` is then its number in the file's `locals`, `file` is -1)  7 `self` or `base`
+ *      file, node   the declaration it refers to (doc/ide.md 4.1: "identity")
+ *      type   the type of the VALUE the use has: a field's type as seen on this receiver, a call's result
+ *
+ * THE WALK. Every function's typed tree is visited with two work lists (one of statements, one of
+ * expressions) instead of recursion, because `a + a + a + ...` with a thousand terms is a tree a
+ * thousand levels deep and the VM runs out of stack: this is the pattern of
+ * backend/compiler/program/usage/references.sharp ("what one typed tree names"), with
+ * `statement_parts` and `add_parts` to get from a node to its parts.
+ *
+ * WHICH TOKEN. The typed node says which syntax node it was built from, and `name_token_of`
+ * (use_names.sharp) says which token of that is the name. What the programmer did not write a
+ * name for - the hidden `get_elements()` call of a `foreach`, the appends of a string template, a
+ * setter call at an assignment - is not a use.
+ */
+class use_walker {
+    job : bodies_job;
+    types : ide_types;
+    expressions := new list<bound_expression>();
+    statements := new list<bound_statement>();
+    recent_function : sharp_function?;      // the function whose variables were asked for last, and its entry:
+    recent_entry : function_entry?;         // the uses of one function's variables come in a row
+
+    use_walker(job: bodies_job, types: ide_types) {
+        self->job = job;
+        self->types = types;
+    }
+}
+
+/**
+ * One entry into the file's table. Two entries never start at the same byte: the first one
+ * wins (a field read through a getter is met as a call and as a field).
+ */
+def add_use(bodies: file_bodies, token: _int64, kind: _int64, target_file: _int64, target_node: _int64, type_id: _int64) {
+    table := bodies.file.unit.parsed!!.table;
+    from_byte : _int64 = table.starts!![token];
+    if(bodies.seen == null) { bodies.seen = new _int8[sizeof(bodies.file.source()) + 1]; }
+    if(bodies.seen!![from_byte] == 1) { return; }
+    bodies.seen!![from_byte] = 1;
+
+    if(bodies.use_count * 6 + 6 > sizeof(bodies.use_data)) {
+        bigger := new _int32[sizeof(bodies.use_data) * 2];
+        memcopy(bodies.use_data, bigger, 0, 0, bodies.use_count * 6);
+        bodies.use_data = bigger;
+    }
+    at : _int64 = bodies.use_count * 6;
+    bodies.use_data[at] = from_byte;
+    bodies.use_data[at + 1] = table.ends!![token];
+    bodies.use_data[at + 2] = kind;
+    bodies.use_data[at + 3] = target_file;
+    bodies.use_data[at + 4] = target_node;
+    bodies.use_data[at + 5] = type_id;
+    bodies.use_count++;
+}
+
+/** the typed trees of one function: its body and, for a constructor, the call of the base constructor */
+def walk_function(walker: use_walker, bodies: file_bodies, entry: function_entry) {
+    if(entry.function.bound_body != null) { walk_statement(walker, bodies, entry.function.bound_body!!); }
+    if(entry.function.bound_base_call != null) { walk_expression(walker, bodies, entry.function.bound_base_call!!); }
+}
+
+/** the typed tree of the value of a field */
+def walk_field_value(walker: use_walker, bodies: file_bodies, field: sharp_field) {
+    if(field.bound_initializer != null) { walk_expression(walker, bodies, field.bound_initializer!!); }
+}
+
+/** a statement, and everything inside it */
+def walk_statement(walker: use_walker, bodies: file_bodies, statement: bound_statement) {
+    walker.statements.add(statement);
+    while(walker.statements.size() > 0) {
+        next : bound_statement = walker.statements.pop_last();
+        statement_parts(next, walker.expressions, walker.statements);
+        drain_expressions(walker, bodies);
+    }
+}
+
+/** an expression, and everything inside it */
+def walk_expression(walker: use_walker, bodies: file_bodies, expression: bound_expression) {
+    walker.expressions.add(expression);
+    drain_expressions(walker, bodies);
+    // (a `with` / `apply` in it holds statements: tree_parts.sharp, statements_inside)
+    while(walker.statements.size() > 0) {
+        next : bound_statement = walker.statements.pop_last();
+        statement_parts(next, walker.expressions, walker.statements);
+        drain_expressions(walker, bodies);
+    }
+}
+
+private def drain_expressions(walker: use_walker, bodies: file_bodies) {
+    while(walker.expressions.size() > 0) {
+        expression : bound_expression = walker.expressions.pop_last();
+        add_expression_use(walker, bodies, expression);
+        add_parts(expression, walker.expressions);
+        statements_inside(expression, walker.statements);
+    }
+}
+
+/** the identity of a declaration: its file's number, and its node */
+private def target_file_of(walker: use_walker, declared: sharp_declaration) : _int64 {
+    return walker.job.files.index_of(declared.unit);
+}
+
+/**
+ * What one expression names, if anything. The table is doc/ide.md 5.4:
+ *
+ *      bound_local                 kind 6  the variable's number in this file's `locals`
+ *      bound_field                 kind 2
+ *      bound_call                  kind 3 a function (kind 2 when it is the getter or setter of a field);
+ *                                  an operator or an index is a use of the operator token
+ *      bound_new                   kind 4  (a constructor the compiler added: the class, kind 4)
+ *      bound_enum_value            kind 5
+ *      bound_function_reference    kind 3
+ *      bound_type_name             kind 1
+ *      bound_self, bound_base      kind 7
+ *
+ * A static member, a static function and an enum value are usually written after the name of
+ * their class (`counter.describe()`, `color.green`). The typed tree keeps no node for that class
+ * name - a static call has no object - so it is added here as a use of kind 1 beside the member's
+ * own (`add_class_name_before_dot`).
+ */
+private def add_expression_use(walker: use_walker, bodies: file_bodies, expression: bound_expression) {
+    if(expression.unit != bodies.file.unit) { return; }         // from another file: its positions are not this file's
+    tree := expression.unit.parsed!!.tree;
+    kind : _int64 = expression.kind;
+
+    if(kind == BX_LOCAL) {
+        add_local_use(walker, bodies, tree, expression as bound_local);
+    } else if(kind == BX_FIELD) {
+        field := (expression as bound_field).field;
+        add_named_use(walker, bodies, tree, expression, 2, field);
+        if((expression as bound_field).on == null) { add_class_name_before_dot(walker, bodies, tree, expression.node, field.owner); }
+    } else if(kind == BX_CALL) {
+        add_call_use(walker, bodies, tree, expression as bound_call);
+    } else if(kind == BX_NEW) {
+        made := expression as bound_new;
+        target : sharp_declaration = made.constructor;
+        if(made.constructor.is_synthesized == 1) { target = made.class_of.written; }
+        add_named_use(walker, bodies, tree, expression, 4, target);
+    } else if(kind == BX_ENUM_VALUE) {
+        value := (expression as bound_enum_value).value;
+        add_named_use(walker, bodies, tree, expression, 5, value);
+        add_class_name_before_dot(walker, bodies, tree, expression.node, value.owner);
+    } else if(kind == BX_FUNCTION_REFERENCE) {
+        add_named_use(walker, bodies, tree, expression, 3, (expression as bound_function_reference).function);
+    } else if(kind == BX_TYPE_NAME) {
+        named := expression.type.class_or_null();
+        if(named != null) { add_named_use(walker, bodies, tree, expression, 1, named!!.written); }
+    } else if(kind == BX_SELF || kind == BX_BASE) {
+        if(kind == BX_SELF && (expression as bound_self).is_implied == 1) { return; }
+        token : _int64 = tree.tokens!![expression.node];
+        add_use(bodies, token, 7, 0 - 1, 0 - 1, resolved_type_id(walker.types, expression.type));
+    }
+}
+
+/** a use whose target is a declaration: the name token of the expression's syntax node */
+private def add_named_use(walker: use_walker, bodies: file_bodies, tree: syntax_tree, expression: bound_expression,
+                          kind: _int64, declared: sharp_declaration) {
+    token : _int64 = name_token_of(tree, expression.node);
+    if(token < 0) { return; }
+    add_use(bodies, token, kind, target_file_of(walker, declared), declared.node, resolved_type_id(walker.types, expression.type));
+}
+
+/** a parameter or local variable: `node` is the number the variable has in this file's `locals` */
+private def add_local_use(walker: use_walker, bodies: file_bodies, tree: syntax_tree, use: bound_local) {
+    variable := use.variable;
+    if(variable.function == null) { return; }
+    // which entry of `functions` the variable belongs to: looked up by the function's key once per
+    // function, not once per use (the key is a text that has to be glued together)
+    if(walker.recent_function != variable.function!!) {
+        walker.recent_function = variable.function;
+        walker.recent_entry = bodies.by_key.at(function_key(variable.function!!.unit.file, variable.function!!.node));
+    }
+    owner := walker.recent_entry;
+    if(owner == null || owner!!.local_numbers == null) { return; }
+    number : _int64 = owner!!.local_numbers!![variable.index];
+    if(number < 0) { return; }
+
+    token : _int64 = name_token_of(tree, use.node);
+    if(token < 0) { return; }
+    add_use(bodies, token, 6, 0 - 1, number, resolved_type_id(walker.types, use.type));
+}
+
+/** a call: a function, the getter or setter of a field, an operator, an index; or nothing the programmer named */
+private def add_call_use(walker: use_walker, bodies: file_bodies, tree: syntax_tree, call: bound_call) {
+    function := call.function;
+    how : _int64 = call.written_as;
+    syntax_kind : _int64 = tree.kinds!![call.node];
+
+    if(function.field != null) {
+        // the `get` or `set` block of a field: the use is of the FIELD, read or written by name
+        if(how == AS_GETTER || (how == AS_CALL && syntax_kind == N_IDENTIFIER)) {
+            add_named_use(walker, bodies, tree, call, 2, function.field!!);
+        }
+        return;
+    }
+    if(function.is_synthesized == 1) { return; }
+
+    if(how == AS_CALL) {
+        if(syntax_kind == N_CALL || syntax_kind == N_IDENTIFIER || syntax_kind == N_MEMBER) {
+            add_named_use(walker, bodies, tree, call, 3, function);
+            if(call.on == null) { add_class_name_before_dot(walker, bodies, tree, call.node, function.owner); }
+        }
+    } else if(how == AS_OPERATOR || how == AS_ASSIGN_OPERATOR || how == AS_INDEX) {
+        if(syntax_kind == N_BINARY || syntax_kind == N_UNARY || syntax_kind == N_POSTFIX
+           || syntax_kind == N_ASSIGN || syntax_kind == N_INDEX) {
+            add_named_use(walker, bodies, tree, call, 3, function);
+        }
+    }
+}
+
+/**
+ * `counter.describe()`, `counter.made`, `color.green`: the class name before the dot.
+ *
+ * `node` is the syntax node of the member's use (an N_CALL, or the name's own node); `owner` is the
+ * class the member belongs to. The name before the dot becomes a use of kind 1 of that class when
+ * it READS as the class's name - so `base_class.member` written as `derived.member`, and anything
+ * else that is not plainly the class, is left alone rather than guessed at.
+ */
+private def add_class_name_before_dot(walker: use_walker, bodies: file_bodies, tree: syntax_tree, node: _int64, owner: sharp_class?) {
+    if(owner == null) { return; }
+    member : _int64 = node;
+    if(tree.kinds!![member] == N_CALL) {
+        member = tree.first_child!![member];                    // the callee
+        if(member < 0) { return; }
+    }
+    if(tree.kinds!![member] != N_MEMBER) {
+        // the node of the name itself: the `a.b` it is the `b` of is its parent
+        parent : _int64 = tree.parents!![member];
+        if(parent < 0 || tree.kinds!![parent] != N_MEMBER || tree.last_child!![parent] != member) { return; }
+        member = parent;
+    }
+    before : _int64 = tree.first_child!![member];
+    if(before < 0 || before == tree.last_child!![member]) { return; }
+    before_kind : _int64 = tree.kinds!![before];
+    if(before_kind != N_IDENTIFIER && before_kind != N_MEMBER) { return; }     // `outer.inner.make()`: the `inner`
+    token : _int64 = name_token_of(tree, before);
+    declared : sharp_class = owner!!.written;
+    if(token < 0 || token_reads(bodies.file, token, declared.name) == 0) { return; }
+    add_use(bodies, token, 1, target_file_of(walker, declared), declared.node, resolved_type_id(walker.types, type_of_class(owner!!)));
+}
+
+/** 1 when the text of token `token` is exactly `text` */
+private def token_reads(file: ide_file, token: _int64, text: string) : _int64 {
+    table := file.unit.parsed!!.table;
+    source : _int8[] = file.source();
+    from : _int64 = table.starts!![token];
+    wanted : _int8[]? = text.data;
+    length : _int64 = sizeof(wanted);
+    if(table.ends!![token] - from != length) { return 0; }
+    for(i : _int64 = 0; i < length; i++) {
+        if(source[from + i] != wanted!![i]) { return 0; }
+    }
+    return 1;
+}

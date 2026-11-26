@@ -1,0 +1,63 @@
+mod main;
+
+import ( std.testing )
+
+/**
+ * KNOWN BUG: `mutate` on a GENERIC class. This file is EXPECTED TO FAIL (it
+ * does not compile).
+ *
+ * `mutate list { ... }` adds members to std list<T>. They are there on the
+ * instantiations the library itself also makes (list<string>, list<int>),
+ * but missing on an instantiation that only this program makes (list<card>):
+ *
+ *     error S8017: could not resolve symbol `is_blank(): unknown`
+ *
+ * It makes no difference whether the mutate block is in the program, in a
+ * library file, in module std or in another module.
+ *
+ * Because of this std.collections offers the extra list operations as static
+ * helpers (lists<T>) instead of adding them to list with mutate.
+ */
+
+class card { rank : decimal; }
+
+class shelf { label : string = "empty"; }
+
+mutate list {
+    // a field the class did not have, private to it like any of its own
+    private touched : decimal = 0;
+
+    def is_blank() : decimal { return size() == 0; }
+    def touch() { touched = touched + 1; }
+    def touches() : decimal { return touched; }
+}
+
+// the same on a class that is not generic
+mutate shelf {
+    private opened : decimal = 0;
+
+    def open() : decimal { opened = opened + 1; return opened; }
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_collections_mutate_generic") {
+        a := new list<string>();
+        test("list<string> (also instantiated inside the library)") { expect(a.is_blank()).should_be(1); };
+        b := new list<card>();
+        test("list<card> (only instantiated here)") { expect(b.is_blank()).should_be(1); };
+        // a field added by mutate: each list has its own
+        b.touch();
+        b.touch();
+        test("a mutated field on list<card>") { expect(b.touches()).should_be(2); };
+        test("...is separate for every list") { expect(a.touches()).should_be(0); };
+        c := new list<shelf>();
+        c.touch();
+        test("a third kind of list, made last") { expect(c.touches()).should_be(1); };
+
+        s := new shelf();
+        s.open();
+        test("a mutated field on a plain class") { expect(s.open()).should_be(2); };
+    };
+    finish_tests("lib_collections_mutate_generic");
+}

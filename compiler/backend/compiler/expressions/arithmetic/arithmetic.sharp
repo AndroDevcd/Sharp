@@ -1,0 +1,185 @@
+mod backend.compiler.expressions.arithmetic;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions
+)
+
+/**
+ * OPERATORS:  a + b   a == b   a && b   -a   !a
+ *
+ * Which rule applies is decided by the LEFT operand (doc/backend.md 7.8.1):
+ *
+ *      left operand            operators             meaning
+ *      ----------------------  --------------------  ------------------------------------------
+ *      a plain number          all                   the VM's arithmetic (number_operators.sharp);
+ *                                                    the right side a number or a number object
+ *      a text literal          + == !=               it becomes a `string`, then as a class
+ *      a class                 == null, != null      "is there an object?" (equality.sharp)
+ *      a class                 any                   its operator function, chosen by the right
+ *                                                    side (operator_calls.sharp); for == and !=
+ *                                                    without one: "the same object?"
+ *      `object`, an array      == !=                 the same object? (others: E0512, E0513)
+ *      a function value        == !=                 function_value.same / different
+ *      `null`                  -                     E0511: write the value first (`x == null`)
+ *
+ * `&&` and `||` are logical_expression.sharp; `-a` and `!a` unary_expression.sharp.
+ * The precedence of the operators is the parser's: the tree already says
+ * which operator applies to which operands.
+ *
+ * The files of this package (module `backend.compiler.expressions.arithmetic`):
+ *
+ *      arithmetic.sharp        this front door: analyse_binary picks the rule by the left operand
+ *      number_operators.sharp  on numbers: how it is worked out and the type of the result
+ *      constant_folding.sharp  2 + 3 while compiling; E0427 (x % 0)
+ *      operator_calls.sharp    operator functions of classes: a + b is a.operator+(b)
+ *      equality.sharp          == != on references: null tests, the same object, function values
+ *      logical_expression.sharp  && ||
+ *      unary_expression.sharp  -a !a
+ *      operator_messages.sharp E0511 - E0514, W1010
+ *
+ *      C++ comparison: compiler/expressions/binary/binary_expression.cpp,
+ *      unary/unary_expression.cpp.
+ */
+def analyse_binary(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+
+    // a + b + c + d is ((a + b) + c) + d: the left operand is itself an
+    // operation, as many levels deep as the expression is long. Generated
+    // code writes such chains with hundreds of terms (a long sum, a long
+    // `x == 1 || x == 2 || ...`), and one level of recursion per term would
+    // run out of stack on the VM. So the left "spine" is walked down in a
+    // loop to its innermost operation, and the operations are worked out
+    // from there upwards, each one taking the one below as its left
+    // operand. (The usual cure for a left-deep tree: turn the recursion
+    // along the spine into iteration.)
+    bottom : _int64 = node;
+    while(is_operation(context, tree.first_child!![bottom])) { bottom = tree.first_child!![bottom]; }
+
+    left := analyse_value(context, tree.first_child!![bottom], null);
+    current : _int64 = bottom;
+    while(current != node) {
+        left = as_value_for(context, operation_with_left(context, current, left), null);
+        current = tree.parents!![current];
+        context.session.counters.expressions++;     // (as analyse_expression would have counted it)
+    }
+    return operation_with_left(context, node, left);
+}
+
+/** is `node` an operation with two operands (`a + b`, `a == b`, `a && b`), whose left one is worked out first? */
+def is_operation(context: analysis_context, node: _int64) : _int64 {
+    return node >= 0 && context.tree.kinds!![node] == N_BINARY;
+}
+
+/** the operation at `node`, its left operand already analysed: the right one, then the rule chosen by the left */
+def operation_with_left(context: analysis_context, node: _int64, left_value: bound_expression) : bound_expression {
+    tree : syntax_tree = context.tree;
+    error_type : resolved_type = context.session.types.error_type;
+    operation : _int64 = token_kind_at(context, node);
+    left := left_value;
+    left_node : _int64 = tree.first_child!![node];
+    right := analyse_value(context, tree.next_sibling!![left_node], null);
+    if(operation == P_ANDAND || operation == P_OROR) { return logical_operation(context, node, operation, left, right); }
+    if(left.type.kind == RT_ERROR || right.type.kind == RT_ERROR) {
+        failed := new bound_error(context.unit, node, error_type);
+        failed.inner = left;
+        return failed;
+    }
+    is_equality : _int64 = operation == P_EQEQ || operation == P_NOTEQ;
+
+    if(left.literal == LIT_TEXT) {
+        if(operation != P_PLUS && is_equality == 0) {
+            help := "";
+            text := name_at(context, node);
+            if(text == "<" || text == ">" || text == "<=" || text == ">=") {
+                // texts are put in order by `string.compare_to`, not by `<` (`==` would only say "the same?")
+                help = "to put texts in order, compare them with `compare_to` (less than 0, 0 or more than 0): `new string("
+                       + source_text_of(context, left.node) + ").compare_to(" + source_text_of(context, right.node) + ") " + text + " 0`";
+            } else if(right.type.is_number()) {
+                help = "to count with the number a text holds, read it first: `" + source_text_of(context, left.node) + ".to_int()`";
+            }
+            report_operands_do_not_fit(context, node, left, right, "on text only `+`, `==` and `!=` are defined", help);
+            return new bound_error(context.unit, node, error_type);
+        }
+        left = convert(context, left, context.session.string_type(), "a `string`");
+        if(left.type.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+    }
+
+    type : resolved_type = left.type;
+    if(type.is_number()) { return number_operation(context, node, operation, left, right); }
+    if(type.kind == RT_NULL) {
+        help := "";
+        if(right.type.kind == RT_NULL) { help = "`null` compared with `null` is always the same: write `true` or `false`"; }
+        else if(is_equality == 1) { help = "write the value first: `" + source_text_of(context, right.node) + " " + name_at(context, node) + " null`"; }
+        report_operands_do_not_fit(context, node, left, right, "`null` means \"no object\": it can be compared WITH (`x == null`), "
+                                   + "but it cannot stand on the left of an operator", help);
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(type.kind == RT_CLASS && type.is_array == 0) { return class_operation(context, node, operation, left, right); }
+    if(type.kind == RT_FUNCTION && type.is_array == 0) { return function_operation(context, node, operation, left, right); }
+
+    // `object` and arrays: only "the same object?"
+    if(is_equality == 1) {
+        if(!arrays_can_be_the_same(context, left.type, right.type)) {
+            report_arrays_never_the_same(context, node, left, right);
+            return new bound_error(context.unit, node, error_type);
+        }
+        compared := same_object_test(context, node, operation, left, right);
+        if(compared != null) { return compared!!; }
+        help := "";
+        // `chars == word` (a `_int8[]` from a text literal, a `string`): the string's `==` takes the
+        // characters, so the other order compares the texts
+        if(right.type.kind == RT_CLASS && right.type.is_array == 0 && call_would_work_the_other_way(context, right, left, name_at(context, node))) {
+            help = "put the `" + right.type.to_text() + "` first, its `" + name_at(context, node) + "` compares the texts: `" + source_text_of(context, right.node) + " "
+                   + name_at(context, node) + " " + source_text_of(context, left.node) + "`";
+        }
+        report_operands_do_not_fit(context, node, left, right, "`==` and `!=` compare two objects or two arrays", help);
+        return new bound_error(context.unit, node, error_type);
+    }
+    if(type.is_array == 1) { report_operator_on_array(context, node, left); }
+    else { report_operator_on_object(context, node, left); }
+    return new bound_error(context.unit, node, error_type);
+}
+
+/** the left side is an object of a class */
+def class_operation(context: analysis_context, node: _int64, operation: _int64, left: bound_expression,
+                    right: bound_expression) : bound_expression {
+    is_equality : _int64 = operation == P_EQEQ || operation == P_NOTEQ;
+    if(is_equality == 1 && right.type.kind == RT_NULL) { return null_test(context, node, operation, left, right); }
+
+    called := call_operator(context, node, left, "operator" + name_at(context, node), one_argument(right));
+    if(called != null) { return called!!; }
+    if(is_equality == 1) {
+        compared := same_object_test(context, node, operation, left, right);
+        if(compared != null) { return compared!!; }
+    }
+    report_no_operator(context, node, left, right);
+    return new bound_error(context.unit, node, context.session.types.error_type);
+}
+
+/** the left side is a function value: only `==` / `!=` */
+def function_operation(context: analysis_context, node: _int64, operation: _int64, left: bound_expression,
+                       right: bound_expression) : bound_expression {
+    is_equality : _int64 = operation == P_EQEQ || operation == P_NOTEQ;
+    if(is_equality == 1) {
+        if(right.type.kind == RT_NULL) { return null_test(context, node, operation, left, right); }
+        if(right.type.kind == RT_FUNCTION) {
+            compared := function_value_test(context, node, operation, left, right);
+            if(compared != null) { return compared!!; }
+        }
+        same := same_object_test(context, node, operation, left, right);
+        if(same != null) { return same!!; }
+    }
+    report_operands_do_not_fit(context, node, left, right, "a function value can only be called, and compared with `==` / `!=`", "");
+    return new bound_error(context.unit, node, context.session.types.error_type);
+}

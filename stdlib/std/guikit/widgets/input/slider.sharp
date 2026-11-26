@@ -1,0 +1,114 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * slider - pick a number by dragging a knob along a track. Made with gui.slider(...).
+ *
+ *      volume := state(0.5);
+ *      gui.slider(volume, 0, 1)                    // from 0 to 1
+ *      gui.slider(age, 0, 120).whole()             // only whole numbers
+ *      gui.text("volume: " + volume.value)
+ *
+ * Bound to a decimal state: dragging writes the state, and whatever was built
+ * from it follows while you drag. With the keyboard focus on it, the left and
+ * right arrow keys move it a step.
+ *
+ * HOW DRAGGING WORKS: the slider is a `pointer_target`. From the press until
+ * the release the host sends every mouse move to it - also when the mouse
+ * strays off the track - and each one is turned into a value: how far along
+ * the track the mouse is, as a fraction, scaled into low .. high.
+ * (Compose: Slider. Android: SeekBar. HTML: input type=range.)
+ */
+stable class slider base widget : behavior, pointer_target, key_target, has_value {
+    private bound : state<decimal>;
+    private low : decimal = 0;
+    private high : decimal = 1;
+    private snap : _int64 = 0;              // 1: only whole numbers
+
+    private static const KNOB : decimal = 9;        // radius
+    private static const TRACK : decimal = 4;       // thickness
+
+    slider(value: state<decimal>, from: decimal, to: decimal) {
+        attach(self);
+        bound = value;
+        low = from;
+        high = to;
+        me.fill_w = 1;
+    }
+
+    /** only whole numbers */
+    def whole() : slider {
+        snap = 1;
+        return self;
+    }
+
+    /** the value as a fraction of the track: 0 at the left end, 1 at the right */
+    private def fraction() : decimal {
+        if(high == low) { return 0; }
+        return num.between((bound.value - low) / (high - low), 0, 1);
+    }
+
+    private def set_value(wanted: decimal) {
+        next : decimal = num.between(wanted, low, high);
+        if(snap == 1) { next = num.nearest(next); }
+        if(next != bound.value) {
+            bound.value = next;
+        }
+    }
+
+    override def kind() : string { return "slider"; }
+
+    /** the number it stands at (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def value_shown() : decimal { return bound.value; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        me.content_w = 120;
+        me.content_h = KNOB * 2 + 4;
+    }
+
+    override def arrange() {
+    }
+
+    override def pointer(what: _int64, x: decimal, y: decimal) {
+        if(what == POINTER_RELEASE) {
+            return;
+        }
+        // the track runs from one knob-radius in to one knob-radius before the end
+        track_start : decimal = me.inner_x() + KNOB;
+        track_long : decimal = num.larger(1, me.inner_w() - KNOB * 2);
+        set_value(low + (x - track_start) / track_long * (high - low));
+    }
+
+    override def key(e: event) : _int64 {
+        step : decimal = (high - low) / 20;
+        if(snap == 1) { step = num.larger(1, num.nearest(step)); }
+        if(e.key == KEY_LEFT) { set_value(bound.value - step); return 1; }
+        if(e.key == KEY_RIGHT) { set_value(bound.value + step); return 1; }
+        return 0;
+    }
+
+    override def typed(words: string) {
+    }
+
+    override def paint(p: painter) {
+        t : theme = ui_host.current!!.look;
+        track_start : decimal = me.inner_x() + KNOB;
+        track_long : decimal = num.larger(1, me.inner_w() - KNOB * 2);
+        middle : decimal = me.inner_y() + me.inner_h() / 2;
+        at : decimal = track_start + track_long * fraction();
+
+        accent : color = t.primary;
+        if(me.enabled == 0) { accent = t.text_dim; }
+
+        p.rect(track_start, middle - TRACK / 2, track_long, TRACK, TRACK / 2, t.surface_high);
+        p.rect(track_start, middle - TRACK / 2, at - track_start, TRACK, TRACK / 2, accent);
+
+        size : decimal = KNOB;
+        if(me.pressed == 1 || me.hovered == 1) { size = KNOB + 1.5; }
+        p.circle(at, middle, size, accent);
+        p.circle(at, middle, size - 4, t.on_primary);
+    }
+}

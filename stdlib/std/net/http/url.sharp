@@ -1,0 +1,159 @@
+mod std.net;
+
+import ( std.io )
+
+/**
+ * A WEB ADDRESS, taken apart
+ *
+ *      where := url.parse("https://api.shop.example:8443/v2/products?q=lamp#top");
+ *
+ *      where.scheme    "https"
+ *      where.host      "api.shop.example"
+ *      where.port      8443            (80 for http and 443 for https when the address has none)
+ *      where.path      "/v2/products"  ("/" when the address has none)
+ *      where.query     "q=lamp"        ("" when the address has none; the "#top" is dropped:
+ *                                       it is for the reader of the page, a server never sees it)
+ *
+ * resolve() answers what a link on that page means: "/login", "next?page=2"
+ * and "https://other.example/" are all turned into whole addresses, the way
+ * a browser does (a server's redirect is such a link).
+ *
+ * An address has to say "http://" or "https://" and name a host; anything
+ * else is an illegal_argument_exception. Host names and version-4 addresses
+ * ("127.0.0.1"); not "[::1]".
+ *
+ *      Java comparison: java.net.URI; Python: urllib.parse.urlsplit.
+ */
+class url {
+    scheme : string = "http";
+    host : string = "";
+    port : _int64 = 80;
+    path : string = "/";
+    query : string = "";
+
+    static def parse(text: string) : url {
+        made := new url();
+        whole : string = io_strings.trim(text);
+        cut : _int64 = io_strings.index_of_text(whole, "://", 0) as _int64;
+        if(cut <= 0) { throw new illegal_argument_exception("`" + text + "` is not a web address: it has to start with http:// or https://"); }
+        made.scheme = io_strings.to_lower(io_strings.slice(whole, 0, cut));
+        if(made.scheme != "http" && made.scheme != "https") {
+            throw new illegal_argument_exception("`" + text + "` is not a web address: `" + made.scheme + "://` is neither http:// nor https://");
+        }
+        made.port = 80;
+        if(made.scheme == "https") { made.port = 443; }
+
+        // the host (and port) end where the path, the query or the fragment begins
+        start : _int64 = cut + 3;
+        length : _int64 = sizeof(whole.data);
+        end : _int64 = start;
+        while(end < length) {
+            ch : _int64 = whole.data!![end];
+            if(ch == '/' || ch == '?' || ch == '#') { break; }
+            end++;
+        }
+        where : string = io_strings.slice(whole, start, end);
+        at : _int64 = io_strings.last_index_of(where, '@') as _int64;       // "user:password@host": the host is what follows
+        if(at >= 0) { where = io_strings.slice_from(where, at + 1); }
+        colon : _int64 = io_strings.last_index_of(where, ':') as _int64;
+        if(colon >= 0) {
+            number : string = io_strings.slice_from(where, colon + 1);
+            if(!io_strings.is_int(number)) { throw new illegal_argument_exception("`" + text + "` is not a web address: `" + number + "` is not a port"); }
+            made.port = io_strings.parse_int(number) as _int64;
+            if(made.port < 1 || made.port > 65535) { throw new illegal_argument_exception("`" + text + "` is not a web address: a port is 1 to 65535"); }
+            where = io_strings.slice(where, 0, colon);
+        }
+        if(sizeof(where.data) == 0) { throw new illegal_argument_exception("`" + text + "` is not a web address: it names no host"); }
+        made.host = io_strings.to_lower(where);
+        made.take_path_and_query(io_strings.slice_from(whole, end));
+        return made;
+    }
+
+    /** "/a/b?x=1#frag": the path, the query; the fragment is dropped */
+    private def take_path_and_query(rest: string) {
+        hash : _int64 = io_strings.index_of(rest, '#') as _int64;
+        if(hash >= 0) { rest = io_strings.slice(rest, 0, hash); }
+        mark : _int64 = io_strings.index_of(rest, '?') as _int64;
+        if(mark >= 0) {
+            query = io_strings.slice_from(rest, mark + 1);
+            rest = io_strings.slice(rest, 0, mark);
+        } else {
+            query = new string("");
+        }
+        // (not `rest = "/"`: that would change the caller's string)
+        if(sizeof(rest.data) == 0) { path = new string("/"); }
+        else { path = rest; }
+    }
+
+    def is_secure() : bool {
+        return scheme == "https";
+    }
+
+    /** is the port the one the scheme has anyway (80, 443)? */
+    def has_usual_port() : bool {
+        if(scheme == "https") { return port == 443; }
+        return port == 80;
+    }
+
+    /** what a request's Host header says: the host, and the port when it is not the usual one */
+    def host_and_port() : string {
+        if(has_usual_port()) { return host; }
+        return host + ":" + port;
+    }
+
+    /** "https://api.shop.example:8443": the server, without a path */
+    def origin() : string {
+        return scheme + "://" + host_and_port();
+    }
+
+    /** what a request's first line asks for: the path, and the query when there is one */
+    def target() : string {
+        if(sizeof(query.data) == 0) { return path; }
+        return path + "?" + query;
+    }
+
+    /**
+     * The address a link found at this one means:
+     *
+     *      "https://other.example/x"   that address
+     *      "//other.example/x"         that host, this scheme
+     *      "/login"                    this server, that path
+     *      "next?page=2"               beside this path's last part
+     *      "?page=2"                   this path, that query
+     */
+    /** 1 when a link starts with a scheme ("https://..."): `://` with nothing but the scheme's name before it */
+    private static def names_scheme(link: string) : bool {
+        at : _int64 = io_strings.index_of_text(link, "://", 0);
+        if(at <= 0) { return false; }
+        for(i : _int64 = 0; i < at; i++) {
+            ch : _int64 = link.data!![i];
+            if(ch == '/' || ch == '?' || ch == '#') { return false; }
+        }
+        return true;
+    }
+
+    def resolve(link: string) : url {
+        link = io_strings.trim(link);
+        if(names_scheme(link)) { return parse(link); }
+        if(io_strings.starts_with(link, "//")) { return parse(scheme + ":" + link); }
+        made := new url();
+        made.scheme = scheme;
+        made.host = host;
+        made.port = port;
+        if(sizeof(link.data) == 0) { made.path = path; made.query = query; return made; }
+        first : _int64 = link.data!![0];
+        if(first == '/') {
+            made.take_path_and_query(link);
+        } else if(first == '?' || first == '#') {
+            made.take_path_and_query(path + link);
+        } else {
+            slash : _int64 = io_strings.last_index_of(path, '/') as _int64;
+            made.take_path_and_query(io_strings.slice(path, 0, slash + 1) + link);
+        }
+        return made;
+    }
+
+    override def to_string() : string? {
+        return origin() + target();
+    }
+}

@@ -1,0 +1,212 @@
+mod backend.finalizer.layout;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * WHAT CODE GENERATION ADDS TO THE PROGRAM (doc/codegen.md 5.6)
+ *
+ *      <module>#__srt_global       a class per module: the globals are its static fields,
+ *                                  the global functions its methods
+ *      @static_init_flag           a static _int8 field of a class with a static part:
+ *                                  1 once its static_init<C> has run
+ *      static_init<C>()            the class's static part, once: static field values,
+ *                                  enum values, `static init { }` blocks
+ *      init<C>()                   the setting up of one object: field values and
+ *                                  `init { }` blocks, run by every constructor
+ *
+ * Each is made as an ordinary declaration object (a sharp_class, sharp_field,
+ * sharp_function), so the rest of code generation and the file writer treat
+ * them like everything else. The `@` cannot be written in a Sharp name, so a
+ * clash with the program's own names is impossible. The names are the C++
+ * compiler's, so reflection and stack traces read the same.
+ *
+ * Only a class that HAS a static part gets static_init<C> and the flag (the
+ * C++ compiler gives one to every class, used or not; an empty function and a
+ * test that always passes cannot be seen: codegen.md 10, G17).
+ */
+
+/** the class `<module>#__srt_global` that holds the globals of a module */
+def make_module_globals_class(module: sharp_module) : sharp_class? {
+    if(module.units.size() == 0) { return null; }
+    unit := module.units.at(0);
+    made := new sharp_class(D_CLASS, "__srt_global", unit, 0, null, module);
+    made.flags = FLAG_PUBLIC | FLAG_STATIC;
+    made.kept = 1;
+    return made;
+}
+
+/** `@static_init_flag`: private excuse static, an _int8, as the C++ compiler writes it (codegen.md 3.5.1) */
+def make_static_flag(owner: class_layout, prog: sharp_program) : sharp_field {
+    declared := owner.of;
+    flag := new sharp_field("@static_init_flag", declared.unit, declared.node, declared, owner.module);
+    flag.flags = FLAG_PRIVATE | FLAG_EXCUSE | FLAG_STATIC;
+    flag.value_type = prog.types.int8;
+    flag.type_state = TYPE_KNOWN;
+    flag.kept = 1;
+    return flag;
+}
+
+/** static_init<C>(): static, no parameters, nothing returned */
+def make_static_init_function(owner: class_layout, prog: sharp_program) : sharp_function {
+    declared := owner.of;
+    made := new sharp_function(D_INIT, "static_init<" + simple_name(owner) + ">", declared.unit, declared.node,
+                               declared, owner.module);
+    made.flags = FLAG_PRIVATE | FLAG_STATIC;
+    made.result_type = prog.types.nil_type;
+    made.kept = 1;
+    return made;
+}
+
+/** init<C>(): an instance function of the class, no parameters, nothing returned */
+def make_object_init_function(owner: class_layout, prog: sharp_program) : sharp_function {
+    declared := owner.of;
+    made := new sharp_function(D_INIT, "init<" + simple_name(owner) + ">", declared.unit, declared.node,
+                               declared, owner.module);
+    made.flags = FLAG_PRIVATE;
+    made.result_type = prog.types.nil_type;
+    made.kept = 1;
+    return made;
+}
+
+/**
+ * THE CLASS OF A CLOSURE RECORD (doc/codegen.md 6.12)
+ *
+ *      def make_counter() : ()(int) {          class closure_main#__srt_global.make_counter {
+ *          total := 0;                             total : _int64;
+ *          return { -> total++; ... };         }
+ *      }
+ *
+ * One object of it is made at the start of every call of the function (its
+ * prologue, generation/closures); the captured variables live in its fields
+ * and nowhere else. A field per captured variable, in the order they were
+ * first captured; then `@parent` (the record this function was itself
+ * handed, when it is a lambda that hands a record on) and `@self` (the
+ * object, when a lambda inside uses it). The `@` cannot be written in a
+ * Sharp name, so the hidden fields never clash with a variable's. Two
+ * captured variables of one name (one per block) get `@2`, `@3` ... after
+ * the second's name.
+ *
+ * Each variable's field is put in `local_variable.storage`, the record's
+ * class and hidden fields in the record (`record_class`, `parent_field`,
+ * `self_field`): the generator then finds every captured variable without
+ * another question.
+ *
+ *      C++ comparison: `create_closure_class` and `create_closure_field`
+ *      (dependency/closure_capture.cpp): `closure_<function>` with
+ *      `__parent` and `__@self`; its fields hold only objects there.
+ */
+def make_closure_class(record: closure_record, name: string, module: sharp_module, prog: sharp_program) : sharp_class {
+    unit := module.units.at(0);
+    node : _int64 = 0;
+    if(record.function != null) { unit = record.function!!.unit; node = record.function!!.node; }
+    else if(record.field != null) { unit = record.field!!.unit; node = record.field!!.node; }
+    made := new sharp_class(D_CLASS, name, unit, node, null, module);
+    made.flags = FLAG_PUBLIC;
+    made.kept = 1;
+
+    names := new name_table<numbered>();
+    for(i : _int64 = 0; i < record.variables.size(); i++) {
+        variable := record.variables.at(i);
+        field_name : string = variable.name;
+        seen := names.at(field_name);
+        if(seen != null) {
+            seen!!.value++;
+            field_name = variable.name + "@" + seen!!.value;
+        } else {
+            names.put(field_name, new numbered(1));
+        }
+        variable.storage = add_record_field(made, field_name, variable.type, variable.unit, variable.node, module);
+    }
+    if(record.parent != null) { record.parent_field = add_record_field(made, "@parent", prog.types.object_type, unit, node, module); }
+    if(record.captures_self == 1) { record.self_field = add_record_field(made, "@self", prog.types.object_type, unit, node, module); }
+    record.record_class = made;
+    return made;
+}
+
+/** one field of a closure record's class: public, kept, of the variable's type */
+def add_record_field(holder: sharp_class, name: string, type: resolved_type, unit: source_unit, node: _int64,
+                     module: sharp_module) : sharp_field {
+    field := new sharp_field(name, unit, node, holder, module);
+    field.flags = FLAG_PUBLIC;
+    field.value_type = type;
+    field.type_state = TYPE_KNOWN;
+    field.kept = 1;
+    holder.fields.add(field);
+    return field;
+}
+
+/**
+ * The fiber-local field a `localized` local variable lives in (doc/codegen.md
+ * 6.17). Like a `localized` field it is a slot at the bottom of every fiber's
+ * stack - one value per fiber - but it gets its value where it is declared,
+ * every time the declaration runs, as any local does (the C++ compiler gives
+ * a localized local a fiber-local slot of its own the same way:
+ * local_variable_decl.cpp, field_generator.cpp). It belongs to no class; the
+ * selection step reads and writes it by its flag and slot (`address`).
+ */
+def make_fiber_local_field(variable: local_variable, module: sharp_module, slot: _int64) : sharp_field {
+    field := new sharp_field(variable.name, variable.unit, variable.node, null, module);
+    field.flags = FLAG_PRIVATE | FLAG_STATIC | FLAG_LOCALIZED;
+    field.value_type = variable.type;
+    field.type_state = TYPE_KNOWN;
+    field.kept = 1;
+    field.address = slot;
+    variable.storage = field;
+    return field;
+}
+
+/**
+ * WHAT A COMPONENT DEFINITION BECOMES (doc/codegen.md 6.16)
+ *
+ *      component app {                             in app's module's __srt_global class:
+ *          single { new database("main") }             @sub_component_0 : database          (static)
+ *      }                                               @sub_component_init_flag_0 : _int8   (static)
+ *                                                      @sub_component_init_0() : database
+ *
+ * The function gives the definition's object: for a `single` the one object,
+ * made the first time it is asked for and kept in the static field; for a
+ * `factory` a new one each time (no field). Every `get` and `inject` that
+ * the definition answers is a call of it. The names are the C++ compiler's
+ * (`component_compiler.cpp`); `n` counts the kept definitions in the order
+ * they are written.
+ */
+def make_component_function(definition: type_definition, number: _int64, globals: class_layout,
+                            prog: sharp_program) : sharp_function {
+    module := definition.owner.module;
+    made := new sharp_function(D_FUNCTION, "@sub_component_init_" + number, definition.unit, definition.node,
+                               null, module);
+    made.flags = FLAG_PRIVATE | FLAG_STATIC;
+    made.result_type = definition.provides;
+    made.kept = 1;
+    definition.function = made;
+    if(definition.is_factory == 0) {
+        storage := new sharp_field("@sub_component_" + number, definition.unit, definition.node, null, module);
+        storage.flags = FLAG_PRIVATE | FLAG_STATIC;
+        storage.value_type = definition.provides;
+        storage.type_state = TYPE_KNOWN;
+        storage.kept = 1;
+        definition.storage = storage;
+        flag := new sharp_field("@sub_component_init_flag_" + number, definition.unit, definition.node, null, module);
+        flag.flags = FLAG_PRIVATE | FLAG_STATIC;
+        flag.value_type = prog.types.int8;
+        flag.type_state = TYPE_KNOWN;
+        flag.kept = 1;
+        definition.made_flag = flag;
+        storage.address = globals.static_fields.size();
+        globals.static_fields.add(storage);
+        flag.address = globals.static_fields.size();
+        globals.static_fields.add(flag);
+    }
+    return made;
+}
+
+/** `double`, `list<std#string>`: the name inside init<...> */
+def simple_name(owner: class_layout) : string {
+    return owner.name;
+}

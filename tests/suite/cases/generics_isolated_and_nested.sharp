@@ -1,0 +1,57 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Known bugs found while writing cases/generics.sharp. This file is
+ * EXPECTED to fail: it does not compile.
+ *
+ * BUG 1 - a generic class sees the local variables of the function that
+ *         first uses it, and they hide its own fields.
+ *   main() below has a local called `one`. Inside holder<T>, the assignment
+ *   `one = a` is then taken to mean main's local instead of the field:
+ *       error S8026: incompatible types ... assigning `a: decimal` to expression of
+ *       type `main#closure_main#__srt_global.main.one: main#box<decimal>`
+ *   Renaming either the local or the field makes it compile.
+ *
+ * BUG 2 - `>>` at the end of a nested generic type is not read as two
+ *         closing brackets:
+ *       new box<box<decimal>>(...)
+ *       error S807: expected '[' or '(' or '{' after new expression
+ *   `new box<box<decimal> >(...)` with a space compiles and works.
+ *   (kept as a comment below; bug 1 alone already stops the compile)
+ */
+
+class box<T> {
+    item : T;
+
+    box(first: T) {
+        item = first;
+    }
+
+    def take(): T {
+        return item;
+    }
+}
+
+class holder<T> {
+    one : T;
+
+    holder(a: T) {
+        one = a;                    // <- bug 1: resolved to main's local `one`
+    }
+}
+
+def main(args: string[]) {
+    // ---- bug 1
+    one := new box<decimal>(1);
+    h := new holder<decimal>(5);
+    expect("the field of the generic class", h.one, 5);
+    expect("the local of the same name", one.take(), 1);
+
+    // ---- bug 2
+    nested := new box<box<decimal>>(new box<decimal>(3));
+    expect("box<box<var>>", nested.take().take(), 3);
+
+    finish("generics");
+}

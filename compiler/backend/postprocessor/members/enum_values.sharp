@@ -1,0 +1,81 @@
+mod backend.postprocessor.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.parser,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * THE NUMBERS OF ENUM VALUES, AS FAR AS THE DECLARATION FIXES THEM
+ * (the C++ compiler: compiler/enum_compiler.cpp)
+ *
+ *      enum color { red, green = 5, blue }
+ *
+ * Each value of an enum is an object of the enum's class with a number
+ * (`color.blue.ordinal`). Which number:
+ *
+ *      green = 5       written: it is 5
+ *      blue            the value before it has a known number: one more (6)
+ *      red             before any `=`: NO number a program may rely on - only
+ *                      that it differs from the other values of its enum.
+ *                      (The C++ compiler takes them from a program-wide
+ *                      counter; `red` was 16612 in one test. Its source says
+ *                      that is on purpose: such values "are only meant to be
+ *                      told apart".)
+ *
+ *      E0367   an enum without any value       enum color { }
+ *              (the C++ parser: "expected identifier" - a type nothing can be a value of)
+ *
+ * This step fills in what can be read off the declaration: a value written
+ * `= <whole number>` (or `= 'c'`, the code of a character) and the values that follow it (`has_number`, `number`).
+ * A value written with any other expression (`= limit * 2`) needs the
+ * expression analysed; the stage that analyses enum values does that, and
+ * until then that value and the ones after it have no known number.
+ */
+def number_enum_values(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        declared := prog.all_classes.at(i);
+        if(declared.kind != D_ENUM) { continue; }
+
+        if(declared.enum_values.size() == 0) {
+            problems.add(error_at_node("E0367", "the enum `" + declared.name + "` has no values", declared.unit, declared.node)
+                .with_label("an enum is a fixed list of named values, and this list is empty")
+                .with_note("nothing could ever be stored in a variable of type `" + declared.name + "`")
+                .with_help("list its values:  enum " + declared.name + " { first, second }")
+                .with_help("or, if it is meant to hold fields and functions, declare it as a class"));
+            continue;
+        }
+
+        p : parse_state = declared.unit.parsed!!;
+        tree : syntax_tree = p.tree;
+        is_known : _int64 = 0;
+        next : _int64 = 0;
+
+        for(j : _int64 = 0; j < declared.enum_values.size(); j++) {
+            value := declared.enum_values.at(j);
+            if(value.value_node >= 0) {
+                token : _int64 = tree.tokens!![value.value_node];
+                is_literal : _int64 = tree.kinds!![value.value_node] == N_LITERAL;
+                is_known = 0;
+                if(is_literal == 1 && (p.kinds[token] == T_INTEGER || p.kinds[token] == T_HEX)) {
+                    is_known = 1;
+                    next = integer_value(p, token);
+                } else if(is_literal == 1 && p.kinds[token] == T_CHAR) {
+                    is_known = 1;
+                    next = character_value(p, token);       // a_letter = 'a': the code of the character
+                }
+            }
+            if(is_known == 1) {
+                value.has_number = 1;
+                value.number = next;
+                next++;
+            }
+        }
+    }
+}

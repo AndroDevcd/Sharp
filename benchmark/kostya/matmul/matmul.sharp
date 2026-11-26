@@ -1,0 +1,84 @@
+mod main;
+
+import ( std.math, std.text )
+
+/**
+ * Matrix multiplication - the "matmul" test of github.com/kostya/benchmarks.
+ *
+ *      sharp matmul [n]            (default 100; the original runs n = 1500)
+ *
+ * Builds two n x n matrices of numbers and multiplies them the plain way,
+ * after transposing the second one so the inner loop walks both rows in
+ * order. Prints the middle element of the product.
+ *
+ * A matrix is one array of n * n numbers, row after row (the language has no
+ * arrays of arrays of numbers): element (i, j) is at i * n + j.
+ *
+ * Measured: building and multiplying. Not measured: the self test.
+ * The last line is `time: <seconds>`.
+ */
+
+def build_matrix(n: decimal, seed: decimal) : decimal[] {
+    t : decimal = seed / n / n;
+    m := new decimal[n * n];
+
+    for(i : decimal = 0; i < n; i++) {
+        for(j : decimal = 0; j < n; j++) {
+            m[i * n + j] = t * (i - j) * (i + j);
+        }
+    }
+    return m;
+}
+
+def matmul(a: decimal[], b: decimal[], n: decimal) : decimal[] {
+    // c = b transposed
+    c := new decimal[n * n];
+    for(i : decimal = 0; i < n; i++) {
+        for(j : decimal = 0; j < n; j++) {
+            c[i * n + j] = b[j * n + i];
+        }
+    }
+
+    d := new decimal[n * n];
+    for(i : decimal = 0; i < n; i++) {
+        row : decimal = i * n;
+        for(j : decimal = 0; j < n; j++) {
+            col : decimal = j * n;
+            s : decimal = 0;
+            for(k : decimal = 0; k < n; k++) {
+                s += a[row + k] * c[col + k];
+            }
+            d[row + j] = s;
+        }
+    }
+    return d;
+}
+
+def calc(size: decimal) : decimal {
+    n : decimal = floor(size / 2) * 2;
+    a := build_matrix(n, 1);
+    b := build_matrix(n, 2);
+
+    d := matmul(a, b, n);
+    half : decimal = n / 2;
+    return d[half * n + half];
+}
+
+def main(args: string[]) {
+    n : decimal = 100;
+    if(sizeof(args) > 0) { n = args[0].to_int(); }
+
+    left : decimal = calc(101);
+    right : decimal = 0 - 18.67;
+    if(abs(left - right) > 0.1) {
+        println("self test failed: " + left + " != " + right);
+        exit(1);
+    }
+
+    start : decimal = nano_time().value;
+    result : decimal = calc(n);
+    seconds : decimal = (nano_time().value - start) / 1000000000;
+
+    println(number_to_fixed(result, 6));
+    println("time: " + number_to_fixed(seconds, 3));
+}

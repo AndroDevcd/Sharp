@@ -1,0 +1,98 @@
+mod backend.types.type_system;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program
+)
+
+/**
+ * WHAT THE TYPE PARAMETERS STAND FOR: THE TYPE ENVIRONMENT
+ *
+ *      class box<T> {
+ *          item : T;
+ *          class slot { held : T; }
+ *      }
+ *      a : box<string>;
+ *
+ * The class `box<string>` is made from the blueprint `box<T>` with the
+ * knowledge "T is string". That knowledge is a type_environment. Every
+ * written type of the class is resolved UNDER it: `item : T` is a string
+ * there.
+ *
+ * Environments nest the way the classes do. `box<string>.slot` has an
+ * environment of its own (it adds nothing) whose `outer` is the environment
+ * of `box<string>`, so the `T` in `held : T` is found by walking outwards.
+ * A generic function inside a class does the same: its own type parameters
+ * first, then its class's.
+ *
+ * A class that is neither generic nor inside a generic class has no
+ * environment (null).
+ *
+ *      C++ comparison: the old compiler stores the type arguments in each
+ *      generic clone ("genericTypes") and searches the clone and its owners
+ *      by NAME. Here the lookup is by the type parameter OBJECT, so two
+ *      classes that both call their parameter `T` cannot be mixed up.
+ *      Textbook name: a substitution (type parameter -> type).
+ */
+class type_environment {
+    parameters : list<sharp_type_parameter>;    // of ONE generic class or function
+    arguments : list<resolved_type>;            // what each stands for
+    outer : type_environment?;                  // the environment around this one
+    instance : sharp_class?;                    // the class this is the environment of; null for a function's
+
+    type_environment(parameters: list<sharp_type_parameter>, arguments: list<resolved_type>,
+                     outer: type_environment?, instance: sharp_class?) {
+        self->parameters = parameters;
+        self->arguments = arguments;
+        self->outer = outer;
+        self->instance = instance;
+    }
+
+    /** what `parameter` stands for here; null when no environment in the chain says */
+    def lookup(parameter: sharp_declaration) : resolved_type? {
+        current : type_environment? = self;
+        while(current != null) {
+            for(i : _int64 = 0; i < current!!.parameters.size() && i < current!!.arguments.size(); i++) {
+                if(current!!.parameters.at(i) == parameter) { return current!!.arguments.at(i); }
+            }
+            current = current!!.outer;
+        }
+        return null;
+    }
+
+    /**
+     * The class around this place that was made from the class `declared`
+     * as it is written in the source: inside `box<string>` (and inside
+     * `box<string>.slot`), asking for `box` gives `box<string>`.
+     */
+    def class_made_from(declared: sharp_class) : sharp_class? {
+        current : type_environment? = self;
+        while(current != null) {
+            if(current!!.instance != null && current!!.instance!!.written == declared) {
+                return current!!.instance;
+            }
+            current = current!!.outer;
+        }
+        return null;
+    }
+
+    /** the generic instance these types are being worked out for, for the note "while checking `box<_int64>`" */
+    def described() : string {
+        made := described_instance();
+        if(made == null) { return ""; }
+        return made!!.qualified_name();
+    }
+
+    /** the nearest generic instance around this place (`box<_int64>` for box<_int64>.slot); null when there is none */
+    def described_instance() : sharp_class? {
+        current : type_environment? = self;
+        while(current != null) {
+            if(current!!.instance != null && current!!.instance!!.is_instance()) {
+                return current!!.instance;
+            }
+            current = current!!.outer;
+        }
+        return null;
+    }
+}

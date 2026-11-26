@@ -1,0 +1,60 @@
+mod backend.ide.positions;
+
+import (
+    std.io,
+    frontend.lexer
+)
+
+/**
+ * POSITIONS: WHERE THINGS ARE, IN THE EDITOR'S COUNTING
+ *
+ * The compiler's positions are byte indexes. The files written for the editor
+ * use offsets in UTF-16 units and lines and columns by the one convention of
+ * doc/ide.md 4.1. This package makes the step from one to the other.
+ *
+ * The files of this package (module `backend.ide.positions`):
+ *
+ *      positions.sharp       this front door: `place_in`, a byte range -> a `place`
+ *      place.sharp           class place: offsets, line and column of both ends
+ *      editor_offsets.sharp  file_positions: the byte -> offset table of one file
+ *      block_ends.sharp      which `}` closes which `{`; where a statement stops
+ */
+
+/**
+ * The editor's form of the byte range `from_byte` .. `to_byte` of a file.
+ * Everything is moved into the file first (a message at "the end of the file"
+ * may be at the file's length plus one); a range that ends before it starts
+ * becomes empty.
+ */
+def place_in(positions: file_positions, from_byte: _int64, to_byte: _int64) : place {
+    first : _int64 = clamp_to_file(positions, from_byte);
+    last : _int64 = clamp_to_file(positions, to_byte);
+    if(last < first) { last = first; }
+
+    start_line : _int64 = line_at(positions, first);
+    stop_line : _int64 = line_at(positions, last);
+    return new place(positions.offset_of(first), positions.offset_of(last),
+                     start_line, column_at(positions, first, start_line),
+                     stop_line, column_at(positions, last, stop_line));
+}
+
+private def clamp_to_file(positions: file_positions, index: _int64) : _int64 {
+    if(index < 0) { return 0; }
+    if(index > positions.length()) { return positions.length(); }
+    return index;
+}
+
+/** the line (from 1) of a byte; a file without a line table is one line */
+private def line_at(positions: file_positions, index: _int64) : _int64 {
+    if(positions.table.line_starts == null || positions.table.line_count == 0) { return 1; }
+    return line_of(positions.table, index);
+}
+
+/** the column (from 1) of a byte: the units from the start of its line, plus one */
+private def column_at(positions: file_positions, index: _int64, line: _int64) : _int64 {
+    if(positions.table.line_starts == null || positions.table.line_count == 0) {
+        return positions.offset_of(index) + 1;
+    }
+    line_start : _int64 = positions.table.line_starts!![line - 1];
+    return positions.offset_of(index) - positions.offset_of(line_start) + 1;
+}

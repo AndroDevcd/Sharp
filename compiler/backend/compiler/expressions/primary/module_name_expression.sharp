@@ -1,0 +1,79 @@
+mod backend.compiler.expressions.primary;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.names,
+    backend.compiler.context,
+    backend.compiler.names
+)
+
+/**
+ * A NAME IN A NAMED MODULE:  std.io#print_line   shapes#circle   gfx#draw
+ *
+ * The part before `#` names a module, or a group of modules
+ * (`import (a, b) as gfx`). The name after it is looked up in that module
+ * ONLY - not in the class, not in the other imports - and then means what it
+ * would mean as a plain name: a global variable, a class, a function.
+ *
+ *      E0303   there is no module of that name
+ *      E0403   the module declares nothing of that name
+ *
+ *      C++ comparison: `resolve_normal_item` with a module in front, in
+ *      dependency.cpp.
+ */
+def analyse_module_name(context: analysis_context, node: _int64, is_called: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    path : _int64 = tree.child_of_kind(node, N_MODULE_PATH);
+    name_node : _int64 = tree.child_of_kind(node, N_IDENTIFIER);
+    error_type : resolved_type = context.session.types.error_type;
+    if(path < 0 || name_node < 0) { return new bound_error(context.unit, node, error_type); }
+
+    module_name := dotted_name(context.unit, path);
+    name := name_at(context, name_node);
+    found := new lookup_result();
+
+    group := context.file.import_group_named(module_name);
+    if(group != null) {
+        // the modules of the group, in the order they were written
+        for(i : _int64 = 0; i < group!!.modules.size() && found.kind == FOUND_NOTHING; i++) {
+            find_in_module(group!!.modules.at(i), name, found);
+        }
+        if(found.kind == FOUND_NOTHING) {
+            d := problem_at(context, "E0403", "no module of the group `" + module_name + "` declares `" + name + "`", name_node);
+            d.with_label("not in any module imported as `" + module_name + "`");
+            report(context, d);
+            return new bound_error(context.unit, node, error_type);
+        }
+        return expression_for_found(context, found, name_node, name);
+    }
+
+    module := context.prog.find_module(module_name);
+    if(module == null) {
+        report_unknown_module(context, module_name, path);
+        return new bound_error(context.unit, node, error_type);
+    }
+    find_in_module(module!!, name, found);
+    if(found.kind == FOUND_NOTHING) {
+        report_not_in_module(context, module!!, name, name_node);
+        return new bound_error(context.unit, node, error_type);
+    }
+    return expression_for_found(context, found, name_node, name);
+}
+
+/** E0303: the part before `#` is not a module of the program */
+def report_unknown_module(context: analysis_context, module_name: string, path: _int64) {
+    d := problem_over(context, "E0303", "there is no module named `" + module_name + "`", path);
+    d.with_label("not a module of this program");
+    close := closest_names(module_name, module_and_group_names(context.prog, context.file), 3);
+    if(close.size() > 0) { d.with_help(did_you_mean(close)); }
+    d.with_note("the name in front of `#` is the name a file gives itself with its `mod` line, or an import group of this file (`import ( ... ) as name`)");
+    add_group_list_note(context.file, d);
+    report(context, d);
+}

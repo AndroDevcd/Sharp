@@ -1,0 +1,551 @@
+mod backend.optimizer;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.optimizer.analysis,
+    backend.optimizer.passes.values,
+    backend.optimizer.passes.removal,
+    backend.optimizer.passes.control,
+    backend.optimizer.passes.calls,
+    backend.optimizer.passes.registers
+)
+
+/**
+ * THE OPTIMIZER: the IR of every function made faster, never different
+ * (doc/codegen.md section 7 and 13.6; this is the front door of backend/optimizer)
+ *
+ * With -O it runs between generation and the bytecode step (codegen.md 2.2):
+ *
+ *      typed tree --generation--> IR --optimizer--> better IR --bytecode--> VM words
+ *
+ * and works on the IR, where the structure is still plain to see - slots of
+ * a fixed kind, labels, calls as calls. Each pass applies one textbook idea
+ * and is in a file of its own whose header explains it with a before and an
+ * after; they share their analyses (analysis/). Without -O nothing here runs
+ * and the code is simply what the generator wrote, which is always right:
+ * NO pass is needed for correctness.
+ *
+ * The order (the C++ optimizer's, bytecode_optimizer.cpp, with the passes it
+ * does not have put where their inputs are ready):
+ *
+ *  0. on the code as generated: string concatenation flattening (it reads
+ *     the generator's own pattern, which the passes below take apart);
+ *  1. every function on its own: the local passes, again and again until
+ *     none changes anything (one pass often makes work for another: a copy
+ *     propagated leaves a dead copy; a constant folded decides a branch,
+ *     which leaves unreachable code) - at most MAX_ROUNDS times;
+ *  2. across functions, in rounds (up to MAX_INLINE_ROUNDS), each step
+ *     feeding the next: devirtualization (a virtual call of one known body
+ *     becomes a call), closure elimination (a function value made and
+ *     called here is called by name), inlining of small functions - and the
+ *     local passes again wherever one of them changed something;
+ *     then native returns: a function that returns a freshly made number
+ *     object gets a twin that returns the number, for the callers that only
+ *     take the number out again;
+ *  3. what every function can and cannot do (pure function detection), and
+ *     which of its arguments stay inside it (escape analysis) - facts the
+ *     steps below ask; right away, an unused call of a function that does
+ *     nothing else goes, and so does an object that is only ever filled;
+ *  4. values: common subexpressions (what was computed already is not
+ *     computed again), then null tests whose answer is known;
+ *     then text literals: a literal's array is taken, not copied, by the
+ *     string made of it, and a literal that is only read is one shared object;
+ *  5. loops: invariants moved in front of their loop, bounds checks proved
+ *     unnecessary, a loop of a small known count unrolled, a loop that only
+ *     adds up replaced by its formula; then rotation, the last pass that
+ *     moves code, and jump cleanup where it moved some;
+ *  6. slot packing: the frame of every function made as small as its values
+ *     allow, then the register hand-off, which describes the final order of
+ *     the instructions for the bytecode step.
+ *
+ * After each of 2 - 5 the local passes run again on what was changed.
+ *
+ * The bytecode verifier checks every function after it, as always: an
+ * optimizer mistake the verifier can see is an internal error (E0970), never
+ * a file that is written wrongly.
+ *
+ * A function with an `asm` block is left exactly as it is (its instructions
+ * name slots and labels by hand, which the analyses cannot see).
+ *
+ * The packages:
+ *
+ *      optimizer.sharp         this front door: optimize_program, the order of the passes
+ *      settings.sharp          -O, -n<name>, -Oreport; the names of the passes
+ *      report.sharp            what -Oreport prints
+ *      analysis/               control-flow graph, liveness, loops, the facts of each instruction, labels;
+ *                              where an object comes from and goes, the expressions, what cannot be null
+ *      passes/values/          copy propagation and coalescing, constant propagation, immediates,
+ *                              common subexpressions, null tests
+ *      passes/removal/         dead stores, dead code, unreachable code, dead objects
+ *      passes/control/         jump cleanup; loops: invariants, bounds checks, unrolling, closed form, rotation
+ *      passes/calls/           inlining, box elimination (what inlining brings together), native returns,
+ *                              pure functions, escape analysis, devirtualization, closures, string concatenation
+ *      passes/registers/       slot packing (small frames) and the register hand-off
+ *
+ *      C++ comparison: lib/grammar/backend/optimizer works on the finished
+ *      BYTECODE instead (it decodes it into its own form, function_ir, and
+ *      encodes it again); doc/codegen.md 7.1 lists its passes, 13.6 which of
+ *      them are here.
+ */
+
+/** how many times the local passes are run over one function before it is taken as it is */
+const MAX_ROUNDS : _int64 = 8;
+/** how many times the whole program is searched for calls to inline */
+const MAX_INLINE_ROUNDS : _int64 = 3;
+/** how many times loop-invariant code motion looks at one function (each time one loop level further out) */
+const MAX_INVARIANT_ROUNDS : _int64 = 3;
+/** a function larger than this is left as it is: its analyses would cost more than they give */
+const MAX_OPTIMIZED_INSTRUCTIONS : _int64 = 40000;
+
+/** optimize the IR of every function of the program (only called with -O) */
+def optimize_program(layout: program_layout, settings: optimizer_settings) : optimizer_report {
+    report := new optimizer_report();
+    chosen := new list<function_layout>();
+    functions_count : _int64 = layout.functions.size();
+    for(i : _int64 = 0; i < functions_count; i++) {
+        made := layout.functions.at(i);
+        if(made.ir == null) { continue; }
+        code : ir_function = made.ir!!;
+        report.functions++;
+        report.before = report.before + code.instructions.size();
+        if(!can_be_optimized(code)) { report.with_asm++; continue; }
+        if(code.instructions.size() > MAX_OPTIMIZED_INSTRUCTIONS) { report.too_large++; continue; }
+        chosen.add(made);
+    }
+    // ---- first of all, on the code as generated: in `a + b + c` every `+` after the first appends to
+    // the temporary string instead of copying it (the twins of string.operator+ this adds join `chosen`)
+    flattened : _int64 = 0;
+    if(settings.runs("string-concatenation")) {
+        started : _int64 = now();
+        joined := flatten_string_concatenation(layout, chosen);
+        report.took("string-concatenation", started);
+        report.count("string-concatenation", joined.sites, 0);
+        report.functions = report.functions + joined.twins.size();
+        report.append_twins = joined.twins.size();
+        flattened = joined.sites;
+    }
+    // ---- and std.math's sqrt is the VM's instruction, not a call (which no pass can see through)
+    roots : _int64 = 0;
+    if(settings.runs("math-instructions")) {
+        started : _int64 = now();
+        roots = use_math_instructions(layout, chosen);
+        report.took("math-instructions", started);
+        report.count("math-instructions", roots, 0);
+    }
+    passes := new local_passes(settings);
+    changed := new number_list();
+    kept := new list<function_analyses>();       // per chosen function: its analyses, as the last pass left them
+    for(i : _int64 = 0; i < chosen.size(); i++) {
+        show_trace(passes, chosen.at(i).ir!!, "nothing (as generated)");
+        analyses := new function_analyses(chosen.at(i).ir!!);
+        analyses.parameters = (1 - chosen.at(i).is_static) + chosen.at(i).parameter_count();
+        kept.add(analyses);
+        changed.add(run_local_passes(analyses, passes, report));
+    }
+    if(flattened > 0 || roots > 0) { report.changed++; }     // (which functions' calls were redirected is not kept: at least one)
+
+    // ---- across functions: virtual calls whose one body can be worked out become direct calls, and
+    // the small functions are inlined - in rounds, because each feeds the other: a call made direct
+    // can be inlined, and an inlined body brings a `new` and a virtual call on it into one function
+    targets := new virtual_targets(layout);
+    if(settings.runs("inline-calls") || settings.runs("devirtualization") || settings.runs("closure-elimination")) {
+        for(round : _int64 = 0; round < MAX_INLINE_ROUNDS; round++) {
+            any : _int64 = 0;
+            for(i : _int64 = 0; i < chosen.size() && settings.runs("devirtualization"); i++) {
+                started : _int64 = now();
+                direct : _int64 = devirtualize_calls(kept.at(i), targets);
+                report.took("devirtualization", started);
+                if(direct > 0) {
+                    report.count("devirtualization", direct, 0);
+                    show_trace(passes, chosen.at(i).ir!!, "devirtualization");
+                    changed.replace(i, 1);
+                    any = 1;
+                }
+            }
+            // a function value made and called in one function: called by name (then inlined below)
+            for(i : _int64 = 0; i < chosen.size() && settings.runs("closure-elimination"); i++) {
+                started : _int64 = now();
+                named : _int64 = eliminate_closure_calls(kept.at(i), layout);
+                report.took("closure-elimination", started);
+                if(named > 0) {
+                    report.count("closure-elimination", named, 0);
+                    show_trace(passes, chosen.at(i).ir!!, "closure-elimination");
+                    changed.replace(i, 1);
+                    any = 1;
+                }
+            }
+            choices := new inline_choices(layout);
+            for(i : _int64 = 0; i < chosen.size() && settings.runs("inline-calls"); i++) {
+                before : _int64 = chosen.at(i).ir!!.instructions.size();
+                started : _int64 = now();
+                inlined : _int64 = inline_calls(chosen.at(i), choices);
+                report.took("inline-calls", started);
+                if(inlined > 0) {
+                    report.count("inline-calls", inlined, before - (chosen.at(i).ir!!.instructions.size()));
+                    show_trace(passes, chosen.at(i).ir!!, "inline-calls");
+                    kept.at(i).changed();
+                    run_local_passes(kept.at(i), passes, report);
+                    changed.replace(i, 1);
+                    any = 1;
+                }
+            }
+            if(any == 0) { break; }
+        }
+    }
+
+    // ---- across functions: a call that only wants the number out of a freshly made object goes
+    // to a twin of the callee that returns the number (after inlining: only now are the
+    // constructors of the boxes copied in, and the `new_object` of a returned box plain to see).
+    // The twins are functions like any other from here on: the passes below work on them too.
+    if(settings.runs("native-returns")) {
+        started : _int64 = now();
+        redirected := make_native_returns(layout, chosen);
+        report.took("native-returns", started);
+        report.count("native-returns", redirected.sites, 0);
+        for(r : _int64 = 0; r < redirected.rewritten.count; r++) {
+            at : _int64 = redirected.rewritten.at(r);
+            show_trace(passes, chosen.at(at).ir!!, "native-returns");
+            kept.at(at).changed();
+            run_local_passes(kept.at(at), passes, report);
+            changed.replace(at, 1);
+        }
+        for(t : _int64 = 0; t < redirected.twins.size(); t++) {
+            twin := redirected.twins.at(t);
+            report.functions++;
+            report.native_twins++;
+            chosen.add(twin);
+            analyses := new function_analyses(twin.ir!!);
+            analyses.parameters = (1 - twin.is_static) + twin.parameter_count();
+            kept.add(analyses);
+            run_local_passes(analyses, passes, report);     // box elimination takes the object out of the twin
+            show_trace(passes, twin.ir!!, "native-returns (the twin)");
+            changed.add(1);
+        }
+    }
+
+    // ---- across functions: what each function can and cannot do (does it change anything, can it
+    // raise, does it come back). A call nobody reads the result of, to a function that does
+    // nothing else, is then removed by the removal passes: they run again where there is one.
+    if(settings.runs("pure-functions")) {
+        note_function_facts(layout, report);
+        // ... and which arguments stay inside the function they are handed to; with both known, an
+        // object that is only ever filled, never read, is not made (removal/dead_objects.sharp)
+        escapes_known : _int64 = settings.runs("escape-analysis");
+        if(escapes_known == 1) {
+            started : _int64 = now();
+            find_argument_escapes(layout);
+            report.took("escape-analysis", started);
+        }
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            again : _int64 = calls_something_removable(chosen.at(i).ir!!);
+            if(escapes_known == 1) {
+                started : _int64 = now();
+                dead : _int64 = remove_dead_objects(kept.at(i));
+                report.took("escape-analysis", started);
+                if(dead > 0) {
+                    report.count("escape-analysis", dead, 0);
+                    show_trace(passes, chosen.at(i).ir!!, "escape-analysis (dead objects)");
+                    changed.replace(i, 1);
+                    again = 1;
+                }
+            }
+            if(again == 0) { continue; }
+            if(run_local_passes(kept.at(i), passes, report) == 1) { changed.replace(i, 1); }
+        }
+    }
+
+    // ---- what was computed already is not computed again (after the function facts: a call of a
+    // function that changes nothing is an expression too)
+    if(settings.runs("common-subexpressions")) {
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            started : _int64 = now();
+            shared : _int64 = eliminate_common_subexpressions(kept.at(i));
+            report.took("common-subexpressions", started);
+            if(shared > 0) {
+                report.count("common-subexpressions", shared, 0);
+                show_trace(passes, chosen.at(i).ir!!, "common-subexpressions");
+                run_local_passes(kept.at(i), passes, report);
+                changed.replace(i, 1);
+            }
+        }
+    }
+
+    // ---- tests for null whose answer is known
+    if(settings.runs("null-checks")) {
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            started : _int64 = now();
+            folded : _int64 = eliminate_null_checks(kept.at(i));
+            report.took("null-checks", started);
+            if(folded > 0) {
+                report.count("null-checks", folded, 0);
+                show_trace(passes, chosen.at(i).ir!!, "null-checks");
+                run_local_passes(kept.at(i), passes, report);
+                changed.replace(i, 1);
+            }
+        }
+    }
+
+    // ---- text literals: the new string takes the literal's array instead of copying it, and a
+    // literal that is only read is the one shared object (after inlining and the passes that take
+    // objects apart: what is left of a literal's uses is then plain to see)
+    if(settings.runs("shared-literals")) {
+        started : _int64 = now();
+        read_only := find_read_only_arguments(layout);
+        shape := new string_shape(layout);
+        report.took("shared-literals", started);
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            started = now();
+            shared : _int64 = share_literals(kept.at(i), shape, read_only);
+            report.took("shared-literals", started);
+            if(shared > 0) {
+                report.count("shared-literals", shared, 0);
+                show_trace(passes, chosen.at(i).ir!!, "shared-literals");
+                run_local_passes(kept.at(i), passes, report);
+                changed.replace(i, 1);
+            }
+        }
+    }
+
+    // ---- what is the same in every round of a loop is computed before it. In rounds: what left an
+    // inner loop may leave the outer one too, once the value passes have tidied up behind it
+    if(settings.runs("loop-invariants")) {
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            for(round : _int64 = 0; round < MAX_INVARIANT_ROUNDS; round++) {
+                started : _int64 = now();
+                moved : _int64 = move_loop_invariants(kept.at(i));
+                report.took("loop-invariants", started);
+                if(moved == 0) { break; }
+                report.count("loop-invariants", moved, 0);
+                show_trace(passes, chosen.at(i).ir!!, "loop-invariants");
+                run_local_passes(kept.at(i), passes, report);
+                changed.replace(i, 1);
+            }
+        }
+    }
+
+    // ---- `a[i]` in a loop over `a`: no range check (after the invariants moved: the length of the
+    // array is then taken once, wherever; before unrolling and rotation change the loop's shape)
+    if(settings.runs("bounds-checks")) {
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            started : _int64 = now();
+            proved : _int64 = eliminate_bounds_checks(kept.at(i));
+            report.took("bounds-checks", started);
+            if(proved > 0) {
+                report.count("bounds-checks", proved, 0);
+                show_trace(passes, chosen.at(i).ir!!, "bounds-checks");
+                changed.replace(i, 1);
+            }
+        }
+    }
+
+    // ---- loops that run a small, known number of times: straight code (before rotation, which
+    // would only move the test of a loop that is about to disappear)
+    if(settings.runs("loop-unrolling")) {
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            code : ir_function = chosen.at(i).ir!!;
+            before : _int64 = code.instructions.size();
+            started : _int64 = now();
+            unrolled : _int64 = unroll_loops(kept.at(i));
+            report.took("loop-unrolling", started);
+            if(unrolled > 0) {
+                report.count("loop-unrolling", unrolled, before - code.instructions.size());
+                show_trace(passes, code, "loop-unrolling");
+                // every copy of the body now has its own known counter: the value passes fold them
+                run_local_passes(kept.at(i), passes, report);
+                changed.replace(i, 1);
+            }
+        }
+    }
+
+    // ---- a counting loop that only adds things up: the formula for the sum (after unrolling: a loop of
+    // a few known rounds is better as straight code, which folds to one number)
+    if(settings.runs("loop-formula")) {
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            code : ir_function = chosen.at(i).ir!!;
+            before : _int64 = code.instructions.size();
+            started : _int64 = now();
+            replaced : _int64 = replace_loops_by_formulas(kept.at(i));
+            report.took("loop-formula", started);
+            if(replaced > 0) {
+                report.count("loop-formula", replaced, before - code.instructions.size());
+                show_trace(passes, code, "loop-formula");
+                run_local_passes(kept.at(i), passes, report);
+                changed.replace(i, 1);
+            }
+        }
+    }
+
+    // ---- loops: the test to the bottom
+    if(settings.runs("loop-rotation")) {
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            code : ir_function = chosen.at(i).ir!!;
+            before : _int64 = code.instructions.size();
+            started : _int64 = now();
+            rotation := rotate_loops(code, settings.runs("loop-guards") && settings.runs("loop-invariants"));
+            rotated : _int64 = rotation.rotated;
+            report.took("loop-rotation", started);
+            if(rotated > 0) {
+                report.count("loop-rotation", rotated, before - code.instructions.size());
+                report.count("loop-guards", rotation.guarded, 0);
+                // the code is the same, only in another order: what is left to do is the jump to the
+                // moved test that now lands right after itself, and the like
+                kept.at(i).changed();
+                if(passes.on[PASS_JUMPS] == 1) {
+                    size : _int64 = code.instructions.size();
+                    report.count("jump-cleanup", clean_up_jumps(kept.at(i)), size - code.instructions.size());
+                }
+                // a loop with a guard has a place in front of its body that is only reached when the
+                // body runs: what the body begins with can move there now (loop_rotation.sharp)
+                for(round : _int64 = 0; rotation.guarded > 0 && round < MAX_INVARIANT_ROUNDS; round++) {
+                    started = now();
+                    moved : _int64 = move_loop_invariants(kept.at(i));
+                    report.took("loop-invariants", started);
+                    if(moved == 0) { break; }
+                    report.count("loop-invariants", moved, 0);
+                    show_trace(passes, code, "loop-invariants (after the guards)");
+                    run_local_passes(kept.at(i), passes, report);
+                }
+                changed.replace(i, 1);
+            }
+        }
+    }
+
+    // ---- the frames made small: slots that are never needed at the same time share one
+    // (after every pass that changes code: only now is it known which values are left)
+    if(settings.runs("slot-packing")) {
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            started : _int64 = now();
+            saved : _int64 = pack_slots(kept.at(i));
+            report.took("slot-packing", started);
+            report.count("slot-packing", saved, 0);
+            if(saved > 0) { changed.replace(i, 1); }
+        }
+    }
+
+    // ---- last: which values are handed on in their register (bytecode.sharp)
+    if(settings.runs("register-hand-off")) {
+        for(i : _int64 = 0; i < chosen.size(); i++) {
+            started : _int64 = now();
+            marked : _int64 = mark_hand_offs(kept.at(i));
+            report.took("register-hand-off", started);
+            report.count("register-hand-off", marked, 0);
+            if(marked > 0) { changed.replace(i, 1); }
+        }
+    }
+
+    for(i : _int64 = 0; i < layout.functions.size(); i++) {      // (with the twins native returns added)
+        made := layout.functions.at(i);
+        if(made.ir != null) { report.after = report.after + made.ir!!.instructions.size(); }
+    }
+    for(i : _int64 = 0; i < changed.count; i++) {
+        if(changed.at(i) == 1) { report.changed++; }
+    }
+    return report;
+}
+
+/** pure function detection for the whole program, with its line of -Oreport */
+def note_function_facts(layout: program_layout, report: optimizer_report) {
+    started : _int64 = now();
+    found := find_function_facts(layout);
+    report.took("pure-functions", started);
+    report.pure_functions = "" + found.write_nothing + " of " + found.functions + " functions change nothing (" + found.read_nothing
+                            + " of them read nothing either); a call of " + found.removable + " is removed when its result is unused";
+}
+
+/** the local passes, in the order they run (run_local_passes) */
+const PASS_COPIES       : _int64 = 0;
+const PASS_BOXES        : _int64 = 1;
+const PASS_CONSTANTS    : _int64 = 2;
+const PASS_COALESCING   : _int64 = 3;
+const PASS_DEAD_STORES  : _int64 = 4;
+const PASS_DEAD_CODE    : _int64 = 5;
+const PASS_JUMPS        : _int64 = 6;
+const PASS_UNREACHABLE  : _int64 = 7;
+const LOCAL_PASSES      : _int64 = 8;
+
+/** which local passes run, decided once from the settings (-n<name>), with their names for -Oreport */
+class local_passes {
+    on : _int64[];
+    names : string[];
+    numbers : _int64 = 0;           // copy propagation of numbers (-ncopy-propagation)
+    references : _int64 = 0;        // ... and of references (-nobject-copies)
+    immediates : _int64 = 0;        // -nimmediates
+    trace : string;                 // -Otrace: the function shown after each pass that changed it
+
+    local_passes(settings: optimizer_settings) {
+        trace = settings.trace;
+        names = new string[LOCAL_PASSES];
+        names[PASS_COPIES] = "copy-propagation";
+        names[PASS_BOXES] = "box-elimination";
+        names[PASS_CONSTANTS] = "constant-propagation";
+        names[PASS_COALESCING] = "copy-coalescing";
+        names[PASS_DEAD_STORES] = "dead-stores";
+        names[PASS_DEAD_CODE] = "dead-code";
+        names[PASS_JUMPS] = "jump-cleanup";
+        names[PASS_UNREACHABLE] = "unreachable-code";
+        on = new _int64[LOCAL_PASSES];
+        for(p : _int64 = 0; p < LOCAL_PASSES; p++) { on[p] = settings.runs(names[p]); }
+        numbers = settings.runs("copy-propagation");
+        references = settings.runs("object-copies");
+        on[PASS_COPIES] = numbers == 1 || references == 1;
+        immediates = settings.runs("immediates");
+    }
+}
+
+/**
+ * The passes that work on one function, in order, until none changes
+ * anything (or MAX_ROUNDS): 1 when any of them changed the function.
+ *
+ * A pass that found nothing to do is not run again until another pass has
+ * changed the function: on the same code it would find nothing again. So the
+ * last round - the one that only confirms nothing changes - runs only the
+ * passes that come after the last change. The analyses (the graph, the
+ * liveness) are kept between passes until one changes the code
+ * (analysis/analysis.sharp), and after the last pass for the hand-off.
+ */
+def run_local_passes(analyses: function_analyses, passes: local_passes, report: optimizer_report) : _int64 {
+    code := analyses.code;
+    clean := new _int64[LOCAL_PASSES];
+    any : _int64 = 0;
+    for(round : _int64 = 0; round < MAX_ROUNDS; round++) {
+        waiting : _int64 = 0;
+        for(p : _int64 = 0; p < LOCAL_PASSES; p++) {
+            if(passes.on[p] == 0 || clean[p] == 1) { continue; }
+            size : _int64 = code.instructions.size();
+            started : _int64 = now();
+            changes : _int64 = run_local_pass(p, analyses, passes);
+            report.took(passes.names[p], started);
+            report.count(passes.names[p], changes, size - code.instructions.size());
+            if(changes > 0) { show_trace(passes, code, passes.names[p]); }
+            if(changes > 0) {
+                any = 1;
+                for(q : _int64 = 0; q < LOCAL_PASSES; q++) { clean[q] = 0; }
+                waiting = 1;
+            } else {
+                clean[p] = 1;
+            }
+        }
+        if(waiting == 0) { return any; }
+    }
+    return any;
+}
+
+/** -Otrace: the IR of the traced function after a pass changed it */
+def show_trace(passes: local_passes, code: ir_function, pass: string) {
+    if(sizeof(passes.trace.data) == 0 || code.name != passes.trace) { return; }
+    print("---- after " + pass + ":\n" + ir_text(code));
+}
+
+/** one local pass over the function: the number of changes it made */
+def run_local_pass(pass: _int64, analyses: function_analyses, passes: local_passes) : _int64 {
+    if(pass == PASS_COPIES) { return propagate_copies(analyses, passes.numbers, passes.references); }
+    if(pass == PASS_BOXES) { return eliminate_boxes(analyses, analyses.parameters); }
+    if(pass == PASS_CONSTANTS) { return propagate_constants(analyses, passes.immediates); }
+    if(pass == PASS_COALESCING) { return coalesce_copies(analyses); }
+    if(pass == PASS_DEAD_STORES) { return remove_dead_stores(analyses); }
+    if(pass == PASS_DEAD_CODE) { return remove_dead_code(analyses); }
+    if(pass == PASS_JUMPS) { return clean_up_jumps(analyses); }
+    return remove_unreachable_code(analyses);
+}

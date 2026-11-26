@@ -1,0 +1,170 @@
+mod std.io;
+
+/**
+ * Puts a buffer in front of another text_writer: what is written collects
+ * here and is handed on in large pieces - when the buffer is full, on
+ * flush() and on close(). That saves work when the writer underneath is slow
+ * per call (the console prints every piece right away).
+ *
+ *     out := new buffered_writer(new console_writer());
+ *     for(i : decimal = 0; i < 1000; i++) {
+ *         out.write_int(i);
+ *         out.new_line();
+ *     }
+ *     out.close();
+ *
+ * It also has what the plain interface lacks: numbers, a line end of your
+ * choice (set_line_separator), and counters for the characters and lines
+ * written.
+ *
+ * With auto flush switched on (set_auto_flush) every line end written with
+ * write_line() / new_line() flushes, so complete lines appear immediately.
+ *
+ * Closing this writer closes the writer underneath. Not thread safe.
+ */
+class buffered_writer : text_writer {
+    private target : text_writer;
+    private buf : char_buffer;
+    /** hand the buffer on when it holds this many characters */
+    private capacity : decimal = 4096;
+    private line_separator : string = "\n";
+    private auto_flush : decimal = 0;
+    private closed : decimal = 0;
+
+    private chars_written : decimal = 0;
+    private lines_written : decimal = 0;
+
+    /** a buffered writer in front of `target` that hands text on every 4096 characters */
+    buffered_writer(target: text_writer) {
+        self->target = target;
+        buf = new char_buffer(4096);
+    }
+
+    /**
+     * A buffered writer in front of `target` that hands text on every
+     * `capacity` characters.
+     * Throws illegal_argument_exception when capacity is below 1.
+     */
+    buffered_writer(target: text_writer, capacity: decimal) {
+        if(capacity < 1) {
+            throw new illegal_argument_exception("buffered_writer: the capacity must be at least 1");
+        }
+        self->target = target;
+        self->capacity = capacity;
+        buf = new char_buffer(capacity);
+    }
+
+    private def check_open() {
+        if(closed) {
+            throw new io_exception("the writer is closed");
+        }
+    }
+
+    /** hand the buffer on to the writer underneath, without flushing that one */
+    private def drain() {
+        if(buf.length() > 0) {
+            target.write(buf.build());
+            buf.clear();
+        }
+    }
+
+    /** add all characters of `text`. Throws io_exception when closed. */
+    override def write(text: string) {
+        check_open();
+        buf.append(text);
+        chars_written += sizeof(text.data);
+        if(buf.length() >= capacity) {
+            drain();
+        }
+    }
+
+    /** add one character given as its code. Throws io_exception when closed. */
+    override def write_char(ch: decimal) {
+        check_open();
+        buf.append_char(ch);
+        chars_written++;
+        if(buf.length() >= capacity) {
+            drain();
+        }
+    }
+
+    /** add `text` and the line separator. Throws io_exception when closed. */
+    override def write_line(text: string) {
+        write(text);
+        new_line();
+    }
+
+    /** add the line separator ("\n" unless set_line_separator() changed it). Throws io_exception when closed. */
+    def new_line() {
+        write(line_separator);
+        lines_written++;
+        if(auto_flush) {
+            flush();
+        }
+    }
+
+    /** add a whole number in decimal ("42", "-7"). Throws io_exception when closed. */
+    def write_int(value: decimal) {
+        write(io_strings.int_to_string(value));
+    }
+
+    /** add a number the short way ("3", "0.5" - see io_strings.number_to_string). Throws io_exception when closed. */
+    def write_number(value: decimal) {
+        write(io_strings.number_to_string(value));
+    }
+
+    /**
+     * What write_line() and new_line() put at the end of a line: "\n" by
+     * default, "\r\n" for windows style files, or anything else.
+     */
+    def set_line_separator(separator: string) {
+        line_separator = separator;
+    }
+
+    /** flush at every line end (true) or only when the buffer is full (false, the default) */
+    def set_auto_flush(enabled: bool) {
+        if(enabled) {
+            auto_flush = 1;
+        } else {
+            auto_flush = 0;
+        }
+    }
+
+    /** the number of characters written through this writer so far (line separators included) */
+    def get_chars_written() : decimal {
+        return chars_written;
+    }
+
+    /** the number of line ends written with write_line() and new_line() so far */
+    def get_lines_written() : decimal {
+        return lines_written;
+    }
+
+    /** how many characters are waiting in the buffer */
+    def buffered() : decimal {
+        return buf.length();
+    }
+
+    /**
+     * Hand everything on to the writer underneath and flush that one too.
+     * Throws io_exception when closed, or when the writer underneath does.
+     */
+    override def flush() {
+        check_open();
+        drain();
+        target.flush();
+    }
+
+    /**
+     * Flush, then close this writer and the writer underneath. Closing
+     * twice is fine.
+     */
+    override def close() {
+        if(closed) {
+            return;
+        }
+        drain();
+        closed = 1;
+        target.close();
+    }
+}

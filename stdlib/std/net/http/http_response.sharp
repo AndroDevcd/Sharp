@@ -1,0 +1,138 @@
+mod std.net;
+
+import ( std.io, std.data )
+
+/**
+ * WHAT THE SERVER ANSWERED
+ *
+ *      answer := http.GET("https://api.github.com/users/octocat");
+ *
+ *      answer.status           200
+ *      answer.ok()             true for 200 to 299
+ *      answer.text()           the body as a text
+ *      answer.json()           the body as a json_value
+ *      answer.bytes()          the body as it came
+ *      answer.header("content-type")       one header (null when it is not there)
+ *      answer.save_to(new file("a.pdf"))   the body into a file
+ *      answer.require_ok()     the answer itself, or http_status_exception when it is not 200 to 299
+ *
+ * The whole body is here by the time you have the response: it was read
+ * off the connection, which is free for the next request.
+ */
+class http_response {
+    status : _int64 = 0;
+    /** the words after the number in the first line ("OK", "Not Found") */
+    reason : string = "";
+    headers : http_headers = new http_headers();
+    /** the address that answered: the one asked for, or where its redirects led */
+    address : string = "";
+    private body : _int8[] = new _int8[0];
+
+    http_response(status: _int64, reason: string) {
+        self->status = status;
+        self->reason = reason;
+    }
+
+    /** (for the client, and for a fake server in a test) */
+    def set_body(data: _int8[]?) : http_response {
+        if(data == null) { body = new _int8[0]; }
+        else { body = data!!; }
+        return self;
+    }
+
+    def set_text(text: string) : http_response {
+        return set_body(text.data);
+    }
+
+    /** did the server say it worked (200 to 299)? */
+    def ok() : bool {
+        return status >= 200 && status <= 299;
+    }
+
+    def bytes() : _int8[] {
+        return body;
+    }
+
+    def text() : string {
+        if(sizeof(body) == 0) { return ""; }
+        return new string(body, 0, sizeof(body));
+    }
+
+    /** the body as json. Throws json_exception when it is not json. */
+    def json() : json_value {
+        return json_parser.parse(text());
+    }
+
+    def header(name: string) : string? {
+        return headers.find(name);
+    }
+
+    /** write the body into `target` (made, or replaced) */
+    def save_to(target: file) {
+        target.write_bytes(body);
+    }
+
+    /** this response when it is 200 to 299; http_status_exception otherwise */
+    def require_ok() : http_response {
+        if(!ok()) { throw new http_status_exception(self); }
+        return self;
+    }
+
+    override def to_string() : string? {
+        return "" + status + " " + reason + " (" + sizeof(body) + " bytes)";
+    }
+}
+
+/**
+ * A request did not get an answer: the host is unknown, nothing accepts
+ * the connection, the certificate is wrong, the server was silent for too
+ * long (http_timeout), or what came back is not HTTP.
+ */
+class http_exception base io_exception {
+    public http_exception(message : string?) -> base(message) {}
+}
+
+/** the server did not answer within the request's timeout */
+class http_timeout base http_exception {
+    public http_timeout(message : string?) -> base(message) {}
+}
+
+/**
+ * The server answered, and its answer is not "it worked" (200 to 299):
+ * 404 not found, 401 not allowed, 500 the server failed ...
+ *
+ *      catch(failed: http_status_exception) {
+ *          print("the shop said " + failed.status + ": " + failed.body_text());
+ *      }
+ */
+class http_status_exception base http_exception {
+    response : http_response;
+    status : _int64;
+
+    public http_status_exception(response: http_response) -> base(describe(response)) {
+        self->response = response;
+        status = response.status;
+    }
+
+    private static def describe(response: http_response) : string {
+        said : string = "" + response.status;
+        if(sizeof(response.reason.data) > 0) { said = said + " " + response.reason; }
+        if(sizeof(response.address.data) > 0) { said = said + " from " + response.address; }
+        return said;
+    }
+
+    /** what the server wrote about it (often a json object that says what was wrong) */
+    def body_text() : string {
+        return response.text();
+    }
+}
+
+/**
+ * WHAT SENDS A REQUEST AND BRINGS BACK THE ANSWER
+ *
+ * http_client does it over the network. A test hands a service an engine
+ * of its own instead (fake_http), and nothing leaves the program.
+ */
+interface http_engine {
+    def send(asked: http_request) : http_response;
+}

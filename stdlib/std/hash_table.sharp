@@ -1,0 +1,124 @@
+mod std;
+
+/**
+* @class hash_table
+*
+* Description:
+* A hash_map that several threads may use at the same time: the same
+* functions, each run inside lock(self).
+*
+*     hits := new hash_table<string, int>();
+*     hits.put("home", 1);
+*     hits.at("home");                // 1
+*     hits.contains_key("about");     // false
+*     hits.remove("home");
+*
+* Each single call is atomic; a SEQUENCE of calls is not ("if it is not in
+* the table, put it" can still be interleaved with another thread - that
+* one is put_if_absent, which is a single call).
+*
+* keys(), values() and entries() give new lists: loop over them while other
+* threads go on changing the table.
+*/
+class hash_table<k base _object_, v base _object_> {
+    /** the map that does the work; every use of it is inside lock(self) */
+    private map : hash_map<k, v>;
+
+    /** Create an empty table with `capacity` buckets (it grows when needed). */
+    public hash_table(capacity: int) {
+        map = new hash_map<k, v>(capacity);
+    }
+
+    /** Create an empty table. */
+    public hash_table() {
+        map = new hash_map<k, v>();
+    }
+
+    /** See hash_map.set_threshold. */
+    def set_threshold(threshold: decimal) {
+        lock(self) { map.set_threshold(threshold); }
+    }
+
+    /** Remove every entry. */
+    def clear() {
+        lock(self) { map.clear(); }
+    }
+
+    /** The value stored for a key, or null when the table does not have the key. */
+    public def at(key: k) : v? {
+        lock(self) { return map.at(key); }
+    }
+
+    /** The value stored for a key, or `fallback` when the table does not have the key. */
+    public def at_or_default(key: k, fallback: v) : v {
+        lock(self) { return map.at_or_default(key, fallback); }
+    }
+
+    /** true when the table has the key. */
+    public def contains_key(key: k) : bool {
+        lock(self) { return map.contains_key(key); }
+    }
+
+    /** true when a key has `wanted` as its value. O(n). */
+    public def contains_value(wanted: v) : bool {
+        lock(self) { return map.contains_value(wanted); }
+    }
+
+    /** The number of entries. */
+    public def size() : _int64 {
+        lock(self) { return map.size(); }
+    }
+
+    /** true when the table has no entries. */
+    public def is_empty() : bool {
+        lock(self) { return map.is_empty(); }
+    }
+
+    /**
+     * Store a value for a key, replacing the value the key had before.
+     *
+     * @return true when the key is new, false when an existing value was replaced
+     */
+    public def put(key: k, value: v) : bool {
+        lock(self) { return map.put(key, value); }
+    }
+
+    /**
+     * Store a value for a key only when the table does not have the key
+     * yet - the test and the put are one step, no other thread comes between.
+     *
+     * @return true when the value was stored, false when the key was there
+     */
+    public def put_if_absent(key: k, value: v) : bool {
+        lock(self) { return map.put_if_absent(key, value); }
+    }
+
+    /**
+     * Remove a key and its value.
+     *
+     * @return true when the key was removed, false when the table did not have it
+     */
+    public def remove(key: k) : bool {
+        lock(self) { return map.remove(key); }
+    }
+
+    /** Remove a key and return the value it had: null when the table did not have the key. */
+    public def take(key: k) : v? {
+        lock(self) { return map.take(key); }
+    }
+
+    /** A new list with every key (in no particular order). */
+    public def keys() : list<k> {
+        lock(self) { return map.keys(); }
+    }
+
+    /** A new list with every value, in the same order as keys(). */
+    public def values() : list<v> {
+        lock(self) { return map.values(); }
+    }
+
+    /** A new list with a map_entry (`key`, `value`) per entry: copies, safe to loop over. */
+    public def entries() : list<map_entry<k, v> > {
+        lock(self) { return map.entries(); }
+    }
+}

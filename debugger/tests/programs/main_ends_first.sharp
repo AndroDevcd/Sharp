@@ -1,0 +1,39 @@
+mod app;
+
+import ( std.io )
+
+/**
+ * A program for sdb's test of a program that ENDS while another thread is
+ * stopped: main starts a worker that never ends by itself and returns
+ * without waiting for it to end - which ends the program and the worker.
+ *
+ * Main only waits until the worker has run tick() once (`ticks`). With a
+ * breakpoint at tick(), that is after the worker's first stop there: from
+ * then on the worker stops at it over and over, and main, a few instructions
+ * from its end, reaches the end while the worker is held.
+ */
+ticks : _int64 = 0;
+
+def tick(count: _int64) : _int64 {
+    ticks = ticks + 1;
+    return count + 1;
+}
+
+def worker(args: object[]) : int {
+    count : _int64 = 0;
+    while(true) {
+        count = tick(count);
+        // some work between two stops: main runs only while the worker does, and what is left
+        // of it (the wait below, the program's own winding up) has to fit into these stretches
+        for(busy : _int64 = 0; busy < 100000; busy++) { }
+    }
+    return 0;
+}
+
+def main() {
+    running := new thread("worker", worker);
+    running.start();
+    // (main prints nothing: every stop of the worker holds main too, and a line printed a
+    //  character at a time - Windows - would take main hundreds of stops to get through)
+    while(ticks == 0) { }
+}

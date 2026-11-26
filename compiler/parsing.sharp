@@ -1,0 +1,73 @@
+mod main;
+
+import (
+    std.io,
+    std.io.coroutines,
+    cache,
+    frontend.syntax.tree
+)
+
+/*
+ * PARSING EVERY FILE, SEVERAL AT A TIME
+ *
+ * Parsing a file needs nothing from any other file, so the files are parsed
+ * side by side: every source file is read and parsed on a coroutine of its
+ * own, on the worker threads (`-j <n>` says how many). cache.load_or_parse
+ * does the work for one file (from the build cache when the file has not
+ * changed). coroutine_scope { } returns when every one of them is done, so
+ * there is nothing to count and nothing to wait for by hand.
+ *
+ * The coroutines add their result to one list; `units_guard` makes sure only
+ * one of them does so at a time. They finish in an order nobody can foresee,
+ * so the list is put back into the order the files were given before anyone
+ * else sees it (`in_the_order_given`).
+ *
+ *      C++ comparison: std::async per file and then .get() on every future,
+ *      in the order of the files (lib/grammar/main.cpp, the compile loop).
+ */
+units_guard := new string("units");
+
+/** every file parsed: one source_unit per file, in the order of `files` */
+def parse_all(files: list<string>) : list<source_unit> {
+    units := new list<source_unit>();
+
+    run_blocking({ ->
+        coroutine_scope({ ->
+            foreach(source_file in files) {
+                // the file name is handed to the coroutine as its state
+                launch_on(dispatchers.default_pool(), source_file, { state: object ->
+                    unit := load_or_parse(state as string);
+                    lock(units_guard) {
+                        units.add(unit);
+                    }
+                });
+            }
+        });
+    });
+    return in_the_order_given(units, files);
+}
+
+/**
+ * The parsed files in the order the files were given, whatever order the
+ * coroutines finished in.
+ *
+ * Everything after parsing walks this list: the order of the files decides
+ * the order of a module's globals, the numbers classes and functions get, the
+ * order of the messages. Were it the order of completion, two compiles of one
+ * program could write two different executables - and the self-hosting check
+ * (tests/selfhost.sh: the compiler built by itself must write the same bytes
+ * as the one that built it) found exactly that.
+ */
+def in_the_order_given(units: list<source_unit>, files: list<string>) : list<source_unit> {
+    by_path := new hash_map<string, source_unit>();
+    foreach(unit in units) { by_path.put(unit.file, unit); }
+
+    ordered := new list<source_unit>();
+    foreach(path in files) {
+        unit := by_path.at(path);
+        if(unit != null) { ordered.add(unit!!); }
+    }
+    // (a unit whose path is not one of `files` cannot happen; should it, it is not dropped)
+    if(ordered.size() != units.size()) { return units; }
+    return ordered;
+}

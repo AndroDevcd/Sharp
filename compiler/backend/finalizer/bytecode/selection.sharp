@@ -1,0 +1,226 @@
+mod backend.finalizer.bytecode;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.finalizer.ir,
+    backend.finalizer.layout
+)
+
+/**
+ * INSTRUCTION SELECTION: each IR instruction becomes a short, fixed VM sequence
+ *
+ * Every IR instruction is turned into VM code ON ITS OWN (doc/codegen.md 5.1):
+ * load its operands from their slots into scratch registers (or onto the
+ * operand stack), do the operation, store the result into its slot. No value
+ * stays in a register from one IR instruction to the next, so "registers do
+ * not survive a call" (4.1) can never be broken, and an instruction's code
+ * does not depend on what came before it. The cost is more loads and stores;
+ * the JIT turns them into single memory moves, and the optimizer (stage 6)
+ * keeps values in registers where it can prove that is safe.
+ *
+ *      int_binary add %3, %0, %1   ->  loadl ebx, 0;  loadl ecx, 1;  add ebx, ecx -> ebx;  smovr_2 ebx, 3
+ *      get_field %2, %0.count      ->  movl 0;  getf ebx, <slot of count>;  smovr_2 ebx, 2
+ *      call %4, f(%1)              ->  ipushl 1;  call <address of f>;  ipopl 4
+ *
+ * The registers used: ebx and ecx for operands and results, egx as scratch,
+ * adx for array indexes, cmt for conditions (comparisons write it, je / jne
+ * read it), bmr where the VM writes it (test, tne, uand, or, xor).
+ *
+ * WHERE THE VM HAS A SLOT FORM (codegen.md 4.10: arithmetic, comparisons that
+ * jump, elements, fields, copies, returns) the whole of that is ONE
+ * instruction on the slots themselves, and the sequence through registers is
+ * only what is left for slots out of the slot form's reach:
+ *
+ *      int_binary add %3, %0, %1   ->  add_s 3, 0, 1
+ *      get_field %2, %0.count      ->  getf_s 2, 0, <slot of count>
+ *
+ * (selection_slots.sharp; each select_ function asks for the slot form first.)
+ *
+ * The sequences are the right column of the tables in codegen.md section 6.
+ * This file holds the dispatcher and the sequences of one or two words; the
+ * longer ones are grouped by what they work on:
+ *
+ *      selection_numbers.sharp     constants, copies, conversions, arithmetic, comparisons
+ *      selection_objects.sharp     fields (instance, static, fiber-local) and array elements
+ *      selection_calls.sharp       calls, calls of function values, asm instructions
+ */
+class selection_context {
+    code : ir_function;
+    constants : text_table;
+    trial : code_emitter?;          // where `hand_on` (bytecode.sharp) selects an instruction to look at its first word
+
+    selection_context(code: ir_function, constants: text_table) {
+        self->code = code;
+        self->constants = constants;
+    }
+
+    /** an emitter of no words, to select one instruction into and look at (one per function, made again empty) */
+    def trial_emitter(labels: number_list) : code_emitter {
+        if(trial == null) { trial = new code_emitter(labels); }
+        made : code_emitter = trial!!;
+        made.label_pcs = labels;
+        made.words.count = 0;
+        made.line_pcs.count = 0;
+        made.line_numbers.count = 0;
+        made.value_calls_returning.count = 0;
+        return made;
+    }
+
+    /** does this slot hold a reference (and not a number)? */
+    def is_reference(slot: _int64) : _int64 {
+        return code.slot_kinds.at(slot) == SLOT_REF;
+    }
+}
+
+/** the VM code of one IR instruction */
+def select_instruction(out: code_emitter, made: ir_instruction, context: selection_context) {
+    kind : _int64 = made.kind;
+    if(kind == IR_LINE) { out.line(made.number); return; }
+    if(kind == IR_LABEL) { return; }
+    if(kind == IR_INT_CONSTANT) { select_int_constant(out, made.target, made.number); return; }
+    if(kind == IR_DECIMAL_CONSTANT) { select_decimal_constant(out, made, context); return; }
+    if(kind == IR_NULL) {
+        out.class_e(OP_PUSHNULL);
+        out.class_d(OP_POPL, made.target);
+        return;
+    }
+    if(kind == IR_TEXT) {
+        // a shared text is the same instruction with a negative operand: -(2 * string + 1) for the shared
+        // array, -(2 * string + 2) for the shared string object (codegen.md 4.10)
+        operand : _int64 = made.number;
+        if(made.detail != TEXT_FRESH) { operand = 0 - (made.number * 2 + made.detail); }
+        out.class_d(OP_NEWSTRING, operand);
+        out.class_d(OP_POPL, made.target);
+        return;
+    }
+    if(kind == IR_COPY) { select_copy(out, made, context); return; }
+    if(kind == IR_CONVERT) { select_convert(out, made); return; }
+    if(kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY) { select_binary(out, made); return; }
+    if(kind == IR_INT_IMMEDIATE) { select_int_immediate(out, made); return; }
+    if(kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE) { select_compare(out, made); return; }
+    if(kind == IR_NEGATE) {
+        out.class_c(OP_LOADL, REG_EBX, made.first);
+        if(made.detail == 1) { out.class_c(OP_DNEG, REG_EBX, REG_EBX); } else { out.class_c(OP_NEG, REG_EBX, REG_EBX); }
+        out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+        return;
+    }
+    if(kind == IR_MATH) {
+        // a function of one number: slot to slot, the function's number in the instruction
+        if(made.second < 0 && slots_in_reach(made.target, made.first, 0)) {
+            out.class_b(OP_DMATH_S, made.target, made.first, made.number);
+            return;
+        }
+        // through the registers: the four the VM has an instruction of its own for; every other one is `dmath`
+        out.class_c(OP_LOADL, REG_EBX, made.first);
+        if(made.number == MATH_SQRT) { out.class_c(OP_DSQRT, REG_EBX, REG_EBX); }
+        else if(made.number == MATH_FLOOR) { out.class_c(OP_DFLOOR, REG_EBX, REG_EBX); }
+        else if(made.number == MATH_CEIL) { out.class_c(OP_DCEIL, REG_EBX, REG_EBX); }
+        else if(made.number == MATH_ABS) { out.class_c(OP_DABS, REG_EBX, REG_EBX); }
+        else {
+            if(made.second >= 0) { out.class_c(OP_LOADL, REG_EGX, made.second); }       // (dmath reads it there)
+            out.class_b(OP_DMATH, REG_EBX, REG_EBX, made.number);
+        }
+        out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+        return;
+    }
+    if(kind == IR_NOT) {
+        if(made.detail != 1 && slots_in_reach(made.target, made.first, 0)) { out.class_b(OP_NOT_S, made.target, made.first, 0); return; }
+        out.class_c(OP_LOADL, REG_EBX, made.first);
+        if(made.detail == 1) { out.class_c(OP_DNOT, REG_EBX, REG_EBX); } else { out.class_c(OP_NOT, REG_EBX, REG_EBX); }
+        out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+        return;
+    }
+    if(kind == IR_SAME_OBJECT) {
+        out.class_d(OP_PUSHL, made.first);
+        out.class_d(OP_PUSHL, made.second);
+        out.class_d(OP_ITEST, REG_EBX);
+        out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+        return;
+    }
+    if(kind == IR_IS_NULL) {
+        if(slots_in_reach(made.target, made.first, 0)) { out.class_b(OP_ISNULL_S, made.target, made.first, 0); return; }
+        out.class_d(OP_MOVL, made.first);
+        out.class_d(OP_CHECKNULL, REG_EBX);
+        out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+        return;
+    }
+    if(kind == IR_GET_FIELD || kind == IR_GET_STATIC) { select_get_field(out, made); return; }
+    if(kind == IR_SET_FIELD || kind == IR_SET_STATIC) { select_set_field(out, made); return; }
+    if(kind == IR_NEW_OBJECT) {
+        out.e_and_raw(OP_NEWCLASS, made.declaration!!.address);
+        out.class_d(OP_POPL, made.target);
+        return;
+    }
+    if(kind == IR_NEW_ARRAY) { select_new_array(out, made); return; }
+    if(kind == IR_GET_ELEMENT) { select_get_element(out, made); return; }
+    if(kind == IR_SET_ELEMENT) { select_set_element(out, made, context); return; }
+    if(kind == IR_LENGTH) {
+        if(slots_in_reach(made.target, made.first, 0)) { out.class_b(OP_SIZEOF_S, made.target, made.first, 0); return; }
+        out.class_d(OP_MOVL, made.first);
+        out.class_d(OP_SIZEOF, REG_EBX);
+        out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+        return;
+    }
+    if(kind == IR_CALL) { select_call(out, made, context); return; }
+    if(kind == IR_CALL_VALUE) { select_call_value(out, made, context); return; }
+    if(kind == IR_IS) {
+        // `is r, x` tests the object ptr is on: x is a class address, or for a number array its VM type
+        // (the VM decides which by what the object is: codegen.md 4.5, 11.6); null gives 0
+        out.class_d(OP_MOVL, made.first);
+        out.d_and_raw(OP_IS, REG_EBX, made.number);
+        out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+        return;
+    }
+    if(kind == IR_JUMP) { out.class_d(OP_JMP, out.label_pc(made.number)); return; }
+    if(kind == IR_JUMP_IF || kind == IR_JUMP_UNLESS) {
+        if(out.skip_at < 0) {
+            // the condition is in its slot: one instruction, no register
+            if(kind == IR_JUMP_IF) { out.d_and_raw(OP_JNZ_S, made.first, out.label_pc(made.number)); }
+            else { out.d_and_raw(OP_JZ_S, made.first, out.label_pc(made.number)); }
+            return;
+        }
+        // (the instruction before left the condition in cmt and did not store it: `hand_on`, bytecode.sharp)
+        out.class_c(OP_LOADL, REG_CMT, made.first);
+        // je jumps when cmt is NOT 0 ("if true"), jne when it IS 0 (codegen.md 4.9)
+        if(kind == IR_JUMP_IF) { out.class_d(OP_JE, out.label_pc(made.number)); }
+        else { out.class_d(OP_JNE, out.label_pc(made.number)); }
+        return;
+    }
+    if(kind == IR_RETURN) { out.class_d(OP_RET, 0); return; }
+    if(kind == IR_RETURN_VALUE) {
+        if(context.is_reference(made.first)) {
+            out.class_d(OP_RETURNOBJ_S, made.first);
+        } else if(made.number == NARROW_NONE && out.skip_at < 0) {
+            out.class_d(OP_RETURNVAL_S, made.first);
+        } else {
+            out.class_c(OP_LOADL, REG_EBX, made.first);
+            narrow(out, REG_EBX, made.number);
+            out.class_d(OP_RETURNVAL, REG_EBX);
+        }
+        out.class_d(OP_RET, 0);
+        return;
+    }
+    if(kind == IR_THROW) {
+        out.class_d(OP_PUSHL, made.first);
+        out.class_e(OP_THROW);
+        return;
+    }
+    if(kind == IR_LOCK || kind == IR_UNLOCK) {
+        // lock / ulock work on the object ptr is on; a null one raises nullptr_exception (codegen.md 4.8)
+        out.class_d(OP_MOVL, made.first);
+        if(kind == IR_LOCK) { out.class_e(OP_LOCK); } else { out.class_e(OP_ULOCK); }
+        return;
+    }
+    if(kind == IR_ASM) { select_asm(out, made); return; }
+    if(kind == IR_NOP) { out.class_e(OP_NOP); return; }
+    if(kind == IR_CAST) {
+        out.class_d(OP_MOVL, made.first);
+        if(made.detail == 1) { out.class_c(0x6c, made.number, 1); }      // varcast <type>, 1
+        else { out.class_d(OP_CAST, made.number); }
+        return;
+    }
+    // an IR instruction without a sequence is a bug of the compiler: said, never skipped
+    out.cannot_select("the IR instruction of kind " + kind);
+}

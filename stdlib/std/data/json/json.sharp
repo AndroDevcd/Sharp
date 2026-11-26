@@ -1,0 +1,399 @@
+mod std.data;
+
+import ( std.io, std.reflect )
+
+/**
+ * JSON AND YOUR OWN CLASSES
+ *
+ *      class address { street : string = ""; city : string = ""; }
+ *
+ *      class user {
+ *          name : string = "";
+ *          age : _int64 = 0;
+ *          admin : bool = false;
+ *          home : address?;
+ *          tags : list<string> = new list<string>();
+ *          photo_url : string?;
+ *      }
+ *
+ *      someone := json.to<user>("{\"name\":\"ann\",\"age\":31,\"home\":{\"city\":\"Oslo\"},\"tags\":[\"a\",\"b\"]}");
+ *      someone.home!!.city                     // "Oslo"
+ *
+ *      everyone := json.to<list<user> >(text);     // a json array
+ *      text := json.of(someone);                   // {"name":"ann","age":31,"admin":false, ...}
+ *
+ * A json object fills an object FIELD BY FIELD, by name. Nothing is written
+ * per class: no annotations, no from_json().
+ *
+ *      json                field
+ *      "text"              string
+ *      12, 1.5             any number type (_int64, decimal, int, long, double ...); "12" in quotes is read too
+ *      true, false         bool, boolean
+ *      { ... }             a class of yours - filled the same way, as deep as it goes
+ *      [ ... ]             list<T>, T[] (T any of the above), a number array (_int64[], decimal[] ...)
+ *      "text"              _int8[]: the characters (and json.of writes an _int8[] as a text)
+ *      anything            json_value: the value as it is, for parts without a fixed shape
+ *      null, or missing    the field keeps what its constructor gave it
+ *
+ * NAMES. A member is looked for under the field's name, and then under the
+ * name as most web APIs write it: the field `photo_url` is filled by
+ * "photo_url" or by "photoUrl". Members no field has are skipped. json.of()
+ * writes the field's name as it is.
+ *
+ * WHAT A CLASS NEEDS: a constructor without parameters (which every class
+ * without a written constructor has). It runs first, so a field's written
+ * value is what stays when the json does not mention it.
+ *
+ * NOT READ YET: enums, hash maps (declare such a part as json_value), and
+ * fields of the type `object`. json.of() writes an enum as its name.
+ *
+ * A value of the wrong kind - a text where the field is a number, an array
+ * where it is an object - is a json_exception that says where:
+ * "user.home.city: expected a string, found a number".
+ *
+ *      json.to<t>(text)            an object of t from json text
+ *      json.value_to<t>(value)     ... from a json_value that is parsed already
+ *      json.fill(object, value)    fill an object you made
+ *      json.of(object)             json text of an object, a list or an array
+ *      json.value_of(object)       ... as a json_value
+ *      json.pretty(object)         ... as text over several lines
+ *      json.parse(text)            a json_value (the same as json_parser.parse)
+ *
+ * How it is done: std.reflect (reflect.sharp).
+ *
+ *      Java comparison: Gson's gson.fromJson(text, User.class) and toJson(user);
+ *      Kotlin: Json.decodeFromString<User>(text).
+ */
+class json {
+    static def parse(text: string) : json_value {
+        return json_parser.parse(text);
+    }
+
+    static def to<t>(text: string) : t {
+        reflects<t>();
+        made := new t();
+        json_objects.fill_top(made, json_parser.parse(text));
+        return made;
+    }
+
+    static def value_to<t>(value: json_value) : t {
+        reflects<t>();
+        made := new t();
+        json_objects.fill_top(made, value);
+        return made;
+    }
+
+    /** fill `target` (an object of a class of yours, or a list) from a json object (or array) */
+    static def fill(target: object, value: json_value) {
+        json_objects.fill_top(target, value);
+    }
+
+    static def of(source: object?) : string {
+        return json_objects.value_of(source, 0).to_string()!!;
+    }
+
+    static def pretty(source: object?) : string {
+        return json_objects.value_of(source, 0).to_pretty_string();
+    }
+
+    static def value_of(source: object?) : json_value {
+        return json_objects.value_of(source, 0);
+    }
+}
+
+/** how json.to / json.of work: objects made and read through std.reflect */
+class json_objects {
+    private static const DEEPEST : _int64 = 200;
+
+    // the kinds of std.reflect's type_info
+    private static const KIND_UINT8 : _int64 = 4;       // what `bool` is
+    private static const KIND_NUMBER_LAST : _int64 = 9;
+    private static const KIND_OBJECT : _int64 = 10;
+    private static const KIND_CLASS : _int64 = 11;
+
+    // ================================================================ json -> objects
+
+    static def fill_top(target: object, value: json_value) {
+        shape : class_info? = reflect.of(target);
+        if(shape == null) { throw new json_exception("json can fill an object of a class or a list, not an array or a number"); }
+        fill(target, shape!!.open(), value, shape!!.name);
+    }
+
+    /** fill an object from a json object, or a list from a json array */
+    private static def fill(target: object, shape: class_info, value: json_value, where: string) {
+        if(is_list(shape)) {
+            if(!value.is_array()) { throw wrong(where, "an array", value); }
+            fill_list(target, shape, value, where);
+            return;
+        }
+        if(!value.is_object()) { throw wrong(where, "an object", value); }
+        all := shape.fields();
+        for(i : _int64 = 0; i < all.size(); i++) {
+            field := all.at(i);
+            member : json_value? = value.find(field.name);
+            if(member == null) {
+                other : string = web_name(field.name);
+                if(other != field.name) { member = value.find(other); }
+            }
+            if(member == null || member!!.is_null() || field.is_constant) { continue; }
+            put(target, field, member!!, where + "." + field.name);
+        }
+    }
+
+    /** give one field its value from one json value */
+    private static def put(target: object, field: field_info, value: json_value, where: string) {
+        kind : _int64 = field.type.kind;
+        if(field.type.is_array) {
+            if(kind <= KIND_NUMBER_LAST) { field.write(target, number_array(kind, value, where)); }
+            else if(kind == KIND_CLASS) { field.write(target, object_array(field.type.class_of()!!, value, where)); }
+            return;
+        }
+        if(kind <= KIND_NUMBER_LAST) {
+            field.write(target, number_from(value, kind == KIND_UINT8, where));
+            return;
+        }
+        if(kind == KIND_CLASS) {
+            made : object? = object_from(field.type.class_of()!!, value, where);
+            if(made != null) { field.write(target, made); }
+        }
+        // (a field of the type `object` is left alone: nothing says what it should hold)
+    }
+
+    /** the number a json value stands for: a number, true / false for a bool field, a number in quotes */
+    private static def number_from(value: json_value, is_bool: bool, where: string) : decimal {
+        if(value.is_number()) { return value.as_number(); }
+        if(value.is_bool()) {
+            if(value.as_bool()) { return 1; }
+            return 0;
+        }
+        if(value.is_string()) {
+            text : string = io_strings.trim(value.as_string());
+            if(is_bool && (text == "true" || text == "false")) {
+                if(text == "true") { return 1; }
+                return 0;
+            }
+            if(io_strings.is_number(text)) { return io_strings.parse_number(text); }
+        }
+        if(is_bool) { throw wrong(where, "true or false", value); }
+        throw wrong(where, "a number", value);
+    }
+
+    /** an object of `shape` for a json value; null when the kind of class is not read (maps) */
+    private static def object_from(closed: class_info, value: json_value, where: string) : object? {
+        // (json fills private fields and uses private constructors: it opens the class)
+        shape : class_info = closed.open();
+        name : string = shape.full_name;
+        if(name == "std#string") {
+            if(value.is_string()) { return value.as_string(); }
+            if(value.is_number()) { return http_free_number_text(value.as_number()); }
+            if(value.is_bool()) {
+                if(value.as_bool()) { return new string("true"); }
+                return new string("false");
+            }
+            throw wrong(where, "a string", value);
+        }
+        if(name == "std.data#json_value") { return value; }
+        if(is_number_box(name)) {
+            box : object = shape.create();
+            inner : field_info? = shape.field("value");
+            if(inner == null) { return null; }
+            inner!!.write(box, number_from(value, name == "std#boolean", where));
+            return box;
+        }
+        if(shape.is_enum) { return enum_from(shape, value, where); }
+        if(io_strings.starts_with(name, "std#hash_map<") || io_strings.starts_with(name, "std#dictionary<")) { return null; }
+        made : object = shape.create();
+        fill(made, shape, value, where);
+        return made;
+    }
+
+    /** the value of an enum a json value names: by its name ("red"), or by its number */
+    private static def enum_from(shape: class_info, value: json_value, where: string) : object? {
+        found : enum_value? = null;
+        if(value.is_string()) { found = shape.value(value.as_string()); }
+        else if(value.is_number()) { found = shape.value_at(value.as_number()); }
+        if(found == null) {
+            names := new string_builder();
+            all := shape.values();
+            for(i : _int64 = 0; i < all.size(); i++) {
+                if(i > 0) { names.append(", "); }
+                names.append(all.at(i).name);
+            }
+            throw new json_exception(where + ": expected one of " + names.to_string()!! + ", found " + value.to_string()!!);
+        }
+        return found!!.value;
+    }
+
+    private static def fill_list(target: object, shape: class_info, value: json_value, where: string) {
+        storage : field_info? = shape.field("data");
+        count : field_info? = shape.field("n_elements");
+        if(storage == null || count == null || storage!!.type.class_of() == null) {
+            throw new json_exception(where + ": a list of this kind cannot be read from json");
+        }
+        // (an empty list keeps the storage its constructor made)
+        if(value.size() > 0) { storage!!.write(target, object_array(storage!!.type.class_of()!!, value, where)); }
+        count!!.write(target, value.size());
+    }
+
+    /** `shape[]` with one item per json item */
+    private static def object_array(shape: class_info, value: json_value, where: string) : object? {
+        if(!value.is_array()) { throw wrong(where, "an array", value); }
+        size : _int64 = value.size();
+        if(size == 0) { return null; }
+        made : object = shape.create_array(size)!!;
+        items : object[] = made as object[];
+        for(i : _int64 = 0; i < size; i++) {
+            item : json_value = value.at(i);
+            if(item.is_null()) { continue; }
+            items[i] = object_from(shape, item, where + "[" + i + "]");
+        }
+        return made;
+    }
+
+    /** a number array of the field's kind with one number per json item; a json string fills an _int8[] with its characters */
+    private static def number_array(kind: _int64, value: json_value, where: string) : object {
+        if(value.is_string() && (kind == 0 || kind == KIND_UINT8)) {
+            text : string = value.as_string();
+            if(sizeof(text.data) == 0) { return new _int8[0]; }
+            return copy(text.data!!, 0, sizeof(text.data))!!;
+        }
+        if(!value.is_array()) { throw wrong(where, "an array", value); }
+        size : _int64 = value.size();
+        if(kind == 0) { made := new _int8[size]; for(i : _int64 = 0; i < size; i++) { made[i] = number_from(value.at(i), false, where + "[" + i + "]"); } return made; }
+        if(kind == 1) { made := new _int16[size]; for(i : _int64 = 0; i < size; i++) { made[i] = number_from(value.at(i), false, where + "[" + i + "]"); } return made; }
+        if(kind == 2) { made := new _int32[size]; for(i : _int64 = 0; i < size; i++) { made[i] = number_from(value.at(i), false, where + "[" + i + "]"); } return made; }
+        if(kind == 4) { made := new _uint8[size]; for(i : _int64 = 0; i < size; i++) { made[i] = number_from(value.at(i), true, where + "[" + i + "]"); } return made; }
+        if(kind == 5) { made := new _uint16[size]; for(i : _int64 = 0; i < size; i++) { made[i] = number_from(value.at(i), false, where + "[" + i + "]"); } return made; }
+        if(kind == 6) { made := new _uint32[size]; for(i : _int64 = 0; i < size; i++) { made[i] = number_from(value.at(i), false, where + "[" + i + "]"); } return made; }
+        if(kind == 7) { made := new _uint64[size]; for(i : _int64 = 0; i < size; i++) { made[i] = number_from(value.at(i), false, where + "[" + i + "]"); } return made; }
+        if(kind == 9) { made := new decimal[size]; for(i : _int64 = 0; i < size; i++) { made[i] = number_from(value.at(i), false, where + "[" + i + "]"); } return made; }
+        made := new _int64[size];
+        for(i : _int64 = 0; i < size; i++) { made[i] = number_from(value.at(i), false, where + "[" + i + "]"); }
+        return made;
+    }
+
+    // ================================================================ objects -> json
+
+    static def value_of(source: object?, depth: _int64) : json_value {
+        if(source == null) { return json_value.of_null(); }
+        if(depth > DEEPEST) { throw new json_exception("json.of: the objects are nested more than " + DEEPEST + " deep (does one of them lead back to itself?)"); }
+        said : type_info = reflect.type_of(source);
+        kind : _int64 = said.kind;
+        if(said.is_array) { return array_value(source!!, kind, depth); }
+        if(kind != KIND_CLASS || said.class_of() == null) { return json_value.of_null(); }
+
+        shape : class_info = said.class_of()!!.open();
+        name : string = shape.full_name;
+        if(name == "std#string") { return json_value.of_string(source as string); }
+        if(name == "std.data#json_value") { return source as json_value; }
+        if(name == "std#boolean") { return json_value.of_bool((source as boolean).value); }
+        if(is_number_box(name)) { return json_value.of_number(box_number(source!!, name)); }
+        if(shape.is_enum || name == "std#_enum_") {
+            label : _int8[]? = (source as _enum_).name;
+            if(sizeof(label) == 0) { return json_value.of_string(""); }
+            return json_value.of_string(new string(label!!, 0, sizeof(label)));
+        }
+        if(is_list(shape)) {
+            storage : field_info? = shape.field("data");
+            count : field_info? = shape.field("n_elements");
+            made := json_value.new_array();
+            if(storage == null || count == null) { return made; }
+            items : object[]? = storage!!.read(source) as object[];
+            size : _int64 = count!!.number(source);
+            for(i : _int64 = 0; i < size; i++) { made.add(value_of(items[i], depth + 1)); }
+            return made;
+        }
+
+        made := json_value.new_object();
+        // (the fields of the classes above come first, as they are written first)
+        all := shape.fields();
+        for(i : _int64 = 0; i < all.size(); i++) {
+            field := all.at(i);
+            if(made.has(field.name)) { continue; }
+            if(field.type.is_number) {
+                number : decimal = field.number(source);
+                if(field.type.kind == KIND_UINT8) { made.put_bool(field.name, number != 0); }
+                else { made.put_number(field.name, number); }
+            } else {
+                made.put(field.name, value_of(field.read(source), depth + 1));
+            }
+        }
+        return made;
+    }
+
+    private static def array_value(source: object, kind: _int64, depth: _int64) : json_value {
+        // an _int8[] is characters: a text (what a text in quotes is when it is handed over as an `object`)
+        if(kind == 0) {
+            characters : _int8[] = source as _int8[];
+            return json_value.of_string(new string(characters, 0, sizeof(characters)));
+        }
+        made := json_value.new_array();
+        if(kind > KIND_NUMBER_LAST) {
+            items : object[] = source as object[];
+            for(i : _int64 = 0; i < sizeof(items); i++) { made.add(value_of(items[i], depth + 1)); }
+            return made;
+        }
+        if(kind == 1) { items := source as _int16[]; for(i : _int64 = 0; i < sizeof(items); i++) { made.add_number(items[i]); } }
+        else if(kind == 2) { items := source as _int32[]; for(i : _int64 = 0; i < sizeof(items); i++) { made.add_number(items[i]); } }
+        else if(kind == 4) { items := source as _uint8[]; for(i : _int64 = 0; i < sizeof(items); i++) { made.add_bool(items[i] != 0); } }
+        else if(kind == 5) { items := source as _uint16[]; for(i : _int64 = 0; i < sizeof(items); i++) { made.add_number(items[i]); } }
+        else if(kind == 6) { items := source as _uint32[]; for(i : _int64 = 0; i < sizeof(items); i++) { made.add_number(items[i]); } }
+        else if(kind == 7) { items := source as _uint64[]; for(i : _int64 = 0; i < sizeof(items); i++) { made.add_number(items[i]); } }
+        else if(kind == 9) { items := source as decimal[]; for(i : _int64 = 0; i < sizeof(items); i++) { made.add_number(items[i]); } }
+        else { items := source as _int64[]; for(i : _int64 = 0; i < sizeof(items); i++) { made.add_number(items[i]); } }
+        return made;
+    }
+
+    private static def box_number(box: object, name: string) : decimal {
+        if(name == "std#int") { return (box as int).value; }
+        if(name == "std#long") { return (box as long).value; }
+        if(name == "std#double") { return (box as double).value; }
+        if(name == "std#char") { return (box as char).value; }
+        if(name == "std#short") { return (box as short).value; }
+        if(name == "std#uint") { return (box as uint).value; }
+        if(name == "std#ulong") { return (box as ulong).value; }
+        if(name == "std#ushort") { return (box as ushort).value; }
+        return (box as uchar).value;
+    }
+
+    // ================================================================ what a class is
+
+    private static def is_list(shape: class_info) : bool {
+        return io_strings.starts_with(shape.full_name, "std#list<");
+    }
+
+    private static def is_number_box(name: string) : bool {
+        return name == "std#int" || name == "std#long" || name == "std#double" || name == "std#boolean" || name == "std#char"
+            || name == "std#short" || name == "std#uint" || name == "std#ulong" || name == "std#ushort" || name == "std#uchar" || name == "std#byte";
+    }
+
+    /** photo_url -> photoUrl: the name as most web APIs write it */
+    private static def web_name(name: string) : string {
+        if(io_strings.index_of(name, '_') < 0) { return name; }
+        made := new char_buffer();
+        upper : bool = false;
+        for(i : _int64 = 0; i < sizeof(name.data); i++) {
+            ch : _int64 = name.data!![i];
+            if(ch == '_' && i > 0) { upper = true; continue; }
+            if(upper) { made.append_char(character.to_upper(ch) as _int64); upper = false; }
+            else { made.append_char(ch); }
+        }
+        return made.build();
+    }
+
+    private static def http_free_number_text(value: decimal) : string {
+        whole : _int64 = value as _int64;
+        if(whole == value) { return "" + whole; }
+        return io_strings.number_to_string(value);
+    }
+
+    private static def wrong(where: string, wanted: string, found: json_value) : json_exception {
+        return new json_exception(where + ": expected " + wanted + ", found " + article(found.kind_name()));
+    }
+
+    private static def article(kind: string) : string {
+        if(kind == "null") { return "null"; }
+        if(kind == "object" || kind == "array") { return "an " + kind; }
+        return "a " + kind;
+    }
+}

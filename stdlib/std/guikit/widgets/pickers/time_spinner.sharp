@@ -1,0 +1,159 @@
+mod std.guikit.widgets.pickers;
+
+import (
+    std.guikit.*,
+    std.time
+)
+
+/**
+ * time_spinner - two numbers to set a time of day with: hours and minutes,
+ * each with an arrow above and below. Made with time_view(state), and used
+ * inside time_picker(...).
+ *
+ *      at := state_of<time_of_day>(time_of_day.of(9, 30));
+ *      time_view(at);
+ *
+ *            ^         ^
+ *           09    :    30
+ *            v         v
+ *
+ * An arrow steps the hour by one and the minute by five (to the next round
+ * five); the mouse wheel over a number steps it by one. Both wrap around:
+ * 23 -> 00, 55 -> 00. The clock is the 24-hour one.
+ * (Android: TimePicker in spinner mode. Compose: TimeInput / TimePicker.)
+ */
+stable class time_spinner base widget : behavior, pointer_target, wheel_target {
+    private bound : state<time_of_day>;
+
+    private static const WIDE : decimal = 84;       // one number's column
+    private static const GAP : decimal = 28;        // the room for the colon between them
+    private static const ARROW : decimal = 34;      // the height of the strip an arrow sits in
+    private static const TALL : decimal = 132;
+
+    time_spinner(value: state<time_of_day>) {
+        attach(self);
+        bound = value;
+    }
+
+    override def kind() : string { return "time_spinner"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        me.content_w = WIDE * 2 + GAP;
+        me.content_h = TALL;
+    }
+
+    override def arrange() {
+    }
+
+    /** the left edge of the two columns, centred in the widget */
+    private def left() : decimal {
+        return me.x + (me.w - (WIDE * 2 + GAP)) / 2;
+    }
+
+    /** which column a window point is over: 0 hours, 1 minutes, -1 neither */
+    private def column_at(x: decimal) : _int64 {
+        from : decimal = left();
+        if(x >= from && x < from + WIDE) { return 0; }
+        if(x >= from + WIDE + GAP && x < from + WIDE * 2 + GAP) { return 1; }
+        return 0 - 1;
+    }
+
+    /** move the hour (which 0) or the minute (which 1) by `by`, wrapping around */
+    private def step(which: _int64, by: _int64) {
+        now : time_of_day = bound.peek();
+        hour : _int64 = now.hour();
+        minute : _int64 = now.minute();
+        if(which == 0) {
+            hour = (hour + by + 24) % 24;
+        } else {
+            minute = (minute + by + 60) % 60;
+        }
+        bound.value = time_of_day.of(hour, minute);
+    }
+
+    /** an arrow: the hour by one; the minute to the next (or previous) round five */
+    override def pointer(what: _int64, x: decimal, y: decimal) {
+        if(what != POINTER_RELEASE || me.contains(x, y) == 0) {
+            return;
+        }
+        which : _int64 = column_at(x);
+        if(which < 0) {
+            return;
+        }
+        way : _int64 = 0;
+        if(y < me.y + ARROW) { way = 1; }
+        if(y >= me.y + me.h - ARROW) { way = 0 - 1; }
+        if(way == 0) {
+            return;
+        }
+        if(which == 0) {
+            step(0, way);
+        } else {
+            minute : _int64 = bound.peek().minute();
+            if(way > 0) { step(1, 5 - minute % 5); }
+            else if(minute % 5 == 0) { step(1, 0 - 5); }
+            else { step(1, 0 - minute % 5); }
+        }
+    }
+
+    /** the wheel over a number steps it by one (rolling away from you: up) */
+    override def wheel(dx: decimal, dy: decimal) : _int64 {
+        if(ui_host.current == null) {
+            return 0;
+        }
+        which : _int64 = column_at(ui_host.current!!.mouse_x);
+        if(which < 0 || dy == 0) {
+            return 0;
+        }
+        if(dy > 0) { step(which, 1); }             // rolled away from you: the number goes up
+        else { step(which, 0 - 1); }
+        return 1;
+    }
+
+    /** an arrow head pointing up (way 1) or down (way -1), centred on (cx, cy) */
+    private static def arrow(p: painter, cx: decimal, cy: decimal, way: _int64, ink: color) {
+        p.line(cx - 7, cy + 3 * way, cx, cy - 3 * way, 2, ink);
+        p.line(cx, cy - 3 * way, cx + 7, cy + 3 * way, 2, ink);
+    }
+
+    /** a number always written with two digits: 7 -> "07" */
+    private static def two_digits(n: _int64) : string {
+        if(n < 10) { return "0" + n; }
+        return "" + n;
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        big : font = host.font_of(40, 1);
+        now : time_of_day = bound.peek();
+        hour : _int64 = now.hour();
+        minute : _int64 = now.minute();
+        from : decimal = left();
+
+        over : _int64 = 0 - 1;
+        if(me.hovered == 1) { over = column_at(host.mouse_x); }
+
+        for(i : _int64 = 0; i < 2; i++) {
+            x : decimal = from + (WIDE + GAP) * i;
+            p.rect(x, me.y + ARROW, WIDE, me.h - ARROW * 2, 10, t.surface_high);
+
+            words : string = two_digits(hour);
+            if(i == 1) { words = two_digits(minute); }
+            p.text(words, x + (WIDE - big.width_of(words)) / 2, me.y + (me.h - big.line_height) / 2, big, t.text);
+
+            // the arrows: brighter in the column the mouse is over
+            ink : color = t.text_dim;
+            if(i == over) { ink = t.primary; }
+            arrow(p, x + WIDE / 2, me.y + ARROW / 2, 1, ink);
+            arrow(p, x + WIDE / 2, me.y + me.h - ARROW / 2, 0 - 1, ink);
+        }
+
+        colon : string = ":";
+        p.text(colon, from + WIDE + (GAP - big.width_of(colon)) / 2, me.y + (me.h - big.line_height) / 2 - 3, big, t.text_dim);
+
+        if(me.hovered == 1) {
+            host.wake_in(0.05);         // the mouse may move to the other column: keep the highlight right
+        }
+    }
+}

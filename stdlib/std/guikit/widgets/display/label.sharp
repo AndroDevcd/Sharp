@@ -1,0 +1,227 @@
+mod std.guikit.widgets.display;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * label - text on the screen. Made with text(...).
+ *
+ *      text("Hello")
+ *      text("Total: " + total.value).size(24).color(theme_green)
+ *      text(long_paragraph, modifier().max_width(400))     // wraps onto several lines
+ *
+ *   .size(px)        the font size in pixels (default: the theme's text size)
+ *   .color(c)        the text colour (default: the theme's text colour)
+ *   .dim()           the theme's quieter text colour (captions, hints)
+ *   .bold()          bold
+ *   .max_lines(n)    at most n lines; text cut off ends in "..."
+ *   .align(how)      where the lines sit when the label is wider than its
+ *                    text: ALIGN_START (left), ALIGN_CENTER, ALIGN_END
+ *
+ * Text breaks at a line feed ("\n") always, and between words when it would
+ * not fit the width on offer - so a label inside a narrow column wraps by
+ * itself. (Compose: Text. Android: TextView. HTML: a span or p.)
+ *
+ * HOW WRAPPING WORKS: measure() is told the room there is. Each paragraph
+ * (the text between line feeds) that is wider than the room is cut greedily:
+ * words are added to the line while they fit, then a new line starts. The
+ * lines are kept for paint(). Measuring text is not free, so the result is
+ * remembered for the width it was made for.
+ */
+stable class label base widget : behavior, shows_words {
+    private words : string = "";
+    private pixels : decimal = 0;                   // 0: the theme's text size
+    private tint : color?;                          // null: the theme's text colour
+    private quiet : _int64 = 0;                     // 1: the theme's dim colour
+    private sideways : _int64 = ALIGN_START;
+    private heavy : _int64 = 0;                     // 1: bold
+    private most : _int64 = 0;                      // show at most this many lines; 0: all of them
+
+    // the text cut into lines, and the room that cut was made for
+    private lines : list<string> = new list<string>();
+    private cut_for : decimal = 0 - 1;
+
+    label(content: string) {
+        attach(self);
+        words = content;
+    }
+
+    /** the font size in pixels */
+    def size(px: decimal) : label {
+        pixels = px;
+        cut_for = 0 - 1;
+        return self;
+    }
+
+    /** the text colour */
+    def color(c: color) : label {
+        tint = c;
+        return self;
+    }
+
+    /** the theme's quieter text colour: captions, hints */
+    def dim() : label {
+        quiet = 1;
+        return self;
+    }
+
+    /** where the lines sit across the label: ALIGN_START, ALIGN_CENTER, ALIGN_END */
+    def align(how: _int64) : label {
+        sideways = how;
+        return self;
+    }
+
+    /** bold text: headings, the thing that matters on a line */
+    def bold() : label {
+        heavy = 1;
+        cut_for = 0 - 1;
+        return self;
+    }
+
+    /**
+     * At most this many lines. Text that would need more is cut, and the last
+     * line that is shown ends in "..." so the reader can tell.
+     * text(title).max_lines(1) is the usual one-line title in a list row.
+     * (Android: maxLines + ellipsize. Compose: maxLines + TextOverflow.Ellipsis.)
+     */
+    def max_lines(count: _int64) : label {
+        most = count;
+        cut_for = 0 - 1;
+        return self;
+    }
+
+    private def face() : font {
+        host := ui_host.current!!;
+        if(pixels > 0) {
+            return host.font_of(pixels, heavy);
+        }
+        return host.font_of(host.look.text_size, heavy);
+    }
+
+    override def kind() : string { return "label"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        f : font = face();
+        if(cut_for != max_w) {
+            cut_into_lines(f, max_w);
+            keep_to_most(f, max_w);
+            cut_for = max_w;
+        }
+
+        widest : decimal = 0;
+        count : _int64 = lines.size();
+        for(i : _int64 = 0; i < count; i++) {
+            widest = num.larger(widest, f.width_of(lines.at(i)));
+        }
+        me.content_w = num.smaller(widest, max_w);
+        me.content_h = count * f.line_height;
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        f : font = face();
+        look : theme = ui_host.current!!.look;
+        ink : color = look.text;
+        if(quiet == 1) { ink = look.text_dim; }
+        if(tint != null) { ink = tint!!; }
+        if(me.enabled == 0) { ink = look.text_dim; }
+
+        left : decimal = me.inner_x();
+        top : decimal = me.inner_y();
+        room : decimal = me.inner_w();
+
+        count : _int64 = lines.size();
+        for(i : _int64 = 0; i < count; i++) {
+            line : string = lines.at(i);
+            start : decimal = left;
+            if(sideways != ALIGN_START) {
+                free : decimal = room - f.width_of(line);
+                if(sideways == ALIGN_CENTER) { start = left + free / 2; }
+                else { start = left + free; }
+            }
+            p.text(line, start, top + i * f.line_height, f, ink);
+        }
+    }
+
+    // ------------------------------------------------------------ cutting text into lines
+
+    /**
+     * max_lines: drop the lines past the limit, and end the last one that is
+     * kept with "..." - shortening it letter by letter until line and dots fit
+     * the room together.
+     */
+    private def keep_to_most(f: font, room: decimal) {
+        count : _int64 = lines.size();
+        if(most <= 0 || count <= most) {
+            return;
+        }
+        for(i : _int64 = count - 1; i >= most; i--) {
+            lines.remove_at(i);
+        }
+
+        last : string = lines.at(most - 1);
+        keep : _int64 = last.size();
+        while(keep > 0 && num.is_bounded(room) == 1 && f.width_of(txt.slice(last, 0, keep) + "...") > room) {
+            keep = keep - 1;
+        }
+        lines.remove_at(most - 1);
+        lines.add(txt.slice(last, 0, keep) + "...");
+    }
+
+    private static const LINE_FEED : _int64 = 10;
+    private static const SPACE : _int64 = 32;
+
+    /** fill `lines` with the text broken at line feeds, and between words where it is wider than `room` */
+    private def cut_into_lines(f: font, room: decimal) {
+        lines.clear();
+        total : _int64 = words.size();
+        start : _int64 = 0;
+        for(i : _int64 = 0; i <= total; i++) {
+            at_end : _int64 = 0;
+            if(i == total) { at_end = 1; }
+            else if(words.at(i).value == LINE_FEED) { at_end = 1; }
+
+            if(at_end == 1) {
+                wrap_paragraph(f, txt.slice(words, start, i), room);
+                start = i + 1;
+            }
+        }
+    }
+
+    /** one paragraph (no line feeds in it): as one line if it fits, otherwise word by word */
+    private def wrap_paragraph(f: font, paragraph: string, room: decimal) {
+        if(num.is_bounded(room) == 0 || f.width_of(paragraph) <= room) {
+            lines.add(paragraph);
+            return;
+        }
+
+        total : _int64 = paragraph.size();
+        line_start : _int64 = 0;        // where the line being filled begins
+        fits_to : _int64 = 0 - 1;       // the last place the line could end and still fit (-1: no word fits yet)
+
+        for(i : _int64 = 0; i <= total; i++) {
+            word_ends : _int64 = 0;
+            if(i == total) { word_ends = 1; }
+            else if(paragraph.at(i).value == SPACE) { word_ends = 1; }
+            if(word_ends == 0) { continue; }
+
+            if(f.width_of(txt.slice(paragraph, line_start, i)) <= room || fits_to < 0) {
+                fits_to = i;            // this word still fits (or it is the first word: it goes on the line anyway)
+            } else {
+                // the word does not fit: end the line before it and start the next line with it
+                lines.add(txt.slice(paragraph, line_start, fits_to));
+                line_start = fits_to + 1;
+                fits_to = i;
+            }
+        }
+        if(line_start <= total) {
+            lines.add(txt.slice(paragraph, line_start, total));
+        }
+    }
+}

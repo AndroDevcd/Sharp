@@ -1,0 +1,178 @@
+mod backend.finalizer.generation.assignment;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation,
+    backend.finalizer.generation.values,
+    backend.finalizer.generation.calls,
+    backend.finalizer.generation.collections,
+    backend.finalizer.generation.closures
+)
+
+/**
+ * A STORAGE PLACE: where `=`, `op=` and `++` put their value (doc/codegen.md 6.2, 6.4)
+ *
+ * The textbook "l-value": the place an assignment writes, worked out ONCE
+ * so that a compound assignment reads and writes the same place without
+ * evaluating its parts twice:
+ *
+ *      count += 1          the local's slot
+ *      shape.sides += 1    the slot holding `shape` (evaluated once), and the field
+ *      counter.made += 1   the class's static object, and the field
+ *      a[i] += 1           the slot of `a` and the slot of `i` (each evaluated once)
+ *      box.width += 1      a PROPERTY: the slot of `box`, read through get_width(),
+ *                          written through set_width(v)
+ *
+ * `read_place` gives its value now, `write_place` stores into it (cut to its
+ * type), `release_place` gives back the slots of its parts.
+ */
+
+/**
+ * A place a value is stored into, its parts evaluated ONCE (6.4): a local's
+ * slot; the object a field is in; a class's static object; an array and an
+ * index. `x.count += 1` reads and writes the same `x.count` without
+ * evaluating `x` twice.
+ */
+class storage_place {
+    kind : _int64;                      // STORE_LOCAL, STORE_FIELD, STORE_ELEMENT
+    type : resolved_type;               // what the place holds
+    slot : _int64 = 0 - 1;              // STORE_LOCAL: the variable's slot
+    holder : _int64 = 0 - 1;            // STORE_FIELD of an object: the slot of the object
+    static_class : _int64 = 0 - 1;      // STORE_FIELD that is static / global: the address of the class holding it
+    field : sharp_field?;
+    array : _int64 = 0 - 1;             // STORE_ELEMENT
+    index : _int64 = 0 - 1;
+    getter : sharp_function?;           // a property: read through this function (null: the stored field is read)
+    setter : sharp_function?;           // ... and written through this one (null: the stored field is written)
+
+    storage_place(kind: _int64, type: resolved_type) {
+        self->kind = kind;
+        self->type = type;
+    }
+}
+
+/**
+ * Evaluate the parts of a target, left to right, and say where it is. For a
+ * PROPERTY the target is its stored field (analysis puts it there) and
+ * `getter` / `setter` say how the place is really read and written; either
+ * may be null - then the stored field itself is read or written.
+ */
+def place_of(g: generator, target: bound_expression, at: bound_expression, getter: sharp_function?,
+             setter: sharp_function?) : storage_place {
+    place := plain_place_of(g, target, at);
+    place.getter = getter;
+    place.setter = setter;
+    if((getter != null || setter != null) && place.kind != STORE_FIELD) {
+        g.stop("a property that is not a field", at.unit, at.node);
+    }
+    return place;
+}
+
+/** a local, a field or an element, its parts evaluated */
+def plain_place_of(g: generator, target: bound_expression, at: bound_expression) : storage_place {
+    if(target.kind == BX_LOCAL) {
+        named := target as bound_local;
+        variable := named.variable;
+        if(lives_in_frame(variable) == 0) {
+            // captured: a field of its closure record; `localized`: a fiber-local slot (generation/closures)
+            place := new storage_place(STORE_FIELD, variable.type);
+            place.field = variable.storage;
+            place.holder = holder_of_local(g, variable, named.depth, at);
+            if(place.holder < 0) { place.static_class = g.made.owner.address; }
+            return place;
+        }
+        if(named.depth > 0) { g.stop("a variable of the function around a lambda that is not captured", at.unit, at.node); }
+        place := new storage_place(STORE_LOCAL, variable.type);
+        place.slot = g.slot_of(variable, at.unit, at.node);
+        return place;
+    }
+    if(target.kind == BX_FIELD) {
+        field_node := target as bound_field;
+        field := field_node.field;
+        place := new storage_place(STORE_FIELD, target.type);
+        place.field = field;
+        if(field_node.on == null || field.has(FLAG_STATIC) || field.is_global() || field.has(FLAG_LOCALIZED)) {
+            if(field_node.on != null && field_node.on!!.kind != BX_TYPE_NAME) { g.b.release(value_of(g, field_node.on!!)); }
+            place.static_class = g.layout.storage_class_of(field).address;
+        } else {
+            place.holder = value_of(g, field_node.on!!);
+        }
+        return place;
+    }
+    if(target.kind == BX_INDEX) {
+        element := target as bound_index;
+        place := new storage_place(STORE_ELEMENT, element.type);
+        place.array = held_over(g, value_of(g, element.array), element.index);
+        place.index = value_of(g, element.index);
+        return place;
+    }
+    g.stop("a store into " + expression_kind_text(target.kind), at.unit, at.node);
+    return new storage_place(STORE_NONE, target.type);
+}
+
+/** the value a place holds now, into a new slot */
+def read_place(g: generator, place: storage_place, at: bound_expression) : _int64 {
+    target : _int64 = g.temp_for(place.type);
+    if(place.getter != null) {
+        // `box.width` through its getter: get_width(box), or get_width() for a static property
+        getter : sharp_function = place.getter!!;
+        arguments := new number_list();
+        if(place.holder >= 0 && !getter.has(FLAG_STATIC)) { arguments.add(place.holder); }
+        g.line_of_node(at.unit, at.node);
+        emit_call(g, target, getter, arguments, dispatch_of(getter), at);
+        return target;
+    }
+    if(place.kind == STORE_LOCAL) { g.b.copy(target, place.slot, NARROW_NONE); }
+    else if(place.kind == STORE_FIELD) {
+        if(place.holder >= 0) { g.b.get_field(target, place.holder, place.field!!); }
+        else { g.b.get_static(target, place.static_class, place.field!!); }
+    } else {
+        made := g.b.emit(IR_GET_ELEMENT);
+        made.target = target;
+        made.first = place.array;
+        made.second = place.index;
+        made.number = element_code_of(place.type);
+    }
+    return target;
+}
+
+/** store a value into a place, cut to its type when that is a narrower integer */
+def write_place(g: generator, place: storage_place, value: _int64, at: bound_expression) {
+    narrowing : _int64 = narrowing_of(place.type);
+    if(place.setter != null) {
+        // `box.width = v` through its setter: set_width(box, v) - the value cut to the parameter's type in the
+        // caller first, as for every argument (4.3)
+        setter : sharp_function = place.setter!!;
+        given : _int64 = value;
+        if(narrowing != NARROW_NONE) {
+            given = g.b.temp(SLOT_INT);
+            g.b.convert(given, value, CONVERT_NARROW, narrowing);
+        }
+        arguments := new number_list();
+        if(place.holder >= 0 && !setter.has(FLAG_STATIC)) { arguments.add(place.holder); }
+        arguments.add(given);
+        g.line_of_node(at.unit, at.node);
+        emit_call(g, 0 - 1, setter, arguments, dispatch_of(setter), at);
+        if(given != value) { g.b.release(given); }
+        return;
+    }
+    if(place.kind == STORE_LOCAL) { g.b.copy(place.slot, value, narrowing); }
+    else if(place.kind == STORE_FIELD) {
+        if(place.holder >= 0) { g.b.set_field(place.holder, place.field!!, value, narrowing); }
+        else { g.b.set_static(place.static_class, place.field!!, value, narrowing); }
+    } else {
+        store_element(g, place.array, place.index, value, place.type);
+    }
+}
+
+/** give back the slots that held the parts of a place (its object, or its array and index) */
+def release_place(g: generator, place: storage_place) {
+    g.b.release(place.holder);
+    g.b.release(place.array);
+    g.b.release(place.index);
+}

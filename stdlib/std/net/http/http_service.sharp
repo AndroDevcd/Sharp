@@ -1,0 +1,311 @@
+mod std.net;
+
+import ( std.io, std.data, std.reflect )
+
+/**
+ * A SERVER YOU TALK TO, DESCRIBED ONCE
+ *
+ *      class user { login : string = ""; name : string = ""; public_repos : _int64 = 0; }
+ *      class repo { name : string = ""; stargazers_count : _int64 = 0; }
+ *
+ *      class github base http_service {
+ *          github() {
+ *              base_url("https://api.github.com");
+ *              header("Accept", "application/vnd.github+json");
+ *          }
+ *
+ *          def user(name: string) : user {
+ *              return GET<user>("/users/{name}") { path("name", name); };
+ *          }
+ *
+ *          def repos(name: string, page: _int64) : list<repo> {
+ *              return GET<list<repo> >("/users/{name}/repos") { path("name", name); query("page", page); };
+ *          }
+ *      }
+ *
+ *      hub := new github();
+ *      print(hub.user("octocat").name);
+ *
+ * Each function of the service is one line: the VERB is the function
+ * called (GET, POST, PUT, PATCH, DELETE - in capitals, as HTTP writes them),
+ * the type in <...> is what the json answer is turned into (json.sharp: any
+ * class of yours, list<t>, a generic class like page<product>), and the
+ * block says what goes into the request. The rest of the program calls
+ * hub.user("octocat") and never sees HTTP.
+ *
+ * IN THE BLOCK (each is explained in http_request.sharp)
+ *      path(name, value)       fills {name} of the route
+ *      query(name, value)      ?name=value (a null value leaves it out)
+ *      header(name, value)     bearer(token)   basic(user, password)   accept(type)
+ *      send(object)            the body: an object of yours, as json
+ *      json(name, value)       the body: a json object, member by member
+ *      form(name, value)       the body: a form
+ *      part(name, value)       part(name, file, type)      the body: a form in parts, with files
+ *      body(text)   body(text, type)   body(bytes, type)   body(json_value)
+ *      timeout(milliseconds)
+ *
+ * IN THE CONSTRUCTOR - for every request of the service
+ *      base_url(address)       what every route is appended to
+ *      header(...) bearer(...) basic(...) accept(...) timeout(...)     the same words: outside a block they are for all requests
+ *      retry(times, wait)      try again (after `wait` ms, then twice that ...) when there is no answer
+ *                              or the server says 502, 503 or 504 - only for requests that are safe
+ *                              to repeat (GET, HEAD, PUT, DELETE)
+ *      before { ... }          runs on every request before it is sent (`it` is the request): add a token
+ *      after { ... }           runs on every answer (`it` is the response): notice a 401
+ *      log(http_log.basic)     print each request and answer: basic (one line each), headers, body
+ *      use(engine)             send through another engine: a client with other settings, a fake_http in a test
+ *
+ * WHAT COMES BACK
+ *      GET<t>(route) { }           an object of t. A status that is not 200 to 299 throws http_status_exception.
+ *      GET_or_null<t>(route) { }   the same, and null when the server says 404
+ *      GET(route) { }              the http_response itself (text(), bytes(), save_to(file)), also only for 200 to 299
+ *   and the same for POST, PUT, PATCH and DELETE. A request that gets no
+ *   answer throws http_exception (http_response.sharp).
+ *
+ * A service may be used by several threads at once.
+ *
+ *      Java comparison: a Retrofit interface - @GET("/users/{name}") User user(@Path("name") String name);
+ *      here the annotation is the call and the parameter annotations are the block.
+ */
+class http_service {
+    private root : string = "";
+    private defaults : http_headers = new http_headers();
+    private engine : http_engine?;
+    private patience : _int64 = 0 - 1;
+    private tries : _int64 = 1;
+    private retry_wait : _int64 = 200;
+    private shown : _int64 = 0;
+    private before_hooks : list<http_request_hook> = new list<http_request_hook>();
+    private after_hooks : list<http_response_hook> = new list<http_response_hook>();
+    /** the request whose block is running (the words below go to it); null outside a block */
+    private building : http_request?;
+
+    // ================================================================ the service's settings
+
+    def base_url(address: string) {
+        root = address;
+        while(sizeof(root.data) > 0 && root.data!![sizeof(root.data) - 1] == '/') { root = io_strings.slice(root, 0, sizeof(root.data) - 1); }
+    }
+
+    def use(other: http_engine) {
+        engine = other;
+    }
+
+    def retry(times: _int64, wait: _int64) {
+        if(times < 0) { times = 0; }
+        tries = times + 1;
+        retry_wait = wait;
+    }
+
+    def log(level: _int64) {
+        shown = level;
+    }
+
+    def before(hook: (http_request)()) {
+        before_hooks.add(new http_request_hook(hook));
+    }
+
+    def after(hook: (http_response)()) {
+        after_hooks.add(new http_response_hook(hook));
+    }
+
+    // ================================================================ the words: for the request in a block, else for all
+
+    def header(name: string, value: string) {
+        if(building != null) { building!!.header(name, value); }
+        else { defaults.put(name, value); }
+    }
+
+    def accept(type: string) { header("Accept", type); }
+    def bearer(token: string) { header("Authorization", "Bearer " + token); }
+    def basic(user: string, password: string) { header("Authorization", "Basic " + base64.encode(user + ":" + password)); }
+
+    def timeout(milliseconds: _int64) {
+        if(building != null) { building!!.timeout(milliseconds); }
+        else { patience = milliseconds; }
+    }
+
+    private def current(word: string) : http_request {
+        if(building == null) { throw new illegal_state_exception(word + "(...) says what goes into one request: it belongs in the block of GET, POST ..."); }
+        return building!!;
+    }
+
+    def path(name: string, value: string) { current("path").path(name, value); }
+    def path(name: string, value: decimal) { current("path").path(name, value); }
+    def query(name: string, value: string?) { current("query").query(name, value); }
+    def query(name: string, value: decimal) { current("query").query(name, value); }
+    def query(name: string, value: bool) { current("query").query(name, value); }
+    def body(text: string) { current("body").body(text); }
+    def body(text: string, type: string) { current("body").body(text, type); }
+    def body(data: _int8[], type: string) { current("body").body(data, type); }
+    def body(value: json_value) { current("body").body(value); }
+    def json(name: string, value: string) { current("json").json(name, value); }
+    def json(name: string, value: decimal) { current("json").json(name, value); }
+    def json(name: string, value: bool) { current("json").json(name, value); }
+    def json(name: string, value: json_value) { current("json").json(name, value); }
+    def form(name: string, value: string) { current("form").form(name, value); }
+    def form(name: string, value: decimal) { current("form").form(name, value); }
+    def part(name: string, value: string) { current("part").part(name, value); }
+    def part(name: string, source: file, type: string) { current("part").part(name, source, type); }
+
+    /** the body: an object of yours (or a list of them), written as json (json.sharp) */
+    def send(source: object) { current("send").body(json_objects.value_of(source, 0)); }
+
+    // ================================================================ the verbs
+
+    def GET<t>(route: string) : t { return json.value_to<t>(answered("GET", route).json()); }
+    def POST<t>(route: string) : t { return json.value_to<t>(answered("POST", route).json()); }
+    def PUT<t>(route: string) : t { return json.value_to<t>(answered("PUT", route).json()); }
+    def PATCH<t>(route: string) : t { return json.value_to<t>(answered("PATCH", route).json()); }
+    def DELETE<t>(route: string) : t { return json.value_to<t>(answered("DELETE", route).json()); }
+
+    def GET<t>(route: string, extras: (http_request)()) : t { return json.value_to<t>(answered("GET", route, extras).json()); }
+    def POST<t>(route: string, extras: (http_request)()) : t { return json.value_to<t>(answered("POST", route, extras).json()); }
+    def PUT<t>(route: string, extras: (http_request)()) : t { return json.value_to<t>(answered("PUT", route, extras).json()); }
+    def PATCH<t>(route: string, extras: (http_request)()) : t { return json.value_to<t>(answered("PATCH", route, extras).json()); }
+    def DELETE<t>(route: string, extras: (http_request)()) : t { return json.value_to<t>(answered("DELETE", route, extras).json()); }
+
+    /** as GET<t>, and null when the server says 404: "there is no such thing" as a value, not an exception */
+    def GET_or_null<t>(route: string) : t? {
+        answer : http_response = perform(new http_request("GET", whole(route)), false);
+        if(answer.status == 404) { return null; }
+        return json.value_to<t>(answer.require_ok().json());
+    }
+
+    def GET_or_null<t>(route: string, extras: (http_request)()) : t? {
+        answer : http_response = perform(built("GET", route, extras), false);
+        if(answer.status == 404) { return null; }
+        return json.value_to<t>(answer.require_ok().json());
+    }
+
+    def GET(route: string) : http_response { return answered("GET", route); }
+    def HEAD(route: string) : http_response { return answered("HEAD", route); }
+    def POST(route: string) : http_response { return answered("POST", route); }
+    def PUT(route: string) : http_response { return answered("PUT", route); }
+    def PATCH(route: string) : http_response { return answered("PATCH", route); }
+    def DELETE(route: string) : http_response { return answered("DELETE", route); }
+
+    def GET(route: string, extras: (http_request)()) : http_response { return answered("GET", route, extras); }
+    def HEAD(route: string, extras: (http_request)()) : http_response { return answered("HEAD", route, extras); }
+    def POST(route: string, extras: (http_request)()) : http_response { return answered("POST", route, extras); }
+    def PUT(route: string, extras: (http_request)()) : http_response { return answered("PUT", route, extras); }
+    def PATCH(route: string, extras: (http_request)()) : http_response { return answered("PATCH", route, extras); }
+    def DELETE(route: string, extras: (http_request)()) : http_response { return answered("DELETE", route, extras); }
+
+    // ================================================================ how a request is made and sent
+
+    /** the route after the base address; a whole address stays as it is */
+    private def whole(route: string) : string {
+        if(io_strings.starts_with(route, "http://") || io_strings.starts_with(route, "https://")) { return route; }
+        if(sizeof(root.data) == 0) {
+            throw new illegal_state_exception("the service has no base_url(...) and `" + route + "` is not a whole address");
+        }
+        if(io_strings.starts_with(route, "/")) { return root + route; }
+        return root + "/" + route;
+    }
+
+    /** the request with its block run. One block at a time: the words above find the request in `building`. */
+    private def built(method: string, route: string, extras: (http_request)()) : http_request {
+        asked := new http_request(method, whole(route));
+        lock(self) {
+            building = asked;
+            try {
+                extras(asked);
+            } finally {
+                building = null;
+            }
+        }
+        return asked;
+    }
+
+    private def answered(method: string, route: string) : http_response {
+        return perform(new http_request(method, whole(route)), true);
+    }
+
+    private def answered(method: string, route: string, extras: (http_request)()) : http_response {
+        return perform(built(method, route, extras), true);
+    }
+
+    /** send it: the service's headers under the request's, the hooks, the retries; `strict`: only 200 to 299 comes back */
+    private def perform(asked: http_request, strict: bool) : http_response {
+        for(i : _int64 = 0; i < defaults.size(); i++) {
+            if(!asked.headers.has(defaults.name_at(i))) { asked.headers.add(defaults.name_at(i), defaults.value_at(i)); }
+        }
+        if(asked.wait < 0 && patience >= 0) { asked.wait = patience; }
+        for(i : _int64 = 0; i < before_hooks.size(); i++) {
+            run := before_hooks.at(i).run;
+            run(asked);
+        }
+
+        through : http_engine = engine ?: http.engine();
+        method : string = io_strings.to_upper(asked.method);
+        repeatable : bool = method == "GET" || method == "HEAD" || method == "PUT" || method == "DELETE";
+        attempt : _int64 = 0;
+        pause : _int64 = retry_wait;
+        answer : http_response? = null;
+        while(true) {
+            attempt++;
+            started : _int64 = utc_mills().value;
+            if(shown >= http_log.basic) { show_request(asked); }
+            try {
+                answer = through.send(asked);
+            } catch(silent: http_exception) {
+                if(shown >= http_log.basic) { print("<-- no answer: " + silent.get_message() + "\n"); }
+                if(repeatable && attempt < tries) { thread.sleep(pause); pause = pause * 2; continue; }
+                throw silent;
+            }
+            if(shown >= http_log.basic) { show_response(answer!!, utc_mills().value - started); }
+            busy : bool = answer!!.status == 502 || answer!!.status == 503 || answer!!.status == 504;
+            if(busy && repeatable && attempt < tries) { thread.sleep(pause); pause = pause * 2; continue; }
+            break;
+        }
+
+        for(i : _int64 = 0; i < after_hooks.size(); i++) {
+            run := after_hooks.at(i).run;
+            run(answer!!);
+        }
+        if(strict) { answer!!.require_ok(); }
+        return answer!!;
+    }
+
+    private def show_request(asked: http_request) {
+        print("--> " + asked.method + " " + asked.resolved_address() + "\n");
+        if(shown >= http_log.headers) { print(indented(asked.headers.to_string()!!)); }
+        if(shown >= http_log.body) {
+            sent : _int8[]? = asked.resolved_body();
+            if(sizeof(sent) > 0) { print("    " + new string(sent!!, 0, sizeof(sent)) + "\n"); }
+        }
+    }
+
+    private def show_response(answer: http_response, took: _int64) {
+        print("<-- " + answer.status + " " + answer.reason + " (" + sizeof(answer.bytes()) + " bytes, " + took + " ms)\n");
+        if(shown >= http_log.headers) { print(indented(answer.headers.to_string()!!)); }
+        if(shown >= http_log.body && sizeof(answer.bytes()) > 0) { print("    " + answer.text() + "\n"); }
+    }
+
+    private static def indented(lines: string) : string {
+        if(sizeof(lines.data) == 0) { return ""; }
+        return "    " + io_strings.replace_text(io_strings.trim(lines), "\r\n", "\n    ") + "\n";
+    }
+}
+
+/** how much log(...) of an http_service prints */
+class http_log {
+    static const none : _int64 = 0;
+    /** one line per request and one per answer */
+    static const basic : _int64 = 1;
+    /** and their headers */
+    static const headers : _int64 = 2;
+    /** and their bodies */
+    static const body : _int64 = 3;
+}
+
+class http_request_hook {
+    run : (http_request)();
+    http_request_hook(run: (http_request)()) { self->run = run; }
+}
+
+class http_response_hook {
+    run : (http_response)();
+    http_response_hook(run: (http_response)()) { self->run = run; }
+}

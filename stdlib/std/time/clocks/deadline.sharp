@@ -1,0 +1,113 @@
+mod std.time;
+
+/**
+ * A moment by which something must be finished, with the questions one asks
+ * about it: has it passed, how much time is left, how late are we.
+ *
+ * A deadline is the right thing to pass down through several calls that
+ * share one time budget: each of them asks `remaining()` and uses at most
+ * that, instead of each getting its own full timeout.
+ *
+ * A deadline does not wait and starts no thread; it only compares its moment
+ * with a `clock`. With no clock given that is the system clock; tests pass a
+ * `manual_clock`. Deadlines are immutable.
+ *
+ *     limit := deadline.after(duration.of_seconds(30));
+ *     while(!limit.has_passed()) {
+ *         if(try_once()) { break; }
+ *     }
+ */
+class deadline {
+    private source : clock;
+    private expires : instant;
+
+    private deadline(at: instant, time_source: clock) {
+        expires = at;
+        source = time_source;
+    }
+
+    /** a deadline `amount` from now on the system clock (already passed when `amount` is zero or negative) */
+    static def after(amount: duration): deadline {
+        return after(amount, system_clock.instance);
+    }
+
+    /** a deadline `amount` after the current time of `time_source` */
+    static def after(amount: duration, time_source: clock): deadline {
+        return new deadline(time_source.now().plus(amount), time_source);
+    }
+
+    /** a deadline at the moment `at`, judged by the system clock */
+    static def at(at_moment: instant): deadline {
+        return new deadline(at_moment, system_clock.instance);
+    }
+
+    /** a deadline at the moment `at_moment`, judged by `time_source` */
+    static def at(at_moment: instant, time_source: clock): deadline {
+        return new deadline(at_moment, time_source);
+    }
+
+    /** the moment the deadline is at */
+    def expires_at(): instant {
+        return expires;
+    }
+
+    /** 1 once the clock has reached the deadline (now >= the deadline moment) */
+    def has_passed(): bool {
+        return source.now() >= expires;
+    }
+
+    /**
+     * The time left until the deadline; `duration.zero` once it has passed
+     * (never negative - use `overdue_by()` for how late it is).
+     */
+    def remaining(): duration {
+        left : duration = duration.between(source.now(), expires);
+        if(left.is_negative()) {
+            return duration.zero;
+        }
+        return left;
+    }
+
+    /** `remaining()` in whole milliseconds, for APIs that take a timeout in ms */
+    def remaining_millis(): decimal {
+        return remaining().to_millis();
+    }
+
+    /** how long ago the deadline passed; `duration.zero` while it has not */
+    def overdue_by(): duration {
+        late : duration = duration.between(expires, source.now());
+        if(late.is_negative()) {
+            return duration.zero;
+        }
+        return late;
+    }
+
+    /** a new deadline that is `amount` later than this one (earlier when negative), on the same clock */
+    def extended_by(amount: duration): deadline {
+        return new deadline(expires.plus(amount), source);
+    }
+
+    /** whichever of this deadline and `other` comes first (this one when they are at the same moment) */
+    def earliest(other: deadline): deadline {
+        if(other.expires < expires) {
+            return other;
+        }
+        return self;
+    }
+
+    /**
+     * Throws when the deadline has passed, otherwise does nothing - a
+     * one-line check for the top of a loop.
+     * @throws date_time_exception "deadline exceeded by <time>: <what>"
+     */
+    def check(what: string) {
+        if(has_passed()) {
+            throw new date_time_exception("deadline exceeded by " + overdue_by().to_string() + ": " + what);
+        }
+    }
+
+    /** "deadline at 2024-02-29T12:00:00Z" */
+    override def to_string(): string? {
+        return "deadline at " + expires.to_string();
+    }
+}

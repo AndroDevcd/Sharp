@@ -1,0 +1,214 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - formatting helpers (part of the `string` class, see string_core.sharp)
+ *
+ * format (placeholders {} / {0}), escape / unescape / quote, ellipsize, and
+ * the static makers string.of_int / of_number / of_char / of_bool / of_chars.
+ * None of these change the string they are called on.
+ *
+ * For named placeholders ("{name}") see std.text#template; for number
+ * layouts (decimals, thousands separators, hex ...) see std.text#number_format.
+ */
+mutate string {
+
+    /**
+     * The string with its placeholders replaced by the strings in `args`:
+     *
+     *     "{} + {} = {}"        every {} takes the next argument, left to right
+     *     "{1} before {0}"      {n} takes argument number n (0 = first); may repeat
+     *     "{{literal}}"         {{ and }} give a single { and }
+     *
+     * "{} has {} items".format(new string[] { "cart", "3" }) is "cart has 3 items".
+     * Anything else between braces is not a placeholder and is copied as it
+     * is ("{name}" stays "{name}"), as is a '{' without a matching '}'.
+     * Throws illegal_argument_exception if a placeholder asks for an argument
+     * that does not exist.
+     */
+    def format(args: string[]): string {
+        n : decimal = sizeof(data);
+        count : decimal = sizeof(args);
+        out := new char_buffer();
+        next_arg : decimal = 0;             // which argument the next {} takes
+        i : decimal = 0;
+        while(i < n) {
+            c : decimal = data[i];
+            if(c == '{' && i + 1 < n && data[i + 1] == '{') {
+                out.append_char('{');
+                i += 2;
+            } else if(c == '}' && i + 1 < n && data[i + 1] == '}') {
+                out.append_char('}');
+                i += 2;
+            } else if(c == '{') {
+                // read digits up to the closing brace
+                j : decimal = i + 1;
+                index : decimal = 0;
+                digits : decimal = 0;
+                while(j < n && data[j] >= '0' && data[j] <= '9') {
+                    index = index * 10 + (data[j] - '0');
+                    digits++;
+                    j++;
+                }
+                if(j < n && data[j] == '}') {
+                    if(digits == 0) index = next_arg++;
+                    if(index >= count)
+                        throw new illegal_argument_exception("format: placeholder asks for argument ${new int(index)} but only ${new int(count)} were given");
+                    arg := args[index];
+                    if((arg as object) != null) out.append(arg);
+                    i = j + 1;
+                } else {
+                    // not a placeholder: copy the brace and carry on after it
+                    out.append_char(c);
+                    i++;
+                }
+            } else {
+                out.append_char(c);
+                i++;
+            }
+        }
+        return out.build();
+    }
+
+    /**
+     * format with a single argument: "Hello {}!".format_one("Ada") is "Hello Ada!".
+     * (It has its own name because a call format("text") would be ambiguous
+     * between one string and an array of strings.)
+     */
+    def format_one(arg: string): string {
+        return format(new string[] { arg });
+    }
+
+    /**
+     * The string with characters that cannot be written directly inside a
+     * string literal replaced by their backslash form: newline -> \n, tab ->
+     * \t, carriage return -> \r, backslash -> \\, double quote -> \".
+     * Everything else is copied. The opposite of unescape().
+     */
+    def escape(): string {
+        n : decimal = sizeof(data);
+        out := new char_buffer();
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = data[i];
+            if(c == '\n') { out.append_char('\\'); out.append_char('n'); }
+            else if(c == '\t') { out.append_char('\\'); out.append_char('t'); }
+            else if(c == '\r') { out.append_char('\\'); out.append_char('r'); }
+            else if(c == '\\') { out.append_char('\\'); out.append_char('\\'); }
+            else if(c == '"') { out.append_char('\\'); out.append_char('"'); }
+            else out.append_char(c);
+        }
+        return out.build();
+    }
+
+    /**
+     * The opposite of escape(): the two characters \n become a newline, \t a
+     * tab, \r a carriage return, \\ one backslash, \" a double quote and \' a
+     * single quote. A backslash followed by any other character, or at the
+     * very end, is copied as it is (nothing is thrown).
+     */
+    def unescape(): string {
+        n : decimal = sizeof(data);
+        out := new char_buffer();
+        i : decimal = 0;
+        while(i < n) {
+            c : decimal = data[i];
+            if(c == '\\' && i + 1 < n) {
+                next : decimal = data[i + 1];
+                if(next == 'n') { out.append_char('\n'); i += 2; }
+                else if(next == 't') { out.append_char('\t'); i += 2; }
+                else if(next == 'r') { out.append_char('\r'); i += 2; }
+                else if(next == '\\') { out.append_char('\\'); i += 2; }
+                else if(next == '"') { out.append_char('"'); i += 2; }
+                else if(next == '\'') { out.append_char('\''); i += 2; }
+                else { out.append_char(c); i++; }
+            } else {
+                out.append_char(c);
+                i++;
+            }
+        }
+        return out.build();
+    }
+
+    /**
+     * The escaped string between double quotes, as it would be written in a
+     * program: the three characters a"b become the six characters "a\"b".
+     * Handy in error messages, where it makes spaces and empty strings visible.
+     */
+    def quote(): string {
+        out := new char_buffer();
+        out.append_char('"');
+        out.append(escape());
+        out.append_char('"');
+        return out.build();
+    }
+
+    /**
+     * The string shortened to at most `max_length` characters; when something
+     * is cut off the result ends in "...":
+     * "The quick brown fox".ellipsize(10) is "The qui...".
+     * A string that already fits is returned as an unchanged copy.
+     * Throws illegal_argument_exception if max_length is less than 3 (there
+     * would be no room for the dots).
+     */
+    def ellipsize(max_length: int): string {
+        return ellipsize(max_length, "...");
+    }
+
+    /**
+     * ellipsize with your own end marker: "abcdefgh".ellipsize(5, "~") is "abcd~".
+     * Throws illegal_argument_exception if max_length is less than the length of the marker.
+     */
+    def ellipsize(max_length: int, marker: string): string {
+        n : decimal = sizeof(data);
+        limit : decimal = max_length.value;
+        m : decimal = sizeof(marker.data);
+        if(limit < m)
+            throw new illegal_argument_exception("ellipsize: max_length $max_length leaves no room for the marker");
+        if(n <= limit) return string_support.slice(data, 0, n);
+
+        out := new char_buffer();
+        out.append(string_support.slice(data, 0, limit - m));
+        out.append(marker);
+        return out.build();
+    }
+
+    /**
+     * The whole number `number` as text, without decimals: string.of_int(42)
+     * is "42". A fraction is cut off. (`"" + n` prints 16 decimals for a native number.)
+     */
+    static def of_int(number: decimal): string {
+        return number_format.integer(number);
+    }
+
+    /**
+     * The number as short readable text: whole numbers without a point
+     * ("42"), others with up to 6 decimals and no zeros at the end ("2.5").
+     */
+    static def of_number(number: decimal): string {
+        return number_format.plain(number);
+    }
+
+    /** A string holding just the character `c`. */
+    static def of_char(c: char): string {
+        return new string(c.value);
+    }
+
+    /** "true" if `value` is not 0, otherwise "false". */
+    static def of_bool(value: decimal): string {
+        if(value) return "true";
+        return "false";
+    }
+
+    /** A string made of the given characters, in order. An empty array gives "". */
+    static def of_chars(chars: char[]): string {
+        n : decimal = sizeof(chars);
+        if(n == 0) return new string();
+
+        out := new _int8[n];
+        for(i : decimal = 0; i < n; i++) {
+            out[i] = chars[i].value;
+        }
+        return string_support.of_buffer(out, n);
+    }
+}

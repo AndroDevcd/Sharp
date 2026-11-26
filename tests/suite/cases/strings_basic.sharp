@@ -1,0 +1,219 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Strings, the basics: joining with + and +=, putting values into a string
+ * with "$name" and "${expression}", comparing with == and !=, empty strings,
+ * and numbers inside strings.
+ *
+ * Not used here because they are wrong today (see known_bugs/strings_basic.sharp):
+ * joining or interpolating an EMPTY string, += with a number, and s += s.
+ */
+
+motto := "global";
+
+def greet(name: string): string {
+    return "hello " + name;
+}
+
+def repeat(piece: string, times: decimal): string {
+    result := "";
+    for(i : decimal = 0; i < times; i++) {
+        result += piece;
+    }
+    return result;
+}
+
+def double_it(n: decimal): decimal { return n * 2; }
+
+def main(args: string[]) {
+    // ---- joining with +
+    expect_str("literal + literal", "ab" + "cd", "abcd");
+    a := "ab";
+    b := "cd";
+    expect_str("variable + literal", a + "cd", "abcd");
+    expect_str("literal + variable", "ab" + b, "abcd");
+    expect_str("variable + variable", a + b, "abcd");
+    expect_str("the other way round", b + a, "cdab");
+    expect_str("a variable with itself", a + a, "abab");
+    expect_str("three pieces", a + "-" + b, "ab-cd");
+    expect_str("five pieces", a + b + a + b + a, "abcdabcdab");
+    expect_str("with spaces", "one" + " " + "two", "one two");
+    joined := a + b;
+    expect_str("stored in a variable", joined, "abcd");
+    expect_str("+ makes a new string: a is unchanged", a, "ab");
+    expect_str("...and so is b", b, "cd");
+    expect("the size of a joined string", joined.size(), 4);
+
+    // ---- joining with +=
+    s := "x";
+    s += "y";
+    expect_str("+= literal", s, "xy");
+    s += a;
+    expect_str("+= variable", s, "xyab");
+    s += a + b;
+    expect_str("+= an expression", s, "xyababcd");
+    expect("the size after +=", s.size(), 8);
+    letters := "";
+    letters += "a";
+    letters += "b";
+    letters += "c";
+    expect_str("+= onto an empty string", letters, "abc");
+    built := "";
+    for(i : decimal = 0; i < 5; i++) {
+        built += "ab";
+    }
+    expect_str("+= in a loop", built, "ababababab");
+    with_char := "ab";
+    with_char += 'c';
+    expect_str("+= a character", with_char, "abc");
+
+    // ---- += changes the string itself, so another name for it sees the change
+    first := "one";
+    other := first;
+    first += "two";
+    expect_str("the string after +=", first, "onetwo");
+    expect_str("the other name for the same string", other, "onetwo");
+
+    // ---- string + number
+    expect_str("string + whole number literal", "n" + 5, "n5");
+    expect_str("string + 0", "n" + 0, "n0");
+    expect_str("string + a large literal", "n" + 123456789, "n123456789");
+    count : int = 42;
+    expect_str("string + int object", "count=" + count, "count=42");
+    minus : int = 0 - 7;
+    expect_str("string + negative int object", "t=" + minus, "t=-7");
+    big : long = 5000000000;
+    expect_str("string + long object", "big=" + big, "big=5000000000");
+    number : decimal = 2.5;
+    expect_str("string + var is written the short way", "n=" + number, "n=2.5");
+    whole : decimal = 3;
+    expect_str("...also for a whole number", "n=" + whole, "n=3");
+    expect_str("string + number + string", "<" + count + ">", "<42>");
+    expect_str("the numbers are joined, not added", "1" + 2 + 3, "123");
+    two : int = 2;
+    expect_str("parentheses add first", "1" + (two + 3), "15");
+
+    // ---- string + other objects
+    yes : bool = true;
+    no : bool = false;
+    expect_str("string + true", "it is " + yes, "it is true");
+    expect_str("string + false", "it is " + no, "it is false");
+    letter : char = 'q';
+    expect_str("string + char object", "letter " + letter, "letter q");
+
+    // ---- "$name" puts a variable into the string
+    name := "world";
+    expect_str("$$name", "$name", "world");
+    expect_str("at the end", "hello $name", "hello world");
+    expect_str("at the start", "$name is big", "world is big");
+    expect_str("in the middle", "hello $name!", "hello world!");
+    expect_str("twice", "$name and $name", "world and world");
+    expect_str("two variables", "$a and $b", "ab and cd");
+    expect_str("back to back", "$a$b", "abcd");
+    expect_str("a dot ends the name", "$a.$b", "ab.cd");
+    expect_str("an apostrophe ends the name", "$name's", "world's");
+    expect_str("an int object", "count is $count", "count is 42");
+    expect_str("a var is written the short way", "number is $number", "number is 2.5");
+    expect_str("a bool object", "$yes or $no", "true or false");
+    expect_str("a char object", "letter $letter", "letter q");
+    expect_str("a global", "$motto", "global");
+    price := "$$5";
+    expect("$$$$ is one character", price.size(), 2);
+    expect("...and it is a dollar sign", price.at(0).value, 36);
+
+    // ---- "${expression}" puts any expression into the string
+    expect_str("$${name}", "${name}", "world");
+    expect_str("text right after the brace", "${name}s", "worlds");
+    expect_str("arithmetic on int objects", "${count + 1}", "43");
+    expect_str("arithmetic on vars keeps the fraction", "${number + 1}", "3.5");
+    expect_str("...when dividing", "${number / 2}", "1.25");
+    expect_str("...when the result is whole", "${number * 2}", "5");
+    expect_str("...and in a join", "n=" + (number * 3), "n=7.5");
+    expect_str("a comparison of objects", "${count == 42}", "true");
+    expect_str("a function call", "${greet(name)}", "hello world");
+    expect_str("a string inside the braces", "${greet("you")}", "hello you");
+    expect_str("a method call", "size ${name.size()}", "size 5");
+    expect_str("a number function", "${double_it(4)}", "8");
+    expect_str("joining inside the braces", "${a + b}", "abcd");
+    expect_str("two expressions", "${a}-${b}", "ab-cd");
+    expect_str("$$name and $${expression} together", "$a${b}$a", "abcdab");
+    expect_str("in a sentence", "$name has ${name.size()} letters", "world has 5 letters");
+    expect_str("parentheses inside the braces", "${(count + 8) * 2}", "100");
+    message := "total: ${count + count}";
+    expect_str("stored in a variable", message, "total: 84");
+    count = 50;
+    expect_str("the string keeps the value it was built with", message, "total: 84");
+
+    // ---- comparing with == and !=
+    same := "abcd";
+    expect_true("variable == literal", (same == "abcd"));
+    expect_false("variable == a different literal", (same == "abce"));
+    expect_true("variable != a different literal", (same != "abce"));
+    expect_false("variable != the same literal", (same != "abcd"));
+    expect_true("two strings built differently, same characters", (same == joined));
+    expect_false("...are not !=", (same != joined));
+    expect_true("a string equals itself", (same == same));
+    expect_false("capitals matter", (same == "ABCD"));
+    expect_false("a shorter string is different", (same == "abc"));
+    expect_false("a longer string is different", (same == "abcde"));
+    expect_false("a space matters", (same == "abcd "));
+    expect_false("the order matters", (same == "dcba"));
+    expect_true("a joined string == literal", (a + b == "abcd"));
+    expect_true("an interpolated string == literal", ("$a$b" == "abcd"));
+    if(same == "abcd") {
+        pass("if(same == \"abcd\")");
+    } else {
+        fail("if(same == \"abcd\")", "the else branch ran");
+    }
+    if(same != "abcd") {
+        fail("if(same != \"abcd\")", "the if branch ran");
+    } else {
+        pass("if(same != \"abcd\")");
+    }
+    if(same == "abcd" && a != b) {
+        pass("two string comparisons with &&");
+    } else {
+        fail("two string comparisons with &&", "the else branch ran");
+    }
+
+    // ---- empty strings
+    empty := "";
+    expect("the size of \"\"", empty.size(), 0);
+    expect_true("\"\".empty()", empty.is_empty());
+    expect_false("\"x\".empty()", s.is_empty());
+    expect_true("\"\" == \"\"", (empty == ""));
+    expect_false("\"\" == \"a\"", (empty == "a"));
+    expect_true("\"\" != \"a\"", (empty != "a"));
+    expect_false("\" \" is not empty", (empty == " "));
+    another_empty := "";
+    expect_true("two empty strings are equal", (empty == another_empty));
+    expect_not_null("an empty string is not null", empty);
+
+    // ---- numbers inside strings are characters
+    digits := "12" + "34";
+    expect_str("\"12\" + \"34\"", digits, "1234");
+    expect("...has 4 characters", digits.size(), 4);
+    expect("the first is the character '1'", digits.at(0).value, '1');
+    expect("...which is 49, not 1", digits.at(0).value, 49);
+    expect("a digit's value is the character - '0'", digits.at(3).value - '0', 4);
+    expect_false("\"1\" is not \"1.0\"", ("1" == "1.0"));
+    expect_false("\"07\" is not \"7\"", ("07" == "7"));
+    mixed := "abc123";
+    expect("letters and digits", mixed.size(), 6);
+    expect_str("a version number", "v" + 9 + "." + 99, "v9.99");
+    seven : int = 7;
+    expect_true("an int turned into a string", ("" + seven == "7"));
+
+    // ---- strings in and out of functions
+    expect_str("greet(\"bob\")", greet("bob"), "hello bob");
+    expect_str("greet(name)", greet(name), "hello world");
+    expect_str("greet(greet(...))", greet(greet("you")), "hello hello you");
+    expect_str("repeat(\"ab\", 3)", repeat("ab", 3), "ababab");
+    expect_str("repeat(\"-\", 1)", repeat("-", 1), "-");
+    expect("repeat(\"abc\", 100) size", repeat("abc", 100).size(), 300);
+    expect_str("a call in a join", greet("a") + "!" + greet("b"), "hello a!hello b");
+
+    finish("strings_basic");
+}

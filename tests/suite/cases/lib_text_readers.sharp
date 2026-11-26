@@ -1,0 +1,338 @@
+mod main;
+
+import ( std.testing, std.text, std.io )
+
+/**
+ * std.text - characters and reading text piece by piece:
+ *   - character         is_digit, is_letter, to_upper, digit_value, for_digit ...
+ *   - ascii, char_sets  names of control characters, ready-made character sets
+ *   - char_buffer       the append-only buffer the package builds strings with
+ *   - string_joiner     separator / prefix / suffix
+ *   - string_tokenizer  tokens between delimiter characters
+ *   - string_reader     a cursor: peek, next, match, read_while_in, read_until ...
+ *   - scanner           next word / int / double / line
+ */
+
+def show(parts: string[]): string {
+    joined := string.join("|", parts);
+    if(joined.is_empty()) return string.of_int(sizeof(parts)) + ":";
+    return string.of_int(sizeof(parts)) + ":" + joined;
+}
+
+def is_not_semicolon(c: char): bool {
+    return c.value != ';';
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_text_readers") {
+        // ---- character
+        test("is_digit") { expect_true(character.is_digit('7')); };
+        test("is_digit of a letter") { expect_false(character.is_digit('a')); };
+        test("is_digit just below '0'") { expect_false(character.is_digit('/')); };
+        test("is_digit just above '9'") { expect_false(character.is_digit(':')); };
+        test("is_letter small") { expect_true(character.is_letter('z')); };
+        test("is_letter capital") { expect_true(character.is_letter('A')); };
+        test("is_letter of a digit") { expect_false(character.is_letter('1')); };
+        test("is_letter between Z and a") { expect_false(character.is_letter('[')); };
+        test("is_letter_or_digit") { expect_true(character.is_letter_or_digit('0')); };
+        test("is_letter_or_digit of '_'") { expect_false(character.is_letter_or_digit('_')); };
+        test("is_whitespace space") { expect_true(character.is_whitespace(' ')); };
+        test("is_whitespace tab") { expect_true(character.is_whitespace('\t')); };
+        test("is_whitespace newline") { expect_true(character.is_whitespace('\n')); };
+        test("is_whitespace of a letter") { expect_false(character.is_whitespace('x')); };
+        test("is_upper") { expect_true(character.is_upper('Q')); };
+        test("is_upper of small") { expect_false(character.is_upper('q')); };
+        test("is_lower") { expect_true(character.is_lower('q')); };
+        test("is_lower of a digit") { expect_false(character.is_lower('5')); };
+        test("to_upper") { expect(character.to_upper('a')).should_be('A'); };
+        test("to_upper of a capital") { expect(character.to_upper('A')).should_be('A'); };
+        test("to_upper of a digit") { expect(character.to_upper('1')).should_be('1'); };
+        test("to_lower") { expect(character.to_lower('Z')).should_be('z'); };
+        test("to_lower of punctuation") { expect(character.to_lower('!')).should_be('!'); };
+        test("is_hex_digit") { expect_true(character.is_hex_digit('F')); };
+        test("is_hex_digit of 'g'") { expect_false(character.is_hex_digit('g')); };
+        test("is_octal_digit") { expect_true(character.is_octal_digit('7')); };
+        test("is_octal_digit of '8'") { expect_false(character.is_octal_digit('8')); };
+        test("is_binary_digit") { expect_true(character.is_binary_digit('1')); };
+        test("is_binary_digit of '2'") { expect_false(character.is_binary_digit('2')); };
+        test("is_punctuation") { expect_true(character.is_punctuation('!')); };
+        test("is_punctuation of '~'") { expect_true(character.is_punctuation('~')); };
+        test("is_punctuation of a space") { expect_false(character.is_punctuation(' ')); };
+        test("is_punctuation of a letter") { expect_false(character.is_punctuation('a')); };
+        test("is_control") { expect_true(character.is_control('\n')); };
+        test("is_control of a letter") { expect_false(character.is_control('a')); };
+        test("is_printable") { expect_true(character.is_printable(' ')); };
+        test("is_printable of a tab") { expect_false(character.is_printable('\t')); };
+        test("is_ascii") { expect_true(character.is_ascii('a')); };
+        test("is_vowel") { expect_true(character.is_vowel('E')); };
+        test("is_vowel of a consonant") { expect_false(character.is_vowel('x')); };
+        test("is_identifier_start") { expect_true(character.is_identifier_start('_')); };
+        test("is_identifier_start of a digit") { expect_false(character.is_identifier_start('1')); };
+        test("is_identifier_part of a digit") { expect_true(character.is_identifier_part('1')); };
+        test("digit_value") { expect(character.digit_value('7')).should_be(7); };
+        test("digit_value of a letter") { expect(character.digit_value('a')).should_be(0 - 1); };
+        test("digit_value in radix 16") { expect(character.digit_value('f', 16)).should_be(15); };
+        test("digit_value in radix 16, capital") { expect(character.digit_value('F', 16)).should_be(15); };
+        test("digit_value outside of the radix") { expect(character.digit_value('8', 8)).should_be(0 - 1); };
+        test("for_digit") { expect(character.for_digit(7, 10)).should_be('7'); };
+        test("for_digit in radix 16") { expect(character.for_digit(11, 16)).should_be('b'); };
+        test("equals_ignore_case") { expect_true(character.equals_ignore_case('a', 'A')); };
+        test("equals_ignore_case of different letters") { expect_false(character.equals_ignore_case('a', 'b')); };
+        test("to_string") { expect(character.to_string('x')).should_be("x"); };
+        test("repeat") { expect(character.repeat('-', 4)).should_be("----"); };
+        test("repeat zero times") { expect(character.repeat('-', 0)).should_be(""); };
+        hello : string = "hello";
+        test("a char_at value is accepted") { expect_true(character.is_letter(hello.char_at(0))); };
+        test("the value of a char object") { expect_true(character.is_letter(hello[0].value)); };
+        try {
+            character.for_digit(10, 10);
+            test("for_digit(10, 10)") { fail_test("did not throw"); };
+        } catch(e: illegal_argument_exception) {
+            test("for_digit(10, 10)") { };
+        }
+        try {
+            character.digit_value('1', 1);
+            test("digit_value with radix 1") { fail_test("did not throw"); };
+        } catch(e: illegal_argument_exception) {
+            test("digit_value with radix 1") { };
+        }
+
+        // ---- ascii, char_sets
+        test("ascii.tab") { expect(ascii.tab).should_be(9); };
+        test("ascii.line_feed") { expect(ascii.line_feed).should_be('\n'); };
+        test("ascii.dollar") { expect(ascii.dollar).should_be(36); };
+        test("name_of a control character") { expect(ascii.name_of(10)).should_be("LF"); };
+        test("name_of NUL") { expect(ascii.name_of(0)).should_be("NUL"); };
+        test("name_of the space") { expect(ascii.name_of(' ')).should_be("SPACE"); };
+        test("name_of a letter") { expect(ascii.name_of('A')).should_be("A"); };
+        test("name_of delete") { expect(ascii.name_of(127)).should_be("DEL"); };
+        test("caret") { expect(ascii.caret(3)).should_be("^C"); };
+        test("caret of a letter") { expect(ascii.caret('x')).should_be("x"); };
+        test("is_ascii_text") { expect_true(ascii.is_ascii_text("plain")); };
+        test("printable") { expect(ascii.printable("a\tb\n", '.')).should_be("a.b."); };
+        test("digits") { expect(char_sets.digits()).should_be("0123456789"); };
+        test("letters: how many") { expect(char_sets.letters().length()).should_be(52); };
+        test("punctuation: how many") { expect(char_sets.punctuation().length()).should_be(32); };
+        test("whitespace: how many") { expect(char_sets.whitespace().length()).should_be(6); };
+        test("range") { expect(char_sets.range('a', 'f')).should_be("abcdef"); };
+        test("range of one") { expect(char_sets.range('x', 'x')).should_be("x"); };
+        test("contains") { expect_true(char_sets.contains(char_sets.hex_digits(), 'F')); };
+        test("contains, not there") { expect_false(char_sets.contains(char_sets.digits(), 'a')); };
+        test("union") { expect(char_sets.union("abc", "cde")).should_be("abcde"); };
+        test("union removes repeats") { expect(char_sets.union("aab", "")).should_be("ab"); };
+        test("difference") { expect(char_sets.difference("abcd", "bd")).should_be("ac"); };
+        test("intersection") { expect(char_sets.intersection("abcd", "dbx")).should_be("bd"); };
+        test("all_in") { expect_true(char_sets.all_in("2024", char_sets.digits())); };
+        test("all_in with a stranger") { expect_false(char_sets.all_in("20x4", char_sets.digits())); };
+        test("none_in") { expect_true(char_sets.none_in("abc", char_sets.digits())); };
+        test("count_in") { expect(char_sets.count_in("a1b22", char_sets.digits())).should_be(3); };
+        try {
+            char_sets.range('z', 'a');
+            test("range backwards") { fail_test("did not throw"); };
+        } catch(e: illegal_argument_exception) {
+            test("range backwards") { };
+        }
+
+        // ---- char_buffer
+        buffer := new char_buffer();
+        test("a new buffer is empty") { expect(buffer.length()).should_be(0); };
+        test("a new buffer builds \"\"") { expect(buffer.build()).should_be(""); };
+        test("last of an empty buffer") { expect(buffer.last()).should_be(0 - 1); };
+        buffer.append("ab").append_char('c').append_repeated('.', 3);
+        test("append, append_char, append_repeated") { expect(buffer.build()).should_be("abc..."); };
+        test("length") { expect(buffer.length()).should_be(6); };
+        test("char_at") { expect(buffer.char_at(2)).should_be('c'); };
+        test("last") { expect(buffer.last()).should_be('.'); };
+        buffer.drop_last();
+        test("drop_last") { expect(buffer.build()).should_be("abc.."); };
+        for(i : decimal = 0; i < 10000; i++) {
+            buffer.append_char('a' + i % 26);
+        }
+        test("growing") { expect(buffer.length()).should_be(10005); };
+        test("the last appended character") { expect(buffer.last()).should_be('a' + 9999 % 26); };
+        buffer.clear();
+        test("clear") { expect_true(buffer.is_empty()); };
+        buffer.append("again");
+        test("reuse after clear") { expect(buffer.build()).should_be("again"); };
+
+        // ---- string_joiner
+        joiner := new string_joiner(", ", "[", "]");
+        test("an empty joiner") { expect(joiner.build()).should_be("[]"); };
+        test("is_empty") { expect_true(joiner.is_empty()); };
+        joiner.add("a").add("b").add("c");
+        test("three pieces") { expect(joiner.build()).should_be("[a, b, c]"); };
+        test("count") { expect(joiner.count()).should_be(3); };
+        test("length") { expect(joiner.length()).should_be(9); };
+        joiner.add_int(4);
+        test("add_int") { expect(joiner.build()).should_be("[a, b, c, 4]"); };
+        plain := new string_joiner("-");
+        plain.add("x");
+        test("one piece has no separator") { expect(plain.build()).should_be("x"); };
+        plain.add("").add("y");
+        test("an empty piece still counts") { expect(plain.build()).should_be("x--y"); };
+        plain.add_all(new string[] { "p", "q" });
+        test("add_all") { expect(plain.build()).should_be("x--y-p-q"); };
+        outer := new string_joiner(" | ", "<", ">");
+        outer.add("first").merge(plain);
+        test("merge adds the other pieces as one") { expect(outer.build()).should_be("<first | x--y-p-q>"); };
+        nothing := new string_joiner(", ", "{", "}");
+        nothing.set_empty_value("none");
+        test("set_empty_value") { expect(nothing.build()).should_be("none"); };
+        nothing.add("x");
+        test("the empty value is only for an empty joiner") { expect(nothing.build()).should_be("{x}"); };
+        nothing.clear();
+        test("clear") { expect(nothing.build()).should_be("none"); };
+
+        // ---- string_tokenizer
+        tokens := new string_tokenizer("  to be\tor  not ");
+        test("count_tokens") { expect(tokens.count_tokens()).should_be(4); };
+        test("has_more_tokens") { expect_true(tokens.has_more_tokens()); };
+        test("next_token") { expect(tokens.next_token()).should_be("to"); };
+        test("next_token again") { expect(tokens.next_token()).should_be("be"); };
+        test("count_tokens after two") { expect(tokens.count_tokens()).should_be(2); };
+        test("remaining") { expect(tokens.remaining()).should_be("\tor  not "); };
+        test("to_array") { expect(show(tokens.to_array())).should_be("2:or|not"); };
+        test("has_more_tokens at the end") { expect_false(tokens.has_more_tokens()); };
+        test("next_token_or at the end") { expect(tokens.next_token_or("-")).should_be("-"); };
+        try {
+            tokens.next_token();
+            test("next_token at the end") { fail_test("did not throw"); };
+        } catch(e: no_such_element_exception) {
+            test("next_token at the end") { };
+        }
+        tokens.reset();
+        test("reset") { expect(tokens.next_token()).should_be("to"); };
+        listed := new string_tokenizer("a, b;;c", ",; ");
+        test("several delimiters give no empty tokens") { expect(show(listed.to_array())).should_be("3:a|b|c"); };
+        sum := new string_tokenizer("12+3*4", "+*", true);
+        test("return_delimiters") { expect(show(sum.to_array())).should_be("5:12|+|3|*|4"); };
+        none := new string_tokenizer("");
+        test("count_tokens of \"\"") { expect(none.count_tokens()).should_be(0); };
+        only_delimiters := new string_tokenizer(",,,", ",");
+        test("only delimiters: no tokens") { expect_false(only_delimiters.has_more_tokens()); };
+        switching := new string_tokenizer("a b,c d");
+        test("first token by whitespace") { expect(switching.next_token()).should_be("a"); };
+        test("next_token with new delimiters") { expect(switching.next_token(",")).should_be(" b"); };
+
+        // ---- string_reader
+        reader := new string_reader("width = 42;\nnext");
+        test("peek") { expect(reader.peek()).should_be('w'); };
+        test("peek(1)") { expect(reader.peek(1)).should_be('i'); };
+        test("position at the start") { expect(reader.position()).should_be(0); };
+        test("read_identifier") { expect(reader.read_identifier()).should_be("width"); };
+        test("position after the name") { expect(reader.position()).should_be(5); };
+        test("skip_whitespace") { expect(reader.skip_whitespace()).should_be(1); };
+        test("match of other text") { expect_false(reader.match(":=")); };
+        test("match") { expect_true(reader.match("=")); };
+        reader.skip_whitespace();
+        test("looking_at") { expect_true(reader.looking_at("42")); };
+        test("read_digits") { expect(reader.read_digits()).should_be("42"); };
+        test("read_digits when there are none") { expect(reader.read_digits()).should_be(""); };
+        test("match_char") { expect_true(reader.match_char(';')); };
+        test("line before the line end") { expect(reader.line()).should_be(1); };
+        test("column before the line end") { expect(reader.column()).should_be(12); };
+        test("next") { expect(reader.next()).should_be('\n'); };
+        test("line after the line end") { expect(reader.line()).should_be(2); };
+        test("column after the line end") { expect(reader.column()).should_be(1); };
+        test("remaining") { expect(reader.remaining()).should_be(4); };
+        reader.mark();
+        test("read_rest") { expect(reader.read_rest()).should_be("next"); };
+        test("at_end") { expect_true(reader.at_end()); };
+        test("peek at the end") { expect(reader.peek()).should_be(0 - 1); };
+        test("next at the end") { expect(reader.next()).should_be(0 - 1); };
+        test("read_line at the end") { expect(reader.read_line()).should_be(""); };
+        reader.reset();
+        test("reset goes back to the mark") { expect(reader.rest()).should_be("next"); };
+        reader.back();
+        test("back") { expect(reader.peek()).should_be('\n'); };
+        reader.seek(0);
+        test("read_until") { expect(reader.read_until(" = ")).should_be("width"); };
+        test("read_until_any") { expect(reader.read_until_any(";\n")).should_be(" = 42"); };
+        test("read_while_in") { expect(reader.read_while_in(";")).should_be(";"); };
+        test("skip") { expect(reader.skip(1)).should_be(1); };
+        test("read") { expect(reader.read(2)).should_be("ne"); };
+        test("skip beyond the end") { expect(reader.skip(99)).should_be(2); };
+        lines := new string_reader("one\r\ntwo\n\nlast");
+        test("read_line") { expect(lines.read_line()).should_be("one"); };
+        test("read_line after \\r\\n") { expect(lines.read_line()).should_be("two"); };
+        test("read_line of an empty line") { expect(lines.read_line()).should_be(""); };
+        test("read_line of the last line") { expect(lines.read_line()).should_be("last"); };
+        test("has_next at the end") { expect_false(lines.has_next()); };
+        fields := new string_reader("abc;def");
+        test("read_while with a function") { expect(fields.read_while(is_not_semicolon)).should_be("abc"); };
+        test("skip_while with a lambda") { expect(fields.skip_while({ c: char -> (bool) return c.value == ';'; })).should_be(1); };
+        test("read_until without the delimiter reads to the end") { expect(fields.read_until("#")).should_be("def"); };
+        strict := new string_reader("a b");
+        strict.expect("a");
+        try {
+            strict.expect("x");
+            test("expect of other text") { fail_test("did not throw"); };
+        } catch(e: parse_exception) {
+            test("the message has line and column") { expect_true(e.get_message().contains("line 1, column 2")); };
+        }
+        try {
+            strict.seek(4);
+            test("seek beyond the end") { fail_test("did not throw"); };
+        } catch(e: out_of_bounds_exception) {
+            test("seek beyond the end") { };
+        }
+        try {
+            new string_reader("x").reset();
+            test("reset without a mark") { fail_test("did not throw"); };
+        } catch(e: illegal_state_exception) {
+            test("reset without a mark") { };
+        }
+
+        // ---- scanner
+        input := new scanner("width 42 3.5 true\nsecond line\n");
+        test("has_next") { expect_true(input.has_next()); };
+        test("peek") { expect(input.peek()).should_be("width"); };
+        test("has_next_int on a word") { expect_false(input.has_next_int()); };
+        test("next") { expect(input.next()).should_be("width"); };
+        test("has_next_int") { expect_true(input.has_next_int()); };
+        test("next_int") { expect(input.next_int()).should_be(42); };
+        test("has_next_int on a fraction") { expect_false(input.has_next_int()); };
+        test("has_next_double") { expect_true(input.has_next_double()); };
+        test("next_double") { expect(input.next_double()).should_be(3.5); };
+        test("has_next_bool") { expect_true(input.has_next_bool()); };
+        test("next_bool") { expect(input.next_bool()).should_be(1); };
+        test("next_line gives the rest of the line") { expect(input.next_line()).should_be(""); };
+        test("has_next_line") { expect_true(input.has_next_line()); };
+        test("next_line") { expect(input.next_line()).should_be("second line"); };
+        test("has_next_line at the end") { expect_false(input.has_next_line()); };
+        test("has_next at the end") { expect_false(input.has_next()); };
+        test("next_or at the end") { expect(input.next_or("none")).should_be("none"); };
+        test("next_int_or at the end") { expect(input.next_int_or(0 - 1)).should_be(0 - 1); };
+        try {
+            input.next();
+            test("next at the end") { fail_test("did not throw"); };
+        } catch(e: no_such_element_exception) {
+            test("next at the end") { };
+        }
+        numbers := new scanner("1 2 x 4");
+        total : decimal = 0;
+        while(numbers.has_next_int()) {
+            total = total + numbers.next_int();
+        }
+        test("summing ints stops at the word") { expect(total).should_be(3); };
+        try {
+            numbers.next_int();
+            test("next_int on a word") { fail_test("did not throw"); };
+        } catch(e: number_format_exception) {
+            test("next_int on a word") { };
+        }
+        test("the word is still there") { expect(numbers.next()).should_be("x"); };
+        test("next_double_or on an int") { expect(numbers.next_double_or(0.5)).should_be(4); };
+        csv := new scanner("a,b;c", ",;");
+        test("scanner with separators") { expect(show(csv.to_array())).should_be("3:a|b|c"); };
+        cmd := new scanner("set x 1");
+        test("skip of the expected word") { expect_true(cmd.skip("set")); };
+        test("skip of another word") { expect_false(cmd.skip("y")); };
+        test("remaining") { expect(cmd.remaining()).should_be(" x 1"); };
+        test("position") { expect(cmd.position()).should_be(3); };
+        cmd.reset();
+        test("reset") { expect(cmd.next()).should_be("set"); };
+    };
+    finish_tests("lib_text_readers");
+}

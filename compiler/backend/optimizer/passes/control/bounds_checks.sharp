@@ -1,0 +1,191 @@
+mod backend.optimizer.passes.control;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * BOUNDS CHECK ELIMINATION: `a[i]` inside `for(i = 0; i < sizeof(a); i++)` needs no check
+ *
+ * Every element read or write is two things in the VM's code: `checklen`,
+ * which raises when the array is null or the position is outside it, and the
+ * read or write itself. In the commonest loop there is nothing to check:
+ *
+ *          int_constant  %2, 0                 i = 0
+ *      L0:
+ *          length        %4, %1                (or before the loop, once loop-invariant code motion has run)
+ *          int_compare lt %5, %2, %4           i < sizeof(a) ?
+ *          jump_unless   %5, L2
+ *          get_element   %6, %1[%2]            <- 0 <= i < sizeof(a) is KNOWN here: marked `in_range`,
+ *          ...                                    and the bytecode step leaves the `checklen` out
+ *          int_immediate add %2, %2, 1         i++
+ *          jump          L0
+ *      L2:
+ *
+ * WHAT IS PROVED, for a loop whose first block (the header) ends with the
+ * test `i < n` and leaves the loop when it fails:
+ *
+ *   - `n` IS THE LENGTH OF `a`: the one instruction that can have written
+ *     the slot of `n` as the test reads it is `length n, a`, and `a` is not
+ *     written inside the loop, nor between that instruction and the loop;
+ *   - `i` IS NEVER NEGATIVE: outside the loop it is only given constants
+ *     that are 0 or more, inside it is only ever increased by a constant
+ *     (`i++`, `i += 2`);
+ *   - BETWEEN THE TEST AND THE ELEMENT, `i` AND `a` DO NOT CHANGE: the
+ *     element instruction is reached from the "test passed" side of the
+ *     header without passing a write of `i` or of `a` (found by walking the
+ *     flow graph from there).
+ *
+ * Then 0 <= i < length(a) where the element is used. That also says the
+ * array is not null: a null array has length 0, and no `i` that is 0 or
+ * more is below 0.
+ *
+ *   - NOTHING THAT MAY CHANGE ANYTHING RUNS IN BETWEEN: `realloc` makes the
+ *     same array shorter, so a call of a function that is not known to
+ *     change nothing (or a function value, a lock, `asm`) between the test
+ *     and the element keeps the check; and where the length was taken
+ *     before the loop, such an instruction anywhere in the loop, or between
+ *     the length and the loop, keeps every check of the loop.
+ *
+ * This is the simple form only: one array, its own length, an index that
+ * counts up. `i < n` with some other `n`, an index computed from `i`
+ * (`a[i + 1]`), a loop that counts down - all keep their checks. Doing more
+ * needs to know the RANGE of every number, which is its own analysis
+ * (doc/optimizations.md, L11).
+ *
+ * Not for a function with a `try` (its loops are not looked for).
+ *
+ *      C++ comparison: the C++ optimizer never removes a `checklen`.
+ *      HotSpot's C2 ("range check elimination") and LLVM's IRCE /
+ *      IndVarSimplify remove them from the same three facts, with a far
+ *      more general idea of "an index that counts".
+ */
+def eliminate_bounds_checks(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    if(code.tries.size() > 0) { return 0; }
+    total : _int64 = code.instructions.size();
+    any : _int64 = 0;
+    for(i : _int64 = 0; i < total && any == 0; i++) {
+        made := code.instructions.at(i);
+        if((made.kind == IR_GET_ELEMENT || made.kind == IR_SET_ELEMENT) && made.in_range == 0) { any = 1; }
+    }
+    if(any == 0) { return 0; }
+    graph := analyses.graph();
+    forest := find_loops(graph);
+    if(forest.valid == 0 || forest.count == 0) { return 0; }
+
+    found : _int64 = 0;
+    definitions := new number_list();
+    for(l : _int64 = 0; l < forest.count; l++) {
+        header : _int64 = forest.headers.at(l);
+        // ---- the header ends with `int_compare lt %c, %i, %n ; jump_unless %c, <out of the loop>`
+        if(graph.ends[header] - graph.starts[header] < 2) { continue; }
+        last := code.instructions.at(graph.ends[header] - 1);
+        if(last.kind != IR_JUMP_UNLESS || graph.falls_to[header] < 0) { continue; }
+        if(graph.jumps_to[header] >= 0 && forest.has(l, graph.jumps_to[header])) { continue; }
+        test_at : _int64 = 0 - 1;
+        for(i : _int64 = graph.ends[header] - 2; i >= graph.starts[header] && test_at < 0; i--) {
+            if(slot_written(code.instructions.at(i)) == last.first) { test_at = i; }
+        }
+        if(test_at < 0) { continue; }
+        test := code.instructions.at(test_at);
+        if(test.kind != IR_INT_COMPARE || test.number != CMP_LT || test.first == test.second) { continue; }
+        index : _int64 = test.first;
+        bound : _int64 = test.second;
+        if(index == last.first || bound == last.first) { continue; }
+        quiet : _int64 = 1;         // nothing between the test and the jump writes the index
+        for(i : _int64 = test_at + 1; i < graph.ends[header] - 1; i++) {
+            if(slot_written(code.instructions.at(i)) == index) { quiet = 0; }
+        }
+        if(quiet == 0) { continue; }
+
+        // ---- `n` is the length of an array `a`
+        definitions.count = 0;
+        if(!reaching_definitions(code, graph, test_at, bound, definitions) || definitions.count != 1) { continue; }
+        length_at : _int64 = definitions.at(0);
+        measured := code.instructions.at(length_at);
+        if(measured.kind != IR_LENGTH || measured.first < 0 || measured.first == bound) { continue; }
+        array : _int64 = measured.first;
+        if(array == index) { continue; }
+
+        // ---- inside the loop: `a` is never written, `i` only increased by a constant
+        fits : _int64 = 1;
+        length_outside : _int64 = 0;
+        if(!forest.has(l, graph.block_of[length_at])) { length_outside = 1; }
+        for(m : _int64 = forest.first_member.at(l); m < forest.first_member.at(l + 1) && fits == 1; m++) {
+            b : _int64 = forest.members.at(m);
+            for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+                made := code.instructions.at(i);
+                written : _int64 = slot_written(made);
+                if(written == array) { fits = 0; }
+                if(written == index && !(made.kind == IR_INT_IMMEDIATE && made.number == ARITH_ADD
+                                         && made.first == index && made.detail >= 1)) { fits = 0; }
+                // (the length was taken before the loop: a `realloc` somewhere in the loop would make it an old one)
+                if(length_outside == 1 && memory_written_by(made) == WRITES_ANYTHING) { fits = 0; }
+            }
+        }
+        if(fits == 0) { continue; }
+        // ... and where the length was taken outside the loop, `a` is not written on the way to the loop,
+        // and nothing that may change anything runs between the two
+        if(length_outside == 1) {
+            if(written_after(code, graph, length_at, array)) { continue; }
+            for(i : _int64 = length_at + 1; i < graph.starts[header] && fits == 1; i++) {
+                if(memory_written_by(code.instructions.at(i)) == WRITES_ANYTHING) { fits = 0; }
+            }
+            if(fits == 0) { continue; }
+        }
+
+        // ---- outside the loop `i` is only given constants that are 0 or more
+        definitions.count = 0;
+        if(!reaching_definitions(code, graph, graph.starts[header], index, definitions)) { continue; }
+        for(d : _int64 = 0; d < definitions.count && fits == 1; d++) {
+            made := code.instructions.at(definitions.at(d));
+            if(forest.has(l, graph.block_of[definitions.at(d)])) { continue; }     // (an increase: checked above)
+            if(made.kind != IR_INT_CONSTANT || made.number < 0) { fits = 0; }
+        }
+        if(fits == 0) { continue; }
+
+        found = found + mark_elements(code, graph, graph.falls_to[header], header, array, index);
+    }
+    // (no instruction moved and none reads or writes another slot: every analysis stands)
+    return found;
+}
+
+/**
+ * From the start of block `from` (where the test has just passed), every
+ * element instruction `a[i]` that is reached before `i` or `a` is written,
+ * before anything runs that may change anything, and without going through
+ * the header again is marked `in_range`.
+ */
+def mark_elements(code: ir_function, graph: flow_graph, from: _int64, header: _int64, array: _int64, index: _int64) : _int64 {
+    seen := new _int64[graph.blocks + 1];
+    waiting := new number_list();
+    seen[header] = 1;
+    seen[from] = 1;
+    waiting.add(from);
+    marked : _int64 = 0;
+    while(waiting.count > 0) {
+        b : _int64 = waiting.pop_last();
+        stopped : _int64 = 0;
+        for(i : _int64 = graph.starts[b]; i < graph.ends[b] && stopped == 0; i++) {
+            made := code.instructions.at(i);
+            if((made.kind == IR_GET_ELEMENT || made.kind == IR_SET_ELEMENT) && made.first == array && made.second == index
+               && made.in_range == 0) {
+                made.in_range = 1;
+                marked++;
+            }
+            written : _int64 = slot_written(made);
+            if(written == index || written == array) { stopped = 1; }
+            // (what follows a call that may change anything may meet a shorter array)
+            if(memory_written_by(made) == WRITES_ANYTHING) { stopped = 1; }
+        }
+        if(stopped == 1) { continue; }
+        for(k : _int64 = 0; k < 2; k++) {
+            next : _int64 = graph.successor(b, k);
+            if(next >= 0 && seen[next] == 0) { seen[next] = 1; waiting.add(next); }
+        }
+    }
+    return marked;
+}

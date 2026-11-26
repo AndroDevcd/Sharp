@@ -1,0 +1,9 @@
+// expect: E0511
+// help: new string("a").compare_to("b") < 0
+// replace: "a" < "b"
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    if("a" < "b") { println("first"); }
+}

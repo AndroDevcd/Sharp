@@ -1,0 +1,197 @@
+mod backend.optimizer.analysis;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * WHICH SLOTS CANNOT HOLD NULL, at every point of a function
+ *
+ * A reference slot is KNOWN NOT NULL at a point when on every way there
+ *
+ *   - it was given a new object (`new_object`; NOT a new array or a text:
+ *     on this VM an array without elements is the null reference, so `""`
+ *     and `new _int8[0]` are null), or
+ *   - the program used it in a way that raises for null and came through: a
+ *     field read or written through it, an element read or written, a
+ *     virtual call made on it, or
+ *   - the program tested it and took the branch for "not null"
+ *     (`is_null %t, %a ; jump_if %t, L`: not null where the jump is NOT
+ *     taken; with `jump_unless`, where it is), or
+ *   - it was copied from a slot of which that is known,
+ *
+ * and it has not been written since. This is worked out for the whole
+ * function, through every `if` and loop: a forward data-flow problem like
+ * available expressions (passes/values/common_subexpressions.sharp), with
+ * "on every way in" as the meeting rule - it starts from "everything is
+ * known" and only takes away. The one difference is that the two ways out
+ * of a block that ends with a test can know different things, so the sets
+ * are kept per EDGE: one for falling through, one for the jump.
+ *
+ * Who asks:
+ *
+ *   - null check elimination (passes/values/null_checks.sharp): a test for
+ *     null of such a slot has a known answer;
+ *   - loop-invariant code motion: a field read through such an object cannot
+ *     raise, so it may be computed before the loop;
+ *   - bounds check elimination, for the array it reads the length of.
+ *
+ * A function with a `try` gets no answer (`valid` is 0, nothing is known):
+ * its handlers are entered from the middle of blocks.
+ *
+ *      C++ comparison: the C++ optimizer has nothing like it. HotSpot's C2
+ *      and LLVM keep the same fact ("nonnull") on values; they get it from
+ *      the same four sources.
+ */
+class not_null_facts {
+    valid : _int64 = 0;
+    graph : flow_graph;
+    width : _int64 = 0;                 // words per set
+    slots : _int64 = 0;                 // slots the sets have room for (slots made later: nothing is known of them)
+    out_falling : _int64[];             // per block: what is known where it falls into the next block
+    out_jumping : _int64[];             // per block: what is known where its last instruction jumps
+
+    not_null_facts(graph: flow_graph) {
+        self->graph = graph;
+        out_falling = new _int64[1];
+        out_jumping = new _int64[1];
+    }
+
+    /** `into` becomes what is known where block `b` begins */
+    def load_before_block(b: _int64, into: slot_set) {
+        first : _int64 = graph.first_predecessor[b];
+        last : _int64 = graph.first_predecessor[b + 1];
+        into.clear();
+        if(valid == 0 || b == 0 || first == last) { return; }
+        for(w : _int64 = 0; w < width; w++) { into.words[w] = 0 - 1; }
+        for(k : _int64 = first; k < last; k++) {
+            from : _int64 = graph.predecessors[k];
+            // (a block whose jump goes to the block it would fall into anyway: both edges arrive)
+            if(graph.falls_to[from] == b) {
+                for(w : _int64 = 0; w < width; w++) { into.words[w] = into.words[w] & out_falling[from * width + w]; }
+            }
+            if(graph.jumps_to[from] == b) {
+                for(w : _int64 = 0; w < width; w++) { into.words[w] = into.words[w] & out_jumping[from * width + w]; }
+            }
+        }
+    }
+
+    /** instruction `i` runs: `known` (just before it) becomes what is known just after it */
+    def step(i: _int64, known: slot_set) {
+        made := graph.code.instructions.at(i);
+        kind : _int64 = made.kind;
+        // what it proves about a slot it uses, by not raising
+        if((kind == IR_GET_FIELD || kind == IR_SET_FIELD || kind == IR_GET_ELEMENT || kind == IR_SET_ELEMENT) && made.first >= 0) {
+            note(known, made.first);
+        } else if(kind == IR_CALL && made.number == CALL_HOW_VIRTUAL && made.arguments != null && made.arguments!!.count > 0) {
+            note(known, made.arguments!!.at(0));
+        }
+        // what it writes
+        written : _int64 = slot_written(made);
+        if(written < 0 || written >= slots) { return; }
+        if(kind == IR_NEW_OBJECT) {
+            // (NOT `new_array` and `text`: an array of no elements IS null on this VM - `""` and
+            //  `new _int8[0]` give a null reference, and the library tests for exactly that)
+            known.add(written);
+        } else if(kind == IR_COPY && made.first >= 0 && made.first < slots && known.has(made.first)) {
+            known.add(written);
+        } else {
+            known.remove(written);
+        }
+    }
+
+    def note(known: slot_set, slot: _int64) {
+        if(slot >= 0 && slot < slots) { known.add(slot); }
+    }
+
+    /** is `slot` known not to be null where block `b` begins? */
+    def before_block(b: _int64, slot: _int64) : _int64 {
+        if(valid == 0 || slot < 0 || slot >= slots) { return 0; }
+        known := new slot_set(slots);
+        load_before_block(b, known);
+        return known.has(slot);
+    }
+}
+
+/** the not-null facts of a function (the header says what they are) */
+def find_not_null(graph: flow_graph) : not_null_facts {
+    facts := new not_null_facts(graph);
+    code := graph.code;
+    if(code.tries.size() > 0 || graph.blocks == 0) { return facts; }
+    blocks : _int64 = graph.blocks;
+    facts.slots = code.slot_count();
+    walking := new slot_set(facts.slots);
+    facts.width = walking.width();
+    width : _int64 = facts.width;
+    facts.out_falling = new _int64[blocks * width + 1];
+    facts.out_jumping = new _int64[blocks * width + 1];
+    for(i : _int64 = 0; i < blocks * width; i++) {
+        facts.out_falling[i] = 0 - 1;           // every bit: "everything is known" until a way in says otherwise
+        facts.out_jumping[i] = 0 - 1;
+    }
+    facts.valid = 1;
+
+    // per block: the slot its closing test proves not null, and on which of the two ways out
+    tested := new _int64[blocks + 1];           // the slot, -1 none
+    when_jumping := new _int64[blocks + 1];     // 1: known where the jump is taken; 0: where it is not
+    for(b : _int64 = 0; b < blocks; b++) { tested[b] = slot_tested_by(graph, b, when_jumping); }
+
+    changed : _int64 = 1;
+    while(changed == 1) {
+        changed = 0;
+        for(b : _int64 = 0; b < blocks; b++) {
+            facts.load_before_block(b, walking);
+            for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) { facts.step(i, walking); }
+            for(w : _int64 = 0; w < width; w++) {
+                falling : _int64 = walking.words[w];
+                jumping : _int64 = walking.words[w];
+                if(tested[b] >= 0 && tested[b] / 64 == w) {
+                    one : _int64 = 1;
+                    bit : _int64 = one << (tested[b] % 64);
+                    if(when_jumping[b] == 1) { jumping = jumping | bit; }
+                    else { falling = falling | bit; }
+                }
+                if(facts.out_falling[b * width + w] != falling) { facts.out_falling[b * width + w] = falling; changed = 1; }
+                if(facts.out_jumping[b * width + w] != jumping) { facts.out_jumping[b * width + w] = jumping; changed = 1; }
+            }
+        }
+    }
+    return facts;
+}
+
+/**
+ * A block that ends
+ *
+ *      is_null     %t, %a
+ *      jump_if     %t, L         (or jump_unless; or with `not %t, %t` in between: `a != null`)
+ *
+ * with nothing between the test and the jump that writes %a: the slot %a,
+ * and in `when_jumping[b]` on which way out it is known not to be null.
+ * -1: the block ends in no such test.
+ */
+def slot_tested_by(graph: flow_graph, b: _int64, when_jumping: _int64[]) : _int64 {
+    code := graph.code;
+    if(graph.ends[b] - graph.starts[b] < 2) { return 0 - 1; }
+    last := code.instructions.at(graph.ends[b] - 1);
+    if(last.kind != IR_JUMP_IF && last.kind != IR_JUMP_UNLESS) { return 0 - 1; }
+    // `jump_if` jumps when the slot is 1 - "is null" - so the slot is not null where it does NOT jump
+    not_null_when_jumping : _int64 = last.kind == IR_JUMP_UNLESS;
+    wanted : _int64 = last.first;               // the slot whose last write is looked for
+    for(i : _int64 = graph.ends[b] - 2; i >= graph.starts[b]; i--) {
+        made := code.instructions.at(i);
+        if(slot_written(made) != wanted) { continue; }
+        if(made.kind == IR_NOT && made.detail == 0 && made.first >= 0) {
+            not_null_when_jumping = 1 - not_null_when_jumping;      // the answer turned round
+            wanted = made.first;
+            continue;
+        }
+        if(made.kind != IR_IS_NULL || made.first < 0 || made.first >= code.slot_count()) { return 0 - 1; }
+        for(j : _int64 = i; j < graph.ends[b] - 1; j++) {
+            if(slot_written(code.instructions.at(j)) == made.first) { return 0 - 1; }
+        }
+        when_jumping[b] = not_null_when_jumping;
+        return made.first;
+    }
+    return 0 - 1;
+}

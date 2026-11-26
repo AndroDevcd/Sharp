@@ -1,0 +1,141 @@
+mod backend.ide.declarations;
+
+import (
+    std.io,
+    backend.ide.files,
+    backend.ide.output,
+    backend.ide.positions,
+    backend.ide.types,
+    backend.types.declarations,
+    backend.types.type_system
+)
+
+/**
+ * ONE CLASS, INTERFACE OR ENUM, AND EVERYTHING WRITTEN IN IT
+ *
+ *      { "id": "shapes#circle", "name": "circle", "kind": "class", "flags": "public",
+ *        "file": 4, "node": 31, "at": [57, 63, 4, 7], "body": [93, 640],
+ *        "tparams": [...], "base": 9, "interfaces": [10, 11], "mutated": false,
+ *        "values": [...], "fields": [...], "functions": [...], "constructors": [...],
+ *        "classes": [...], "aliases": [...] }
+ *
+ * INHERITED MEMBERS ARE NOT COPIED INTO THE RECORD. The plugin follows `base`
+ * and `interfaces`: most of what a completion list shows is inherited and
+ * would be repeated in every class below; the chain of bases is short; and a
+ * member of a generic base can then be shown with the type arguments of the
+ * class that inherits it.
+ *
+ * What is left out because nobody wrote it: a constructor the compiler added
+ * (`is_synthesized`), the `init { }` blocks (they have no name), and the
+ * getters and setters (they are part of their field).
+ */
+def write_class(w: json_writer, job: declaration_job, declared: sharp_class) {
+    file_index : _int64 = job.files.index_of(declared.unit);
+    where : place = job.files.of_unit(declared.unit).place_of_node(declared.node);
+
+    w.begin_object();
+    w.key(KEY_ID);  w.text(declared.written.full_name());
+    w.key(KEY_NAME);  w.text(declared.name);
+    w.key(KEY_KIND);  w.text(kind_word(declared.kind));
+    w.key(KEY_FLAGS);  w.text(job.flags_words(declared.flags));
+    w.key(KEY_FILE);  w.number(file_index);
+    w.key(KEY_NODE);  w.number(declared.node);
+    w.key(KEY_AT);  w.quad(where.from, where.to, where.line, where.column);
+    write_body_range(w, job, declared);
+    write_type_parameters(w, job, declared.type_parameters, 1);
+
+    base_id : _int64 = written_type_id(job.types, declared.base_type);
+    if(base_id >= 0) { w.key(KEY_BASE);  w.number(base_id); }
+    if(declared.interface_types.size() > 0) {
+        w.key(KEY_INTERFACES);
+        w.begin_array();
+        for(i : _int64 = 0; i < declared.interface_types.size(); i++) {
+            w.number(written_type_id(job.types, declared.interface_types.at(i)));
+        }
+        w.end_array();
+    }
+
+    w.key(KEY_MUTATED);  w.flag(has_mutated_member(declared));
+
+    if(declared.enum_values.size() > 0) {
+        w.key(KEY_VALUES);
+        w.begin_array();
+        for(i : _int64 = 0; i < declared.enum_values.size(); i++) {
+            w.line();
+            write_enum_value(w, job, file_index, declared.enum_values.at(i));
+        }
+        w.end_array();
+    }
+
+    w.key(KEY_FIELDS);
+    w.begin_array();
+    for(i : _int64 = 0; i < declared.fields.size(); i++) {
+        w.line();
+        write_field(w, job, file_index, declared.fields.at(i));
+    }
+    w.end_array();
+
+    w.key(KEY_FUNCTIONS);
+    w.begin_array();
+    for(i : _int64 = 0; i < declared.functions.size(); i++) {
+        w.line();
+        write_function(w, job, file_index, declared.functions.at(i));
+    }
+    w.end_array();
+
+    w.key(KEY_CONSTRUCTORS);
+    w.begin_array();
+    for(i : _int64 = 0; i < declared.constructors.size(); i++) {
+        constructor := declared.constructors.at(i);
+        if(constructor.is_synthesized == 1) { continue; }
+        w.line();
+        write_function(w, job, file_index, constructor);
+    }
+    w.end_array();
+
+    w.key(KEY_CLASSES);
+    w.begin_array();
+    for(i : _int64 = 0; i < declared.classes.size(); i++) {
+        w.line();
+        write_class(w, job, declared.classes.at(i));
+    }
+    w.end_array();
+
+    w.key(KEY_ALIASES);
+    w.begin_array();
+    for(i : _int64 = 0; i < declared.aliases.size(); i++) { write_alias(w, job, file_index, declared.aliases.at(i)); }
+    w.end_array();
+    w.end_object();
+}
+
+/** the word for the kind of a class-like declaration */
+def kind_word(kind: _int64) : string {
+    if(kind == D_INTERFACE) { return "interface"; }
+    if(kind == D_ENUM) { return "enum"; }
+    return "class";
+}
+
+/**
+ * `"body": [from, to]`: the `{ ... }` of the class, braces included. The plugin uses it to
+ * know which class the caret is in. The `{` is the first one after the class's name.
+ */
+def write_body_range(w: json_writer, job: declaration_job, declared: sharp_class) {
+    file := job.files.of_unit(declared.unit);
+    table := declared.unit.parsed!!.table;
+    open : _int64 = file.blocks().open_brace_from(declared.unit.parsed!!.tree.tokens!![declared.node]);
+    end : _int64 = file.blocks().end_of_block(open);
+    if(open < 0 || end < 0) { return; }
+    w.key(KEY_BODY);
+    w.pair(file.offset_of(table.starts!![open]), file.offset_of(end));
+}
+
+/** 1 when some member came from a `mutate` block */
+def has_mutated_member(declared: sharp_class) : _int64 {
+    for(i : _int64 = 0; i < declared.fields.size(); i++) {
+        if(declared.fields.at(i).has(FLAG_MUTATED) == 1) { return 1; }
+    }
+    for(i : _int64 = 0; i < declared.functions.size(); i++) {
+        if(declared.functions.at(i).has(FLAG_MUTATED) == 1) { return 1; }
+    }
+    return 0;
+}

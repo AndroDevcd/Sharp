@@ -1,0 +1,191 @@
+mod backend.finalizer.ir;
+
+import (
+    std.io
+)
+
+/**
+ * THE INTERMEDIATE FORM: what a function body becomes before it is bytecode
+ *
+ * Code generation has two steps, and this package is what passes between
+ * them (doc/codegen.md 5.1, 5.2):
+ *
+ *      typed tree  --generation-->  IR  --bytecode-->  words of the VM
+ *
+ * The IR is the textbook "three-address code" (the dragon book, chapter 6): a
+ * flat list of small instructions per function. Every value an instruction
+ * reads or makes lives in a numbered SLOT of the function's frame, and every
+ * slot has one fixed KIND:
+ *
+ *      SLOT_INT    an integer (_int8 .. _uint64, true, 'c')
+ *      SLOT_DEC    a decimal (an IEEE double)
+ *      SLOT_REF    a reference: an object, an array, a function value, null
+ *
+ * Locals and parameters are slots; every value the generator makes on the
+ * way gets a fresh slot of its own. Control flow is labels and jumps. Nothing
+ * is implicit, so the step after it can turn each instruction into VM code on
+ * its own, without knowing what came before.
+ *
+ *      def add_twice(a: _int64, b: _int64) : _int64 { total := a + b; return total * 2; }
+ *
+ *          int_binary   add  %3, %0, %1
+ *          store_local  %2, %3
+ *          int_constant %4, 2
+ *          int_binary   mul  %5, %2, %4
+ *          return_value %5
+ *
+ * The files of this package (module `backend.finalizer.ir`):
+ *
+ *      ir.sharp                this front door: the kinds of instruction and of slot, the operation codes
+ *      ir_instruction.sharp    one instruction: its kind and operands
+ *      ir_function.sharp       the IR of one function: instructions, slot kinds, labels, its `try` statements
+ *      ir_builder.sharp        what the generator uses to make it: new slots, labels, instructions
+ *      ir_printer.sharp        the IR as text (the -ir option)
+ *      function_code.sharp     what the bytecode step makes of it: the words, the line table, the try
+ *                              records, the frame numbers
+ *      number_list.sharp       a growing list of plain numbers (used by every code generation package)
+ *
+ *      C++ comparison: there is no such form there. The C++ generator builds
+ *      "operation schemes" (backend/operation) and turns them into bytecode
+ *      while keeping track of where the current value is ("machine data").
+ *      doc/codegen.md section 10, G1.
+ */
+
+// ---- what a slot holds
+const SLOT_INT : _int64 = 1;
+const SLOT_DEC : _int64 = 2;
+const SLOT_REF : _int64 = 3;
+
+// ---- the kinds of instruction. `d` is the slot written, `a` / `b` the slots read.
+const IR_INT_CONSTANT     : _int64 = 1;     // d = number
+const IR_DECIMAL_CONSTANT : _int64 = 2;     // d = real (text: the literal's digits, when it is one)
+const IR_NULL             : _int64 = 3;     // d = null
+const IR_TEXT             : _int64 = 4;     // d = a new _int8[] holding string number `number` of the string table
+                                            // (`detail`: TEXT_..., which object - only the optimizer asks for a shared one)
+const IR_COPY             : _int64 = 5;     // d = a (same kind; `number`: the narrowing, NARROW_...)
+const IR_CONVERT          : _int64 = 6;     // d = a converted (`number`: CONVERT_...; `detail`: the narrowing after it)
+const IR_INT_BINARY       : _int64 = 7;     // d = a op b on integers (`number`: ARITH_...)
+const IR_DECIMAL_BINARY   : _int64 = 8;     // d = a op b on decimals
+const IR_INT_COMPARE      : _int64 = 9;     // d = a op b on integers, 1 or 0 (`number`: CMP_...)
+const IR_DECIMAL_COMPARE  : _int64 = 10;    // d = a op b on decimals, 1 or 0
+const IR_NEGATE           : _int64 = 11;    // d = -a (`detail`: 1 for a decimal)
+const IR_NOT              : _int64 = 12;    // d = !a, 1 or 0 (`detail`: 1 for a decimal operand)
+const IR_SAME_OBJECT      : _int64 = 13;    // d = (a and b are the same object), 1 or 0
+const IR_IS_NULL          : _int64 = 14;    // d = (a is null), 1 or 0
+const IR_GET_FIELD        : _int64 = 15;    // d = field `declaration` of the object in a
+const IR_SET_FIELD        : _int64 = 16;    // field `declaration` of the object in a = b (`number`: the narrowing)
+const IR_GET_STATIC       : _int64 = 17;    // d = static field `declaration` (of the class `detail` is the address of)
+const IR_SET_STATIC       : _int64 = 18;    // static field `declaration` = b (`number`: the narrowing)
+const IR_NEW_OBJECT       : _int64 = 19;    // d = a new object of the class `declaration` (no constructor runs)
+const IR_NEW_ARRAY        : _int64 = 20;    // d = a new array of `a` elements (`number`: ELEMENT_..., `detail`: class address)
+const IR_GET_ELEMENT      : _int64 = 21;    // d = element a[b] (`number`: ELEMENT_...)
+const IR_SET_ELEMENT      : _int64 = 22;    // element a[b] = slot `detail` (`number`: ELEMENT_...)
+const IR_LENGTH           : _int64 = 23;    // d = the length of the array a (0 for null)
+const IR_CALL             : _int64 = 24;    // d = function `declaration`(arguments) (`number`: CALL_HOW_...; d is -1 when unused)
+const IR_LABEL            : _int64 = 25;    // label `number` is here
+const IR_JUMP             : _int64 = 26;    // go to label `number`
+const IR_JUMP_IF          : _int64 = 27;    // go to label `number` when a is not 0
+const IR_JUMP_UNLESS      : _int64 = 28;    // go to label `number` when a is 0
+const IR_RETURN           : _int64 = 29;    // leave the function
+const IR_RETURN_VALUE     : _int64 = 30;    // leave the function with the value in a (`number`: the narrowing)
+const IR_LINE             : _int64 = 31;    // what follows was written on source line `number`
+const IR_ASM              : _int64 = 32;    // one instruction of an asm block: `number` the opcode table entry, `arguments` its operands
+const IR_NOP              : _int64 = 33;    // nothing
+// (34 was IR_STUB: the body of a function not generated yet, written with -stubs until stage 4)
+const IR_CAST             : _int64 = 35;    // check that the object in a is of class `number` (`detail` 1: a number array of type `number`);
+                                            // the VM raises class_cast_exception when it is not. The value stays in a
+const IR_IS               : _int64 = 36;    // d = (the object in a is of class `number`), 1 or 0 (`detail` 1: a number array
+                                            // of VM type `number`); 0 for null
+const IR_CALL_VALUE       : _int64 = 37;    // d = the function value in a (arguments) (`detail` 1: the function returns a
+                                            // value - taken into d, or dropped when d is -1)
+const IR_THROW            : _int64 = 38;    // raise the exception object in a (the VM looks for a handler: 4.7)
+const IR_LOCK             : _int64 = 39;    // lock the object in a (waits while another fiber holds it: 4.8)
+const IR_UNLOCK           : _int64 = 40;    // unlock the object in a
+const IR_INT_IMMEDIATE    : _int64 = 41;    // d = a op `detail` on integers, `detail` a 32-bit constant (`number`: ARITH_ADD,
+                                            // ARITH_SUB or ARITH_MUL). Only the optimizer makes it (backend/optimizer,
+                                            // passes/values/immediates.sharp): the VM's iadd / iaddl take the constant in
+                                            // the instruction itself, so `i = i + 1` is one instruction
+const IR_MATH             : _int64 = 42;    // d = math function `number` (MATH_...) of a - and of b, for a function of
+                                            // two numbers (b is -1 otherwise); all decimals. Only the optimizer makes
+                                            // it (passes/calls/math_instructions.sharp) from a call of a function of
+                                            // std.math: the VM's dsqrt, dfloor, dceil, dabs, or dmath
+
+// A `try` statement adds no instruction of its own: its ranges are LABELS (ir_try in
+// ir_function.sharp), and the bytecode step turns them into the pcs of its try record.
+
+// ---- which object a `text` gives (IR_TEXT; backend/optimizer, passes/calls/shared_literals.sharp)
+const TEXT_FRESH         : _int64 = 0;      // a new _int8[], every time
+const TEXT_SHARED_ARRAY  : _int64 = 1;      // the one shared _int8[] of that text: for a value that is only read
+const TEXT_SHARED_STRING : _int64 = 2;      // the one shared `string` object whose data is that array
+
+// ---- the math functions (IR_MATH): the numbers the VM knows them by (runtime/interrupts/native/math_functions.cpp)
+const MATH_POW   : _int64 = 0xd;
+const MATH_SQRT  : _int64 = 0xe;
+const MATH_CEIL  : _int64 = 0xf;
+const MATH_FLOOR : _int64 = 0x10;
+const MATH_ABS   : _int64 = 0x11;
+const MATH_LAST  : _int64 = 0x13;
+
+/** the name of a math function, as std.math calls it ("" for a number that is none) */
+def math_name(which: _int64) : string {
+    names := new string[] { "sin", "cos", "tan", "sinh", "cosh", "tanh", "asin", "acos", "atan", "atan2", "exp", "log",
+                            "log10", "pow", "sqrt", "ceil", "floor", "abs", "ldexp", "fmod" };
+    if(which < 0 || which >= sizeof(names)) { return ""; }
+    return names[which];
+}
+
+/** does the math function take two numbers? */
+def math_takes_two(which: _int64) : _int64 {
+    return which == 0x9 || which == MATH_POW || which == 0x12 || which == 0x13;      // atan2, pow, ldexp, fmod
+}
+
+// ---- arithmetic (IR_INT_BINARY, IR_DECIMAL_BINARY)
+const ARITH_ADD : _int64 = 1;
+const ARITH_SUB : _int64 = 2;
+const ARITH_MUL : _int64 = 3;
+const ARITH_DIV : _int64 = 4;      // on integers: the quotient, toward zero (may raise: a divisor of 0)
+const ARITH_REM : _int64 = 5;      // integers only
+const ARITH_AND : _int64 = 6;      // bits
+const ARITH_OR  : _int64 = 7;
+const ARITH_XOR : _int64 = 8;
+const ARITH_SHL : _int64 = 9;
+const ARITH_SHR : _int64 = 10;
+const ARITH_POW : _int64 = 11;     // decimals only
+
+// ---- comparisons (IR_INT_COMPARE, IR_DECIMAL_COMPARE)
+const CMP_LT : _int64 = 1;
+const CMP_GT : _int64 = 2;
+const CMP_LE : _int64 = 3;
+const CMP_GE : _int64 = 4;
+const CMP_EQ : _int64 = 5;
+const CMP_NE : _int64 = 6;
+
+// ---- conversions (IR_CONVERT)
+const CONVERT_INT_TO_DECIMAL : _int64 = 1;
+const CONVERT_DECIMAL_TO_INT : _int64 = 2;
+const CONVERT_NARROW         : _int64 = 3;      // an integer cut to the width `detail` says
+const CONVERT_TRUTH          : _int64 = 4;      // a decimal as a condition: 1 unless it is 0.0 (or -0.0)
+
+// ---- narrowing of an integer to a smaller type (doc/codegen.md 4.3): the VM's mov8 ... movu32
+const NARROW_NONE : _int64 = 0;
+const NARROW_I8   : _int64 = 1;
+const NARROW_I16  : _int64 = 2;
+const NARROW_I32  : _int64 = 3;
+const NARROW_U8   : _int64 = 4;
+const NARROW_U16  : _int64 = 5;
+const NARROW_U32  : _int64 = 6;
+
+// ---- how a call reaches its function (IR_CALL)
+const CALL_HOW_DIRECT  : _int64 = 1;    // exactly this function: `call`
+const CALL_HOW_VIRTUAL : _int64 = 2;    // the object's class decides: `invoke_delegate root` (`detail`: the root's address)
+const CALL_HOW_NATIVE  : _int64 = 3;    // a native function: `invoke_delegate f, argc, 1`
+
+// ---- what an array holds (IR_NEW_ARRAY, IR_GET_ELEMENT, IR_SET_ELEMENT): the VM's number type (0 - 9), or
+const ELEMENT_REFERENCE : _int64 = 100;     // objects, arrays, function values (`detail`: the class address, -1: any object)
+
+/** "int", "decimal", "ref": a slot kind for -ir */
+def slot_kind_name(kind: _int64) : string {
+    if(kind == SLOT_INT) { return "int"; }
+    if(kind == SLOT_DEC) { return "dec"; }
+    return "ref";
+}

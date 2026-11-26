@@ -1,0 +1,136 @@
+mod std.net;
+
+import ( std.io, std.data )
+
+/**
+ * HTTP IN ONE LINE
+ *
+ *      page := http.GET("https://example.com/").text();
+ *
+ *      answer := http.POST("https://httpbin.org/post") {
+ *          it.header("X-Trace", "abc");
+ *          it.json("hello", "world");
+ *      };
+ *      print(answer.status + " " + answer.json().member("json").string_or("hello", "?"));
+ *
+ * GET, POST, PUT, PATCH, DELETE and HEAD, each with and without a block. In
+ * the block `it` is the request: what it can be told is listed in
+ * http_request.sharp. (The verbs are in capitals, as HTTP writes them:
+ * `get` is a word the language keeps for itself.)
+ *
+ * The answer comes back whatever its status; answer.ok() tells, and
+ * answer.require_ok() throws http_status_exception when it is not 200 to
+ * 299. No answer at all - no network, an unknown host, a bad certificate,
+ * a timeout - is an http_exception.
+ *
+ * For a server you talk to in many places, describe it once as an
+ * http_service (http_service.sharp).
+ *
+ *      Java comparison: OkHttp's client.newCall(request).execute();
+ *      Python: requests.get(url) and requests.post(url, json=...).
+ */
+class http {
+    private static shared : http_engine?;
+
+    /** the engine these functions (and every http_service that was not given one) send through */
+    static def engine() : http_engine {
+        if(shared == null) { shared = new http_client(); }
+        return shared!!;
+    }
+
+    /** send through this engine from now on: a client with other settings, or a fake_http in a test */
+    static def use(other: http_engine) {
+        shared = other;
+    }
+
+    static def send(asked: http_request) : http_response {
+        return engine().send(asked);
+    }
+
+    static def GET(address: string) : http_response { return send(new http_request("GET", address)); }
+    static def HEAD(address: string) : http_response { return send(new http_request("HEAD", address)); }
+    static def POST(address: string) : http_response { return send(new http_request("POST", address)); }
+    static def PUT(address: string) : http_response { return send(new http_request("PUT", address)); }
+    static def PATCH(address: string) : http_response { return send(new http_request("PATCH", address)); }
+    static def DELETE(address: string) : http_response { return send(new http_request("DELETE", address)); }
+
+    static def GET(address: string, extras: (http_request)()) : http_response { return ask("GET", address, extras); }
+    static def HEAD(address: string, extras: (http_request)()) : http_response { return ask("HEAD", address, extras); }
+    static def POST(address: string, extras: (http_request)()) : http_response { return ask("POST", address, extras); }
+    static def PUT(address: string, extras: (http_request)()) : http_response { return ask("PUT", address, extras); }
+    static def PATCH(address: string, extras: (http_request)()) : http_response { return ask("PATCH", address, extras); }
+    static def DELETE(address: string, extras: (http_request)()) : http_response { return ask("DELETE", address, extras); }
+
+    /** any method ("OPTIONS", "PROPFIND" ...), with a block */
+    static def ask(method: string, address: string, extras: (http_request)()) : http_response {
+        asked := new http_request(method, address);
+        extras(asked);
+        return send(asked);
+    }
+}
+
+/**
+ * A SERVER THAT IS NOT THERE: for tests of code that talks HTTP
+ *
+ *      fake := new fake_http();
+ *      fake.answer("GET", "/users/octocat", 200, "{\"name\":\"The Octocat\"}");
+ *      fake.answer("POST", "/session", 401, "{\"error\":\"wrong password\"}");
+ *
+ *      hub := new github();
+ *      hub.use(fake);                              // or http.use(fake) for http.GET(...)
+ *      me := hub.user("octocat");                  // answered here: nothing leaves the program
+ *
+ *      fake.asked.size()                           // the requests that came, in order ...
+ *      fake.last().headers.find("Authorization")   // ... and what the last one carried
+ *
+ * A request is answered by the LAST rule whose method is the same and
+ * whose path is the end of the request's path ("/users/octocat" answers
+ * https://api.github.com/users/octocat); nothing fits: 404.
+ */
+class fake_http : http_engine {
+    asked : list<http_request> = new list<http_request>();
+    private methods : list<string> = new list<string>();
+    private paths : list<string> = new list<string>();
+    private answers : list<http_response> = new list<http_response>();
+
+    /** from now on answer `method` requests whose path ends with `path` like this */
+    def answer(method: string, path: string, status: _int64, body: string) : fake_http {
+        made := new http_response(status, "");
+        made.set_text(body);
+        if(sizeof(body.data) > 0 && (body.data!![0] == '{' || body.data!![0] == '[')) { made.headers.put("Content-Type", "application/json"); }
+        return answer(method, path, made);
+    }
+
+    def answer(method: string, path: string, made: http_response) : fake_http {
+        methods.add(io_strings.to_upper(method));
+        paths.add(path);
+        answers.add(made);
+        return self;
+    }
+
+    /** the request that came last. Throws illegal_state_exception when none has. */
+    def last() : http_request {
+        if(asked.size() == 0) { throw new illegal_state_exception("fake_http.last(): no request was sent yet"); }
+        return asked.at(asked.size() - 1);
+    }
+
+    override def send(request: http_request) : http_response {
+        asked.add(request);
+        where : url = url.parse(request.resolved_address());
+        request.resolved_body();                        // (sets Content-Type, as the real client does)
+        method : string = io_strings.to_upper(request.method);
+        for(i : _int64 = (answers.size() - 1); i >= 0; i--) {
+            if(methods.at(i) == method && io_strings.ends_with(where.path, paths.at(i))) {
+                found := answers.at(i);
+                made := new http_response(found.status, found.reason);
+                made.headers = found.headers.copy_all();
+                made.set_body(found.bytes());
+                made.address = where.to_string()!!;
+                return made;
+            }
+        }
+        none := new http_response(404, "Not Found");
+        none.address = where.to_string()!!;
+        return none;
+    }
+}

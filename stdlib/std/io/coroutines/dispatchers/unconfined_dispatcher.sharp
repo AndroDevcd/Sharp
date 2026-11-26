@@ -1,0 +1,31 @@
+mod std.io.coroutines;
+
+import ( std.io )
+
+/**
+ * unconfined_dispatcher - coroutines that are not tied to a thread and do not
+ * get worker threads either. dispatchers.unconfined() is the shared instance.
+ *
+ * USAGE
+ *     launch_on(dispatchers.unconfined(), { -> step(); });
+ *
+ * The coroutine is an unbound fiber: whichever thread is free runs it. Unlike
+ * pool_dispatcher this class starts no threads, so in a program that never
+ * used the default pool the coroutine runs on the thread of its creator the
+ * next time that thread waits (or on any other thread that happens to be idle).
+ *
+ * Kotlin equivalent: Dispatchers.Unconfined, with one difference: Kotlin runs
+ * the coroutine inside the caller up to its first suspension, here it starts
+ * like any other coroutine.
+ *
+ * No state, so nothing to lock.
+ */
+class unconfined_dispatcher : coroutine_dispatcher {
+
+    unconfined_dispatcher() {}
+
+    /** null: not tied to a thread */
+    override def select_thread() : thread? {
+        return null;
+    }
+}

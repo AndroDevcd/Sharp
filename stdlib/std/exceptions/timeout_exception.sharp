@@ -1,0 +1,17 @@
+mod std;
+
+/**
+ * @class timeout_exception
+ *
+ * Thrown when an operation did not finish within the time it was given
+ * (Java: TimeoutException).
+ *
+ * Example:
+ *     throw new timeout_exception("no answer after 500 ms");
+ *
+ * The message is read back with get_message() (see throwable in
+ * std/exceptions.sharp).
+ */
+class timeout_exception base exception {
+    public timeout_exception(message : string?) -> base(message) {}
+}

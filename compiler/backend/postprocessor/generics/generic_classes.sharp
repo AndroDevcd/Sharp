@@ -1,0 +1,473 @@
+mod backend.postprocessor.generics;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.tree,
+    backend.postprocessor.inheritance,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * GENERIC CLASSES: A COPY PER USE, MADE LAZILY
+ * (the C++ compiler: preprocessor/generic_class_preprocessor.cpp,
+ * create_generic_class in types/sharp_class.cpp, process_generic_class in
+ * postprocessor/class_processor.cpp - its "generic clones")
+ *
+ *      class box<T> { item : T;  def get() : T { return item; } }
+ *
+ *      a : box<string>;        first use: the class box<string> is made
+ *      b : box<_int64>;        another class, box<_int64>
+ *      c : box<string>;        the same box<string> as above
+ *
+ * `box<T>` as written is a BLUEPRINT: nothing can be laid out or checked
+ * while T is unknown. Each distinct list of type arguments gets a real
+ * sharp_class of its own, an INSTANCE, made the first time that use is seen
+ * and found again afterwards. (Textbook name: monomorphisation - what C++
+ * templates do. Java instead keeps one class and forgets the arguments.)
+ * Sharp needs the copies: a `_int64` field is stored as a number and a
+ * `string` field as a reference, so the two classes are laid out differently.
+ *
+ * HOW A USE FINDS ITS INSTANCE: THE KEY
+ * The type arguments, each as its canonical text (resolved_type.key()),
+ * joined with commas: "std#string", "_int64[],std#list<std#string>?". Aliases
+ * and type parameters are looked through before the key is built, so
+ * `box<names>` and `box<list<string>>` are the same instance.
+ *
+ * WHAT AN INSTANCE IS MADE OF
+ *   - a sharp_class with `blueprint`, `type_arguments` and an `environment`
+ *     ("T is string", type_environment.sharp);
+ *   - its own member objects, one per member of the blueprint: a new
+ *     sharp_field / sharp_function / sharp_parameter each, pointing at the
+ *     SAME tree nodes and the SAME written types as the blueprint's (`origin`
+ *     leads back to it). What differs is the RESOLVED type of each member,
+ *     worked out under the instance's environment;
+ *   - a copy of every class written inside the blueprint: box<string>.slot
+ *     is a class of its own, with an environment that leads to box<string>'s.
+ *
+ * Nothing in the blueprint or the syntax tree is touched. Deleting an
+ * instance would leave the program exactly as it was.
+ *
+ * TWO STEPS, SO AN INSTANCE IS CHEAP UNTIL IT IS USED
+ *      instantiate         makes the class object and the copies of its nested
+ *                          classes, and registers them
+ *      ensure_members      makes the member objects, the first time anybody
+ *                          needs them (member lookup, the stages after this one)
+ *
+ * That order also ends what would otherwise go round for ever:
+ * `class node<T> { next : node<T>; }` - making node<string> does not look at
+ * its fields; when its fields are made, node<string> already exists.
+ *
+ *      E0351   a type argument is not what `T base x` asks for
+ *      E0352   instances nest without end      class a<T> { x : a<a<T>>; }
+ */
+
+/** the deepest a type argument may nest: box<box<box<...>>> */
+const DEEPEST_GENERIC_NESTING : _int64 = 32;
+
+/**
+ * The instance of `blueprint` for these type arguments: found, or made.
+ * Null when it cannot be made (E0352, reported).
+ *
+ * @param written  the place that names the instance, for a message
+ */
+def instantiate(prog: sharp_program, blueprint: sharp_class, arguments: list<resolved_type>, written: sharp_type,
+                environment: type_environment?, problems: list<diagnostic>) : sharp_class? {
+    key := new string_builder("");
+    text := new string_builder("");
+    depth : _int64 = 0;
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        if(i > 0) { key.append(","); text.append(", "); }
+        argument := arguments.at(i);
+        key.append(argument.key());
+        text.append(argument.to_text());
+        nested : _int64 = nesting_depth_of(argument);
+        if(nested > depth) { depth = nested; }
+    }
+
+    if(blueprint.instances == null) { blueprint.instances = new hash_map<string, sharp_class>(); }
+    found := blueprint.instances!!.at(key.build());
+    if(found != null) { return found; }
+
+    if(depth >= DEEPEST_GENERIC_NESTING) {
+        if(written.instance_problem_reported == 0) {
+            written.instance_problem_reported = 1;
+            if(first_report_of_endless_nesting(environment)) { report_endless_nesting(blueprint, written, environment, problems); }
+        }
+        return null;
+    }
+
+    instance := new sharp_class(blueprint.kind, blueprint.written.name + "<" + text.build() + ">", blueprint.unit,
+                                blueprint.node, blueprint.owner, blueprint.module);
+    instance.flags = blueprint.flags;
+    instance.written = blueprint.written;
+    instance.blueprint = blueprint;
+    instance.is_generic_instance = 1;
+    instance.type_arguments = arguments;
+    instance.instance_key = key.build();
+    instance.first_use = written;
+    instance.nesting_depth = depth + 1;
+    instance.environment = new type_environment(blueprint.type_parameters, arguments, blueprint.environment, instance);
+    instance.type_parameters = new list<sharp_type_parameter>();    // every one of them is known: a real class
+    instance.base_type = blueprint.base_type;
+    instance.interface_types = blueprint.interface_types;
+    instance.open_state = 1;
+
+    // registered BEFORE anything else is worked out for it, so a class that
+    // uses itself (`next : node<T>`) finds this object instead of making another
+    blueprint.instances!!.put(instance.instance_key, instance);
+    if(blueprint.instance_list == null) { blueprint.instance_list = new list<sharp_class>(); }
+    blueprint.instance_list!!.add(instance);
+    prog.generic_instances.add(instance);
+
+    copy_nested_classes(prog, blueprint, instance);
+    check_constraints(prog, blueprint, instance, problems);
+    return instance;
+}
+
+/** how deep the generic instances in a type nest: 0 for `string`, 2 for `box<box<string>>` */
+def nesting_depth_of(type: resolved_type) : _int64 {
+    if(type.kind == RT_CLASS) { return type.class_of!!.nesting_depth; }
+    if(type.kind == RT_FUNCTION) {
+        depth : _int64 = nesting_depth_of(type.result!!);
+        for(i : _int64 = 0; i < type.parameters!!.size(); i++) {
+            nested : _int64 = nesting_depth_of(type.parameters!!.at(i));
+            if(nested > depth) { depth = nested; }
+        }
+        return depth;
+    }
+    return 0;
+}
+
+/**
+ * The classes written inside `source` exist once per class made from it:
+ * give `made` a copy of each (and each copy its own copies, all the way in).
+ *
+ * A copy of an ordinary class is a real class. A copy of a class that is
+ * itself generic (`class a<T> { class b<U> { } }`) is still a blueprint: it
+ * keeps b's type parameters, and `b<int>` inside `a<string>` is an instance
+ * of that copy.
+ */
+def copy_nested_classes(prog: sharp_program, source: sharp_class, made: sharp_class) {
+    for(i : _int64 = 0; i < source.classes.size(); i++) {
+        inner := source.classes.at(i);
+
+        copy := new sharp_class(inner.kind, inner.name, inner.unit, inner.node, made, inner.module);
+        copy.flags = inner.flags;
+        copy.written = inner.written;
+        copy.blueprint = inner;
+        copy.type_parameters = inner.type_parameters;
+        copy.nesting_depth = made.nesting_depth;
+        copy.environment = new type_environment(new list<sharp_type_parameter>(), new list<resolved_type>(),
+                                                made.environment, copy);
+        copy.base_type = inner.base_type;
+        copy.interface_types = inner.interface_types;
+
+        made.classes.add(copy);
+        made.members!!.add(copy);
+        if(!copy.is_open()) { prog.generic_instances.add(copy); }
+
+        copy_nested_classes(prog, inner, copy);
+    }
+}
+
+/**
+ * `class box<T base shape>`: every use must give a T that is `shape` or a
+ * class below it. Worked out once per instance; the first parameter that is
+ * not satisfied is remembered in `failed_constraint`, and every place that
+ * names the instance reports it (report_constraint).
+ *
+ * (The C++ compiler: process_generic_identifier, "must contain base type".)
+ */
+def check_constraints(prog: sharp_program, blueprint: sharp_class, instance: sharp_class, problems: list<diagnostic>) {
+    if(instance.constraints_checked == 1) { return; }
+    instance.constraints_checked = 1;
+
+    for(i : _int64 = 0; i < blueprint.type_parameters.size() && i < instance.type_arguments!!.size(); i++) {
+        parameter := blueprint.type_parameters.at(i);
+        if(parameter.constraint == null) { continue; }
+
+        // the constraint may itself mention the type parameters:  class pair<A, B base list<A>>
+        wanted := resolve_written_type(prog, parameter.constraint!!, instance.environment, problems);
+        if(!satisfies_constraint(prog, instance.type_arguments!!.at(i), wanted)) {
+            instance.failed_constraint = i;
+            return;
+        }
+    }
+}
+
+/** is a type argument what `T base wanted` asks for? What cannot be decided counts as fine. */
+def satisfies_constraint(prog: sharp_program, given: resolved_type, wanted: resolved_type) : _int64 {
+    if(wanted.is_error() || wanted.is_open() || given.is_error() || given.is_open()) { return 1; }
+    if(wanted.kind == RT_OBJECT) { return given.is_reference(); }    // `T base object`: anything that is not a plain number
+    if(wanted.kind != RT_CLASS) { return same_resolved_type(given.as_non_null(), wanted.as_non_null()); }
+    if(given.kind != RT_CLASS || given.is_array != wanted.is_array) { return 0; }
+    // a class whose own base was not found (E0301): what it inherits is not known, so it is not judged
+    if(given.class_of!!.inherits_uncertainly() == 1) { return 1; }
+
+    // `box<shape?>` for `T base shape`: the class is written to use its T as a shape,
+    // without asking whether it is null first. (The C++ compiler refuses it the same way.)
+    if(given.is_nullable == 1 && wanted.is_nullable == 0) { return 0; }
+    return inherits_from(prog, given.class_of!!, wanted.class_of!!);
+}
+
+/** E0351, at one place that names the instance */
+def report_constraint(prog: sharp_program, written: sharp_type, instance: sharp_class, environment: type_environment?,
+                      problems: list<diagnostic>) {
+    blueprint : sharp_class = instance.blueprint!!;
+    index : _int64 = instance.failed_constraint;
+    parameter := blueprint.type_parameters.at(index);
+    given := instance.type_arguments!!.at(index);
+    wanted := resolve_written_type(prog, parameter.constraint!!, instance.environment, problems);
+
+    d := error_at_node("E0351", "`" + given.to_text() + "` cannot be the `" + parameter.name + "` of `" + blueprint.written.name
+                       + "`: it is not a `" + wanted.to_text() + "`", written.unit, written.node)
+        .with_label("`" + parameter.name + "` must be `" + wanted.to_text() + "` or a class below it")
+        .with_related_place(place_of_node(parameter.unit, parameter.node,
+                                          "`" + parameter.name + " base " + parameter.constraint!!.to_text() + "` is required here"));
+
+    if(given.kind == RT_CLASS && wanted.kind == RT_CLASS && given.is_array == 0 && wanted.is_array == 0
+       && given.is_nullable == 1 && wanted.is_nullable == 0 && inherits_from(prog, given.class_of!!, wanted.class_of!!)) {
+        d.with_note("`" + given.to_text() + "` may be null, and `" + blueprint.written.name + "` uses its `" + parameter.name
+                    + "` as a `" + wanted.to_text() + "` without checking for null");
+        d.with_help("write `" + blueprint.written.name + "<" + given.as_non_null().to_text() + ">`; a field that may be empty is declared as `"
+                    + parameter.name + "?` inside the class");
+        add_instance_note(d, environment);
+        problems.add(d);
+        return;
+    }
+    if(given.is_array == 1 && wanted.is_array == 0) {
+        d.with_note("`" + given.to_text() + "` is an array; an array is not an object of a class and inherits from nothing");
+        add_instance_note(d, environment);
+        problems.add(d);
+        return;
+    }
+    if(given.is_number()) {
+        d.with_note("`" + given.to_text() + "` is a plain number, not an object of a class; it inherits from nothing");
+        box := box_name_of(given);
+        if(sizeof(box.data) > 0) {
+            d.with_help("the class `" + box + "` holds a `" + given.to_text() + "`; if it fits the requirement, write `"
+                        + blueprint.written.name + "<" + box + ">`");
+        }
+    } else if(given.kind == RT_FUNCTION && given.is_array == 0) {
+        // `hash_map<string, (decimal)(decimal)>`: a function value is not an object either
+        d.with_note("`" + given.to_text() + "` is the type of a function value, not a class; it inherits from nothing");
+        d.with_help("keep the function in a class of your own:  class action { run : " + given.to_text() + "; action(f: " + given.to_text()
+                    + ") { run = f; } }");
+        d.with_help("and give that class as the type argument: `action` in place of `" + given.to_text() + "` (then `new action(a_function)` makes one)");
+    } else if(given.kind == RT_CLASS && wanted.kind == RT_CLASS) {
+        d.with_note("`" + blueprint.written.name + "` uses what every `" + wanted.to_text()
+                    + "` has; a `" + given.to_text() + "` does not promise to have it");
+        // (a class of another module - `string` - is not the reader's to change)
+        user_file := prog.file_of(written.unit);
+        is_own_class : _int64 = user_file != null && user_file!!.module == given.class_of!!.module;
+        if(is_own_class == 0) {
+            d.with_help("use `" + blueprint.written.name + "` with `" + wanted.to_text() + "` or a class that inherits from it");
+        } else if(wanted.class_of!!.is_interface()) {
+            d.with_help("make `" + given.class_of!!.written.name + "` implement it:  class " + given.class_of!!.written.name
+                        + " : " + wanted.to_text() + " { ... }");
+        } else {
+            d.with_help("make `" + given.class_of!!.written.name + "` inherit from it:  class " + given.class_of!!.written.name
+                        + " base " + wanted.to_text() + " { ... }");
+        }
+    }
+    add_instance_note(d, environment);
+    problems.add(d);
+}
+
+/** E0352: the type arguments grow with every instance */
+def report_endless_nesting(blueprint: sharp_class, written: sharp_type, environment: type_environment?,
+                           problems: list<diagnostic>) {
+    name := blueprint.written.name;
+    d := error_at_node("E0352", "making this instance of `" + name + "` never ends", written.unit, written.node)
+        .with_label("every `" + name + "<...>` needs another `" + name + "<...>` with a bigger type argument, which needs the next ...");
+    function_name := generic_function_causing(environment);
+    if(sizeof(function_name.data) > 0) {
+        // `def wrap<T>(...) { ... wrap<list<T>>(...) ... }`: the FUNCTION grows its type argument
+        d.with_note("every call of a generic function with new type arguments makes an instance of its own. Here `" + function_name
+                    + "` calls itself with its type parameter wrapped once more (`" + written.to_text() + "`), so each instance of `"
+                    + function_name + "` asks for the next; the compiler gave up " + DEEPEST_GENERIC_NESTING + " levels deep");
+        d.with_help("call `" + function_name + "` with its type parameter as it is (`" + function_name + "<T>`), or give the deeper values a type that does not grow (a `list<object>`)");
+    } else {
+        d.with_note("every use of a generic class with new type arguments is a class of its own. Here a class refers to itself with its own type parameter wrapped once more (`" + written.to_text()
+                    + "`), so there is always one more class to make; the compiler gave up " + DEEPEST_GENERIC_NESTING + " levels deep");
+        d.with_help("refer to the class with the type parameter as it is (`" + name + "<" + parameter_names(blueprint)
+                    + ">`), or move the wrapped use out of the generic class");
+    }
+    add_instance_note_only(d, environment);
+    problems.add(d);
+}
+
+/**
+ * When the endless chain of instances is made by a generic FUNCTION (the
+ * nearest type parameters around the place belong to a function, not a
+ * class): that function's name; "" otherwise.
+ */
+def generic_function_causing(environment: type_environment?) : string {
+    current : type_environment? = environment;
+    while(current != null && current!!.parameters.size() == 0) { current = current!!.outer; }
+    if(current == null || current!!.instance != null) { return ""; }
+    parameter := current!!.parameters.at(0);
+    tree : syntax_tree = parameter.unit.parsed!!.tree;
+    up : _int64 = parameter.node;
+    while(up >= 0 && tree.kinds!![up] != N_FUNCTION) { up = tree.parents!![up]; }
+    if(up < 0) { return ""; }
+    return node_text(parameter.unit, up);
+}
+
+/**
+ * For a mistake that only one instance shows: point at the place that first
+ * named that instance. The message itself stands inside the generic class,
+ * which is fine as written; what has to change is usually the use.
+ *
+ * @param made  the instance, or a class nested in one
+ */
+def add_first_use(d: diagnostic, made: sharp_class?) {
+    current : sharp_class? = made;
+    while(current != null) {
+        if(current!!.first_use != null) {
+            use : sharp_type = current!!.first_use!!;
+            if(use.node >= 0) {
+                d.with_related_place(place_of_node(use.unit, use.node, "`" + shortened(current!!.name, 72) + "` is used here"));
+            }
+            return;
+        }
+        current = current!!.owner;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// the members of an instance
+// ---------------------------------------------------------------------------
+
+/**
+ * Make sure `declared` has its members and that they have their resolved
+ * types. For a class written in the source the members exist already; for
+ * an instance (and a class nested in one) they are made here, as copies of
+ * the blueprint's. Asking twice costs nothing.
+ *
+ * EVERYTHING that reads the fields or functions of a class that may be an
+ * instance calls this first (member_lookup.sharp does it for its callers).
+ */
+def ensure_members(prog: sharp_program, declared: sharp_class) {
+    if(declared.members_resolved == 1) { return; }
+    declared.members_resolved = 1;      // first: a class that mentions itself must not come back here
+
+    if(declared.blueprint != null) {
+        source : sharp_class = declared.blueprint!!;
+        ensure_members(prog, source);
+        copy_members(source, declared);
+    }
+    resolve_member_types(prog, declared, prog.problems);
+}
+
+/** give `made` a member object of its own for every member of `source` */
+def copy_members(source: sharp_class, made: sharp_class) {
+    for(i : _int64 = 0; i < source.enum_values.size(); i++) {
+        value := source.enum_values.at(i);
+        copy := new sharp_enum_value(value.name, value.unit, value.node, made, value.module);
+        copy.flags = value.flags;
+        copy.value_node = value.value_node;
+        copy.has_number = value.has_number;
+        copy.number = value.number;
+        copy.origin = value;
+        made.enum_values.add(copy);
+        made.members!!.add(copy);
+    }
+
+    // an alias is a name for a written type; what that type means is asked
+    // under the environment of whoever uses it, so the object itself is shared
+    for(i : _int64 = 0; i < source.aliases.size(); i++) {
+        made.aliases.add(source.aliases.at(i));
+        made.members!!.add(source.aliases.at(i));
+    }
+
+    for(i : _int64 = 0; i < source.fields.size(); i++) {
+        field := source.fields.at(i);
+        copy := new sharp_field(field.name, field.unit, field.node, made, field.module);
+        copy.flags = field.flags;
+        copy.type = field.type;
+        copy.initializer = field.initializer;
+        copy.inject_node = field.inject_node;
+        copy.origin = field;
+        if(field.getter != null) {
+            copy.getter = copy_function(field.getter!!, made);
+            copy.getter!!.field = copy;
+        }
+        if(field.setter != null) {
+            copy.setter = copy_function(field.setter!!, made);
+            copy.setter!!.field = copy;
+        }
+        made.fields.add(copy);
+        made.members!!.add(copy);
+    }
+
+    for(i : _int64 = 0; i < source.constructors.size(); i++) {
+        copy := copy_function(source.constructors.at(i), made);
+        made.constructors.add(copy);
+        made.members!!.add(copy);
+        if(source.default_constructor == source.constructors.at(i)) { made.default_constructor = copy; }
+    }
+    for(i : _int64 = 0; i < source.init_blocks.size(); i++) {
+        made.init_blocks.add(copy_function(source.init_blocks.at(i), made));
+    }
+    for(i : _int64 = 0; i < source.functions.size(); i++) {
+        copy := copy_function(source.functions.at(i), made);
+        made.functions.add(copy);
+        made.members!!.add(copy);
+    }
+}
+
+/**
+ * A function object for `owner` made from `function`: the same tree nodes
+ * and written types, parameters of its own (each gets its own resolved type).
+ */
+def copy_function(function: sharp_function, owner: sharp_class?) : sharp_function {
+    copy := new sharp_function(function.kind, function.name, function.unit, function.node, owner, function.module);
+    copy.flags = function.flags;
+    copy.type_parameters = function.type_parameters;
+    copy.return_type = function.return_type;
+    copy.returns_nil = function.returns_nil;
+    copy.body = function.body;
+    copy.expression = function.expression;
+    copy.base_call = function.base_call;
+    copy.is_operator = function.is_operator;
+    copy.extends = function.extends;
+    if(function.extension_of != null) { copy.extension_of = owner; }
+    copy.is_synthesized = function.is_synthesized;
+    copy.field = function.field;
+    copy.origin = function;
+
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        parameter := function.parameters.at(i);
+        copy.parameters.add(new sharp_parameter(parameter.name, parameter.type, parameter.node));
+    }
+    return copy;
+}
+
+/**
+ * Is this the first E0352 for the generic class or function whose
+ * instances are being made here? One endless chain is one mistake, however
+ * many types written in it take part:
+ *
+ *      def wrap<T>(x: T, depth: _int64) : _int64 {
+ *          l := new list<T>();             each wrap<...> makes a list<...> one level deeper
+ *          ... wrap<list<T>>(l, depth - 1);    ... and the next wrap<...>
+ *      }
+ *
+ * Both written types reach the limit, in the same chain of instances of
+ * `wrap`; only the first is reported. The chain is known by the type
+ * parameters of the innermost environment (the function's or the class's).
+ */
+def first_report_of_endless_nesting(environment: type_environment?) : _int64 {
+    current : type_environment? = environment;
+    while(current != null && current!!.parameters.size() == 0) { current = current!!.outer; }
+    if(current == null) { return 1; }
+    owner_parameter := current!!.parameters.at(0);
+    if(owner_parameter.endless_nesting_reported == 1) { return 0; }
+    owner_parameter.endless_nesting_reported = 1;
+    return 1;
+}

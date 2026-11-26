@@ -1,0 +1,201 @@
+mod std.guikit.core.tree;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * THE CONTRACTS OF THE FRAMEWORK
+ * ==============================
+ * How the pieces of the GUI talk to each other. Read this file first: every
+ * other file in gui/core, gui/layout and gui/widgets is one of these roles.
+ *
+ * THE SHAPE OF IT
+ *
+ *      what you write          gui.column().gap(8).add(gui.button("ok", { -> ... }))
+ *                                   |                        |
+ *      a widget object         column (a behavior)      button (a behavior)
+ *                                   |                        |
+ *      its node in the tree    view  ------- kids ------->  view
+ *
+ *   - A VIEW (view.sharp) is one box on the screen: where it is, how big,
+ *     its padding, background, border, its children. There is ONE view class;
+ *     it knows everything every box has in common, and nothing about buttons
+ *     or columns.
+ *
+ *   - A BEHAVIOR is what makes a box a button, or a column, or a line of text:
+ *     how big its content wants to be, where its children go, what it paints.
+ *     Each kind of widget is one class that implements `behavior`.
+ *
+ *   - The view asks its behavior the questions below at the right moments.
+ *     (Design pattern: "strategy". Android comparison: View vs. its onMeasure /
+ *     onLayout / onDraw - here those three live in a separate object.)
+ *
+ * WHY SPLIT IT THIS WAY: the tree code (layout walk, painting order, finding
+ * what is under the mouse, carrying state across rebuilds) is written once,
+ * against `view`. A new widget only answers three questions and never touches
+ * the tree code.
+ *
+ * EXTRA ABILITIES are separate small interfaces (pointer_target, key_target,
+ * wheel_target, stateful, clipper, overlay_painter). A widget implements only
+ * the ones it needs; the framework asks "is this behavior a wheel_target?"
+ * before using one. A label implements none; a text field several.
+ */
+
+/**
+ * What every kind of widget must answer.
+ *
+ * The widget object holds its own view (`me`, from the widget base class), so these take
+ * no view argument.
+ */
+interface behavior {
+    /**
+     * A short name of the kind ("button", "column"). When the screen is
+     * rebuilt, a new widget only takes over the remembered state of an old one
+     * (scroll position, text cursor) when the kinds match.
+     */
+    def kind() : string;
+
+    /**
+     * How big does your CONTENT want to be? It may be anything from
+     * min_w x min_h up to max_w x max_h (a max may be UNBOUNDED; min equal to
+     * max means the size is already decided). Answer by setting me.content_w
+     * and me.content_h; the view pulls the answer into the range, so a widget
+     * that just reports its natural size is correct.
+     *
+     * Padding and the size modifiers are the view's business, not yours: the
+     * numbers you get are already for the content alone.
+     *
+     * A container measures its CHILDREN here - every child exactly once, with
+     * the range it decides for that child - and answers from their sizes.
+     */
+    def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal);
+
+    /**
+     * Your view now has its final place. Put your CHILDREN where they belong
+     * inside your content box (me.inner_x() ... me.inner_h()), each at the
+     * size its measure answered (kid.want_w x kid.want_h). Only positions are
+     * decided here; sizes were decided in measure. A widget without children
+     * does nothing here.
+     */
+    def arrange();
+
+    /**
+     * Paint your own content. The view has already painted the background and
+     * border; your children are painted after you return, on top.
+     */
+    def paint(p: painter);
+}
+
+/** Anything that can be put into the tree with .add(...): it has a view. */
+interface element {
+    def node() : view;
+}
+
+/** What `pointer_target.pointer` is told happened. */
+const POINTER_PRESS   : _int64 = 1;     // the button went down on this widget
+const POINTER_DRAG    : _int64 = 2;     // the mouse moved while still held (also outside the widget)
+const POINTER_RELEASE : _int64 = 3;     // the button came back up
+const POINTER_DOUBLE  : _int64 = 4;     // the second click of a double click landed here (a text field selects the word)
+
+/**
+ * A widget that wants the mouse in detail - where it was pressed, dragging -
+ * like a slider or a text field. (A plain click needs none of this: give the
+ * view an on_click and the framework does the rest.)
+ *
+ * From the press until the release, every move goes to the SAME widget, also
+ * when the mouse leaves it: that is what makes dragging a slider work.
+ */
+interface pointer_target {
+    def pointer(what: _int64, x: decimal, y: decimal);
+}
+
+/** A widget that scrolls. Return 1 when the turn was used (0: let the widget around me have it). */
+interface wheel_target {
+    def wheel(dx: decimal, dy: decimal) : _int64;
+}
+
+/**
+ * A widget that takes the keyboard while it has the focus (a text field, a
+ * slider moved with the arrow keys).
+ */
+interface key_target {
+    /** a key went down. Return 1 when it was used (0: the framework may use it: Tab moves the focus). */
+    def key(e: event) : _int64;
+    /** text was typed (already with shift, caps lock and keyboard layout applied) */
+    def typed(words: string);
+}
+
+/**
+ * A widget that remembers something between frames that is NOT in the program's
+ * state: how far a list is scrolled, where the text cursor is, how far a
+ * switch has slid. When the screen is rebuilt a NEW widget object is made;
+ * `adopt` is its chance to copy those things from the old one it replaces
+ * (same kind, same place in the tree).
+ */
+interface stateful {
+    def adopt(old: behavior);
+}
+
+/** A widget whose children must not paint (or be clicked) outside its box: a scrolling area. */
+interface clipper {
+    def clips() : _int64;
+}
+
+/**
+ * A widget whose children are NOT part of the page: they float above
+ * everything - a dialog, a menu. The view neither paints nor hit-tests a
+ * floater's children in the normal walk of the tree; the host does both for
+ * them afterwards, on top (popup.sharp, and "overlays" in host.sharp).
+ */
+interface floater {
+    def floats() : _int64;
+}
+
+/**
+ * A scrolling widget whose content can be DRAGGED to scroll it, the way a
+ * finger moves a list on a touch screen. When a press on something inside it
+ * turns into a drag, the host takes the gesture away from what was pressed
+ * (that is not a click any more) and feeds the movement here instead.
+ */
+interface drag_scroller {
+    /** the content was dragged this far since the last time, across and down, in pixels */
+    def drag_by(dx: decimal, dy: decimal);
+}
+
+/** A widget that paints something OVER its children too: a scroll bar. */
+interface overlay_painter {
+    def paint_over(p: painter);
+}
+
+/**
+ * WHAT A WIDGET TELLS ABOUT ITSELF
+ *
+ * Four small questions a widget may answer about what it shows. Nothing in the
+ * framework needs the answers to run an app: they are what a UI test asks
+ * (std.guikit.testing - on_text("Save"), should_say(...), should_be_on(),
+ * should_have_value(...)), and what a screen reader would ask.
+ *
+ * A widget of your own answers the ones that fit it, and tests can then find
+ * and check it like the built-in ones.
+ */
+
+/** A widget that shows words: a text, a button, a chip. A text field answers with what is typed in it. */
+interface shows_words {
+    def words_shown() : string;
+}
+
+/** A widget with words that NAME it besides what it shows: the caption above a text field. */
+interface has_caption {
+    def caption_shown() : string;
+}
+
+/** A widget that is on or off: a checkbox, a switch, a radio (on: it is the one chosen), a chip. */
+interface on_or_off {
+    def is_on() : bool;
+}
+
+/** A widget that stands at a number: a slider, a progress bar. */
+interface has_value {
+    def value_shown() : decimal;
+}

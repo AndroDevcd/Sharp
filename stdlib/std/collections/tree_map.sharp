@@ -1,0 +1,652 @@
+mod std.collections;
+
+/**
+ * @class tree_map
+ *
+ * A map that keeps its keys SORTED. Looking a key up, adding and removing
+ * are O(log n); looping over the map visits the pairs in ascending key
+ * order; and because the keys are ordered the map can also answer questions
+ * a hash map cannot: the smallest / largest key, the nearest key below or
+ * above a value, all keys inside a range.
+ *
+ * The order is decided by a comparison function given to the constructor:
+ *
+ *     compare(a, b) < 0     a sorts before b
+ *     compare(a, b) == 0    a and b are the same key
+ *     compare(a, b) > 0     a sorts after b
+ *
+ *     prices := new tree_map<int, string>({ a: int, b: int -> (decimal) return a.value - b.value; });
+ *     prices.put(30, "c");  prices.put(10, "a");  prices.put(20, "b");
+ *     prices.first_key();          // 10
+ *     prices.floor_key(25);        // 20  (largest key <= 25)
+ *     prices.ceiling_key(25);      // 30  (smallest key >= 25)
+ *     foreach(entry in prices) ...  // 10, 20, 30
+ *
+ * Two keys are "the same key" exactly when compare returns 0 for them;
+ * `==` and hash() are not used.
+ *
+ * Implementation: an AVL tree - a binary search tree in which the heights
+ * of the two sub trees of every node differ by at most 1, which keeps the
+ * tree at most ~1.44 * log2(n) levels deep. After every insert and remove
+ * the path back to the root is checked and repaired with rotations. All
+ * algorithms are written as loops (nodes know their parent), so the depth
+ * of the call stack does not grow with the size of the map.
+ *
+ * Limitation: key and value types have to be object types; native types
+ * such as `decimal` cannot be used.
+ */
+class tree_map<K, V> : loopable<map_entry<K, V> >, iterable<map_entry<K, V> > {
+    /** top of the tree, null when the map is empty */
+    private root : tree_node<K, V>?;
+    /** number of key/value pairs */
+    private count : decimal;
+    /** the ordering of the keys, see the class comment */
+    private compare : (K, K)(decimal);
+
+    /**
+     * Create an empty map.
+     *
+     * @param compare the ordering of the keys, see the class comment
+     */
+    tree_map(compare: (K, K)(decimal)) {
+        self->compare = compare;
+        count = 0;
+    }
+
+    /** Number of key/value pairs. O(1). */
+    def size() : decimal {
+        return count;
+    }
+
+    /** true when the map has no pairs. O(1). */
+    def is_empty() : bool {
+        return count == 0;
+    }
+
+    /** The comparison function this map orders its keys with. */
+    def comparison() : (K, K)(decimal) {
+        return compare;
+    }
+
+    /**
+     * Number of levels of the tree (0 for an empty map). Only interesting
+     * for tests and diagnostics: it never exceeds about 1.44 * log2(size + 2).
+     */
+    def height() : decimal {
+        if(root == null) return 0;
+        return root!!.height;
+    }
+
+    /**
+     * Store a value for a key. O(log n).
+     *
+     * @return true when the key is new, false when an existing value was replaced
+     */
+    def put(key: K, value: V) : bool {
+        if(root == null) {
+            root = new tree_node<K, V>(key, value);
+            count = 1;
+            return true;
+        }
+
+        // walk down to the place where the key belongs
+        node := root!!;
+        while(true) {
+            order : decimal = compare(key, node.key);
+            if(order == 0) {
+                node.value = value;
+                return false;
+            }
+
+            if(order < 0) {
+                if(node.left == null) {
+                    added := new tree_node<K, V>(key, value);
+                    added.parent = node;
+                    node.left = added;
+                    break;
+                }
+                node = node.left!!;
+            } else {
+                if(node.right == null) {
+                    added := new tree_node<K, V>(key, value);
+                    added.parent = node;
+                    node.right = added;
+                    break;
+                }
+                node = node.right!!;
+            }
+        }
+
+        count++;
+        rebalance_upwards(node);
+        return true;
+    }
+
+    /**
+     * Store a value only when the key is not in the map yet. O(log n).
+     *
+     * @return true when the pair was added, false when the key already existed
+     */
+    def put_if_absent(key: K, value: V) : bool {
+        if(find_node(key) != null) return false;
+        return put(key, value);
+    }
+
+    /** The value stored for a key, or null when the map does not have the key. O(log n). */
+    def at(key: K) : V? {
+        node := find_node(key);
+        if(node == null) return null;
+        return node!!.value;
+    }
+
+    /** The value stored for a key, or `fallback` when the map does not have the key. O(log n). */
+    def at_or_default(key: K, fallback: V) : V {
+        node := find_node(key);
+        if(node == null) return fallback;
+        return node!!.value;
+    }
+
+    /** true when the map has the key. O(log n). */
+    def contains_key(key: K) : bool {
+        if(find_node(key) == null) return false;
+        return true;
+    }
+
+    /**
+     * true when at least one key maps to a value that equals `wanted` (compared with `==`). O(n).
+     *
+     * (The parameter is deliberately not called `value`. With that name the
+     * compiler fails here, inside std/primitives/numbers.sharp: the `==` of the
+     * number classes is compiled on first use, apparently in the scope of
+     * the function that uses it, where a parameter named `value` hides the
+     * field `value` that operator reads.)
+     */
+    def contains_value(wanted: V) : bool {
+        node := first_node();
+        while(node != null) {
+            current := node!!;
+            if(current.value == wanted) return true;
+            node = current.next_node();
+        }
+        return false;
+    }
+
+    /**
+     * Remove a key and its value. O(log n).
+     *
+     * @return true when the key was removed, false when the map did not have it
+     */
+    def remove(key: K) : bool {
+        node := find_node(key);
+        if(node == null) return false;
+        remove_node(node!!);
+        return true;
+    }
+
+    /**
+     * Remove a key and return the value that was stored for it, or null when
+     * the map did not have the key. O(log n).
+     */
+    def take(key: K) : V? {
+        node := find_node(key);
+        if(node == null) return null;
+        value := node!!.value;
+        remove_node(node!!);
+        return value;
+    }
+
+    /** Remove every pair. O(1). */
+    def clear() {
+        root = null;
+        count = 0;
+    }
+
+    /**
+     * The smallest key. O(log n).
+     *
+     * @throws no_such_element_exception when the map is empty
+     */
+    def first_key() : K {
+        if(root == null)
+            throw new no_such_element_exception("tree_map: first_key called on an empty map");
+        return root!!.leftmost().key;
+    }
+
+    /**
+     * The largest key. O(log n).
+     *
+     * @throws no_such_element_exception when the map is empty
+     */
+    def last_key() : K {
+        if(root == null)
+            throw new no_such_element_exception("tree_map: last_key called on an empty map");
+        return root!!.rightmost().key;
+    }
+
+    /** The pair with the smallest key, or null when the map is empty. O(log n). */
+    def first_entry() : map_entry<K, V>? {
+        if(root == null) return null;
+        node := root!!.leftmost();
+        return new map_entry<K, V>(node.key, node.value);
+    }
+
+    /** The pair with the largest key, or null when the map is empty. O(log n). */
+    def last_entry() : map_entry<K, V>? {
+        if(root == null) return null;
+        node := root!!.rightmost();
+        return new map_entry<K, V>(node.key, node.value);
+    }
+
+    /**
+     * Remove the pair with the smallest key and return it. O(log n).
+     *
+     * @throws no_such_element_exception when the map is empty
+     */
+    def poll_first() : map_entry<K, V> {
+        if(root == null)
+            throw new no_such_element_exception("tree_map: poll_first called on an empty map");
+        node := root!!.leftmost();
+        entry := new map_entry<K, V>(node.key, node.value);
+        remove_node(node);
+        return entry;
+    }
+
+    /**
+     * Remove the pair with the largest key and return it. O(log n).
+     *
+     * @throws no_such_element_exception when the map is empty
+     */
+    def poll_last() : map_entry<K, V> {
+        if(root == null)
+            throw new no_such_element_exception("tree_map: poll_last called on an empty map");
+        node := root!!.rightmost();
+        entry := new map_entry<K, V>(node.key, node.value);
+        remove_node(node);
+        return entry;
+    }
+
+    /** The largest key that is <= `key`, or null when every key is larger. O(log n). */
+    def floor_key(key: K) : K? {
+        node := floor_node(key, 1);
+        if(node == null) return null;
+        return node!!.key;
+    }
+
+    /** The smallest key that is >= `key`, or null when every key is smaller. O(log n). */
+    def ceiling_key(key: K) : K? {
+        node := ceiling_node(key, 1);
+        if(node == null) return null;
+        return node!!.key;
+    }
+
+    /** The largest key that is strictly < `key`, or null when there is none. O(log n). */
+    def lower_key(key: K) : K? {
+        node := floor_node(key, 0);
+        if(node == null) return null;
+        return node!!.key;
+    }
+
+    /** The smallest key that is strictly > `key`, or null when there is none. O(log n). */
+    def higher_key(key: K) : K? {
+        node := ceiling_node(key, 0);
+        if(node == null) return null;
+        return node!!.key;
+    }
+
+    /** A new `list` with all keys in ascending order. O(n). */
+    def keys() : list<K> {
+        result := new list<K>();
+        node := first_node();
+        while(node != null) {
+            current := node!!;
+            result.add(current.key);
+            node = current.next_node();
+        }
+        return result;
+    }
+
+    /** A new array with all keys in ascending order (length 0 when empty). O(n). */
+    def key_array() : K[] {
+        result := new K[count];
+        i : decimal = 0;
+        node := first_node();
+        while(node != null) {
+            current := node!!;
+            result[i++] = current.key;
+            node = current.next_node();
+        }
+        return result;
+    }
+
+    /** A new `list` with all values, in the ascending order of their keys. O(n). */
+    def values() : list<V> {
+        result := new list<V>();
+        node := first_node();
+        while(node != null) {
+            current := node!!;
+            result.add(current.value);
+            node = current.next_node();
+        }
+        return result;
+    }
+
+    /** A new `list` with a map_entry (a copy of key and value) per pair, in ascending key order. O(n). */
+    def entries() : list<map_entry<K, V> > {
+        result := new list<map_entry<K, V> >();
+        node := first_node();
+        while(node != null) {
+            current := node!!;
+            result.add(new map_entry<K, V>(current.key, current.value));
+            node = current.next_node();
+        }
+        return result;
+    }
+
+    /**
+     * The keys k with from <= k < to, in ascending order (`from` is
+     * included, `to` is not). Neither bound has to be a key of the map.
+     * O(log n + number of keys returned).
+     */
+    def range_keys(from: K, to: K) : list<K> {
+        result := new list<K>();
+        node := ceiling_node(from, 1);
+        while(node != null) {
+            current := node!!;
+            if(compare(current.key, to) >= 0) break;
+            result.add(current.key);
+            node = current.next_node();
+        }
+        return result;
+    }
+
+    /**
+     * A new, independent map with the pairs whose keys k satisfy
+     * from <= k < to. O(m log m) for m copied pairs.
+     */
+    def sub_map(from: K, to: K) : tree_map<K, V> {
+        result := new tree_map<K, V>(compare);
+        node := ceiling_node(from, 1);
+        while(node != null) {
+            current := node!!;
+            if(compare(current.key, to) >= 0) break;
+            result.put(current.key, current.value);
+            node = current.next_node();
+        }
+        return result;
+    }
+
+    /** A new, independent map with the pairs whose keys are strictly < `to`. O(m log m). */
+    def head_map(to: K) : tree_map<K, V> {
+        result := new tree_map<K, V>(compare);
+        node := first_node();
+        while(node != null) {
+            current := node!!;
+            if(compare(current.key, to) >= 0) break;
+            result.put(current.key, current.value);
+            node = current.next_node();
+        }
+        return result;
+    }
+
+    /** A new, independent map with the pairs whose keys are >= `from`. O(m log m). */
+    def tail_map(from: K) : tree_map<K, V> {
+        result := new tree_map<K, V>(compare);
+        node := ceiling_node(from, 1);
+        while(node != null) {
+            current := node!!;
+            result.put(current.key, current.value);
+            node = current.next_node();
+        }
+        return result;
+    }
+
+    /**
+     * The pairs as an array of map_entry in ascending key order, or null
+     * when the map is empty. This is what `foreach(entry in map)` uses. O(n).
+     */
+    override def get_elements() : map_entry<K, V>[]? {
+        if(count == 0) return null;
+        result := new map_entry<K, V>[count];
+        i : decimal = 0;
+        node := first_node();
+        while(node != null) {
+            current := node!!;
+            result[i++] = new map_entry<K, V>(current.key, current.value);
+            node = current.next_node();
+        }
+        return result;
+    }
+
+    /**
+     * An iterator over the pairs in ascending key order. It walks the tree
+     * directly: do not change the map while using it.
+     */
+    override def iterator() : iterator<map_entry<K, V> > {
+        return new tree_map_iterator<K, V>(first_node(), null, 1);
+    }
+
+    /** An iterator over the pairs in descending key order. Do not change the map while using it. */
+    def descending_iterator() : iterator<map_entry<K, V> > {
+        last : tree_node<K, V>? = null;
+        if(root != null) last = root!!.rightmost();
+        return new tree_map_iterator<K, V>(last, null, 0);
+    }
+
+    /**
+     * An iterator over the pairs whose keys k satisfy from <= k < to, in
+     * ascending order. Nothing is copied. Do not change the map while using it.
+     */
+    def range_iterator(from: K, to: K) : iterator<map_entry<K, V> > {
+        start := ceiling_node(from, 1);
+        stop := ceiling_node(to, 1);
+        return new tree_map_iterator<K, V>(start, stop, 1);
+    }
+
+    // ------------------------------------------------------------------
+    // searching
+    // ------------------------------------------------------------------
+
+    /** The node with the smallest key, or null for an empty map. */
+    private def first_node() : tree_node<K, V>? {
+        if(root == null) return null;
+        return root!!.leftmost();
+    }
+
+    /** The node that holds `key`, or null. */
+    private def find_node(key: K) : tree_node<K, V>? {
+        node := root;
+        while(node != null) {
+            current := node!!;
+            order : decimal = compare(key, current.key);
+            if(order == 0) return current;
+            if(order < 0) node = current.left;
+            else node = current.right;
+        }
+        return null;
+    }
+
+    /**
+     * The node with the largest key below `key`.
+     *
+     * @param inclusive 1: a node equal to `key` counts (floor),
+     *                  0: it does not (lower)
+     */
+    private def floor_node(key: K, inclusive: decimal) : tree_node<K, V>? {
+        best : tree_node<K, V>? = null;
+        node := root;
+        while(node != null) {
+            current := node!!;
+            order : decimal = compare(key, current.key);
+            if(order == 0 && inclusive) return current;
+
+            if(order > 0) {
+                best = current;             // a candidate; a larger one may be to the right
+                node = current.right;
+            } else {
+                node = current.left;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * The node with the smallest key above `key`.
+     *
+     * @param inclusive 1: a node equal to `key` counts (ceiling),
+     *                  0: it does not (higher)
+     */
+    private def ceiling_node(key: K, inclusive: decimal) : tree_node<K, V>? {
+        best : tree_node<K, V>? = null;
+        node := root;
+        while(node != null) {
+            current := node!!;
+            order : decimal = compare(key, current.key);
+            if(order == 0 && inclusive) return current;
+
+            if(order < 0) {
+                best = current;             // a candidate; a smaller one may be to the left
+                node = current.left;
+            } else {
+                node = current.right;
+            }
+        }
+        return best;
+    }
+
+    // ------------------------------------------------------------------
+    // changing the tree
+    // ------------------------------------------------------------------
+
+    /** Take a node out of the tree and restore the balance. */
+    private def remove_node(doomed: tree_node<K, V>) {
+        node := doomed;
+
+        // A node with two children is not unhooked itself: the pair of its
+        // successor (the smallest key of the right sub tree, which has no
+        // left child) moves into it, and the successor node is unhooked.
+        if(node.left != null && node.right != null) {
+            successor := node.right!!.leftmost();
+            node.key = successor.key;
+            node.value = successor.value;
+            node = successor;
+        }
+
+        // now the node has at most one child: that child takes its place
+        child := node.left;
+        if(child == null) child = node.right;
+        above := node.parent;
+
+        if(child != null) child!!.parent = above;
+        replace_child(above, node, child);
+
+        node.left = null;
+        node.right = null;
+        node.parent = null;
+        count--;
+
+        if(above != null) rebalance_upwards(above!!);
+    }
+
+    /** Make `replacement` the child of `above` where `old` was (or the root when `above` is null). */
+    private def replace_child(above: tree_node<K, V>?, old: tree_node<K, V>, replacement: tree_node<K, V>?) {
+        if(above == null) {
+            root = replacement;
+        } else {
+            holder := above!!;
+            if(holder.left == old) holder.left = replacement;
+            else holder.right = replacement;
+        }
+    }
+
+    /** Height of a sub tree; an empty sub tree has height 0. */
+    private def height_of(node: tree_node<K, V>?) : decimal {
+        if(node == null) return 0;
+        return node!!.height;
+    }
+
+    /** Recompute the height of a node from its two sub trees. */
+    private def update_height(node: tree_node<K, V>) {
+        l : decimal = height_of(node.left);
+        r : decimal = height_of(node.right);
+        if(l > r) node.height = l + 1;
+        else node.height = r + 1;
+    }
+
+    /**
+     * Walk from `start` up to the root, correcting heights and rotating
+     * wherever one sub tree has become 2 levels deeper than the other.
+     */
+    private def rebalance_upwards(start: tree_node<K, V>) {
+        walk : tree_node<K, V>? = start;
+        while(walk != null) {
+            node := walk!!;
+            update_height(node);
+            balance : decimal = height_of(node.left) - height_of(node.right);
+
+            if(balance > 1) {
+                // left side too deep; a left-right shape needs a first rotation to become left-left
+                l := node.left!!;
+                if(height_of(l.left) < height_of(l.right))
+                    rotate_left(l);
+                node = rotate_right(node);
+            } else if(balance < 0 - 1) {
+                // mirror image
+                r := node.right!!;
+                if(height_of(r.right) < height_of(r.left))
+                    rotate_right(r);
+                node = rotate_left(node);
+            }
+
+            walk = node.parent;
+        }
+    }
+
+    /**
+     * Rotate the sub tree at `node` to the left: its right child moves up
+     * and `node` becomes that child's left child.
+     *
+     *       node                 pivot
+     *      /    \               /     \
+     *     a     pivot   =>    node     c
+     *          /     \       /    \
+     *         b       c     a      b
+     *
+     * @return the new top of the sub tree (pivot)
+     */
+    private def rotate_left(node: tree_node<K, V>) : tree_node<K, V> {
+        pivot := node.right!!;
+        inner := pivot.left;
+
+        node.right = inner;
+        if(inner != null) inner!!.parent = node;
+
+        pivot.parent = node.parent;
+        replace_child(node.parent, node, pivot);
+
+        pivot.left = node;
+        node.parent = pivot;
+
+        update_height(node);
+        update_height(pivot);
+        return pivot;
+    }
+
+    /** Rotate the sub tree at `node` to the right (mirror image of rotate_left). */
+    private def rotate_right(node: tree_node<K, V>) : tree_node<K, V> {
+        pivot := node.left!!;
+        inner := pivot.right;
+
+        node.left = inner;
+        if(inner != null) inner!!.parent = node;
+
+        pivot.parent = node.parent;
+        replace_child(node.parent, node, pivot);
+
+        pivot.right = node;
+        node.parent = pivot;
+
+        update_height(node);
+        update_height(pivot);
+        return pivot;
+    }
+}

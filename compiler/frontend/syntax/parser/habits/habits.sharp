@@ -1,0 +1,98 @@
+mod frontend.syntax.parser.habits;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.tree,
+    frontend.syntax.parser
+)
+
+/**
+ * HABITS FROM OTHER LANGUAGES, TRANSLATED
+ *
+ * Most syntax errors a newcomer makes are not slips but things that are
+ * right in the language they came from:
+ *
+ *      if(a == 1 and b == 2)       Python          if(a == 1 && b == 2)
+ *      if(not done)                Python          if(!done)
+ *      x === 1                     JavaScript      x == 1
+ *      ok &&= check();             Ruby, JS        ok = ok && check();
+ *      o instanceof string         Java            o is string
+ *      (string) o                  C, Java         o as string
+ *      x : string? = nil;          Swift, Ruby     x : string? = null;
+ *      function f() { }  fn f()    JS, Rust        def f() { }
+ *      int f() { }                 C, Java         def f() : int { }
+ *      b() -> super(1) { }         Java            b() -> base(1) { }
+ *      class b extends a           Java            class b base a
+ *      class b implements i        Java            class b : i
+ *      def f() : t := value;       (mixing both)   def f() : t = value;
+ *      class b base a base c       (two bases)     class b base a : c
+ *      x : int = 0; get { ... }    (C# property)   a getter belongs to a field of a class
+ *      for(x in items)             Python, Kotlin  foreach(x in items)
+ *      foreach(i in 0..10)         Kotlin, Rust    for(i := 0; i <= 10; i++)
+ *      retrun x;  calss point { }  (a slip)        return x;  class point { }
+ *
+ * A plain parser would say "expected `)`" or "expected a value, found `=`"
+ * and leave the reader to guess. Each function here recognises one habit
+ * where the parser meets it, reports it ONCE with the Sharp spelling (the
+ * corrected text, ready to paste), and then REPAIRS the parse: it reads on
+ * as if the Sharp form had been written, so the rest of the statement and
+ * the rest of the file parse normally and no follow-on error is reported.
+ * Textbook name: error productions / "phrase-level recovery" (dragon book
+ * 4.1.4) - the grammar knows the common wrong forms.
+ *
+ * Every habit is reported as E0100 ("this is not Sharp") at the word that
+ * gives it away. The habits whose wrong form PARSES (`elif(x) { }` reads as
+ * a call) are translated by the name stage instead (backend/compiler/names,
+ * not_found.sharp).
+ *
+ * The parser calls these functions, and they call the parser back to read
+ * the operands, types and bodies of the repaired form: error productions
+ * are part of the grammar, so this package and `frontend.syntax.parser`
+ * depend on each other (as the parser's own files do).
+ *
+ * The files of this package (module `frontend.syntax.parser.habits`):
+ *
+ *      habits.sharp                this front door; `report_habit` and the small token tests
+ *      operator_habits.sharp       and / or / not / instanceof, `===`, `&&=`
+ *      value_habits.sharp          `(type) value`, `nil` as a value
+ *      declaration_habits.sharp    function / fn / `int f()`, extends / implements, a second `base`,
+ *                                  `-> super(..)`, `: t := value`, get / set after a local, `int n = 0;`
+ *      loop_habits.sharp           `for(x in items)`, ranges `0..10`
+ *      misspelt_keywords.sharp     `retrun x;`, `calss point { }`, `fro(i := 0; ...)`: a keyword with a slip
+ *
+ *      C++ comparison: the C++ parser has none of these; it reports the
+ *      first token it cannot use ("expected `)`").
+ */
+
+/** is token `index` the word `word`? (only names are compared: a keyword never is) */
+def token_is_word(p: parse_state, index: _int64, word: string) : _int64 {
+    if(index < 0 || index >= p.count || p.kinds[index] != T_IDENTIFIER) { return 0; }
+    if(token_text(p.source, p.table, index) == word) { return 1; }
+    return 0;
+}
+
+/** do tokens `first` and `second` touch, with no space between them? (`==` and `=` written `===`) */
+def tokens_touch(p: parse_state, first: _int64, second: _int64) : _int64 {
+    if(first < 0 || second >= p.count) { return 0; }
+    return p.end_of(first) == p.start_of(second);
+}
+
+/** can a value start with a token of this kind? (a name, a literal, `self`, `new` ... - not `(`, which would be a call) */
+def starts_a_plain_value(kind: _int64) : _int64 {
+    return kind == T_IDENTIFIER || kind == T_INTEGER || kind == T_DECIMAL || kind == T_HEX || kind == T_STRING
+        || kind == T_CHAR || kind == T_STRING_BEGIN || kind == K_TRUE || kind == K_FALSE || kind == K_SELF
+        || kind == K_NEW || kind == K_NULL || kind == K_SIZEOF || kind == P_NOT || kind == P_MINUS;
+}
+
+/**
+ * Record a habit: E0100 over the tokens first..last, which the parser has
+ * read past and repaired. Clears `recovering` - the statement goes on
+ * normally - so only a REAL second mistake in it is reported.
+ */
+def report_habit(p: parse_state, first: _int64, last: _int64, message: string) : diagnostic {
+    d := p.report_at(first, "E0100", message, p.start_of(first), p.end_of(last));
+    p.recovering = 0;
+    return d;
+}

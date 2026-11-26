@@ -1,0 +1,61 @@
+mod backend.compiler.statements.exceptions;
+
+import (
+    std.io,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions,
+    backend.compiler.statements
+)
+
+/**
+ * `lock(object) body`
+ *
+ *      lock(self) { count++; }         one fiber at a time runs the block for this object
+ *
+ * Any OBJECT can be locked - an object of a class, `object`, an array, a
+ * function value (an object of `function_value` when the program runs; the
+ * C++ compiler accepts `lock(a_function)`, checked) - and it may be nullable
+ * (locking null raises the null-pointer exception when the program runs). A
+ * number or `null` written out has no lock: E0615. The object is evaluated once, into a hidden local, so that
+ * exactly the object locked is unlocked again - also when a `return`,
+ * `break` or exception leaves the block (the lock is a jump frame).
+ *
+ *      E0615   the value cannot be locked
+ *
+ *      C++ comparison: compiler/functions/statements/lock_statement.cpp
+ *      ("attempt to lock non-lockable object"). It evaluates the expression
+ *      a second time to unlock, and refuses an array held in a variable (it
+ *      tests the variable's type, not the array's): an accident, not a rule.
+ */
+def analyse_lock(context: analysis_context, node: _int64) : bound_statement {
+    object_node : _int64 = context.tree.first_child!![node];
+    body_node : _int64 = 0 - 1;
+    if(object_node >= 0) { body_node = context.tree.next_sibling!![object_node]; }
+    locked : bound_expression = new bound_error(context.unit, node, context.session.types.error_type);
+    if(object_node >= 0) { locked = analyse_value(context, object_node, null); }
+
+    type : resolved_type = locked.type;
+    lockable : _int64 = type.kind == RT_ERROR || type.kind == RT_CLASS || type.kind == RT_OBJECT || type.kind == RT_FUNCTION
+                        || type.is_array == 1;
+    if(lockable == 0) { report_not_lockable(context, locked, object_node); }
+
+    held := context.hidden_local("lock object", type, node);
+    statement := new bound_lock(context.unit, node, locked, held);
+    context.enter_frame(FRAME_LOCK, statement);
+    statement.body = analyse_part(context, body_node);
+    context.leave_frame();
+    return statement;
+}
+
+/** E0615 */
+def report_not_lockable(context: analysis_context, locked: bound_expression, node: _int64) {
+    d := problem_over(context, "E0615", "only an object can be locked, and this is " + described_value(locked), node);
+    d.with_label("has no lock");
+    d.with_note("every object (an object of a class, an array) carries a lock that one fiber at a time can hold; a number or `null` carries none");
+    d.with_help("lock the object the shared data belongs to - often `self`: `lock(self) { ... }`");
+    report(context, d);
+}

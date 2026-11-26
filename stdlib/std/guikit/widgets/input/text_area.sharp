@@ -1,0 +1,642 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * text_area - a box for text of several lines: notes, a description, a
+ * message. Made with text_area(state).
+ *
+ *      notes := state("");
+ *      text_area(notes, modifier().fill_width().height(140))
+ *          .label("Notes")
+ *          .hint("Anything worth remembering")
+ *          .limit(500);
+ *
+ * Long lines wrap at the box's edge, between words where it can. Enter starts
+ * a new line. When there is more text than fits, the box scrolls: with the
+ * wheel, and by itself to keep the cursor in view.
+ *
+ * Everything a text_field does with the keyboard and mouse works here too:
+ * Shift + arrows and dragging select, a double click selects a word,
+ * Ctrl+A / C / X / V, Home and End (of the line). Up and Down move between
+ * lines and remember the column they came from, the way every editor does.
+ *
+ * Without a height from a modifier it is four lines tall.
+ * (Android: EditText with inputType textMultiLine. Compose: TextField with
+ * singleLine = false.)
+ *
+ * HOW IT WORKS
+ *
+ *   The text is ONE string, with a line feed (byte 10) where Enter was
+ *   pressed. What is on the screen is a list of LINES worked out from it
+ *   (`lines`): each says "bytes from..to of the text are on this row". A
+ *   paragraph that is too wide becomes several lines; that wrapping exists
+ *   only in the list - the string never gets line feeds of its own.
+ *
+ *   The list is worked out again only when the text or the width changed
+ *   (`wrapped_text`, `wrapped_width` remember what it was made for).
+ *
+ *   The cursor and the selection are positions in the STRING (bytes), exactly
+ *   as in text_field. To paint them, a position is turned into "which line,
+ *   how far across"; to place them with the mouse, a point is turned back
+ *   into a position.
+ */
+stable class text_area base widget : behavior, key_target, pointer_target, wheel_target, stateful, shows_words, has_caption {
+    private bound : state<string>;
+    private placeholder : string = "";
+    private caption : string = "";              // words above the box
+    private problem : string = "";              // what is wrong with the text ("" = nothing): shown red under the box
+    private note : string = "";                 // a quiet explanation under the box
+    private most : _int64 = 0;                  // at most this many letters; 0: no limit
+
+    private cursor : _int64 = 0 - 1;            // bytes into the text; -1: not placed yet (goes to the end)
+    private anchor : _int64 = 0 - 1;            // where the selection began; -1: nothing is selected
+    private scrolled : decimal = 0;             // pixels the text is moved up
+    private wish_x : decimal = 0 - 1;           // the column Up / Down try to stay in; -1: wherever the cursor is
+    private follow : _int64 = 0;                // 1: the cursor moved - scroll so that it is in view
+
+    private lines : list<area_line> = new list<area_line>();
+    private wrapped_text : string = "";         // the text `lines` was worked out for (a copy)
+    private wrapped_width : decimal = 0 - 1;    // ... and the width
+
+    private static const INSET : decimal = 10;  // room between the box's edge and the text
+
+    text_area(value: state<string>) {
+        attach(self);
+        bound = value;
+        me.fill_w = 1;
+    }
+
+    /** grey words shown while the box is empty */
+    def hint(words: string) : text_area {
+        placeholder = words;
+        return self;
+    }
+
+    /** words above the box that say what it is for */
+    def label(words: string) : text_area {
+        caption = words;
+        return self;
+    }
+
+    /** what is wrong with what was typed: shown in red under the box, which turns red too. "" means nothing is wrong. */
+    def error(words: string) : text_area {
+        problem = words;
+        return self;
+    }
+
+    /** a quiet line under the box (an error, when there is one, is shown instead) */
+    def helper(words: string) : text_area {
+        note = words;
+        return self;
+    }
+
+    /** at most this many letters */
+    def limit(letters: _int64) : text_area {
+        most = letters;
+        return self;
+    }
+
+    override def kind() : string { return "text_area"; }
+
+    /** what is typed in it (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return bound.value; }
+
+    /** the words that name it: its caption, or - without one - what it says while it is empty */
+    override def caption_shown() : string {
+        if(caption != "") { return caption; }
+        return placeholder;
+    }
+
+    // ------------------------------------------------------------ the parts: label, box, the line below
+
+    private def face() : font {
+        host := ui_host.current!!;
+        return host.font_of(host.look.text_size);
+    }
+
+    private def small_face() : font {
+        host := ui_host.current!!;
+        return host.font_of(host.look.small_size);
+    }
+
+    /** the height the label takes above the box (0 without one) */
+    private def label_tall() : decimal {
+        if(caption.size() == 0) { return 0; }
+        return small_face().line_height + 6;
+    }
+
+    /** the height of the line under the box: the error, or the helper (0 without either) */
+    private def below_tall() : decimal {
+        if(problem.size() == 0 && note.size() == 0) { return 0; }
+        return small_face().line_height + 5;
+    }
+
+    private def box_top() : decimal { return me.y + label_tall(); }
+    private def box_tall() : decimal { return num.larger(0, me.h - label_tall() - below_tall()); }
+
+    /** where the text begins, and how much room it has inside the box */
+    private def text_left() : decimal { return me.x + INSET; }
+    private def text_top() : decimal { return box_top() + 8; }
+    private def text_wide() : decimal { return num.larger(1, me.w - INSET * 2); }
+    private def text_tall() : decimal { return num.larger(1, box_tall() - 16); }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        me.content_w = 200;
+        me.content_h = face().line_height * 4 + 16 + label_tall() + below_tall();
+    }
+
+    override def arrange() {
+    }
+
+    // ------------------------------------------------------------ lines: the text as rows on the screen
+
+    /** make sure `lines` describes the text as it is now, wrapped to the width there is now */
+    private def wrap() {
+        words : string = bound.peek();
+        wide : decimal = text_wide();
+        if(wide == wrapped_width && words == wrapped_text) {
+            return;
+        }
+        wrapped_width = wide;
+        wrapped_text = new string(words);       // a copy: the state's string changes in place
+        lines.clear();
+
+        f : font = face();
+        length : _int64 = words.size();
+        start : _int64 = 0;                     // where the line being filled begins
+        line_w : decimal = 0;                   // how wide it is so far
+        at : _int64 = 0;
+
+        // Walk the text a WORD at a time (a word and the spaces after it). A
+        // word that does not fit starts a new line; a word wider than the whole
+        // box is cut letter by letter.
+        while(at < length) {
+            if(words.at(at).value == 10) {      // a line feed: the line ends here, the next begins after it
+                lines.add(new area_line(start, at));
+                at = at + 1;
+                start = at;
+                line_w = 0;
+                continue;
+            }
+
+            stop : _int64 = word_end(words, at);
+            piece_w : decimal = f.width_of(txt.slice(words, at, stop));
+
+            if(line_w + piece_w <= wide || at == start && piece_w <= wide) {
+                line_w = line_w + piece_w;
+                at = stop;
+            } else if(at > start) {
+                lines.add(new area_line(start, at));        // the word goes to the next line
+                start = at;
+                line_w = 0;
+            } else {
+                // one word wider than the box: as many letters as fit, at least one
+                fits : _int64 = txt.after(words, at);
+                while(fits < stop && f.width_of(txt.slice(words, at, txt.after(words, fits))) <= wide) {
+                    fits = txt.after(words, fits);
+                }
+                lines.add(new area_line(start, fits));
+                start = fits;
+                at = fits;
+                line_w = 0;
+            }
+        }
+        lines.add(new area_line(start, length));            // the last line (an empty one after a final line feed)
+    }
+
+    /** the end of the word that begins at `at`, with the spaces that follow it; it stops before a line feed */
+    private static def word_end(words: string, at: _int64) : _int64 {
+        length : _int64 = words.size();
+        to : _int64 = at;
+        while(to < length && words.at(to).value != 32 && words.at(to).value != 10) {
+            to = to + 1;
+        }
+        while(to < length && words.at(to).value == 32) {
+            to = to + 1;
+        }
+        return to;
+    }
+
+    /** which line a position of the text is on */
+    private def line_of(at: _int64) : _int64 {
+        count : _int64 = lines.size();
+        for(i : _int64 = 0; i < count; i++) {
+            span : area_line = lines.at(i);
+            if(at < span.to) { return i; }
+            if(at == span.to) {
+                // the end of a wrapped line is also the start of the next: the cursor shows there
+                if(i + 1 < count && lines.at(i + 1).from == at) { return i + 1; }
+                return i;
+            }
+        }
+        return count - 1;
+    }
+
+    /** how far across its line a position is, in pixels */
+    private def across(at: _int64) : decimal {
+        span : area_line = lines.at(line_of(at));
+        return face().width_of(txt.slice(bound.peek(), span.from, at));
+    }
+
+    /** the position on line `index` nearest to `x` pixels across */
+    private def position_on(index: _int64, x: decimal) : _int64 {
+        f : font = face();
+        words : string = bound.peek();
+        span : area_line = lines.at(index);
+
+        best : _int64 = span.from;
+        best_miss : decimal = num.larger(x, 0 - x);
+        at : _int64 = span.from;
+        while(at < span.to) {
+            at = txt.after(words, at);
+            miss : decimal = f.width_of(txt.slice(words, span.from, at)) - x;
+            if(miss < 0) { miss = 0 - miss; }
+            if(miss < best_miss) {
+                best_miss = miss;
+                best = at;
+            }
+        }
+        return best;
+    }
+
+    /** the position nearest to a point of the window */
+    private def position_at(x: decimal, y: decimal) : _int64 {
+        wrap();
+        tall : decimal = face().line_height;
+        index : _int64 = num.whole((y - text_top() + scrolled) / tall);
+        if(index < 0) { index = 0; }
+        if(index >= lines.size()) { index = lines.size() - 1; }
+        return position_on(index, x - text_left());
+    }
+
+    // ------------------------------------------------------------ cursor and selection
+
+    /** the cursor, kept inside the text as it is now (the state may have been changed from outside) */
+    private def place() : _int64 {
+        length : _int64 = bound.peek().size();
+        if(cursor < 0 || cursor > length) {
+            cursor = length;
+        }
+        if(anchor > length) {
+            anchor = 0 - 1;
+        }
+        return cursor;
+    }
+
+    private def has_selection() : _int64 {
+        if(anchor >= 0 && anchor != place()) { return 1; }
+        return 0;
+    }
+
+    private def selection_start() : _int64 {
+        if(anchor >= 0 && anchor < cursor) { return anchor; }
+        return cursor;
+    }
+
+    private def selection_end() : _int64 {
+        if(anchor >= 0 && anchor > cursor) { return anchor; }
+        return cursor;
+    }
+
+    /** move the cursor to `to`; with Shift held (`keep` 1) the selection stretches, without it is dropped */
+    private def move_to(to: _int64, keep: _int64) {
+        if(keep == 1) {
+            if(anchor < 0) { anchor = cursor; }
+        } else {
+            anchor = 0 - 1;
+        }
+        cursor = to;
+        follow = 1;
+    }
+
+    // ------------------------------------------------------------ changing the text
+
+    private def replace_range(from: _int64, to: _int64, put: string) {
+        words : string = bound.peek();
+        length : _int64 = words.size();
+        fresh : string = txt.slice(words, 0, from) + put + txt.slice(words, to, length);
+        cursor = from + put.size();
+        anchor = 0 - 1;
+        wish_x = 0 - 1;
+        follow = 1;
+        bound.value = fresh;
+    }
+
+    /** put `words` in at the cursor - over the selection, if there is one - as far as the letter limit allows */
+    private def insert(words: string) {
+        at : _int64 = place();
+        from : _int64 = at;
+        to : _int64 = at;
+        if(has_selection() == 1) {
+            from = selection_start();
+            to = selection_end();
+        }
+
+        // how many letters may still go in (-1: no limit), then that many of `words`.
+        // `allowed` is built up as a text of its own: assigning to a string
+        // changes that string in place, so it must never start out AS `words`.
+        room : _int64 = 0 - 1;
+        if(most > 0) {
+            now : string = bound.peek();
+            room = most - (txt.letters(now, now.size()) - (txt.letters(now, to) - txt.letters(now, from)));
+            if(room < 0) { room = 0; }
+        }
+        allowed : string = "";
+        step : _int64 = 0;
+        while(step < words.size() && room != 0) {
+            next : _int64 = txt.after(words, step);
+            allowed = allowed + txt.slice(words, step, next);
+            step = next;
+            if(room > 0) { room = room - 1; }
+        }
+        if(allowed.size() == 0 && from == to) {
+            return;
+        }
+        replace_range(from, to, allowed);
+    }
+
+    private def remove_selection() : _int64 {
+        if(has_selection() == 0) {
+            return 0;
+        }
+        replace_range(selection_start(), selection_end(), "");
+        return 1;
+    }
+
+    // ------------------------------------------------------------ the keyboard
+
+    override def typed(words: string) {
+        insert(words);
+    }
+
+    override def key(e: event) : _int64 {
+        words : string = bound.peek();
+        at : _int64 = place();
+        length : _int64 = words.size();
+        wrap();
+
+        keep : _int64 = 0;
+        if(e.has_shift()) { keep = 1; }
+
+        if(e.has_ctrl()) {
+            if(e.key == 97) {                                           // a: everything
+                anchor = 0;
+                cursor = length;
+                return 1;
+            }
+            if(e.key == 99 || e.key == 120) {                           // c, x
+                if(has_selection() == 1) {
+                    clipboard_write(txt.slice(words, selection_start(), selection_end()));
+                    if(e.key == 120) { remove_selection(); }
+                }
+                return 1;
+            }
+            if(e.key == 118) {                                          // v
+                insert(clipboard_read());
+                return 1;
+            }
+        }
+
+        if(e.key == KEY_ENTER) {
+            insert("\n");
+            return 1;
+        }
+        if(e.key == KEY_BACKSPACE) {
+            if(remove_selection() == 0 && at > 0) { replace_range(txt.before(words, at), at, ""); }
+            return 1;
+        }
+        if(e.key == KEY_DELETE) {
+            if(remove_selection() == 0 && at < length) { replace_range(at, txt.after(words, at), ""); }
+            return 1;
+        }
+
+        if(e.key == KEY_LEFT) {
+            if(keep == 0 && has_selection() == 1) { move_to(selection_start(), 0); }
+            else { move_to(txt.before(words, at), keep); }
+            wish_x = 0 - 1;
+            return 1;
+        }
+        if(e.key == KEY_RIGHT) {
+            if(keep == 0 && has_selection() == 1) { move_to(selection_end(), 0); }
+            else { move_to(txt.after(words, at), keep); }
+            wish_x = 0 - 1;
+            return 1;
+        }
+
+        // Up / Down: the same column on the line above / below. The column is
+        // remembered across several presses, so passing a short line does not
+        // pull the cursor to the left for good.
+        if(e.key == KEY_UP || e.key == KEY_DOWN) {
+            index : _int64 = line_of(at);
+            if(wish_x < 0) { wish_x = across(at); }
+            if(e.key == KEY_UP) {
+                if(index == 0) { move_to(0, keep); }
+                else { move_to(position_on(index - 1, wish_x), keep); }
+            } else {
+                if(index >= lines.size() - 1) { move_to(length, keep); }
+                else { move_to(position_on(index + 1, wish_x), keep); }
+            }
+            return 1;
+        }
+
+        if(e.key == KEY_HOME) {
+            move_to(lines.at(line_of(at)).from, keep);
+            wish_x = 0 - 1;
+            return 1;
+        }
+        if(e.key == KEY_END) {
+            move_to(lines.at(line_of(at)).to, keep);
+            wish_x = 0 - 1;
+            return 1;
+        }
+        if(e.key == KEY_SPACE) {
+            return 1;               // the space itself arrives as typed text
+        }
+        return 0;
+    }
+
+    // ------------------------------------------------------------ the mouse
+
+    override def pointer(what: _int64, x: decimal, y: decimal) {
+        if(what == POINTER_RELEASE) {
+            if(anchor == cursor) { anchor = 0 - 1; }       // a click without a drag selects nothing
+            return;
+        }
+        place();
+        wish_x = 0 - 1;
+
+        if(what == POINTER_PRESS) {
+            cursor = position_at(x, y);
+            anchor = cursor;
+        } else if(what == POINTER_DRAG) {
+            cursor = position_at(x, y);
+            follow = 1;
+        } else if(what == POINTER_DOUBLE) {
+            select_word_at(position_at(x, y));
+        }
+    }
+
+    private def select_word_at(at: _int64) {
+        words : string = bound.peek();
+        length : _int64 = words.size();
+        from : _int64 = at;
+        while(from > 0 && txt.in_word(words.at(from - 1).value) == 1) {
+            from = from - 1;
+        }
+        to : _int64 = at;
+        while(to < length && txt.in_word(words.at(to).value) == 1) {
+            to = to + 1;
+        }
+        anchor = from;
+        cursor = to;
+    }
+
+    /** the wheel scrolls the text when there is more of it than fits */
+    override def wheel(dx: decimal, dy: decimal) : _int64 {
+        wrap();
+        most_scroll : decimal = num.larger(0, lines.size() * face().line_height - text_tall());
+        if(most_scroll <= 0) {
+            return 0;                               // nothing to scroll: let the page around it have the turn
+        }
+        before : decimal = scrolled;
+        scrolled = num.between(scrolled + dy, 0, most_scroll);
+        if(scrolled == before) {
+            return 0;
+        }
+        if(ui_host.current != null) { ui_host.current!!.request_frame(); }
+        return 1;
+    }
+
+    // ------------------------------------------------------------ painting
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        f : font = face();
+        small : font = small_face();
+        focused : _int64 = host.has_focus(me);
+        words : string = bound.peek();
+        at : _int64 = place();
+        wrap();
+
+        wrong : _int64 = 0;
+        if(problem.size() > 0) { wrong = 1; }
+
+        // the label above
+        if(caption.size() > 0) {
+            label_ink : color = t.text_dim;
+            if(wrong == 1) { label_ink = t.danger; }
+            else if(focused == 1) { label_ink = t.primary; }
+            p.text(caption, me.x + 2, me.y, small, label_ink);
+        }
+
+        // the box
+        top : decimal = box_top();
+        tall : decimal = box_tall();
+        edge : color = t.border;
+        if(wrong == 1) { edge = t.danger; }
+        else if(focused == 1) { edge = t.primary; }
+        else if(me.hovered == 1 && me.enabled == 1) { edge = t.text_dim; }
+        p.rect(me.x, top, me.w, tall, t.radius, t.surface);
+        thickness : decimal = 1;
+        if(focused == 1 || wrong == 1) { thickness = 2; }
+        p.outline(me.x, top, me.w, tall, t.radius, thickness, edge);
+
+        // the line below: what is wrong, or the helper
+        if(wrong == 1) {
+            p.text(problem, me.x + 2, top + tall + 4, small, t.danger);
+        } else if(note.size() > 0) {
+            p.text(note, me.x + 2, top + tall + 4, small, t.text_dim);
+        }
+
+        // scrolling: never past the end, and - after the cursor moved - so that the cursor's line is in view
+        row_tall : decimal = f.line_height;
+        count : _int64 = lines.size();
+        room : decimal = text_tall();
+        cursor_row : _int64 = line_of(at);
+        if(follow == 1) {
+            follow = 0;
+            if(cursor_row * row_tall < scrolled) { scrolled = cursor_row * row_tall; }
+            if((cursor_row + 1) * row_tall > scrolled + room) { scrolled = (cursor_row + 1) * row_tall - room; }
+        }
+        scrolled = num.between(scrolled, 0, num.larger(0, count * row_tall - room));
+
+        left : decimal = text_left();
+        first_y : decimal = text_top() - scrolled;
+        p.clip(me.x + 2, top + 4, me.w - 4, tall - 8);
+
+        if(words.size() == 0) {
+            p.text(placeholder, left, first_y, f, t.text_dim);
+        }
+
+        from : _int64 = selection_start();
+        to : _int64 = selection_end();
+        ink : color = t.text;
+        if(me.enabled == 0) { ink = t.text_dim; }
+
+        for(i : _int64 = 0; i < count; i++) {
+            y : decimal = first_y + i * row_tall;
+            if(y + row_tall < top || y > top + tall) {
+                continue;                           // scrolled out of the box: nothing to paint
+            }
+            span : area_line = lines.at(i);
+
+            // the part of the selection that is on this line: a tinted box behind the letters
+            if(focused == 1 && has_selection() == 1 && from < span.to + 1 && to > span.from) {
+                a : _int64 = from;
+                if(a < span.from) { a = span.from; }
+                b : _int64 = to;
+                if(b > span.to) { b = span.to; }
+                from_x : decimal = f.width_of(txt.slice(words, span.from, a));
+                to_x : decimal = f.width_of(txt.slice(words, span.from, b));
+                if(to > span.to) { to_x = to_x + 6; }        // the selection goes on past the end of the line: show that
+                p.rect(left + from_x, y, to_x - from_x, row_tall, 3, t.primary.with_alpha(90));
+            }
+
+            if(span.to > span.from) {
+                p.text(txt.slice(words, span.from, span.to), left, y, f, ink);
+            }
+        }
+
+        // the blinking cursor: on for half a second, off for half a second
+        if(focused == 1) {
+            half_seconds : _int64 = host.now * 2;
+            if(half_seconds % 2 == 0) {
+                p.rect(left + across(at), first_y + cursor_row * row_tall + 1, 1.5, row_tall - 2, t.text);
+            }
+            host.wake_in(0.5);
+        }
+        p.unclip();
+
+        // a thin bar on the right while there is more text than fits
+        if(count * row_tall > room) {
+            bar_tall : decimal = num.larger(18, room * room / (count * row_tall));
+            bar_y : decimal = top + 6 + (tall - 12 - bar_tall) * scrolled / (count * row_tall - room);
+            p.rect(me.x + me.w - 6, bar_y, 3, bar_tall, 1.5, t.text.with_alpha(70));
+        }
+    }
+
+    override def adopt(old: behavior) {
+        if(old is text_area) {
+            before := old as text_area;
+            cursor = before.cursor;
+            anchor = before.anchor;
+            scrolled = before.scrolled;
+            wish_x = before.wish_x;
+        }
+    }
+}
+
+/** one row of a text_area on the screen: bytes `from` up to (not including) `to` of the text */
+local stable class area_line {
+    from : _int64;
+    to : _int64;
+
+    area_line(first: _int64, end: _int64) {
+        from = first;
+        to = end;
+    }
+}

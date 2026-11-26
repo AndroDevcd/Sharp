@@ -1,0 +1,328 @@
+mod std.guikit.widgets.display;
+
+import (
+    std,
+    std.io,
+    std.io.coroutines,
+    std.system,
+    std.crypto,
+    std.net,
+    std.guikit.*
+)
+
+/** how a picture is fitted into its box when the two are not the same shape (picture.fit) */
+const FIT_STRETCH : _int64 = 0;     // pulled to the box's shape, whatever that does to it
+const FIT_INSIDE  : _int64 = 1;     // all of it shown, as large as fits, in the middle: bars at two sides
+const FIT_CROP    : _int64 = 2;     // the box filled, as much of the picture as fits, its middle kept
+
+/**
+ * picture - an image on the screen: from a file, or from a link. Made with image(...).
+ *
+ *      image("assets/logo.png")                              // a file, at its own size
+ *      image("assets/photo.jpg", modifier().size(120, 80))   // in a box of a size
+ *      image("https://example.com/cat.jpg", modifier().size(120, 120))    // from the web
+ *
+ * HOW IT SITS IN ITS BOX
+ *
+ *      .fit(FIT_CROP)          fill the box and cut off what does not fit - a photo in a card
+ *      .fit(FIT_INSIDE)        show all of it, as large as fits - a logo
+ *      .fit(FIT_STRETCH)       pull it to the box's shape (how a picture starts)
+ *      .opacity(120)           see-through: 0 .. 255
+ *
+ * WHAT IT LOOKS LIKE is the modifier's business, as for every widget - and
+ * all of it works on a picture:
+ *
+ *      image("face.jpg", modifier().size(96, 96).clip(shape.circle())).fit(FIT_CROP)      // a round portrait
+ *      modifier().corner(12)  .rotate(8)  .scale(1.2)  .blur(4)  .border(2, colour)  .shadow(8)  .opacity(0.6)
+ *
+ * FROM A LINK (http:// or https://). The picture is fetched on a background
+ * thread; the window never waits for it. Meanwhile, and if it cannot be had:
+ *
+ *      .placeholder("assets/loading.png")      shown until the picture is there (without one: nothing)
+ *      .on_error("assets/broken.png")          shown when it cannot be fetched or read
+ *      .fade_in(0.2)                           it comes in over a fifth of a second, not at a blow
+ *
+ *      image("https://example.com/cat.jpg", modifier().size(160, 120).corner(10))
+ *              .fit(FIT_CROP).placeholder("assets/loading.png").on_error("assets/broken.png").fade_in(0.2);
+ *
+ * A link is fetched ONCE. The file is kept in a cache folder and read from
+ * there from then on - also the next time the program runs, and by every
+ * picture that shows the same link (a hundred rows of a list fetch it once).
+ * gui.image_cache("folder") says where that folder is; unsaid, it is a folder
+ * of its own in the system's place for caches. One picture can be kept
+ * somewhere else than the rest:
+ *
+ *      image("https://example.com/map.png").cache("maps")      // this one goes to the folder "maps"
+ *
+ * A file is loaded the first time the picture is measured and shared from
+ * then on (the native side keeps one copy per file). PNG transparency is kept.
+ *
+ * IN A UI TEST without a window no picture is read and no link is fetched: a
+ * picture counts as 100 x 100 unless the modifier gives it a size, and one
+ * from a link stays as it is while loading (its placeholder).
+ *
+ * (Android: Glide / Picasso / Coil - load(url).placeholder().error().centerCrop().
+ * Compose: AsyncImage. HTML: img with object-fit.)
+ */
+stable class picture base widget : behavior {
+    private path : string = "";             // a file, or a link
+    private loaded : image?;
+    private loaded_from : string = "";      // the file `loaded` was read from - or could not be read from
+    private solid : _int32 = 255;
+    private fitted : _int64 = FIT_STRETCH;
+    private meanwhile : string = "";        // the file shown while a link is being fetched
+    private instead : string = "";          // the file shown when the picture cannot be had
+    private fade_time : decimal = 0;        // seconds a picture from a link takes to come in
+    private kept_in : string = "";          // the cache folder of this picture alone ("": the one all pictures share)
+
+    picture(file: string) {
+        attach(self);
+        path = file;
+    }
+
+    /** how solid it is: 0 (invisible) .. 255 (solid) */
+    def opacity(amount: _int32) : picture {
+        solid = amount;
+        return self;
+    }
+
+    /** how it sits in a box of another shape: FIT_STRETCH, FIT_INSIDE or FIT_CROP */
+    def fit(how: _int64) : picture {
+        fitted = how;
+        return self;
+    }
+
+    /** a picture file to show while the real one is being fetched from its link */
+    def placeholder(file: string) : picture {
+        meanwhile = file;
+        return self;
+    }
+
+    /** a picture file to show when the real one cannot be fetched or read */
+    def on_error(file: string) : picture {
+        instead = file;
+        return self;
+    }
+
+    /** keep this picture, fetched from its link, in this folder and not in the one all pictures share (gui.image_cache) */
+    def cache(folder: string) : picture {
+        kept_in = folder;
+        return self;
+    }
+
+    /** a picture from a link comes in over this many seconds once it is there (one read from the cache is there at once) */
+    def fade_in(seconds: decimal) : picture {
+        fade_time = seconds;
+        return self;
+    }
+
+    /** the file to show right now: the picture's own, or the one that stands in for it ("": nothing) */
+    private def file_now() : string {
+        if(!remote_pictures.is_link(path)) {
+            return path;
+        }
+        from : remote_picture = remote_pictures.of(path, kept_in);
+        if(from.state == REMOTE_READY) { return from.file; }
+        if(from.state == REMOTE_FAILED) { return instead; }
+        return meanwhile;
+    }
+
+    /** the picture to paint right now; null when there is none (still fetching and no placeholder, or unreadable) */
+    private def source() : image? {
+        wanted : string = file_now();
+        if(wanted == "") {
+            return null;
+        }
+        if(loaded_from != wanted) {
+            loaded_from = "" + wanted;          // (written down also when it cannot be read: it is tried once, not every frame)
+            loaded = null;
+            try {
+                loaded = new image(wanted);
+            } catch(unreadable: throwable) {
+                if(instead != "" && instead != wanted) {
+                    try {
+                        loaded = new image(instead);
+                    } catch(also: throwable) {
+                        loaded = null;
+                    }
+                }
+            }
+        }
+        return loaded;
+    }
+
+    override def kind() : string { return "picture"; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        from : image? = source();
+        if(from == null) {
+            me.content_w = 0;
+            me.content_h = 0;
+            return;
+        }
+        me.content_w = from!!.width;
+        me.content_h = from!!.height;
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        from : image? = source();
+        if(from == null) {
+            return;
+        }
+        shown : image = from!!;
+        x : decimal = me.inner_x();
+        y : decimal = me.inner_y();
+        w : decimal = me.inner_w();
+        h : decimal = me.inner_h();
+        if(w <= 0 || h <= 0 || shown.width <= 0 || shown.height <= 0) {
+            return;
+        }
+
+        // how solid: its own, and - a picture from a link that has just arrived - how far it has come in
+        amount : decimal = solid / 255.0;
+        if(fade_time > 0 && remote_pictures.is_link(path) && ui_host.current != null) {
+            from_link : remote_picture = remote_pictures.of(path, kept_in);
+            if(from_link.state == REMOTE_READY) {
+                there : decimal = (ui_host.current!!.now - from_link.ready_at) / fade_time;
+                if(there < 1) {
+                    if(there < 0) { there = 0; }
+                    amount = amount * there;
+                    ui_host.current!!.request_frame();
+                }
+            }
+        }
+        before : decimal = p.fade(amount);
+
+        if(fitted == FIT_INSIDE) {
+            // all of it, as large as fits, in the middle of the box
+            by : decimal = w / shown.width;
+            if(h / shown.height < by) { by = h / shown.height; }
+            wide : decimal = shown.width * by;
+            tall : decimal = shown.height * by;
+            p.image(shown, x + (w - wide) / 2, y + (h - tall) / 2, wide, tall);
+        } else if(fitted == FIT_CROP) {
+            // the box filled: the middle part of the picture that has the box's shape
+            by : decimal = w / shown.width;
+            if(h / shown.height > by) { by = h / shown.height; }
+            part_w : decimal = w / by;
+            part_h : decimal = h / by;
+            p.image(shown, (shown.width - part_w) / 2, (shown.height - part_h) / 2, part_w, part_h, x, y, w, h);
+        } else {
+            p.image(shown, x, y, w, h);
+        }
+        p.unfade(before);
+    }
+}
+
+// what has become of a picture from a link (remote_picture.state)
+const REMOTE_LOADING : _int64 = 0;
+const REMOTE_READY   : _int64 = 1;      // it is in the cache folder: `file`
+const REMOTE_FAILED  : _int64 = 2;
+
+/** one link, and the file it was fetched into */
+stable class remote_picture {
+    link : string = "";
+    folder : string = "";           // the cache folder it is kept in
+    file : string = "";             // where it is kept in that folder
+    state : _int64 = REMOTE_LOADING;
+    ready_at : decimal = 0 - 1000;  // the host's clock when it arrived (long ago: it was in the cache already)
+}
+
+/**
+ * THE PICTURES FROM LINKS: each link is fetched once, into the cache folder,
+ * and every picture that shows it reads that file. FRAMEWORK USE: a program
+ * writes image("https://...") and, if it wants, gui.image_cache("folder").
+ *
+ * Everything here runs on the main thread, except the fetching itself: that
+ * is a coroutine on the IO threads, which hands its answer back with on_main.
+ */
+stable class remote_pictures {
+    private static known : list<remote_picture> = new list<remote_picture>();
+    private static folder : string = "";            // "": the system's place for caches (cache_folder)
+
+    /** is this a link and not a file? */
+    static def is_link(source: string) : bool {
+        return source.starts_with("https://") || source.starts_with("http://");
+    }
+
+    /** keep fetched pictures in this folder from now on (it is made if it is not there; the folder it is in must be) */
+    static def keep_in(where: string) {
+        folder = "" + where;
+    }
+
+    /** the folder fetched pictures are kept in */
+    static def cache_folder() : string {
+        if(folder != "") {
+            return folder;
+        }
+        if(platform_info.is_windows()) {
+            return environment.value_or("LOCALAPPDATA", platform_info.temp_directory()) + "\\sharp_images";
+        }
+        return environment.value_or("XDG_CACHE_HOME", platform_info.home_directory() + "/.cache") + "/sharp_images";
+    }
+
+    /**
+     * What is known of this link, kept in `own_folder` ("": the folder all
+     * pictures share); asked the first time, the fetching starts.
+     */
+    static def of(link: string, own_folder: string) : remote_picture {
+        into : string = own_folder;
+        if(into == "") {
+            into = cache_folder();
+        }
+        count : _int64 = known.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(known.at(i).link == link && known.at(i).folder == into) { return known.at(i); }
+        }
+        made := new remote_picture();
+        made.link = "" + link;
+        made.folder = "" + into;
+        between : string = "/";
+        if(platform_info.is_windows()) { between = "\\"; }
+        made.file = into + between + sha256.hex(link);
+        known.add(made);
+
+        if(font.by_rule) {
+            return made;                // (a UI test without a window: nothing is fetched)
+        }
+        if(new file(made.file).exists()) {
+            made.state = REMOTE_READY;  // fetched before - by this run of the program or an earlier one
+            return made;
+        }
+        fetch(made);
+        return made;
+    }
+
+    /** fetch the link into its file on an IO thread, and say on the main thread how it went */
+    private static def fetch(wanted: remote_picture) {
+        into : string = wanted.folder;
+        launch_on(dispatchers.io(), { ->
+            arrived : bool = false;
+            try {
+                answer := http.GET(wanted.link);
+                if(answer.ok()) {
+                    home := new file(into);
+                    if(!home.exists()) { home.mkdir(); }
+                    answer.save_to(new file(wanted.file));
+                    arrived = true;
+                }
+            } catch(wrong: throwable) {
+                arrived = false;
+            }
+            gui.on_main({ ->
+                if(arrived) {
+                    wanted.state = REMOTE_READY;
+                } else {
+                    wanted.state = REMOTE_FAILED;
+                }
+                if(ui_host.current != null) {
+                    wanted.ready_at = ui_host.current!!.now;
+                    ui_host.current!!.relayout();       // the picture has a size now: the screen is laid out again
+                }
+            });
+        });
+    }
+}

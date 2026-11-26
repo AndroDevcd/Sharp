@@ -1,0 +1,677 @@
+mod std.net;
+
+import ( std.c, std.io, platform )
+
+/**
+ * ENCRYPTED CONNECTIONS (TLS - what the "s" of https is)
+ *
+ *      line := tls_socket.connect("example.com", 443);
+ *      line.write_text("GET / HTTP/1.0\r\nHost: example.com\r\n\r\n");
+ *      page := line.read_all_text();
+ *      line.close();
+ *
+ * A tls_socket is a tcp_socket whose bytes nobody in between can read or
+ * change, and whose other side has PROVEN to be the host that was asked for:
+ * connect() checks the server's certificate against the certificates this
+ * machine trusts and against the host's name, and throws tls_exception when
+ * either is wrong. Reading and writing are as on a tcp_socket.
+ *
+ * WHO DOES THE ENCRYPTING: the operating system's own TLS, so there is
+ * nothing to install and the trusted certificates are the system's -
+ *
+ *      Windows     SChannel (secur32.dll)
+ *      Linux       OpenSSL (libssl, which every distribution has)
+ *
+ * TLS 1.2 or newer. All of it is Sharp: the two libraries are called
+ * directly (the extern blocks below).
+ *
+ *      tls_socket.connect(host, port)      connect and start TLS
+ *      tls_socket.over(socket, host)       start TLS on a socket that is connected already
+ *      tls_socket.trust_everyone(true)     do NOT check certificates (a test server of your own; never in real use)
+ *
+ *      Java comparison: javax.net.ssl.SSLSocket; Python: ssl.wrap_socket.
+ */
+class tls_exception base socket_exception {
+    public tls_exception(message : string?) -> base(message) {}
+}
+
+/** OpenSSL: the part with the connections (libssl) and the part with the error texts (libcrypto) */
+class openssl {
+    extern "unix:ssl" {
+        static def OPENSSL_init_ssl(options: c_ulonglong, settings: pointer) : c_int;
+        static def TLS_client_method() : pointer;
+        static def SSL_CTX_new(method: pointer) : pointer;
+        static def SSL_CTX_set_default_verify_paths(context: pointer) : c_int;
+        static def SSL_CTX_set_verify(context: pointer, mode: c_int, callback: pointer);
+        static def SSL_CTX_ctrl(context: pointer, command: c_int, number: c_long, more: pointer) : c_long;
+        static def SSL_CTX_set_options(context: pointer, options: c_ulonglong) : c_ulonglong;
+        static def SSL_new(context: pointer) : pointer;
+        static def SSL_free(ssl: pointer);
+        static def SSL_set_fd(ssl: pointer, handle: c_int) : c_int;
+        static def SSL_ctrl(ssl: pointer, command: c_int, number: c_long, text: string) : c_long;
+        static def SSL_set1_host(ssl: pointer, name: string) : c_int;
+        static def SSL_set_verify(ssl: pointer, mode: c_int, callback: pointer);
+        static def SSL_connect(ssl: pointer) : c_int;
+        static def SSL_read(ssl: pointer, into: _int8[], count: c_int) : c_int;
+        static def SSL_write(ssl: pointer, data: _int8[], count: c_int) : c_int;
+        static def SSL_get_error(ssl: pointer, result: c_int) : c_int;
+        static def SSL_shutdown(ssl: pointer) : c_int;
+        static def SSL_get_verify_result(ssl: pointer) : c_long;
+    }
+    extern "unix:crypto" {
+        static def ERR_get_error() : c_ulong;
+        static def ERR_error_string_n(code: c_ulong, into: _int8[], count: c_size);
+        static def X509_verify_cert_error_string(code: c_long) : string;
+    }
+    extern "unix:c" {
+        static def dlopen(file: string, how: c_int) : pointer;
+        static def signal(number: c_int, handler: pointer) : pointer;
+    }
+}
+
+/** SChannel: Windows' TLS, and the socket calls with addresses where tcp_socket has arrays */
+class schannel {
+    extern "windows:secur32" {
+        static def AcquireCredentialsHandleA(principal: pointer, package: string, use: c_uint, logon: pointer, data: pointer,
+                                             get_key: pointer, key_argument: pointer, credential: pointer, expiry: pointer) : c_int;
+        static def InitializeSecurityContextA(credential: pointer, context: pointer, target: string, request: c_uint, reserved1: c_uint,
+                                              representation: c_uint, input: pointer, reserved2: c_uint, new_context: pointer,
+                                              output: pointer, attributes: pointer, expiry: pointer) : c_int;
+        static def QueryContextAttributesA(context: pointer, attribute: c_uint, into: pointer) : c_int;
+        static def EncryptMessage(context: pointer, quality: c_uint, message: pointer, sequence: c_uint) : c_int;
+        static def DecryptMessage(context: pointer, message: pointer, sequence: c_uint, quality: pointer) : c_int;
+        static def ApplyControlToken(context: pointer, input: pointer) : c_int;
+        static def FreeContextBuffer(buffer: pointer) : c_int;
+        static def DeleteSecurityContext(context: pointer) : c_int;
+    }
+    extern "windows:ws2_32" {
+        static def recv(s: pointer, into: pointer, count: c_int, flags: c_int) : c_int;
+        static def send(s: pointer, data: pointer, count: c_int, flags: c_int) : c_int;
+    }
+    extern "windows:c" {
+        static def memmove(into: pointer, from: pointer, bytes: c_size) : pointer;
+    }
+}
+
+class tls_socket : connection {
+    private static check_certificates : bool = true;
+    private static started : bool = false;
+    private static openssl_context : pointer = 0;           // OpenSSL: the settings every connection shares
+    private static credential : c_memory?;                  // SChannel: the same (with certificates checked) ...
+    private static credential_unchecked : c_memory?;        // ... and for trust_everyone
+
+    private wire : tcp_socket;
+    private handle : _int64 = 0;
+    private name : string = "";
+    private open : bool = false;
+    private ended : bool = false;                           // the other side has said it is done
+    private checked : bool = true;
+
+    // ---- OpenSSL
+    private ssl : pointer = 0;
+    private chunk := new _int8[16384];
+
+    // ---- SChannel: its memory stays at one address, so it is C's own (c_memory)
+    private static const INCOMING : _int64 = 40000;         // more than two of TLS's largest records
+    private context : c_memory?;                            // the connection's handle (CtxtHandle)
+    private incoming : c_memory?;                           // what arrived and is still encrypted ...
+    private held : _int64 = 0;                              // ... and how many bytes of it there are
+    private outgoing : c_memory?;                           // one record being encrypted: header, data, trailer
+    private buffers : c_memory?;                            // four SecBuffer (16 bytes each: size, kind, address)
+    private described : c_memory?;                          // the SecBufferDesc that points at them
+    private header : _int64 = 0;
+    private trailer : _int64 = 0;
+    private most_message : _int64 = 0;
+    private plain : _int8[]?;                               // decrypted and not yet read ...
+    private plain_at : _int64 = 0;                          // ... from here on
+
+    private tls_socket(wire: tcp_socket, name: string) {
+        self->wire = wire;
+        self->name = name;
+        handle = wire.system_handle();
+        checked = check_certificates;
+    }
+
+    /**
+     * Connect to `port` of `host` (443 for https) and start TLS.
+     * Throws socket_exception when the connection cannot be made, and
+     * tls_exception when the server's certificate is not one this machine
+     * trusts, is not for `host`, or the two sides cannot agree on how to encrypt.
+     */
+    static def connect(host: string, port: _int64) : tls_socket {
+        return over(tcp_socket.connect(host, port), host);
+    }
+
+    /**
+     * Start TLS on a socket that is connected already; `host` is the name
+     * the server's certificate has to be for. The socket is this
+     * tls_socket's from now on: use and close the tls_socket only. When the
+     * start fails the socket is closed.
+     */
+    static def over(wire: tcp_socket, host: string) : tls_socket {
+        made := new tls_socket(wire, host);
+        try {
+            if(socket_system.is_windows()) { made.start_schannel(); }
+            else { made.start_openssl(); }
+        } catch(problem: throwable) {
+            made.free();
+            wire.close();
+            throw problem;
+        }
+        made.open = true;
+        return made;
+    }
+
+    /**
+     * true: connections made from now on do NOT check the server's
+     * certificate - anyone can then pretend to be the server. For a test
+     * server with a certificate of your own making, nothing else.
+     */
+    static def trust_everyone(yes: bool) {
+        check_certificates = !yes;
+    }
+
+    def is_open() : bool { return open; }
+
+    /** the host this is connected to */
+    def host() : string { return name; }
+
+    def port() : _int64 { return wire.port(); }
+
+    /** give up a read or a write that takes longer than this (0: wait as long as it takes) */
+    def set_timeout(milliseconds: _int64) : tls_socket {
+        usable();
+        wire.set_timeout(milliseconds);
+        return self;
+    }
+
+    private def usable() {
+        if(!open) { throw new socket_exception("the socket is closed"); }
+    }
+
+    // ================================================================ reading and writing
+
+    /** send all of `data`; returns how many bytes that was */
+    def write(data: _int8[]) : _int64 {
+        return write(data, sizeof(data));
+    }
+
+    /** send the first `count` bytes of `data` */
+    override def write(data: _int8[], count: _int64) : _int64 {
+        usable();
+        if(count > sizeof(data)) { count = sizeof(data); }
+        if(count <= 0) { return 0; }
+        if(socket_system.is_windows()) { return write_schannel(data, count); }
+        sent : _int64 = 0;
+        while(sent < count) {
+            rest : _int8[] = data;
+            if(sent > 0) { rest = copy(data, sent, count)!!; }
+            took : _int64 = openssl.SSL_write(ssl, rest, count - sent);
+            if(took <= 0) { failed_openssl("write", took); }
+            sent = sent + took;
+        }
+        return sent;
+    }
+
+    /** send a text, as its bytes */
+    def write_text(text: string) : _int64 {
+        if(sizeof(text.data) == 0) { return 0; }
+        return write(text.data!!);
+    }
+
+    /**
+     * Wait for bytes to arrive and return them: at least one and at most
+     * `most`. An EMPTY array means the other side has closed the connection
+     * and everything it sent has been read.
+     */
+    override def read(most: _int64) : _int8[] {
+        usable();
+        if(most < 1) { return new _int8[0]; }
+        if(socket_system.is_windows()) { return read_schannel(most); }
+        if(ended) { return new _int8[0]; }
+        if(most > sizeof(chunk)) { most = sizeof(chunk); }
+        got : _int64 = openssl.SSL_read(ssl, chunk, most);
+        if(got <= 0) {
+            why : _int64 = openssl.SSL_get_error(ssl, got);
+            // 6: the other side said goodbye; 5 with nothing read: it just hung up
+            if(why == 6 || (why == 5 && got == 0)) { ended = true; return new _int8[0]; }
+            failed_openssl("read", got);
+        }
+        return copy(chunk, 0, got)!!;
+    }
+
+    /** read as read() does, as a text ("" when the other side has closed) */
+    def read_text(most: _int64) : string {
+        bytes := read(most);
+        if(sizeof(bytes) == 0) { return ""; }
+        return new string(bytes, 0, sizeof(bytes));
+    }
+
+    /** read exactly `count` bytes; socket_exception when the other side closes before that many came */
+    def read_exactly(count: _int64) : _int8[] {
+        whole := new _int8[count];
+        have : _int64 = 0;
+        while(have < count) {
+            part := read(count - have);
+            if(sizeof(part) == 0) { throw new socket_exception("the other side closed the connection after " + have + " of " + count + " bytes"); }
+            for(i : _int64 = 0; i < sizeof(part); i++) { whole[have + i] = part[i]; }
+            have = have + sizeof(part);
+        }
+        return whole;
+    }
+
+    /** read until the other side closes: everything it sent */
+    def read_all() : _int8[] {
+        whole := new byte_buffer();
+        while(true) {
+            part := read(16384);
+            if(sizeof(part) == 0) { break; }
+            whole.put_bytes(part);
+        }
+        return whole.to_array() ?: new _int8[0];
+    }
+
+    /** read until the other side closes, as a text */
+    def read_all_text() : string {
+        bytes := read_all();
+        if(sizeof(bytes) == 0) { return ""; }
+        return new string(bytes, 0, sizeof(bytes));
+    }
+
+    /** close this end (after telling the other side). Closing twice does nothing. */
+    override def close() {
+        if(!open) { return; }
+        open = false;
+        try {
+            if(socket_system.is_windows()) { goodbye_schannel(); }
+            else if(ssl != 0) { openssl.SSL_shutdown(ssl); }
+        } catch(problem: throwable) {
+            // (the other side may be gone already: there is nobody to tell)
+        }
+        free();
+        wire.close();
+    }
+
+    /** give back what the system's TLS holds for this connection */
+    private def free() {
+        if(ssl != 0) { openssl.SSL_free(ssl); ssl = 0; }
+        if(context != null) { schannel.DeleteSecurityContext(context!!.address()); context!!.release(); context = null; }
+        if(incoming != null) { incoming!!.release(); incoming = null; }
+        if(outgoing != null) { outgoing!!.release(); outgoing = null; }
+        if(buffers != null) { buffers!!.release(); buffers = null; }
+        if(described != null) { described!!.release(); described = null; }
+    }
+
+    // ================================================================ OpenSSL (Linux)
+
+    /** find libssl and libcrypto under the names this system has them, and make the shared settings */
+    private static def start_openssl_library() {
+        if(started) { return; }
+        ssl_names := new string[] { "libssl.so.3", "libssl.so.1.1", "libssl.so.1.0.0", "libssl.so" };
+        crypto_names := new string[] { "libcrypto.so.3", "libcrypto.so.1.1", "libcrypto.so.1.0.0", "libcrypto.so" };
+        found : bool = false;
+        for(i : _int64 = 0; i < sizeof(ssl_names); i++) {
+            if(openssl.dlopen(ssl_names[i], 2) != 0) {
+                c_library("ssl", ssl_names[i]);
+                c_library("crypto", crypto_names[i]);
+                found = true;
+                break;
+            }
+        }
+        if(!found) { throw new tls_exception("this system has no OpenSSL (libssl.so.3 or libssl.so.1.1): install it to use TLS"); }
+        openssl.signal(13, 1);          // a write to a connection that is gone is an error to report, not a signal that ends the program
+        openssl.OPENSSL_init_ssl(0, 0);
+        made : pointer = openssl.SSL_CTX_new(openssl.TLS_client_method());
+        if(made == 0) { throw new tls_exception("OpenSSL could not be started: " + openssl_said()); }
+        openssl.SSL_CTX_set_default_verify_paths(made);     // the certificates this system trusts
+        openssl.SSL_CTX_ctrl(made, 123, 0x0303, 0);         // nothing older than TLS 1.2
+        openssl.SSL_CTX_set_options(made, 0x80);            // a server that hangs up without goodbye: "closed", as on a tcp_socket
+        openssl_context = made;
+        started = true;
+    }
+
+    private def start_openssl() {
+        start_openssl_library();
+        ssl = openssl.SSL_new(openssl_context);
+        if(ssl == 0) { throw new tls_exception("OpenSSL gave no connection: " + openssl_said()); }
+        openssl.SSL_set_fd(ssl, handle);
+        openssl.SSL_ctrl(ssl, 55, 0, name);                 // say which host is wanted (one address can serve many)
+        if(checked) {
+            openssl.SSL_set_verify(ssl, 1, 0);
+            openssl.SSL_set1_host(ssl, name);               // the certificate has to be for this name
+        } else {
+            openssl.SSL_set_verify(ssl, 0, 0);
+        }
+        result : _int64 = openssl.SSL_connect(ssl);
+        if(result != 1) {
+            verdict : _int64 = openssl.SSL_get_verify_result(ssl);
+            if(verdict != 0) {
+                throw new tls_exception("the certificate of " + name + " was not accepted: " + openssl.X509_verify_cert_error_string(verdict));
+            }
+            said : string = openssl_said();
+            if(sizeof(said.data) == 0) { said = "the server broke the connection off"; }
+            throw new tls_exception("TLS could not be started with " + name + ": " + said);
+        }
+    }
+
+    /** OpenSSL's own words for its last error ("" when it has none) */
+    private static def openssl_said() : string {
+        code : _int64 = openssl.ERR_get_error();
+        if(code == 0) { return ""; }
+        text := new _int8[256];
+        openssl.ERR_error_string_n(code, text, 256);
+        length : _int64 = 0;
+        while(length < 256 && text[length] != 0) { length++; }
+        // drain what else is queued, so the next error is not an old one
+        while(openssl.ERR_get_error() != 0) { }
+        return new string(text, 0, length);
+    }
+
+    private def failed_openssl(what: string, result: _int64) {
+        why : _int64 = openssl.SSL_get_error(ssl, result);
+        code : _int64 = socket_system.last_code();
+        if((why == 2 || why == 3 || why == 5) && socket_system.timed_out(code)) {
+            throw new socket_timeout("the " + what + " took longer than the socket's timeout");
+        }
+        said : string = openssl_said();
+        if(sizeof(said.data) == 0) {
+            if(why == 5 && code != 0) { said = socket_system.describe(code); }
+            else { said = "the connection was broken off"; }
+        }
+        throw new socket_exception("the " + what + " failed: " + said);
+    }
+
+    // ================================================================ SChannel (Windows)
+
+    private static const CONTINUE : _int64 = 0x00090312;        // the handshake wants another round
+    private static const INCOMPLETE : _int64 = 0x80090318;      // not a whole record yet: more bytes have to arrive
+    private static const EXPIRED : _int64 = 0x00090317;         // the other side said goodbye
+    private static const RENEGOTIATE : _int64 = 0x00090321;     // the other side wants the handshake again
+    private static const CREDENTIALS : _int64 = 0x00090320;     // the server asked who we are (we go on without saying)
+    private static const REQUEST : _int64 = 0xC11C;             // encrypted, ordered, a stream, SChannel allocates its answers
+
+    /** the settings every connection shares: which protocol versions, and whether certificates are checked */
+    private static def schannel_credential(check: bool) : c_memory {
+        if(check && credential != null) { return credential!!; }
+        if(!check && credential_unchecked != null) { return credential_unchecked!!; }
+        socket_system.start();
+        wish := new c_memory(80);                               // SCHANNEL_CRED
+        wish.put_int32(0, 4);                                   //   its version
+        flags : _int64 = 0x00400010;                            //   strong ciphers only, no certificate of ours
+        if(check) { flags = flags | 0x20; }                     //   Windows checks the server's certificate and its name
+        else { flags = flags | 0x8; }                           //   (or it is told to leave that alone)
+        wish.put_int32(72, flags);
+        made := new c_memory(16);
+        expiry := new c_memory(8);
+        status : _int64 = schannel.AcquireCredentialsHandleA(0, "Microsoft Unified Security Protocol Provider", 2, 0, wish.address(),
+                                                              0, 0, made.address(), expiry.address()) & 0xFFFFFFFF;
+        wish.release();
+        expiry.release();
+        if(status != 0) { made.release(); throw new tls_exception("Windows' TLS (SChannel) could not be started: " + schannel_said(status)); }
+        if(check) { credential = made; } else { credential_unchecked = made; }
+        return made;
+    }
+
+    private def start_schannel() {
+        schannel_credential(checked);
+        context = new c_memory(16);
+        incoming = new c_memory(INCOMING);
+        buffers = new c_memory(64);
+        described = new c_memory(16);
+        handshake(true);
+
+        sizes := new c_memory(20);                              // SecPkgContext_StreamSizes: five numbers
+        status : _int64 = schannel.QueryContextAttributesA(context!!.address(), 4, sizes.address()) & 0xFFFFFFFF;
+        header = sizes.uint32_at(0);
+        trailer = sizes.uint32_at(4);
+        most_message = sizes.uint32_at(8);
+        sizes.release();
+        if(status != 0) { throw new tls_exception("TLS could not be started with " + name + ": " + schannel_said(status)); }
+        outgoing = new c_memory(header + most_message + trailer);
+    }
+
+    /** one SecBuffer of the four: its size, its kind and where it is */
+    private def set_buffer(number: _int64, size: _int64, kind: _int64, where: pointer) {
+        at : _int64 = number * 16;
+        buffers!!.put_int32(at, size);
+        buffers!!.put_int32(at + 4, kind);
+        buffers!!.put_pointer(at + 8, where);
+    }
+
+    /** the description of the first `count` buffers, starting at buffer `from` */
+    private def describe_buffers(into: c_memory, from: _int64, count: _int64) {
+        into.put_int32(0, 0);
+        into.put_int32(4, count);
+        into.put_pointer(8, buffers!!.address_at(from * 16));
+    }
+
+    /**
+     * The handshake: the two sides exchange messages until both have the
+     * keys. SChannel writes ours and reads theirs; carrying them over the
+     * socket is done here. `first`: this is the start of the connection (not
+     * a handshake the other side asked for in the middle of it).
+     */
+    private def handshake(first: bool) {
+        cred : c_memory = schannel_credential(checked);
+        answer := new c_memory(16);             // describes buffers 2 and 3: what SChannel wants sent
+        attributes := new c_memory(4);
+        expiry := new c_memory(8);
+        status : _int64 = CONTINUE;
+        had_input : bool = false;
+        need_more : bool = held == 0;
+        try {
+            if(first) {
+                set_buffer(2, 0, 2, 0);
+                set_buffer(3, 0, 17, 0);
+                describe_buffers(answer, 2, 2);
+                status = schannel.InitializeSecurityContextA(cred.address(), 0, name, REQUEST, 0, 0, 0, 0, context!!.address(),
+                                                             answer.address(), attributes.address(), expiry.address()) & 0xFFFFFFFF;
+                need_more = false;
+            }
+            while(true) {
+                if(first || had_input) {
+                    if(status == CONTINUE || status == 0 || status == CREDENTIALS) {
+                        // what SChannel wrote for the other side
+                        size : _int64 = buffers!!.uint32_at(32);
+                        token : pointer = buffers!!.pointer_at(40);
+                        if(token != 0) {
+                            if(size > 0) { send_all(token, size); }
+                            schannel.FreeContextBuffer(token);
+                        }
+                        // input it did not use belongs to what comes next
+                        if(had_input) {
+                            if(buffers!!.uint32_at(20) == 5) {
+                                rest : _int64 = buffers!!.uint32_at(16);
+                                schannel.memmove(incoming!!.address(), incoming!!.address_at(held - rest), rest);
+                                held = rest;
+                            } else {
+                                held = 0;
+                            }
+                        }
+                        if(status == 0) { break; }
+                        need_more = held == 0;
+                    } else if(status == INCOMPLETE) {
+                        need_more = true;
+                    } else {
+                        throw new tls_exception(handshake_failure(status));
+                    }
+                }
+                if(need_more) {
+                    if(held >= INCOMING) { throw new tls_exception("TLS could not be started with " + name + ": the server's message is too large"); }
+                    got : _int64 = schannel.recv(handle, incoming!!.address_at(held), INCOMING - held, 0);
+                    if(got == 0) { throw new tls_exception("TLS could not be started with " + name + ": the server closed the connection"); }
+                    if(got < 0) { failed_socket("read"); }
+                    held = held + got;
+                }
+                set_buffer(0, held, 2, incoming!!.address());
+                set_buffer(1, 0, 0, 0);
+                set_buffer(2, 0, 2, 0);
+                set_buffer(3, 0, 17, 0);
+                describe_buffers(described!!, 0, 2);
+                describe_buffers(answer, 2, 2);
+                status = schannel.InitializeSecurityContextA(cred.address(), context!!.address(), name, REQUEST, 0, 0, described!!.address(), 0,
+                                                             context!!.address(), answer.address(), attributes.address(), expiry.address()) & 0xFFFFFFFF;
+                had_input = true;
+            }
+        } finally {
+            answer.release();
+            attributes.release();
+            expiry.release();
+        }
+    }
+
+    private def handshake_failure(status: _int64) : string {
+        if(status == 0x80090325 || status == 0x80090322 || status == 0x80090328 || status == 0x800B0109
+            || status == 0x800B010F || status == 0x800B0101 || status == 0x80092012 || status == 0x80092013) {
+            return "the certificate of " + name + " was not accepted: " + schannel_said(status);
+        }
+        return "TLS could not be started with " + name + ": " + schannel_said(status);
+    }
+
+    /** a status of SChannel in words */
+    private static def schannel_said(status: _int64) : string {
+        said : string = "";
+        if(status == 0x80090325 || status == 0x800B0109) { said = "it is not signed by anyone this machine trusts"; }
+        else if(status == 0x80090322 || status == 0x800B010F) { said = "it is for another host name"; }
+        else if(status == 0x80090328 || status == 0x800B0101) { said = "it has expired or is not valid yet"; }
+        else if(status == 0x80092012 || status == 0x80092013) { said = "whether it was revoked could not be checked"; }
+        else if(status == 0x80090326) { said = "the server sent something that is not TLS"; }
+        else if(status == 0x80090331) { said = "the two sides have no protocol version or cipher in common"; }
+        else if(status == 0x8009030E || status == 0x8009030D) { said = "Windows has no credentials for it"; }
+        else if(status == 0x80090308) { said = "the data is damaged (it does not decrypt)"; }
+        else if(status == 0x8009030F) { said = "a message was changed on the way"; }
+        if(sizeof(said.data) == 0) { return "SChannel error 0x" + hex_of(status); }
+        return said + " (SChannel error 0x" + hex_of(status) + ")";
+    }
+
+    /** a status of Windows as its eight hexadecimal digits */
+    private static def hex_of(number: _int64) : string {
+        return io_strings.to_upper(io_strings.int_to_hex(number & 0xFFFFFFFF, 8));
+    }
+
+    /** send `count` bytes that are at an address */
+    private def send_all(from: pointer, count: _int64) {
+        sent : _int64 = 0;
+        while(sent < count) {
+            took : _int64 = schannel.send(handle, from + sent, count - sent, 0);
+            if(took < 0) { failed_socket("write"); }
+            sent = sent + took;
+        }
+    }
+
+    private def failed_socket(what: string) {
+        code : _int64 = socket_system.last_code();
+        if(socket_system.timed_out(code)) { throw new socket_timeout("the " + what + " took longer than the socket's timeout"); }
+        throw new socket_exception("the " + what + " failed: " + socket_system.describe(code));
+    }
+
+    private def write_schannel(data: _int8[], count: _int64) : _int64 {
+        sent : _int64 = 0;
+        out : c_memory = outgoing!!;
+        while(sent < count) {
+            size : _int64 = count - sent;
+            if(size > most_message) { size = most_message; }
+            piece : _int8[] = data;
+            if(sent > 0 || size < sizeof(data)) { piece = copy(data, sent, sent + size)!!; }
+            out.put_bytes(header, piece);
+            set_buffer(0, header, 7, out.address());
+            set_buffer(1, size, 1, out.address_at(header));
+            set_buffer(2, trailer, 6, out.address_at(header + size));
+            set_buffer(3, 0, 0, 0);
+            describe_buffers(described!!, 0, 4);
+            status : _int64 = schannel.EncryptMessage(context!!.address(), 0, described!!.address(), 0) & 0xFFFFFFFF;
+            if(status != 0) { throw new socket_exception("the write failed: " + schannel_said(status)); }
+            send_all(out.address(), buffers!!.uint32_at(0) + buffers!!.uint32_at(16) + buffers!!.uint32_at(32));
+            sent = sent + size;
+        }
+        return sent;
+    }
+
+    /** up to `most` of the bytes that are decrypted and waiting */
+    private def take_plain(most: _int64) : _int8[] {
+        whole : _int8[] = plain!!;
+        left : _int64 = sizeof(whole) - plain_at;
+        if(plain_at == 0 && left <= most) { plain = null; return whole; }
+        if(left > most) { left = most; }
+        part : _int8[] = copy(whole, plain_at, plain_at + left)!!;
+        plain_at = plain_at + left;
+        if(plain_at >= sizeof(whole)) { plain = null; plain_at = 0; }
+        return part;
+    }
+
+    private def read_schannel(most: _int64) : _int8[] {
+        while(true) {
+            if(plain != null) { return take_plain(most); }
+            if(ended) { return new _int8[0]; }
+            if(held > 0) {
+                set_buffer(0, held, 1, incoming!!.address());
+                set_buffer(1, 0, 0, 0);
+                set_buffer(2, 0, 0, 0);
+                set_buffer(3, 0, 0, 0);
+                describe_buffers(described!!, 0, 4);
+                status : _int64 = schannel.DecryptMessage(context!!.address(), described!!.address(), 0, 0) & 0xFFFFFFFF;
+                if(status == 0 || status == EXPIRED || status == RENEGOTIATE) {
+                    rest : _int64 = 0;
+                    rest_at : pointer = 0;
+                    for(i : _int64 = 0; i < 4; i++) {
+                        kind : _int64 = buffers!!.uint32_at(i * 16 + 4);
+                        size : _int64 = buffers!!.uint32_at(i * 16);
+                        if(kind == 1 && size > 0) {
+                            plain = c_memory.view(buffers!!.pointer_at(i * 16 + 8), size).bytes_at(0, size);
+                            plain_at = 0;
+                        } else if(kind == 5) {
+                            rest = size;
+                            rest_at = buffers!!.pointer_at(i * 16 + 8);
+                        }
+                    }
+                    // what follows the record that was decrypted moves to the front
+                    if(rest > 0) { schannel.memmove(incoming!!.address(), rest_at, rest); }
+                    held = rest;
+                    if(status == EXPIRED) { ended = true; }
+                    if(status == RENEGOTIATE) { handshake(false); }
+                    continue;
+                }
+                if(status != INCOMPLETE) { throw new socket_exception("the read failed: " + schannel_said(status)); }
+            }
+            if(held >= INCOMING) { throw new socket_exception("the read failed: a TLS record larger than TLS allows"); }
+            got : _int64 = schannel.recv(handle, incoming!!.address_at(held), INCOMING - held, 0);
+            if(got < 0) { failed_socket("read"); }
+            if(got == 0) { ended = true; return new _int8[0]; }
+            held = held + got;
+        }
+        return new _int8[0];
+    }
+
+    /** tell the other side this end is done (TLS's own goodbye, so it knows nothing was cut off) */
+    private def goodbye_schannel() {
+        if(context == null || outgoing == null) { return; }
+        cred : c_memory = schannel_credential(checked);
+        order := new c_memory(4);
+        answer := new c_memory(16);
+        attributes := new c_memory(4);
+        expiry := new c_memory(8);
+        try {
+            order.put_int32(0, 1);                              // SCHANNEL_SHUTDOWN
+            set_buffer(0, 4, 2, order.address());
+            describe_buffers(described!!, 0, 1);
+            if((schannel.ApplyControlToken(context!!.address(), described!!.address()) & 0xFFFFFFFF) == 0) {
+                set_buffer(2, 0, 2, 0);
+                set_buffer(3, 0, 17, 0);
+                describe_buffers(answer, 2, 2);
+                schannel.InitializeSecurityContextA(cred.address(), context!!.address(), name, REQUEST, 0, 0, 0, 0, context!!.address(),
+                                                    answer.address(), attributes.address(), expiry.address());
+                size : _int64 = buffers!!.uint32_at(32);
+                token : pointer = buffers!!.pointer_at(40);
+                if(token != 0) {
+                    if(size > 0) { schannel.send(handle, token, size, 0); }
+                    schannel.FreeContextBuffer(token);
+                }
+            }
+        } finally {
+            order.release();
+            answer.release();
+            attributes.release();
+            expiry.release();
+        }
+    }
+}

@@ -1,0 +1,75 @@
+mod backend.compiler.driver;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context,
+    backend.compiler.expressions,
+    backend.compiler.initializers
+)
+
+/**
+ * EVERYTHING IN ONE MODULE, EVERYTHING IN ONE CLASS
+ *
+ * The order inside a class does not matter to the result: a field whose
+ * type is needed before the driver reaches it is analysed on demand
+ * (lazy_types.sharp). Fields come first only so that this happens rarely.
+ *
+ * What is skipped, and why:
+ *
+ *   - a generic class as written (`class list<T>`) and everything inside it:
+ *     its bodies mean something only once `T` is known, so they are analysed
+ *     per instance (list<string>, list<int>) - like C++ templates;
+ *   - a generic function as written, for the same reason;
+ *   - an instance whose type arguments break the class's `T base x` rule:
+ *     that was reported where the instance is named, and its bodies would
+ *     only repeat the mistake in other words.
+ */
+
+/** the globals of one module and its classes */
+def analyse_module(session: analysis_session, module: sharp_module) {
+    for(i : _int64 = 0; i < module.fields.size(); i++) { analyse_field(session, module.fields.at(i)); }
+    for(i : _int64 = 0; i < module.functions.size(); i++) {
+        function := module.functions.at(i);
+        // an extension function (`def string.shout()`) is listed here too, but it is a
+        // member of its class and is analysed with it (for a generic class: per instance)
+        if(function.owner == null && !function.is_generic()) { analyse_function_body(session, function); }
+    }
+    for(i : _int64 = 0; i < module.classes.size(); i++) { analyse_class(session, module.classes.at(i)); }
+}
+
+/** every body and value of one class, and of the classes declared inside it */
+def analyse_class(session: analysis_session, declared: sharp_class) {
+    if(declared.bodies_analysed == 1) { return; }
+    declared.bodies_analysed = 1;
+    if(declared.is_open()) { return; }
+    if(declared.failed_constraint >= 0 || declared.inside_refused_instance == 1) { return; }     // (E0351 was reported)
+
+    ensure_members(session.prog, declared);
+    session.counters.classes++;
+    if(declared.environment != null) { session.counters.instances++; }
+
+    for(i : _int64 = 0; i < declared.fields.size(); i++) { analyse_field(session, declared.fields.at(i)); }
+    analyse_enum_values(session, declared);          // their numbers (initializers/enum_values.sharp)
+    for(i : _int64 = 0; i < declared.constructors.size(); i++) { analyse_function_body(session, declared.constructors.at(i)); }
+    for(i : _int64 = 0; i < declared.init_blocks.size(); i++) { analyse_function_body(session, declared.init_blocks.at(i)); }
+    for(i : _int64 = 0; i < declared.functions.size(); i++) {
+        function := declared.functions.at(i);
+        if(!function.is_generic()) { analyse_function_body(session, function); }
+    }
+    for(i : _int64 = 0; i < declared.classes.size(); i++) { analyse_class(session, declared.classes.at(i)); }
+}
+
+/** a field: its value, and the bodies of its getter and setter */
+def analyse_field(session: analysis_session, field: sharp_field) {
+    analyse_field_value(session, field);
+    if(field.getter != null) { analyse_function_body(session, field.getter!!); }
+    if(field.setter != null) { analyse_function_body(session, field.setter!!); }
+}

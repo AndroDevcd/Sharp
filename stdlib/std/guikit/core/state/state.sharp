@@ -1,0 +1,190 @@
+mod std.guikit.core.state;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * state<t> - a value the screen depends on.
+ *
+ *      count := state(0);                       // inside a composable
+ *
+ *      gui.text("count: " + count.value)        // read it while building the screen
+ *      count.value = count.value + 1;           // change it: the screen rebuilds by itself
+ *      count.value += 1;                        // the same
+ *
+ * That is the whole idea of a declarative UI: you never reach into the screen
+ * to change a label. You change the STATE, and the part of the screen that was
+ * built from it is built again.
+ *
+ * `value` is a property (a field with a getter and a setter): reading it hands
+ * back what is held; writing it stores the new value and tells the screen.
+ * Compose comparison: mutableStateOf(0) and its .value. React: useState.
+ *
+ * WHO REBUILDS: exactly the composables that READ the state while building.
+ *
+ *   The getter looks at which composable's build() is running right now
+ *   (ui_host.building) and writes it down as a reader. The setter tells every
+ *   reader to build again, and forgets them - they sign up again when their
+ *   build() reads the state anew.
+ *
+ *   So it does not matter where a state was made. A state made at the top of
+ *   the app and read only by one small composable deep inside rebuilds only
+ *   that one. A state nobody reads while building rebuilds nothing. (Compose
+ *   does this with its "snapshot" read tracking - Composition.recordReadOf;
+ *   this is the same idea in its simplest form.)
+ *
+ * THREE THINGS TO KNOW (they come from how Sharp treats values):
+ *   - A yes/no state is a number: state(0) / state(1), tested with
+ *     `flag.value == 1`. (A `bool` variable is a shared object in Sharp;
+ *     numbers are plain values.)
+ *   - A text state hands you ITS string. Build a new text and assign it
+ *     (name.value = name.value + "!"); do not change the string you were
+ *     handed in place, or the screen will not know.
+ *   - Changing something INSIDE an object held by a state (a field of it, an
+ *     item of a list) does not go through the setter. Call touch() afterwards.
+ */
+stable class state<t> : state_cell {
+    held : t;                                   // the value itself
+
+    // the composables whose build() read this state since it last changed
+    private readers : list<composable>?;
+
+    // things to run whenever the value changes (on_change): saving it to a file, for one
+    private watchers : list<change_hook>?;
+
+    value : t;
+        get {
+            note_reader();
+            return held;
+        }
+        set changed -> {
+            held = changed;
+            announce();
+        }
+
+    state(first: t) {
+        held = first;
+    }
+
+    /** read the value WITHOUT signing up as a reader: for a click handler that only wants to look */
+    /**
+     * Run `action` every time the value changes. This is for LOGIC that must
+     * follow a state - saving it, passing it on. A screen never needs it: a
+     * screen reads the state while it is built and is built again by itself.
+     */
+    def on_change(action: ()()) {
+        if(watchers == null) {
+            watchers = new list<change_hook>();
+        }
+        watchers!!.add(new change_hook(action));
+    }
+
+    /** put a value in without telling anybody: for the value a saved state had in its file (saved.sharp) */
+    def restore(kept: t) {
+        held = kept;
+    }
+
+    def peek() : t {
+        return held;
+    }
+
+    /**
+     * "I changed something inside the value" - for a list or object held by
+     * the state, after adding to it or changing a field: rebuild as if the
+     * state had been assigned.
+     */
+    def touch() {
+        announce();
+    }
+
+    /** a build() is running and it read this state: remember who */
+    private def note_reader() {
+        builder : composable? = ui_host.building;
+        if(builder == null) {
+            return;                             // read from a click handler or a paint: nobody to sign up
+        }
+        if(readers == null) {
+            readers = new list<composable>();
+        }
+        count : _int64 = readers!!.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(readers!!.at(i) == builder!!) {
+                return;                         // already signed up (a build often reads a state twice)
+            }
+        }
+        readers!!.add(builder!!);
+    }
+
+    /** the value changed: every reader builds again, and the screen is painted again */
+    private def announce() {
+        // The screen reads this state on the main thread. Changing it from
+        // another thread while a window is open would let the screen be built
+        // from half-changed data - a fault that shows up somewhere else, much
+        // later. Stop here instead, where the mistake is, and say what to do.
+        if(ui_host.off_main_thread() == 1) {
+            throw new illegal_state_exception("a state was changed from a background thread while a window is open. "
+                + "Everything the screen reads must be changed on the main thread: put the change inside `on_main { ... }`");
+        }
+        if(watchers != null) {
+            hooks : _int64 = watchers!!.size();
+            for(i : _int64 = 0; i < hooks; i++) {
+                watchers!!.at(i).run();
+            }
+        }
+        if(readers != null) {
+            waiting : list<composable> = readers!!;
+            readers = null;                     // they sign up again when they rebuild and read
+            count : _int64 = waiting.size();
+            for(i : _int64 = 0; i < count; i++) {
+                waiting.at(i).invalidate();
+            }
+        }
+        // a widget bound straight to the state (a slider, a checkbox) reads it
+        // while PAINTING, not building: it needs a repaint, not a rebuild
+        if(ui_host.current != null) {
+            ui_host.current!!.repaint();
+        }
+    }
+
+    /**
+     * Take over the value of the cell this one replaces (see state_cell).
+     * Only from a cell of the very same type: a cell of another type is
+     * ignored, and this one keeps its starting value.
+     */
+    override def take_from(other: state_cell) {
+        if(other is state<t>) {
+            from := other as state<t>;
+            held = from.held;
+        }
+    }
+}
+
+/**
+ * What a composable knows about each of its states without knowing the type
+ * inside: that it can take over the value of the state it replaces.
+ *
+ * WHY THIS EXISTS: when a screen is rebuilt, a parent's build() makes its
+ * child composables AGAIN - new objects, with new states at their starting
+ * values. The reconciler pairs each new composable with the old one it
+ * replaces and has every new state take the old state's value, in the order
+ * they were made. So the counter keeps counting although its object is new.
+ * (React keeps hook state by call order in the same way; Compose keeps
+ * `remember`ed values by position in its slot table.)
+ */
+interface state_cell {
+    def take_from(other: state_cell);
+}
+
+/** a function to run when a state changes, wrapped so it can be kept in a list */
+stable class change_hook {
+    private action : ()();
+
+    change_hook(what: ()()) {
+        action = what;
+    }
+
+    def run() {
+        action();
+    }
+}

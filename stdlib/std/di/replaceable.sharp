@@ -1,0 +1,123 @@
+mod std.di;
+
+/**
+ * REPLACEABLE - a component definition that a test can swap for a stand-in.
+ *
+ *      interface clock { def now() : string; }
+ *
+ *      component app {
+ *          factory { replaceable<clock>() { return system_clock(); } }
+ *      }
+ *
+ *      class greeter {
+ *          inject time : clock;                        // unchanged: asked for, never built here
+ *          def greet() : string { return "It is " + time.now(); }
+ *      }
+ *
+ * In the program, `replaceable<clock>() { ... }` simply runs its block: the
+ * real clock. In a test (std.testing), provide<clock>() { ... } puts a
+ * stand-in in its place for the length of that test:
+ *
+ *      test("the greeting has the time in it") {
+ *          provide<clock>() { return fixed_clock("09:30"); };
+ *          expect(greeter().greet()).should_be("It is 09:30");
+ *      };
+ *
+ * WHY IT IS NEEDED. Components are settled while the program is COMPILED:
+ * every `get` and `inject` is tied to its definition then, which is why a
+ * missing one is a compile error. The price is that nothing can re-wire them
+ * while the program runs - unless the definition itself asks "has someone
+ * given me a replacement?". That question is all `replaceable` is.
+ *
+ * WRITE IT AS A `factory`. A `single` runs its definition once and keeps the
+ * result for good, so a replacement provided later would never be seen. For
+ * one shared object, use replaceable_single: it keeps the real one itself,
+ * and still gives the stand-in while a test provides one.
+ *
+ * WHAT TO MAKE REPLACEABLE: the edges of the program - the clock, files, the
+ * network, a database, anything slow or different on every run. Logic in the
+ * middle needs no stand-in; it is what the tests are for.
+ * (Koin: declare / loadKoinModules in tests. Hilt: @TestInstallIn. Dagger:
+ * a test component.)
+ */
+stable class replacements {
+    // stand-ins a test has provided, newest last; and the real objects replaceable_single has made
+    private static given : list<object> = new list<object>();
+    private static kept : list<object> = new list<object>();
+
+    /** put a stand-in in place: every replaceable<t> gives it from now on, until clear() */
+    static def put(stand_in: object) {
+        given.add(stand_in);
+    }
+
+    /** take every stand-in away again (std.testing does this after each test) */
+    static def clear() {
+        given.clear();
+    }
+
+    /** how many stand-ins are in place */
+    static def count() : _int64 {
+        return given.size();
+    }
+
+    /** the newest stand-in that is a t, or null */
+    static def find<t>() : t? {
+        for(i : _int64 = given.size() - 1; i >= 0; i--) {
+            if(given.at(i) is t) {
+                return given.at(i) as t;
+            }
+        }
+        return null;
+    }
+
+    /** the real object of type t that replaceable_single made earlier, or null */
+    static def kept_one<t>() : t? {
+        for(i : _int64 = 0; i < kept.size(); i++) {
+            if(kept.at(i) is t) {
+                return kept.at(i) as t;
+            }
+        }
+        return null;
+    }
+
+    static def keep(real: object) {
+        kept.add(real);
+    }
+
+    /** forget the real objects too: the next replaceable_single makes a fresh one (a test that wants a clean start) */
+    static def forget_kept() {
+        kept.clear();
+    }
+}
+
+/**
+ * The stand-in a test provided for t - or, when there is none, what `make`
+ * builds. Write it as the value of a `factory` definition.
+ */
+def replaceable<t>(make: ()(t)) : t {
+    stand_in : t? = replacements.find<t>();
+    if(stand_in != null) {
+        return stand_in!!;
+    }
+    return make();
+}
+
+/**
+ * The same for ONE shared object: `make` runs the first time and its result
+ * is kept and given every time after (what `single` does) - except while a
+ * test provides a stand-in, which then wins. Write it as the value of a
+ * `factory` definition too.
+ */
+def replaceable_single<t>(make: ()(t)) : t {
+    stand_in : t? = replacements.find<t>();
+    if(stand_in != null) {
+        return stand_in!!;
+    }
+    real : t? = replacements.kept_one<t>();
+    if(real != null) {
+        return real!!;
+    }
+    made : t = make();
+    replacements.keep(made as object);
+    return made;
+}

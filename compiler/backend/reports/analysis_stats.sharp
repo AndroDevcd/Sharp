@@ -1,0 +1,75 @@
+mod backend.reports;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context
+)
+
+/**
+ * THE `-analysis-stats` OPTION: how much was analysed
+ *
+ * Counts of what the body stages built: classes, bodies, expressions,
+ * statements by kind, lambdas, component definitions and the `get` /
+ * `inject` requests resolved to them. (While the body stages were built one
+ * by one this option also counted the expressions a later stage would
+ * analyse; every kind of expression has its rule now, and the self-check of
+ * compiler/program/completeness.sharp watches that none is left without a type.)
+ *
+ * It also counts the warnings by code. Three of them (W1017, W1021, W1022)
+ * mark code the C++ compiler accepts although it is doubtful; their counts
+ * on the library say how much code would break if they became errors.
+ */
+def print_analysis_stats(session: analysis_session) {
+    counters : analysis_counters = session.counters;
+    println("analysis: " + counters.classes + " class(es) (" + counters.instances + " generic instance(s)), "
+            + counters.bodies + " function bodies, " + counters.field_values + " field value(s)");
+    println("analysis: " + counters.expressions + " expression(s), " + counters.names + " plain name(s) looked up, "
+            + counters.members + " member(s), " + counters.locals + " local variable(s), " + counters.conversions
+            + " conversion(s) asked for");
+
+    println("statements: " + counters.statements);
+    for(kind : _int64 = 0; kind < 256; kind++) {
+        if(counters.statements_by_kind[kind] > 0) {
+            println("  " + statement_kind_name(kind) + ": " + counters.statements_by_kind[kind]);
+        }
+    }
+    println("undecided: " + counters.constructions_undecided + " conversion(s) through a constructor where several constructors fit");
+    println("components: " + session.prog.components.size() + " block(s), " + counters.definitions
+            + " definition(s), " + counters.requests + " `get` / `inject` request(s) resolved");
+    println("lambdas: " + counters.lambdas + " analysed, " + counters.function_values + " function(s) named as values");
+    println("off by default (-wextra): " + counters.unused_locals + " unused local(s) W1034, " + counters.unused_private_members
+            + " unused private member(s) W1035, " + counters.hidden_fields + " local(s) hiding a field W1036, "
+            + counters.fields_without_value + " field(s) never given a value W1032");
+
+    // warnings by code
+    codes := new list<string>();
+    counts := new hash_map<string, int>();
+    for(i : _int64 = 0; i < session.problems.size(); i++) {
+        d := session.problems.at(i);
+        if(d.severity != SEVERITY_WARNING) { continue; }
+        seen := counts.at(d.code);
+        if(seen == null) {
+            codes.add(d.code);
+            counts.put(d.code, new int(1));
+        } else {
+            counts.put(d.code, new int(seen!!.value + 1));
+        }
+    }
+    for(i : _int64 = 0; i < codes.size(); i++) {
+        println("warnings " + codes.at(i) + ": " + counts.at(codes.at(i))!!.value);
+    }
+}
+
+/** part of whole, in percent */
+def percent(part: _int64, whole: _int64) : _int64 {
+    if(whole == 0) { return 0; }
+    return part * 100 / whole;
+}

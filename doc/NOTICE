@@ -1,0 +1,28 @@
+The Sharp Programming Language
+Copyright 2026 Braxton Nunnally
+
+Sharp is licensed under the Apache License, Version 2.0 (see LICENSE at the
+top of the repository).
+
+The name "Sharp" as the name of this language, and its logo, are not
+covered by that licence (section 6 of the licence).
+
+This repository also holds code written by others, under their own terms
+(the full texts are in THIRD_PARTY_LICENSES.txt, beside this file):
+
+  AsmJit            runtime/jit/asmjit
+                    Copyright (c) 2008-2024 The AsmJit Authors. Zlib licence.
+
+  stb_image,        stdlib/std/guikit/platform/native
+  stb_truetype      Sean Barrett. Public domain, or MIT licence.
+
+  NanoSVG           stdlib/std/guikit/platform/native
+                    Copyright (c) 2013-14 Mikko Mononen. Zlib licence.
+
+  cgltf             stdlib/std/guikit/platform/native
+                    Johannes Kuhlmann. MIT licence.
+
+The GUI library is built with SDL2 (Zlib licence). Programs that use
+databases or secure connections load SQLite (public domain) and OpenSSL
+(Apache License 2.0) from the system they run on; neither is part of this
+repository.

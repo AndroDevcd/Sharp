@@ -1,0 +1,120 @@
+mod frontend.lexer;
+
+/**
+ * NAMES FOR THE TOKEN KINDS
+ *
+ * The tokenizer (lexer.sharp) gives every token a kind, a small number:
+ *
+ *      0 ..  9     end of file, identifier, the literals       T_...  (lexer.sharp)
+ *     10 .. 35     one-character punctuation                   P_...  (here)
+ *     40 .. 64     two- and three-character punctuation        P_...  (lexer.sharp)
+ *     80 .. 146    keywords                                    K_...  (here)
+ *
+ * The one-character kinds are T_PUNCT + the position of the character in the
+ * text `marks` that build_tables() walks (it is listed below, one name per
+ * character; it cannot be written out here, it contains the two characters
+ * that end a comment), and the keyword
+ * kinds are T_KEYWORD + the position of the word in keyword_list(). The
+ * numbers below must stay in step with those two lists.
+ *
+ * The parser compares against these names: `kind == K_CLASS`, never
+ * `text == "class"`.
+ */
+
+// ---- one-character punctuation
+const P_LPAREN    : _int64 = 10;    // (
+const P_RPAREN    : _int64 = 11;    // )
+const P_LBRACE    : _int64 = 12;    // {
+const P_RBRACE    : _int64 = 13;    // }
+const P_LBRACKET  : _int64 = 14;    // [
+const P_RBRACKET  : _int64 = 15;    // ]
+const P_HASH      : _int64 = 16;    // #
+const P_DOT       : _int64 = 17;    // .
+const P_PLUS      : _int64 = 18;    // +
+const P_MINUS     : _int64 = 19;    // -
+const P_STAR      : _int64 = 20;    // *
+const P_SLASH     : _int64 = 21;    // /
+const P_PERCENT   : _int64 = 22;    // %
+const P_COLON     : _int64 = 23;    // :
+const P_SEMICOLON : _int64 = 24;    // ;
+const P_COMMA     : _int64 = 25;    // ,
+const P_LESS      : _int64 = 26;    // <
+const P_GREATER   : _int64 = 27;    // >
+const P_ASSIGN    : _int64 = 28;    // =
+const P_AND       : _int64 = 29;    // &
+const P_OR        : _int64 = 30;    // |
+const P_XOR       : _int64 = 31;    // ^
+const P_NOT       : _int64 = 32;    // !
+const P_QUESTION  : _int64 = 33;    // ?
+const P_DOLLAR    : _int64 = 34;    // $
+const P_AT        : _int64 = 35;    // @
+
+// ---- keywords, in the order of keyword_list()
+const K_MOD       : _int64 = 80;
+const K_TRUE      : _int64 = 81;
+const K_FALSE     : _int64 = 82;
+const K_CLASS     : _int64 = 83;
+const K_STATIC    : _int64 = 84;
+const K_PROTECTED : _int64 = 85;
+const K_PRIVATE   : _int64 = 86;
+const K_DEF       : _int64 = 87;
+const K_IMPORT    : _int64 = 88;
+const K_RETURN    : _int64 = 89;
+const K_SELF      : _int64 = 90;
+const K_CONST     : _int64 = 91;
+const K_PUBLIC    : _int64 = 92;
+const K_NEW       : _int64 = 93;
+const K_EXCUSE    : _int64 = 94;
+const K_NULL      : _int64 = 95;
+const K_OPERATOR  : _int64 = 96;
+const K_BASE      : _int64 = 97;
+const K_IF        : _int64 = 98;
+const K_WHILE     : _int64 = 99;
+const K_DO        : _int64 = 100;
+const K_TRY       : _int64 = 101;
+const K_CATCH     : _int64 = 102;
+const K_FINALLY   : _int64 = 103;
+const K_THROW     : _int64 = 104;
+const K_CONTINUE  : _int64 = 105;
+const K_GOTO      : _int64 = 106;
+const K_BREAK     : _int64 = 107;
+const K_ELSE      : _int64 = 108;
+const K_OBJECT    : _int64 = 109;
+const K_ASM       : _int64 = 110;
+const K_FOR       : _int64 = 111;
+const K_FOREACH   : _int64 = 112;
+const K_DECIMAL   : _int64 = 113;
+const K_SIZEOF    : _int64 = 114;
+const K_INT8      : _int64 = 115;
+const K_INT16     : _int64 = 116;
+const K_INT32     : _int64 = 117;
+const K_INT64     : _int64 = 118;
+const K_UINT8     : _int64 = 119;
+const K_UINT16    : _int64 = 120;
+const K_UINT32    : _int64 = 121;
+const K_UINT64    : _int64 = 122;
+const K_INTERFACE : _int64 = 123;
+const K_LOCK      : _int64 = 124;
+const K_ENUM      : _int64 = 125;
+const K_WHEN      : _int64 = 126;
+const K_LOCAL     : _int64 = 127;
+const K_NATIVE    : _int64 = 128;
+const K_LOCALIZED : _int64 = 129;
+const K_NIL       : _int64 = 130;
+const K_EXT       : _int64 = 131;
+const K_STABLE    : _int64 = 132;
+const K_MUTATE    : _int64 = 133;
+const K_INIT      : _int64 = 134;
+const K_GET       : _int64 = 135;
+const K_SET       : _int64 = 136;
+const K_ALIAS     : _int64 = 137;
+const K_AS        : _int64 = 138;
+const K_IN        : _int64 = 139;
+const K_OVERRIDE  : _int64 = 140;
+const K_OBFUSCATE : _int64 = 141;
+const K_IS        : _int64 = 142;
+const K_INJECT    : _int64 = 143;
+const K_COMPONENT : _int64 = 144;
+const K_SINGLE    : _int64 = 145;
+const K_FACTORY   : _int64 = 146;
+const K_BOOL      : _int64 = 147;

@@ -1,0 +1,79 @@
+mod app;
+
+// The "Leftovers: rules" stage: correct forms that the stage's rules must
+// keep accepting (each one next to a rule that refuses something close to it).
+
+import ( std, std.io )
+
+def worker() { }
+var_holder : _int64 = 0;
+
+// asm: a global function and a global variable of a module, through __srt_global
+def assembly() {
+    asm {
+        movi adx, $app#__srt_global[worker]
+        movi adx, $app#__srt_global[var_holder]
+        movi adx, $__srt_global[worker]             // no module written: the module this code is in
+    }
+}
+
+// mutate of an interface may add a function WITH a body: it is the interface's own
+interface greeter { }
+mutate greeter { def greet() { println("hello"); } }
+class person : greeter { }
+def greetings() { g : greeter = new person(); g.greet(); }
+
+// a class that lists an interface defines its function; a class below may override it
+interface drawable { def draw(n: _int64); }
+class shape : drawable { override def draw(n: _int64) { } }
+class square base shape { override def draw(n: _int64) { } }
+// a body-less function of a BASE CLASS may be declared again below, still without a body
+class figure { def area() : decimal; }
+class polygon base figure { def area() : decimal; }
+class triangle base polygon { override def area() : decimal { return 1; } }
+
+// init(x) and a constructor that take the same value: a declaration runs the init block
+class celsius {
+    init(degrees: _int64) { }
+    celsius(degrees: _int64) { }
+}
+def temperatures() { a : celsius = 5; c := new celsius(7); }
+
+// a value that IS the class is passed as it is, also when a constructor takes `object`
+class item { owner : object; item(owner: object) { self->owner = owner; } }
+class box { def add(i: item) { } }
+def objects() { b := new box(); w : item? = new item(new int(1)); b.add(w!!); b.add(new item(b)); }
+
+// numbers that fit, and a cut written on purpose
+def numbers() {
+    a : _int8 = 127; b : _int8 = 0 - 128; c : _uint8 = 255; d : _int16 = 32767;
+    e : _int32 = 2147483647; f : _uint16 = 65535; g : _int8 = 300 as _int8;
+    h : decimal = 4 / 2; i : _int64 = 7 % 3;
+    infinity : decimal = 1.0 / 0.0; not_a_number : decimal = 0.0 / 0.0;     // written on purpose: no W1044
+}
+
+// an assignment kept in a condition on purpose: in its own parentheses
+def next_value() : _int64 { return 0; }
+def loops() { x : _int64 = 1; while((x = next_value())) { } if(x == 5) { } }
+
+// const on every name of a statement, never assigned again
+def constants() { const c : _int64 = 1, d = 2; total := c + d; }
+
+// an enum value read, compared and stored in a variable
+enum colour { red, green }
+def colours() { c := colour.red; if(c == colour.green) { } c = colour.green; }
+
+// an extension function may give the type parameters of its class names of its own
+class box_of<T> { item : T?; }
+class pair<A, B> { first : A?; second : B?; }
+def box_of<X>.peek() : X? { seen : X? = item; return seen; }
+def pair<K, V>.key() : K? { return first; }
+def pair<A, V>.value() : V? { return second; }
+def box_of<string>.text() : string { return item!!; }       // one instance: real types
+def renamed() {
+    b := new box_of<int>(); n : int? = b.peek();
+    p := new pair<int, string>(); k : int? = p.key(); v : string? = p.value();
+    s := new box_of<string>(); t : string = s.text(); u : string? = s.peek();
+}
+
+def main() { }

@@ -1,0 +1,140 @@
+mod backend.compiler.lambdas;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    backend.types.type_system,
+    backend.compiler.context
+)
+
+/**
+ * WHAT A LAMBDA LOOKS LIKE AS WRITTEN
+ *
+ *      { a: int, b -> (int) return a + b.value; }      2 parameters, `a` typed, result written
+ *      { -> work(); }                                  no parameters, an arrow
+ *      { println(it); }                                no arrow at all (only after a call):
+ *                                                      its parameters come from where it is used
+ *      { it * 2 }                                      ONE expression and no `;`: its value is the result
+ *
+ * The tree of a lambda (the parser's N_LAMBDA): N_PARAMETERS (an N_PARAMETER
+ * per name, with an N_TYPE child when a type is written), an optional
+ * N_RETURN_TYPE (`(t)`, or `(nil)` with no child), and the N_BLOCK of its
+ * statements. `lambda_form` reads that once, resolving the types that are
+ * written, so that overload resolution can compare a lambda with a
+ * parameter's function type before the body is analysed - the body needs
+ * the types first.
+ */
+class lambda_form {
+    node : _int64;                                  // the N_LAMBDA
+    has_arrow : _int64 = 0;                         // 0: the `{ println(it); }` form - parameters from the expected type
+    names : list<string>;                           // the parameters written, in order
+    name_nodes : _int64[];                          // ... where each is written
+    is_typed : _int64[];                            // ... 1 when a type is written for it
+    written_types : list<resolved_type>;            // ... that type (the error type where none is written)
+    has_result : _int64 = 0;                        // `(t)` or `(nil)` is written after the arrow
+    result : resolved_type?;                        // ... that type (the nil type for `(nil)`)
+    result_node : _int64 = 0 - 1;                   // the N_RETURN_TYPE
+    body : _int64 = 0 - 1;                          // the N_BLOCK
+    single_expression : _int64 = 0 - 1;             // the N_EXPRESSION_STATEMENT of a body that is one expression without `;`
+
+    lambda_form(node: _int64) {
+        self->node = node;
+        names = new list<string>();
+        name_nodes = new _int64[0];
+        is_typed = new _int64[0];
+        written_types = new list<resolved_type>();
+    }
+
+    /** every parameter and the result are written: the lambda has a type of its own, whatever surrounds it */
+    def is_fully_typed() : _int64 {
+        if(has_arrow == 0 || has_result == 0) { return 0; }
+        for(i : _int64 = 0; i < sizeof(is_typed); i++) {
+            if(is_typed[i] == 0) { return 0; }
+        }
+        return 1;
+    }
+
+    /** how many parameters are written; -1 for the form without an arrow (they come from where it is used) */
+    def parameter_count() : _int64 {
+        if(has_arrow == 0) { return 0 - 1; }
+        return names.size();
+    }
+}
+
+/** read the lambda at `node` (the types written in it are resolved here, in the context's environment) */
+def read_lambda_form(context: analysis_context, node: _int64) : lambda_form {
+    tree : syntax_tree = context.tree;
+    form := new lambda_form(node);
+    parameters : _int64 = tree.child_of_kind(node, N_PARAMETERS);
+    if(parameters >= 0) {
+        count : _int64 = 0;
+        for(parameter : _int64 = tree.first_child!![parameters]; parameter >= 0; parameter = tree.next_sibling!![parameter]) { count++; }
+        form.name_nodes = new _int64[count];
+        form.is_typed = new _int64[count];
+        i : _int64 = 0;
+        for(parameter : _int64 = tree.first_child!![parameters]; parameter >= 0; parameter = tree.next_sibling!![parameter]) {
+            form.names.add(name_at(context, parameter));
+            form.name_nodes[i] = parameter;
+            type_node : _int64 = tree.child_of_kind(parameter, N_TYPE);
+            if(type_node >= 0) {
+                form.is_typed[i] = 1;
+                form.written_types.add(resolve_type_at(context, type_node));
+            } else {
+                form.written_types.add(context.session.types.error_type);
+            }
+            i++;
+        }
+    }
+    form.has_arrow = form.names.size() > 0 || arrow_after_brace(context, node);
+
+    result : _int64 = tree.child_of_kind(node, N_RETURN_TYPE);
+    if(result >= 0) {
+        form.has_result = 1;
+        form.result_node = result;
+        type_node : _int64 = tree.child_of_kind(result, N_TYPE);
+        if(type_node >= 0) { form.result = resolve_type_at(context, type_node); }
+        else { form.result = context.session.types.nil_type; }
+    }
+
+    form.body = tree.child_of_kind(node, N_BLOCK);
+    if(form.body >= 0) { form.single_expression = single_expression_of(context, form.body); }
+    return form;
+}
+
+/** is the token after the lambda's `{` an arrow (`{ -> work(); }`)? */
+def arrow_after_brace(context: analysis_context, node: _int64) : _int64 {
+    p : parse_state = context.state;
+    token : _int64 = context.tree.tokens!![node];
+    return token + 1 < p.count && p.kinds[token + 1] == P_ARROW;
+}
+
+/**
+ * `{ it * 2 }`: a body that is exactly one expression statement with no `;`
+ * before the lambda's closing `}`. Its N_EXPRESSION_STATEMENT, or -1.
+ *
+ * The parser lets the `;` go before a `}` for any expression statement; the
+ * tokens tell whether it was written: walking from the start of the
+ * expression, the first `;` outside every bracket means it was; a `}` that
+ * closes the lambda first means it was not.
+ */
+def single_expression_of(context: analysis_context, body: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    statement : _int64 = tree.first_child!![body];
+    if(statement < 0 || tree.next_sibling!![statement] >= 0) { return 0 - 1; }
+    if(tree.kinds!![statement] != N_EXPRESSION_STATEMENT) { return 0 - 1; }
+    expression : _int64 = tree.first_child!![statement];
+    if(expression < 0) { return 0 - 1; }
+
+    p : parse_state = context.state;
+    depth : _int64 = 0;
+    for(token : _int64 = first_token_of(tree, expression); token < p.count; token++) {
+        kind : _int64 = p.kinds[token];
+        if(kind == P_LPAREN || kind == P_LBRACKET || kind == P_LBRACE) { depth++; }
+        else if(kind == P_RPAREN || kind == P_RBRACKET || kind == P_RBRACE) {
+            depth--;
+            if(depth < 0) { return statement; }    // the lambda's own `}`: no `;` was written
+        } else if(kind == P_SEMICOLON && depth == 0) { return 0 - 1; }
+    }
+    return 0 - 1;
+}

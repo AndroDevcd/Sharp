@@ -1,0 +1,18 @@
+mod std;
+
+class deferred_init<T base _object_> {
+    excuse value : T;
+        get {
+            if(value == null) {
+                value = get_val();
+            }
+
+            return value;
+        }
+
+    private get_val: ()(T);
+
+    deferred_init(get_value_fun: ()(T)) {
+        get_val = get_value_fun;
+    }
+}

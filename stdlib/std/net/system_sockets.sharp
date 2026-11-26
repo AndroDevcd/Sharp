@@ -1,0 +1,76 @@
+mod std.net;
+
+import ( std.c )
+
+/**
+ * THE OPERATING SYSTEM'S SOCKETS, as C has them - the two families of them:
+ * the POSIX calls of Linux (in C's own library) and Winsock on Windows
+ * (ws2_32.dll). The functions have the same names and nearly the same
+ * parameters; what differs is why there are two classes:
+ *
+ *                          Linux                       Windows
+ *      a socket is         an int (-1: none)           an address-wide number (all ones: none)
+ *      closing one         close                       closesocket
+ *      the last error      errno                       WSAGetLastError()
+ *      before anything     -                           WSAStartup
+ *
+ * Nothing here is for a program to call: tcp_socket and tcp_server
+ * (tcp.sharp) are, and they pick the family the program runs on. This file
+ * is the whole of the "native" side of networking - declarations, no C++.
+ */
+
+/** struct sockaddr_in: an internet address (version 4) and a port, both in network byte order */
+class socket_address base c_struct {
+    static const c_bytes : _int64 = 16;
+    family : c_ushort;
+    port : c_ushort;
+    address : c_uint;
+    zero : c_char[] = new c_char[8];
+}
+
+/** struct timeval: seconds and microseconds (for a socket's timeouts on Linux) */
+class socket_time base c_struct {
+    seconds : c_long;
+    microseconds : c_long;
+}
+
+class posix_sockets {
+    extern "unix:c" {
+        static def socket(family: c_int, kind: c_int, protocol: c_int) : c_int;
+        static def connect(s: c_int, address: socket_address?, length: c_uint) : c_int;
+        static def bind(s: c_int, address: socket_address?, length: c_uint) : c_int;
+        static def listen(s: c_int, waiting: c_int) : c_int;
+        static def accept(s: c_int, address: socket_address?, length: _int32[]) : c_int;
+        static def send(s: c_int, data: _int8[], count: c_size, flags: c_int) : c_ssize;
+        static def recv(s: c_int, into: _int8[], count: c_size, flags: c_int) : c_ssize;
+        static def close(s: c_int) : c_int;
+        static def shutdown(s: c_int, how: c_int) : c_int;
+        static def setsockopt(s: c_int, level: c_int, name: c_int, value: _int32[], length: c_uint) : c_int;
+        static def setsockopt(s: c_int, level: c_int, name: c_int, value: socket_time?, length: c_uint) : c_int;
+        static def getsockname(s: c_int, address: socket_address?, length: _int32[]) : c_int;
+        static def getpeername(s: c_int, address: socket_address?, length: _int32[]) : c_int;
+        static def gethostbyname(name: string) : pointer;
+        static def __errno_location() : pointer;
+        static def strerror(code: c_int) : string;
+    }
+}
+
+class windows_sockets {
+    extern "windows:ws2_32" {
+        static def WSAStartup(version: c_ushort, data: _int8[]) : c_int;
+        static def WSAGetLastError() : c_int;
+        static def socket(family: c_int, kind: c_int, protocol: c_int) : pointer;
+        static def connect(s: pointer, address: socket_address?, length: c_int) : c_int;
+        static def bind(s: pointer, address: socket_address?, length: c_int) : c_int;
+        static def listen(s: pointer, waiting: c_int) : c_int;
+        static def accept(s: pointer, address: socket_address?, length: _int32[]) : pointer;
+        static def send(s: pointer, data: _int8[], count: c_int, flags: c_int) : c_int;
+        static def recv(s: pointer, into: _int8[], count: c_int, flags: c_int) : c_int;
+        static def closesocket(s: pointer) : c_int;
+        static def shutdown(s: pointer, how: c_int) : c_int;
+        static def setsockopt(s: pointer, level: c_int, name: c_int, value: _int32[], length: c_int) : c_int;
+        static def getsockname(s: pointer, address: socket_address?, length: _int32[]) : c_int;
+        static def getpeername(s: pointer, address: socket_address?, length: _int32[]) : c_int;
+        static def gethostbyname(name: string) : pointer;
+    }
+}

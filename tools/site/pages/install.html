@@ -1,0 +1,34 @@
+<div class="inst">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow">Download</p>
+      <h1>Get Sharp <span data-newest-version>{version}</span></h1>
+      <p>Download the zip, unpack the whole archive, then run the installer for your system. Open a new terminal afterwards so that <code>sharp</code> and <code>sharpc</code> are on your PATH.</p>
+    </div>
+    <div class="getit">
+      <!-- site.js points this at the zip of the newest GitHub release; as written it opens that release's page -->
+      <a id="get-sharp" class="btn primary big" href="{github}/releases/latest">Download Sharp <span data-newest-version>{version}</span></a>
+      <span>One zip for Windows and 64-bit Linux.</span>
+      <a href="{github}/releases">All releases</a>
+    </div>
+    <div class="oses">
+      <article>
+        <h2>Windows</h2>
+        <p>Double-click the installer inside the unpacked folder.</p>
+        <div class="code"><pre>windows\win-install.cmd</pre></div>
+      </article>
+      <article>
+        <h2>Linux, 64-bit x86</h2>
+        <p>Run the installer from the unpacked folder.</p>
+        <div class="code"><pre>bash linux/unix-install.sh</pre></div>
+      </article>
+      <article>
+        <h2>Raspberry Pi and other Linux</h2>
+        <p>Build the VM on the machine itself.</p>
+        <div class="code"><pre>git clone https://github.com/AndroDevcd/Sharp.git
+cd Sharp
+bash build-scripts/linux/install_from_source.sh</pre></div>
+      </article>
+    </div>
+  </div>
+</div>

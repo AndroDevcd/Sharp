@@ -1,0 +1,32 @@
+mod backend.optimizer.passes.control;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * THE PASSES ABOUT CONTROL FLOW: fewer jumps
+ *
+ * A jump costs the VM a dispatch and the JIT a branch, and generated code
+ * has many that do nothing useful: a statement always ends with a jump to
+ * the label after it, a branch constant propagation decided leaves a jump to
+ * the next instruction, and every round of a loop runs both its test's jump
+ * and the jump back. These passes take them out, without changing where
+ * control goes.
+ *
+ * The files of this package (module `backend.optimizer.passes.control`):
+ *
+ *      control.sharp               this front door
+ *      jump_threading.sharp        jumps to jumps, jumps to the next instruction, unused labels
+ *                                  ("jump cleanup" in the C++ optimizer's words)
+ *      loop_unrolling.sharp        a loop that runs a small, known number of times becomes straight code
+ *      loop_invariants.sharp       what is the same in every round of a loop is computed once, before it
+ *      bounds_checks.sharp         `a[i]` inside `for(i = 0; i < sizeof(a); i++)` loses its range check
+ *      loop_closed_form.sharp      a counting loop that only adds up a polynomial of its counter becomes the formula
+ *      loop_rotation.sharp         a loop's test moves to its bottom: one jump per round instead of two
+ *
+ * Jump cleanup and rotation keep the labels of a `try` where they are, and
+ * the jump that closes one of its ranges (codegen.md 4.7, R1); unrolling
+ * leaves a function with a `try` alone.
+ */

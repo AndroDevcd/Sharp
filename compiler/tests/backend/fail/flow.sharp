@@ -1,0 +1,54 @@
+// expect: E0602 E0603 E0602 E0604 E0604 E0604 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 E0605 W1002 W1002 W1002 W1002 W1002 W1002 W1002 W1002
+mod app;
+
+/*
+ * Jumps that go nowhere, and the flow analysis: every path of a function
+ * that returns a value must return one (E0605, with the path shown), and a
+ * statement that can never be reached is W1002. The C++ compiler rejects the
+ * same E0605 lines (and also the endless-loop functions of
+ * pass/flow_wider.sharp, which are correct); it crashes on `break` and
+ * `continue` outside a loop.
+ */
+
+class oops base exception { oops() -> base("oops") { } }
+def nothing() { }
+
+// ---- jumps
+def j1() { break; }                                             // E0602
+def j2() { continue; }                                          // E0603
+def j3(n: _int64) { when(n) { 1 -> { break; } } }               // E0602 a when is not a loop
+def j4() : _int64 { try { } finally { return 1; } return 2; }   // E0604
+def j5() { while(true) { try { } finally { break; } } }         // E0604
+def j6() { for(;;) { try { } finally { continue; } } }          // E0604
+
+// ---- every path returns
+def p1(n: _int64) : _int64 { if(n > 0) { return 1; } }          // E0605 an if without else
+def p2(n: _int64) : _int64 { if(n > 0) { return 1; } else if(n < 0) { return 2; } }    // E0605 an else-if chain without else
+def p3(n: _int64) : _int64 { while(n > 0) { return 1; } }       // E0605 a loop that can end
+def p4() : _int64 { while(true) { break; } }                    // E0605 a break leaves the endless loop
+def p5(n: _int64) : _int64 { when(n) { 1 -> return 1; } }       // E0605 a when without else
+def p6(n: _int64) : _int64 { try { return 1; } catch(e: oops) { } }    // E0605 a catch that ends
+def p7(items: _int64[]) : _int64 { foreach(i in items) { return i; } }    // E0605
+def p8() : _int64 { }                                           // E0605 an empty body
+def p9(o: oops) : _int64 { lock(o) { } }                        // E0605 through a lock
+def p10(n: _int64) : _int64 { for(;;) { if(n > 1) break; } }    // E0605
+def p11() : _int64 { while(true) { try { break; } finally { } } }    // E0605 the break runs the finally and leaves
+def p12(n: _int64) : _int64 { if(n > 0) { return 1; } else { if(n < 0) return 2; } }   // E0605 an if nested in the else
+def p13(n: _int64) : _int64 { when(n) { 1 -> return 1; else -> { } } }    // E0605 the else ends
+def p14() : _int64 { do { break; } while(true); }               // E0605
+def p15(n: _int64) : _int64 { do { if(n > 2) { continue; } return 1; } while(n < 5); }    // E0605 continue reaches the condition
+def p16(n: _int64) : _int64 { try { nothing(); } catch(e: oops) { return 1; } }    // E0605 the body ends
+def p17() : _int64 { asm { nop } }                              // E0605
+class holder { size : _int64 = 0; get { } }                     // E0605 a getter returns a value
+
+// ---- never reached (the C++ compiler warns about u1, u3 and u5 only)
+def u1() { return; print("x"); }                                // W1002
+def u2(n: _int64) { if(n > 0) { return; } else { throw new oops(); } print("x"); }   // W1002
+def u3() { while(true) { break; print("x"); } }                 // W1002
+def u4() { while(true) { } print("x"); }                        // W1002
+def u5() : _int64 { return 1; return 2; }                       // W1002
+def u6() { for(;;) { continue; print("x"); } }                  // W1002
+def u7() { throw new oops(); print("x"); }                      // W1002
+def u8() : _int64 { try { return 1; } catch(e: oops) { return 2; } finally { } print("x"); }    // W1002
+
+def main() { }

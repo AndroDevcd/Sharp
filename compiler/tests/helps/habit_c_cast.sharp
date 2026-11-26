@@ -1,0 +1,11 @@
+// expect: E0100
+// help: y as _int64
+// replace: (_int64) y
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    y : decimal = 2.5;
+    z : _int64 = (_int64) y;
+    println("" + z);
+}

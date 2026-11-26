@@ -1,0 +1,35 @@
+mod std.io;
+
+/**
+ * Something text can be written to: a string in memory (string_writer), a
+ * file (file_writer), the console (console_writer), or another writer with a
+ * buffer in front (buffered_writer).
+ *
+ * Code that takes a text_writer works with all of them:
+ *
+ *     def write_report(out: text_writer) {
+ *         out.write_line("Report");
+ *         out.write("total: ");
+ *         out.write_line(io_strings.int_to_string(42));
+ *     }
+ *
+ * A writer may keep text back until flush() or close() is called (a
+ * file_writer always does). Always close a writer when done. Writing to a
+ * writer that was closed throws io_exception.
+ */
+interface text_writer {
+    /** write all characters of `text` (nothing for an empty string) */
+    def write(text: string);
+
+    /** write one character given as its code ('a', 10, ...) */
+    def write_char(ch: decimal);
+
+    /** write `text` followed by a line end ("\n") */
+    def write_line(text: string);
+
+    /** hand everything written so far on to where it goes (the file, the console, the writer underneath) */
+    def flush();
+
+    /** flush, then finish with the writer; writing afterwards throws io_exception. Closing twice is fine. */
+    def close();
+}

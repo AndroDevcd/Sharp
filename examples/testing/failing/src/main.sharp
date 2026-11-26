@@ -1,0 +1,63 @@
+mod app;
+
+import ( std.testing )
+
+/**
+ * TESTS THAT FAIL, ON PURPOSE - to show what each kind of failure looks like
+ * in the report. Its exit code is 1.
+ */
+
+def half(n: decimal) : decimal {
+    return n / 2;
+}
+
+def main() {
+    made : _int64 = 0;          // counts how often before_each ran
+
+    tests("what failures look like") {
+        before_each { made = made + 1; };
+
+        test("a number that is wrong") {
+            expect(half(10)).should_be(6);
+        };
+
+        test("a text that is wrong, with words of your own") {
+            name : string = "Ada";
+            expect(name).named("the name on the badge").should_be("Grace");
+        };
+
+        test("a text that should contain something") {
+            expect("file not found").should_contain("permission");
+        };
+
+        test("an exception nobody expected") {
+            numbers := new list<string>();
+            numbers.at(3);
+        };
+
+        test("the wrong kind of exception") {
+            expect_throws<illegal_argument_exception>() {
+                throw new illegal_state_exception("not what was expected");
+            };
+        };
+
+        test("no exception at all") {
+            expect_throws<illegal_state_exception>() { half(4); };
+        };
+
+        test("this one passes, and before_each ran before every test") {
+            expect(made).should_be(7);
+            expect(half(0.3) + half(0.3)).should_be_near(0.3, 0.0001);
+        };
+    };
+
+    // misuse: a test outside any group
+    try {
+        test("on its own") { };
+    } catch(e: illegal_state_exception) {
+        println("");
+        println("misuse is refused: " + e.get_message());
+    }
+
+    finish_tests();
+}

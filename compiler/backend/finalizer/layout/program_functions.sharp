@@ -1,0 +1,209 @@
+mod backend.finalizer.layout;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.finalizer.ir
+)
+
+/**
+ * THE FUNCTIONS OF THE PROGRAM, CLASS BY CLASS, AND THEIR ADDRESSES
+ *
+ * Steps 4 and 5 of `lay_out_program` (layout.sharp). In the executable every
+ * function belongs to a class, and a class's record lists its methods:
+ *
+ *      class point { def move() ... }      a method of main#point
+ *      def main() ...                      a method of main#__srt_global (its module's globals class)
+ *      def string.shout() ...              an extension function: a method of std#string
+ *      { -> total++; }                     a lambda: a static method of the class (or globals
+ *                                          class) it is written in
+ *
+ * To these the generator adds functions nobody wrote (codegen.md 5.6):
+ * init<C> for a class whose objects have fields with values or `init { }`
+ * blocks, static_init<C> for a class with a static part, and one function
+ * per kept component definition in its module's globals class.
+ *
+ * ADDRESSES: `platform.tls_init` gets address 0 (a function value of address
+ * 0 is refused by the VM, and nothing takes the value of tls_init: 11.5),
+ * then class by class in class address order, each class's functions in the
+ * order they are written, its init<C> and static_init<C> last.
+ *
+ *      C++ comparison: `create_function_addresses` in finalizer.cpp.
+ */
+
+/**
+ * Step 4: the functions of every class, in the order they will be numbered
+ * (the list at position n belongs to the class with address n).
+ */
+def functions_per_class(layout: program_layout, walk: kept_walk, order: program_order,
+                        definitions: list<type_definition>) : list<list<function_layout>> {
+    per_class := new list<list<function_layout>>();
+    for(i : _int64 = 0; i < layout.classes.size(); i++) { per_class.add(new list<function_layout>()); }
+
+    // the functions the program has
+    for(i : _int64 = 0; i < walk.functions.size(); i++) {
+        function := walk.functions.at(i);
+        // an `init { }` block is not a function of its own: it is generated inside init<C> or
+        // static_init<C> (codegen.md 6.14), as the C++ compiler does
+        if(function.kind == D_INIT && function.parameters.size() == 0) { continue; }
+        owner := vm_owner_of(layout, function);
+        made := new function_layout(function, owner, function.name);
+        made.position = order.position_of(function);
+        per_class.at(owner.address).add(made);
+    }
+    add_component_functions(layout, definitions, per_class);
+
+    // in written order, described; then what the generator adds to the class, last
+    lambdas : _int64 = 0;
+    for(i : _int64 = 0; i < layout.classes.size(); i++) {
+        owner := layout.classes.at(i);
+        found := per_class.at(i);
+        sort_functions(found);
+        for(j : _int64 = 0; j < found.size(); j++) {
+            made := found.at(j);
+            if(made.made_from == MADE_COMPONENT) { continue; }      // described when it was made
+            describe_function(layout, made, lambdas);
+            if(made.of.is_lambda == 1) { lambdas++; }
+        }
+        add_initializer_functions(layout, owner, found);
+    }
+    return per_class;
+}
+
+/**
+ * Each kept component definition: a function (and for a `single` its two
+ * static fields) in its module's globals class, after that class's own
+ * functions (codegen.md 6.16). `n` in `@sub_component_init_<n>` counts the
+ * kept definitions.
+ */
+def add_component_functions(layout: program_layout, definitions: list<type_definition>,
+                            per_class: list<list<function_layout>>) {
+    prog := layout.analysed.prog;
+    for(i : _int64 = 0; i < definitions.size(); i++) {
+        definition := definitions.at(i);
+        globals := layout.module_globals.at(definition.owner.module.name)!!;
+        giver := new function_layout(make_component_function(definition, i, globals, prog), globals, "");
+        giver.name = giver.of.name;
+        giver.full_name = globals.full_name + "." + giver.name;
+        giver.made_from = MADE_COMPONENT;
+        giver.is_static = 1;
+        giver.vm_flags = VM_PRIVATE | VM_STATIC;
+        giver.definition = definition;
+        giver.position = 1000000000 + i;        // after every function the module wrote itself
+        per_class.at(globals.address).add(giver);
+    }
+}
+
+/**
+ * init<C> for a class whose new objects have something to set up, and
+ * static_init<C> for a class with a static part (codegen.md 6.14, 6.15):
+ * the last functions of the class.
+ */
+def add_initializer_functions(layout: program_layout, owner: class_layout, found: list<function_layout>) {
+    prog := layout.analysed.prog;
+    if(owner.object_entries.size() > 0) {
+        object_init := new function_layout(make_object_init_function(owner, prog), owner, "");
+        object_init.name = object_init.of.name;
+        object_init.full_name = owner.full_name + "." + object_init.name;
+        object_init.kind = FUNCTION_INITIALIZER;
+        object_init.made_from = MADE_OBJECT_INIT;
+        object_init.vm_flags = VM_PRIVATE;
+        owner.object_init = object_init;
+        found.add(object_init);
+    }
+    if(owner.has_static_part()) {
+        static_init := new function_layout(make_static_init_function(owner, prog), owner, "");
+        static_init.name = static_init.of.name;
+        static_init.full_name = owner.full_name + "." + static_init.name;
+        static_init.kind = FUNCTION_INITIALIZER;
+        static_init.made_from = MADE_STATIC_INIT;
+        static_init.is_static = 1;
+        static_init.vm_flags = VM_PRIVATE | VM_STATIC;
+        owner.static_init = static_init;
+        found.add(static_init);
+    }
+}
+
+/**
+ * Step 5: function addresses - platform.tls_init first (11.5), then class by
+ * class - and each class's list of methods, in address order.
+ */
+def number_the_functions(layout: program_layout, per_class: list<list<function_layout>>) {
+    for(i : _int64 = 0; i < per_class.size(); i++) {
+        found := per_class.at(i);
+        for(j : _int64 = 0; j < found.size(); j++) {
+            if(found.at(j).made_from == MADE_PLATFORM_TLS_INIT) { number_function(layout, found.at(j)); }
+        }
+    }
+    for(i : _int64 = 0; i < per_class.size(); i++) {
+        found := per_class.at(i);
+        for(j : _int64 = 0; j < found.size(); j++) {
+            made := found.at(j);
+            if(made.address < 0) { number_function(layout, made); }
+        }
+    }
+    for(i : _int64 = 0; i < layout.classes.size(); i++) {
+        owner := layout.classes.at(i);
+        found := per_class.at(i);
+        for(j : _int64 = 0; j < found.size(); j++) { owner.methods.add(found.at(j)); }
+    }
+    sort_methods_by_address(layout);
+}
+
+/** give a function the next address */
+def number_function(layout: program_layout, made: function_layout) {
+    made.address = layout.functions.size();
+    made.of.address = made.address;
+    layout.functions.add(made);
+}
+
+/**
+ * The class a function belongs to in the executable: its own class; for an
+ * extension function `def string.shout()`, the class it was added to; for a
+ * global function (or a lambda written outside any class), its module's
+ * globals class.
+ */
+def vm_owner_of(layout: program_layout, function: sharp_function) : class_layout {
+    owner : sharp_class? = function.owner;
+    if(owner == null) { owner = function.extension_of; }
+    if(owner != null && owner!!.kept == 1 && owner!!.address >= 0) { return layout.classes.at(owner!!.address); }
+    return layout.module_globals.at(function.module.name)!!;
+}
+
+/** the name, kind, flags and what the code is made from, of a function the program has */
+def describe_function(layout: program_layout, made: function_layout, lambda_number: _int64) {
+    function := made.of;
+    made.name = name_in_executable(function, lambda_number);
+    made.full_name = made.owner.full_name + "." + made.name;
+    made.kind = function_kind_of(function);
+    if(made.kind == FUNCTION_DELEGATE || made.kind == FUNCTION_NATIVE) { made.made_from = MADE_NOTHING; }
+    made.is_static = function.has(FLAG_STATIC) || function.is_lambda == 1 || made.owner.is_module_globals == 1;
+    made.vm_flags = vm_flags_of(function.flags, made.owner.is_module_globals);
+    if(made.is_static == 1) { made.vm_flags = made.vm_flags | VM_STATIC; }
+    if(function.is_extension()) { made.vm_flags = made.vm_flags | VM_EXTENSION; }
+
+    // the platform's two empty start-up functions: code generation writes their bodies (codegen.md 6.15)
+    platform := layout.analysed.platform_class;
+    if(platform != null && function.owner == platform) {
+        if(function.name == "static_init" && function.parameters.size() == 0) { made.made_from = MADE_PLATFORM_STATIC_INIT; }
+        if(function.name == "tls_init" && function.parameters.size() == 0) { made.made_from = MADE_PLATFORM_TLS_INIT; }
+    }
+}
+
+/** each class's methods in address order */
+def sort_methods_by_address(layout: program_layout) {
+    for(i : _int64 = 0; i < layout.classes.size(); i++) {
+        methods := layout.classes.at(i).methods;
+        // already in address order but for tls_init, which was numbered first: move it to the front
+        for(j : _int64 = 1; j < methods.size(); j++) {
+            if(methods.at(j).address == 0) {
+                moved := methods.at(j);
+                methods.remove_at(j);
+                methods.insert(0, moved);
+            }
+        }
+    }
+}

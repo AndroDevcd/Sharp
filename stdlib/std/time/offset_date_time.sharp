@@ -1,0 +1,211 @@
+mod std.time;
+
+/**
+ * A date and time together with its offset from UTC:
+ * e.g. 2024-02-29T15:00:00+02:00.
+ *
+ * Where a `date_time` only says what the calendar and clock show, this also
+ * says how far that clock is ahead of UTC, which makes it a definite point
+ * on the time line (`to_instant`). The same instant can be written with any
+ * offset: 15:00+02:00, 13:00Z and 08:00-05:00 are one moment.
+ *
+ * Equality and ordering
+ * ---------------------
+ * The comparison operators (`==`, `<` ...) and `compare_to` compare the
+ * INSTANT, so 15:00+02:00 == 13:00Z is true. Use `same_fields` to ask
+ * whether both the local date-time and the offset are identical.
+ *
+ * Only fixed offsets exist - there is no time-zone database, so there are no
+ * daylight saving transitions: adding a duration never changes the offset.
+ *
+ * Values are immutable.
+ *
+ *     a := offset_date_time.parse("2024-02-29T15:00:00+02:00");
+ *     a.to_instant().epoch_second()                           // 1709211600
+ *     a.with_offset_same_instant(zone_offset.utc).to_string() // "2024-02-29T13:00:00Z"
+ */
+class offset_date_time {
+    private local_part : date_time;
+    private offset_part : zone_offset;
+
+    private offset_date_time(local_date_time: date_time, offset: zone_offset) {
+        local_part = local_date_time;
+        offset_part = offset;
+    }
+
+    // ------------------------------------------------------------------
+    //  creating
+    // ------------------------------------------------------------------
+
+    /** the local date and time `local_date_time` as seen at `offset` */
+    static def of(local_date_time: date_time, offset: zone_offset): offset_date_time {
+        return new offset_date_time(local_date_time, offset);
+    }
+
+    /** the given date and time of day as seen at `offset` */
+    static def of(day: date, at: time_of_day, offset: zone_offset): offset_date_time {
+        return new offset_date_time(date_time.of(day, at), offset);
+    }
+
+    /**
+     * year-month-day hour:minute:second.nano at `offset`.
+     * @throws date_time_exception when a field is out of range
+     */
+    static def of(year: decimal, month_number: decimal, day: decimal, hour: decimal, minute: decimal, second: decimal, nano: decimal,
+                  offset: zone_offset): offset_date_time {
+        return new offset_date_time(date_time.of(year, month_number, day, hour, minute, second, nano), offset);
+    }
+
+    /** the moment `moment` as a clock at `offset` shows it */
+    static def of_instant(moment: instant, offset: zone_offset): offset_date_time {
+        return new offset_date_time(date_time.of_instant(moment, offset), offset);
+    }
+
+    /** the current moment in UTC, read from the system clock */
+    static def now(): offset_date_time {
+        return of_instant(system_clock.instance.now(), zone_offset.utc);
+    }
+
+    /** the current moment of `source` (a clock a test can control) as shown at `offset` */
+    static def now(source: clock, offset: zone_offset): offset_date_time {
+        return of_instant(source.now(), offset);
+    }
+
+    // ------------------------------------------------------------------
+    //  reading
+    // ------------------------------------------------------------------
+
+    /** the local date and time, without the offset */
+    def to_date_time(): date_time { return local_part; }
+    /** the local date */
+    def to_date(): date { return local_part.to_date(); }
+    /** the local time of day */
+    def to_time(): time_of_day { return local_part.to_time(); }
+    /** the offset from UTC */
+    def offset(): zone_offset { return offset_part; }
+
+    def year(): decimal { return local_part.year(); }
+    def month_value(): decimal { return local_part.month_value(); }
+    def day(): decimal { return local_part.day(); }
+    def day_of_week(): day_of_week { return local_part.day_of_week(); }
+    def hour(): decimal { return local_part.hour(); }
+    def minute(): decimal { return local_part.minute(); }
+    def second(): decimal { return local_part.second(); }
+    def nano(): decimal { return local_part.nano(); }
+
+    /** whole seconds from 1970-01-01T00:00:00Z to this moment (negative before) */
+    def to_epoch_second(): decimal {
+        return local_part.to_epoch_second(offset_part);
+    }
+
+    /** the point on the time line: local date-time minus the offset */
+    def to_instant(): instant {
+        return local_part.to_instant(offset_part);
+    }
+
+    // ------------------------------------------------------------------
+    //  changing the offset
+    // ------------------------------------------------------------------
+
+    /**
+     * The SAME MOMENT shown at another offset: the local fields change.
+     * 15:00+02:00 becomes 13:00Z, or 08:00-05:00.
+     */
+    def with_offset_same_instant(offset: zone_offset): offset_date_time {
+        if(offset == offset_part) {
+            return self;
+        }
+        difference : decimal = offset.total_seconds() - offset_part.total_seconds();
+        return new offset_date_time(local_part.plus_seconds(difference), offset);
+    }
+
+    /**
+     * The SAME LOCAL FIELDS labelled with another offset: the moment changes.
+     * 15:00+02:00 becomes 15:00Z, which is two hours later.
+     */
+    def with_offset_same_local(offset: zone_offset): offset_date_time {
+        return new offset_date_time(local_part, offset);
+    }
+
+    // ------------------------------------------------------------------
+    //  arithmetic (each returns a new value with the same offset)
+    // ------------------------------------------------------------------
+
+    def plus(amount: duration): offset_date_time { return new offset_date_time(local_part.plus(amount), offset_part); }
+    def minus(amount: duration): offset_date_time { return new offset_date_time(local_part.minus(amount), offset_part); }
+    def plus(amount: period): offset_date_time { return new offset_date_time(local_part.plus(amount), offset_part); }
+    def minus(amount: period): offset_date_time { return new offset_date_time(local_part.minus(amount), offset_part); }
+    def plus_days(days: decimal): offset_date_time { return new offset_date_time(local_part.plus_days(days), offset_part); }
+    def plus_months(months: decimal): offset_date_time { return new offset_date_time(local_part.plus_months(months), offset_part); }
+    def plus_years(years: decimal): offset_date_time { return new offset_date_time(local_part.plus_years(years), offset_part); }
+    def plus_hours(hours: decimal): offset_date_time { return new offset_date_time(local_part.plus_hours(hours), offset_part); }
+    def plus_minutes(minutes: decimal): offset_date_time { return new offset_date_time(local_part.plus_minutes(minutes), offset_part); }
+    def plus_seconds(seconds: decimal): offset_date_time { return new offset_date_time(local_part.plus_seconds(seconds), offset_part); }
+
+    /** the exact time from this moment to `other` (the offsets may differ) */
+    def until(other: offset_date_time): duration {
+        return duration.between(to_instant(), other.to_instant());
+    }
+
+    // ------------------------------------------------------------------
+    //  comparing - by the moment on the time line, see the class comment
+    // ------------------------------------------------------------------
+
+    /** -1 when this moment is before `other`, 0 when it is the same moment, 1 when after */
+    def compare_to(other: offset_date_time): decimal {
+        return to_instant().compare_to(other.to_instant());
+    }
+
+    def is_before(other: offset_date_time): bool { return compare_to(other) < 0; }
+    def is_after(other: offset_date_time): bool { return compare_to(other) > 0; }
+
+    /** true when the local date-time AND the offset are both the same */
+    def same_fields(other: offset_date_time): bool {
+        return local_part == other.local_part && offset_part == other.offset_part;
+    }
+
+    def operator==(other: offset_date_time): bool { return compare_to(other) == 0; }
+    def operator!=(other: offset_date_time): bool { return compare_to(other) != 0; }
+    def operator<(other: offset_date_time): bool { return compare_to(other) < 0; }
+    def operator<=(other: offset_date_time): bool { return compare_to(other) <= 0; }
+    def operator>(other: offset_date_time): bool { return compare_to(other) > 0; }
+    def operator>=(other: offset_date_time): bool { return compare_to(other) >= 0; }
+
+    def operator+(amount: duration): offset_date_time { return plus(amount); }
+    def operator-(amount: duration): offset_date_time { return minus(amount); }
+
+    /** a hash that is the same for values that are the same moment */
+    override def hash(): int {
+        return to_instant().hash();
+    }
+
+    // ------------------------------------------------------------------
+    //  text
+    // ------------------------------------------------------------------
+
+    /**
+     * ISO-8601: the local date-time followed by the offset
+     * ("Z" for UTC): "2024-02-29T15:00:00+02:00", "2024-02-29T13:00:00Z".
+     */
+    override def to_string(): string? {
+        w := new time_text_writer();
+        local_part.write_to(w);
+        offset_part.write_to(w, 1, 1);
+        return w.text();
+    }
+
+    /**
+     * Reads `YYYY-MM-DDTHH:MM[:SS[.fraction]]` followed by an offset
+     * ("Z", "+02:00", "-0530" ... see zone_offset.parse).
+     *
+     * @throws date_time_exception when the text has another shape, the offset
+     *         is missing, or a field is out of range
+     */
+    static def parse(text: string): offset_date_time {
+        r := new time_text_reader(text, "offset date-time");
+        parsed : date_time = date_time.read_from(r);
+        offset : zone_offset = zone_offset.read_from(r);
+        r.expect_end();
+        return new offset_date_time(parsed, offset);
+    }
+}

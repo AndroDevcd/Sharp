@@ -1,0 +1,233 @@
+mod backend.compiler.statements.assembly;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree.statements,
+    backend.postprocessor.members,
+    backend.compiler.context,
+    backend.compiler.names,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * THE OPERANDS OF AN `asm` INSTRUCTION
+ *
+ *      movi ebx, 12            a register; a number (also -1, 'c', true)
+ *      ldc ebx, "text"         a text
+ *      jmp @again              a label (asm_labels.sharp)
+ *      movi ebx, [count]       a NAME: what it means is looked up like a plain name in
+ *                              code - a local or parameter first, then a member of the
+ *                              class (and the classes above it), then the globals of the
+ *                              modules the file sees. A field gives its slot, a function
+ *                              its address.
+ *      movi adx, $thread       a class
+ *      movi adx, $thread[run]  a field or function of that class
+ *
+ *      E0920   [name] is not a local, field or function
+ *      E0923   $type is not a class, or $type[name] is not a member of it
+ *      W1042   the name is of an overloaded function: the first declared is taken
+ *      ($module#__srt_global[name], a global of a module: asm_globals.sharp)
+ *      E0924   [name] in a lambda names a local of the function around the lambda
+ *      E0925   [name] names a local that is not in the frame: one a lambda captures,
+ *              or a `localized` one (the message: context/closures.sharp)
+ *      E0926   a number wider than 32 bits (`movi ebx, 5000000000`)
+ *
+ *      C++ comparison: `compile_asm_member_address` and `compile_asm_literal`
+ *      in asm_statement.cpp ("attempt to get address of a member X when none
+ *      were found", "invalid asm type: X, expected class").
+ */
+def asm_operand(context: analysis_context, operand: _int64, block: bound_asm) : bound_asm_operand {
+    tree : syntax_tree = context.tree;
+    kind : _int64 = tree.kinds!![operand];
+
+    if(kind == N_ASM_REGISTER) {
+        made := new bound_asm_operand(ASM_REGISTER);
+        made.register = name_at(context, operand);
+        return made;
+    }
+    if(kind == N_LITERAL) { return literal_operand(context, operand, 1); }
+    if(kind == N_ASM_NEGATIVE) { return literal_operand(context, tree.first_child!![operand], 0 - 1); }
+    if(kind == N_ASM_LABEL_REF) {
+        made := new bound_asm_operand(ASM_LABEL);
+        made.label = label_operand(context, operand, block);
+        return made;
+    }
+    if(kind == N_ASM_MEMBER) { return named_operand(context, operand); }
+    if(kind == N_ASM_TYPE) { return type_operand(context, operand); }
+    return new bound_asm_operand(ASM_NUMBER);
+}
+
+/** 12, -1, 'c', true, "text": the value the literal has, times `sign` */
+def literal_operand(context: analysis_context, node: _int64, sign: _int64) : bound_asm_operand {
+    value := analyse_expression(context, node, null);
+    if(value.constant != null && value.constant!!.kind == CONST_TEXT) {
+        made := new bound_asm_operand(ASM_TEXT);
+        if(value.constant!!.text != null) { made.text = value.constant!!.text!!; }
+        return made;
+    }
+    made := new bound_asm_operand(ASM_NUMBER);
+    if(value.constant != null) {
+        if(value.constant!!.kind == CONST_DECIMAL) { made.number = sign * (value.constant!!.number as _int64); }
+        else { made.number = sign * value.constant!!.integer; }
+    }
+    if(made.number > 2147483647 || made.number < 0 - 2147483648) { report_number_too_wide(context, node, made.number); }
+    return made;
+}
+
+/**
+ * E0926: a number in an `asm` instruction is at most 32 bits - the widest
+ * operand any instruction of the VM has (`movi`'s second word). The C++
+ * compiler cuts it to its low 32 bits without a word (`movi ebx, 5000000000`
+ * holds 705032704), which no one means; here it is refused where it is written.
+ * The limit is the signed range, so 4294967295 (0xFFFFFFFF) is refused too: the
+ * VM reads the word back with its sign, as -1.
+ */
+def report_number_too_wide(context: analysis_context, node: _int64, number: _int64) {
+    d := problem_over(context, "E0926", "the number " + number + " does not fit an `asm` instruction", node);
+    d.with_label("outside -2147483648 .. 2147483647");
+    low : _int64 = number & 0xffffffff;
+    if(low > 2147483647) { low = low - 4294967296; }
+    d.with_note("an instruction's number is at most 32 bits, from -2147483648 to 2147483647; the first Sharp compiler silently keeps only the low 32 bits (" + low + ")");
+    // (`loadl`, not `movi`: in `movi ebx, [big]` the name stands for the local's PLACE in the
+    //  frame, a small number; `loadl` reads what the local holds)
+    register : string = register_loaded_by_movi(context, node);
+    if(sizeof(register.data) > 0) {
+        d.with_help("keep the number in a local variable: declare `big : _int64 = " + number
+                    + ";` before the `asm` block, and write `loadl " + register + ", [big]` here");
+    } else {
+        d.with_help("keep the number in a local variable declared before the `asm` block - `big : _int64 = " + number
+                    + ";` - and read it into a register with `loadl <register>, [big]`");
+    }
+    report(context, d);
+}
+
+/**
+ * For a number that is the second operand of `movi <register>, <number>`:
+ * the name of that register ("ebx"), so the help of E0926 can give the whole
+ * line to write instead. "" for any other instruction.
+ */
+def register_loaded_by_movi(context: analysis_context, number_node: _int64) : string {
+    tree : syntax_tree = context.tree;
+    // (a negative number is one node deeper: asm_negative > literal)
+    instruction : _int64 = tree.parents!![number_node];
+    if(instruction >= 0 && tree.kinds!![instruction] == N_ASM_NEGATIVE) { instruction = tree.parents!![instruction]; }
+    if(instruction < 0 || tree.kinds!![instruction] != N_ASM_INSTRUCTION) { return ""; }
+    if(name_at(context, instruction) != "movi") { return ""; }
+    first : _int64 = tree.first_child!![instruction];
+    if(first < 0 || tree.kinds!![first] != N_ASM_REGISTER) { return ""; }
+    return name_at(context, first);
+}
+
+/** `[name]`: a local, a field, a function (the first of that name), or E0920 */
+def named_operand(context: analysis_context, operand: _int64) : bound_asm_operand {
+    name := name_at(context, operand);
+    found := look_up_name(context, name, operand);
+    if(found.kind == FOUND_LOCAL) {
+        if(found.depth > 0) {
+            report_local_of_another_function(context, name, operand, found.variable!!);
+            return new bound_asm_operand(ASM_NUMBER);
+        }
+        variable := found.variable!!;
+        variable.reads++;               // the instruction uses it: not an unused local (W1034)
+        if(variable.is_captured == 1 || variable.is_localized == 1) {
+            report_asm_local_without_frame_slot(context, variable, operand);
+            return new bound_asm_operand(ASM_NUMBER);
+        }
+        // remembered: a lambda further down may still capture it (E0925 then, context/closures.sharp)
+        if(variable.asm_operand < 0) { variable.asm_operand = operand; }
+        made := new bound_asm_operand(ASM_LOCAL);
+        made.variable = variable;
+        return made;
+    }
+    if(found.kind == FOUND_FIELD) {
+        made := new bound_asm_operand(ASM_FIELD);
+        made.field = found.field;
+        return made;
+    }
+    if(found.kind == FOUND_FUNCTIONS && found.functions!!.size() > 0) {
+        return function_address(context, name, found.functions!!, operand);
+    }
+
+    d := problem_at(context, "E0920", "`" + name + "` is not a local variable, field or function here", operand);
+    d.with_label("nothing of that name to take the place or address of");
+    d.with_note("`[name]` in an asm block names a local variable or parameter, a field, or a function (its address)");
+    suggestion := did_you_mean(closest_names(name, names_visible_from(context), 3));
+    if(sizeof(suggestion.data) > 0) { d.with_help(suggestion); }
+    else { d.with_help("declare it before the asm block (`" + name + " : _int64 = 0;`), or for a member of another class write `$$<class>[" + name + "]`"); }
+    report(context, d);
+    return new bound_asm_operand(ASM_NUMBER);
+}
+
+/**
+ * E0924: `[name]` in an asm block inside a lambda, where `name` is a local
+ * of the function AROUND the lambda. `[name]` stands for a place in the
+ * stack frame of the function the block is in; a variable of another
+ * function is not in that frame (the lambda reaches it through its closure
+ * record, which asm does not do).
+ */
+def report_local_of_another_function(context: analysis_context, name: string, operand: _int64, variable: local_variable) {
+    d := problem_at(context, "E0924", "`" + name + "` is a variable of the function around this lambda: asm cannot name it", operand);
+    d.with_label("not in this lambda's own stack frame");
+    d.with_related_place(place_of_node(variable.unit, variable.node, "`" + name + "` is declared here, outside the lambda"));
+    d.with_note("`[name]` in an asm block is a place in the frame of the function the block is in; a lambda reaches the variables around it through its closure record, which only ordinary code does");
+    d.with_help("copy it into a local of the lambda first (`mine := " + name + ";`) and name that: `[mine]`");
+    report(context, d);
+}
+
+/** `$type` and `$type[name]`: a class, or a member of one; E0923 when it is not */
+def type_operand(context: analysis_context, operand: _int64) : bound_asm_operand {
+    tree : syntax_tree = context.tree;
+    type_node : _int64 = tree.child_of_kind(operand, N_TYPE);
+    member_node : _int64 = tree.child_of_kind(operand, N_ASM_MEMBER);
+    failed := new bound_asm_operand(ASM_NUMBER);
+    if(type_node < 0) { return failed; }
+
+    // $m#__srt_global: the globals of a module, not a class (asm_globals.sharp)
+    globals := module_of_globals(context, type_node);
+    if(globals != null) { return global_operand(context, globals!!, type_node, member_node); }
+
+    type := resolve_type_at(context, type_node);
+    if(type.kind == RT_ERROR) { return failed; }        // the type name was reported where it was resolved
+    if(type.kind != RT_CLASS || type.is_array == 1 || type.is_nullable == 1) {
+        d := problem_over(context, "E0923", "`$$" + type.to_text() + "` does not name a class", type_node);
+        d.with_label(described_type(type));
+        d.with_note("`$$type` in an asm block stands for a class (or, as `$$type[member]`, a member of one)");
+        if(type.kind == RT_CLASS) { d.with_help("name the class alone: `$$" + type.class_of!!.written.name + "`"); }
+        else { d.with_help("a number needs no `$$`: write it as it is (`movi ebx, 8`); for a local variable write `[name]`"); }
+        report(context, d);
+        return failed;
+    }
+    declared : sharp_class = type.class_of!!;
+    if(member_node < 0) {
+        made := new bound_asm_operand(ASM_CLASS);
+        made.class_of = declared;
+        return made;
+    }
+
+    name := name_at(context, member_node);
+    field := find_field(context.prog, declared, name);
+    if(field != null) {
+        made := new bound_asm_operand(ASM_FIELD);
+        made.field = field;
+        return made;
+    }
+    functions := find_functions(context.prog, declared, name);
+    if(functions.size() > 0) { return function_address(context, name, functions, member_node); }
+
+    d := problem_at(context, "E0923", "`" + declared.qualified_name() + "` has no field or function `" + name + "`", member_node);
+    d.with_label("not a member of `" + declared.written.name + "`");
+    known := new list<string>();
+    add_member_names(context.prog, declared, known, 0);
+    d.with_note("`$$type[name]` names a field (its slot) or a function (its address) of that class or of a class above it");
+    suggestion := did_you_mean(closest_names(name, known, 3));
+    if(sizeof(suggestion.data) > 0) { d.with_help(suggestion); }
+    else { d.with_help("for a local variable, or a member of the class the code is in, write `[" + name + "]` without the `$$type`"); }
+    report(context, d);
+    return failed;
+}

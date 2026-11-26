@@ -1,0 +1,75 @@
+// expect: E0410 E0410 W1017 E0721 E0720 E0720 E0410 E0410 E0410 E0410 E0410 E0410 E0410 E0410 E0410 E0410 E0410 E0410 W1017 E0412 E0412 E0412 E0412 E0412 E0412 E0412 W1003 W1003 E0412 W1003 E0410 E0410 E0418 E0410 E0415 E0415 E0418 W1026 W1026 E0720
+mod conversion_mistakes;
+
+import ( std.io )
+
+/**
+ * VALUES THAT DO NOT FIT: implicit conversion, casts, null
+ * One mistake per line, in the order the compiler prints them. Every value
+ * is built only from names, literals, members, casts and arrays - what the
+ * expression-foundations stage analyses.
+ */
+
+class animal { name : string = "animal"; }
+class dog base animal { }
+class cat base animal { }
+class rock { }
+interface walker { }
+enum color { red, green }
+
+def implicit(a: animal, d: dog, r: rock, maybe: animal?, n: _int64, an_int: int, anything: object,
+             numbers: _int64[], words: string[], c: color, f: (_int64)(_int64), g: (decimal)(_int64)) {
+    a1 : cat = d;                               // E0410: neither above nor below
+    a2 : rock = a;                              // E0410: unrelated classes
+    a3 : dog = a;                               // W1017: downward without a cast (accepted, tested at run time)
+    a4 : animal = maybe;                        // E0721: may be null
+    a5 : animal = null;                         // E0720: null to a non-nullable class
+    a6 : _int64 = null;                         // E0720: a number is never null
+    a7 : object = n;                            // E0410: a plain number is not an object
+    a8 : _int64 = an_int;                       // E0410: an object is not a number (.value)
+    a9 : _int64 = c;                            // E0410: an enum value is not a number (.ordinal)
+    a10 : animal = anything;                    // E0410: object needs a cast
+    a11 : decimal[] = numbers;                  // E0410: a number array is only its own type
+    a12 : animal = numbers;                     // E0410: an array where a single value is wanted
+    a13 : string[] = "text";                    // E0410: a single value where an array is wanted
+    a14 : (_int64)(_int64) = g;                 // E0410: function types match exactly
+    a15 : string = n;                           // E0410: a number is not text
+    a16 : object[] = numbers;                   // E0410: number arrays hold no objects
+    a17 : animal[] = words;                     // E0410: arrays convert like their items
+    a18 : walker = r;                           // E0410: rock does not list the interface
+    a19 : dog? = maybe;                         // W1017: animal? to dog?
+    a20 : string = 'c';                         // fine: one character makes a string
+    a21 : int = 5;                              // fine: built by int's constructor
+    a22 : object = maybe;                       // fine: object takes a value that may be null
+    a23 : animal? = d;                          // fine: up the chain and to nullable
+}
+
+def casts(a: animal, d: dog, r: rock, n: _int64, an_int: int, anything: object, numbers: _int64[], c: color) {
+    b1 := a as rock;                            // E0412: unrelated classes
+    b2 := n as animal;                          // E0412: a number is not an object
+    b3 := an_int as _int64;                     // E0412: an object is not a number (.value)
+    b4 := c as _int64;                          // E0412: an enum value (.ordinal)
+    b5 := anything as (_int64)(_int64);         // E0412: nothing can be cast to a function type
+    b6 := numbers as object[];                  // E0412: a number array is never an object[]
+    b7 := numbers as animal;                    // E0412: an array is never a single object
+    b8 := n as _int64;                          // W1003: redundant
+    b9 := d as dog;                             // W1003
+    b10 := a as dog;                            // fine: tested at run time
+    b11 := a as walker;                         // fine: a class below may implement it
+    b12 := null as animal;                      // fine
+    b13 := "text" as string;                    // E0412: a cast does not build an object (new string("text"))
+    b14 := a as animal?;                        // W1003: an animal is an animal? already
+}
+
+def array_items(a: animal, r: rock, n: _int64, maybe: animal?) {
+    c1 := { a, r };                             // E0410: the first item makes it an animal[]
+    c2 := new animal[] { a, n };                // E0410: an item of the array
+    c3 := { null, a };                          // E0418: null does not say what the array holds
+    c4 : decimal[] = { 1, 2 };                  // E0410: the first item decides - this is an _int32[]
+    c5 := new _int64[r];                        // E0415: the size is not a number
+    c6 := new string["three"];                  // E0415
+    c7 : _int64[] = { };                        // E0418: an empty { } is an array of nothing that can be named
+    c8 := { a, maybe };                         // W1026: an item that may be null
+    c9 := new animal[] { a, maybe };            // W1026
+    c10 := new animal[] { a, null };            // E0720: null written out as an item
+}

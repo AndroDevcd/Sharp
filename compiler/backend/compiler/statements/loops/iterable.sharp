@@ -1,0 +1,168 @@
+mod backend.compiler.statements.loops;
+
+import (
+    std.io,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.postprocessor.inheritance,
+    backend.compiler.context,
+    backend.compiler.names,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions.calls
+)
+
+/**
+ * WHAT `foreach` CAN WALK
+ *
+ *      foreach(n in numbers)       numbers : _int64[]          an array: its items
+ *      foreach(c in "text")        a text literal is an array of characters
+ *      foreach(s in names)         names : list<string>        an object whose class is `loopable<t>`:
+ *      foreach(c in name)          name : string                 the array its get_elements() gives
+ *
+ * `std#loopable<t>` is the library's promise "I can hand over my items as
+ * an array": one function, `get_elements() : t[]?`. A class is loopable
+ * when it, a base class, or an interface of either is an instance of
+ * `loopable` (list<T> : loopable<T>; file_reader base string_text_reader :
+ * loopable<string>). The call of `get_elements()` on the object - an
+ * ordinary call, dispatched like any other - is then what the loop walks.
+ * The object may be nullable, as may an array: looping over null raises the
+ * null-pointer exception when the program runs (as in the C++ compiler).
+ *
+ * Anything else - a number, `null`, a class that is not loopable, `object`
+ * (which may be anything: say what it is with `as`) - is E0609.
+ *
+ *      C++ comparison: compiler/functions/statements/for_each_statement.cpp
+ *      ("foreach expression must be an array type", "could not locate
+ *      support function `get_elements()`", "could not call static
+ *      function", "support function must return an array").
+ */
+
+/**
+ * The array a `foreach` walks for `collection`: itself when it is an array,
+ * the call of its get_elements() for a loopable object. An error node (E0609
+ * reported) for anything else.
+ */
+def collection_as_array(context: analysis_context, collection: bound_expression, node: _int64) : bound_expression {
+    type : resolved_type = collection.type;
+    if(type.kind == RT_ERROR || type.is_array == 1) { return collection; }
+
+    if(type.kind == RT_CLASS) {
+        made : sharp_class = type.class_of!!;
+        loopable := context.session.known.loopable_class;
+        if(loopable != null && is_loopable_class(context.prog, made, loopable!!, 0)) {
+            return elements_call(context, collection, made, node);
+        }
+    }
+    report_not_iterable(context, collection, node, "");
+    failed := new bound_error(context.unit, node, context.session.types.error_type);
+    failed.inner = collection;
+    return failed;
+}
+
+/** is `declared` an instance of `loopable`, or does it inherit or implement one (through any base class or interface)? */
+def is_loopable_class(prog: sharp_program, declared: sharp_class, loopable: sharp_class, depth: _int64) : _int64 {
+    current : sharp_class? = declared;
+    for(level : _int64 = depth; current != null && level < 64; level++) {
+        if(current == loopable || current!!.blueprint == loopable) { return 1; }
+        resolve_bases(prog, current!!);
+        for(i : _int64 = 0; i < current!!.interfaces.size(); i++) {
+            if(is_loopable_class(prog, current!!.interfaces.at(i), loopable, level + 1)) { return 1; }
+        }
+        if(current!!.is_interface()) { return 0; }      // an interface ends where its own interfaces end (inheritance.sharp: not at _object_)
+        current = current!!.base_class;
+    }
+    return 0;
+}
+
+/** `collection.get_elements()`: the call the loop walks; an error node (E0609) when the class has no usable one */
+def elements_call(context: analysis_context, collection: bound_expression, made: sharp_class, node: _int64) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    found := new lookup_result();
+    find_class_member(context.prog, made, "get_elements", found);
+    no_arguments := new list<call_argument>();
+
+    if(found.kind == FOUND_FUNCTIONS) {
+        result := resolve_overload(context, found.functions!!, no_arguments, null, made);
+        if(result.best != null) {
+            chosen : sharp_function = result.best!!.function;
+            if(chosen.has(FLAG_STATIC)) {
+                report_not_iterable(context, collection, node, "its `get_elements()` is `static`: it belongs to no object, so it cannot hand over THIS object's items");
+                return new bound_error(context.unit, node, error_type);
+            }
+            call := bind_call(context, result.best!!, collection, no_arguments, node, node);
+            call.written_as = AS_ITERATE;
+            if(call.type.kind != RT_ERROR && call.type.is_array == 0) {
+                report_not_iterable(context, collection, node, "its `get_elements()` gives " + described_type(call.type) + ", and a loop needs an array");
+                return new bound_error(context.unit, node, error_type);
+            }
+            return call;
+        }
+    }
+    report_not_iterable(context, collection, node, "`" + made.qualified_name() + "` is `loopable`, but has no `get_elements()` without parameters");
+    return new bound_error(context.unit, node, error_type);
+}
+
+/** E0609, with the loop the programmer most likely meant */
+def report_not_iterable(context: analysis_context, collection: bound_expression, node: _int64, why: string) {
+    type : resolved_type = collection.type;
+    written := source_text_of(context, node);
+    d := problem_over(context, "E0609", "`foreach` cannot walk " + described_value(collection), node);
+    d.with_label("not an array and not `loopable`");
+    d.with_note("`foreach` walks the items of an array, or of an object whose class is `loopable<t>` (its get_elements() hands them over)");
+    if(sizeof(why.data) > 0) { d.with_note(why); }
+
+    if(sizeof(why.data) > 0) {
+        // the class meant to be loopable: the note says what is wrong with it
+    } else if(type.kind == RT_INTEGER) {
+        d.with_help("to count from 0 up to it write `for(i : _int64 = 0; i < " + written + "; i++) { ... }`");
+    } else if(type.kind == RT_OBJECT) {
+        d.with_help("`object` may hold anything: say what it holds, `foreach(... in " + written + " as <type>[])`");
+    } else if(type.kind == RT_CLASS && type.is_array == 0 && type.class_of!!.module.is_library()) {
+        // (never suggest editing the standard library: point at what it already offers)
+        add_walkable_parts(context, d, type.class_of!!, written);
+    } else if(type.kind == RT_CLASS && type.is_array == 0) {
+        d.with_help("make `" + type.as_non_null().to_text() + "` loopable: `class " + type.class_of!!.written.name
+                    + " : loopable<t> { override def get_elements() : t[] { ... } }`");
+    } else {
+        d.with_help("give it an array (`new string[] { ... }`, a parameter `items: string[]`) or a collection of the library, such as a `list<t>`");
+    }
+    report(context, d);
+}
+
+/**
+ * A class of the library that is not loopable often HAS something that is:
+ * `hash_map.keys()`, `.values()`, `.entries()` give lists. The help names
+ * the functions without parameters whose result can be walked, with the
+ * loop written out for the first one.
+ */
+def add_walkable_parts(context: analysis_context, d: diagnostic, made: sharp_class, written: string) {
+    ensure_members(context.prog, made);
+    loopable := context.session.known.loopable_class;
+    names := new list<string>();
+    for(i : _int64 = 0; i < made.functions.size(); i++) {
+        function := made.functions.at(i);
+        if(function.kind != D_FUNCTION || function.parameters.size() != 0 || function.has(FLAG_STATIC)) { continue; }
+        if(!function.has(FLAG_PUBLIC) || function.result_type == null) { continue; }
+        result : resolved_type = function.result_type!!;
+        walkable : _int64 = result.is_array == 1;
+        if(!walkable && result.kind == RT_CLASS && loopable != null) {
+            walkable = is_loopable_class(context.prog, result.class_of!!, loopable!!, 0);
+        }
+        if(walkable && names.size() < 4) { names.add(function.name); }
+    }
+    if(names.size() == 0) {
+        d.with_help("walk an array or a `list<t>` made from it instead");
+        return;
+    }
+    listed := new string_builder("");
+    for(i : _int64 = 0; i < names.size(); i++) {
+        if(i > 0) { listed.append(", "); }
+        listed.append("`").append(names.at(i)).append("()`");
+    }
+    d.with_help("walk what it hands over (" + listed.build() + "): `foreach(x in " + written + "." + names.at(0) + "()) { ... }`");
+}

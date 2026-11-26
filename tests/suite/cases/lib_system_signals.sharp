@@ -1,0 +1,112 @@
+mod main;
+
+import ( std.testing, std.io, std.system, platform )
+
+/**
+ * std.system signals: a hook is run when the program is asked to stop,
+ * instead of the program being stopped.
+ *
+ * The program starts ITSELF as a child (`sharp lib_system_signals <what>`),
+ * waits for the child to say it is ready, sends it a signal with `kill`, and
+ * reads what the child's hook printed and how the child ended.
+ *
+ *      child interrupt     hooks Ctrl+C: the hook prints and ends the child with 7
+ *      child terminate     hooks "please end": prints, and the child runs on to its own end
+ *      child plain         hooks nothing: the signal ends it, as always
+ *      child stubborn      its hook never comes back: three more signals end it all the same
+ *
+ * Only where there is a `kill` to send a signal with: on Windows the tests
+ * are left out (Ctrl+C there comes from the console, not from another program).
+ */
+def be_the_child(what: string) {
+    if(what == "interrupt") {
+        signals.on_interrupt({ -> println("first hook"); });
+        signals.on_interrupt({ ->
+            println("second hook");
+            std.io.console#flush();
+            exit(new int(7));
+        });
+    } else if(what == "terminate") {
+        signals.on_terminate({ -> println("asked to end"); std.io.console#flush(); });
+    } else if(what == "stubborn") {
+        signals.on_interrupt({ ->
+            println("not coming back");
+            std.io.console#flush();
+            while(true) { thread.sleep(50); }
+        });
+    }
+    println("ready");
+    std.io.console#flush();
+
+    // long enough for the parent to send its signals; a child that ran on says so
+    for(i : _int64 = 0; i < 40; i++) {
+        thread.sleep(50);
+        if(what == "terminate" && i == 20) {
+            println("still running");
+            std.io.console#flush();
+        }
+    }
+}
+
+/** start the child, wait for "ready", send it `signal` `times` times */
+def child_sent(what: string, signal: string, times: _int64) : subprocess {
+    child := subprocess.run(program_path(), new string[] { what }, true);
+    while(true) {
+        line := child.read_line();
+        if(line == null || line!! == "ready") { break; }
+    }
+    for(i : _int64 = 0; i < times; i++) {
+        // (a subprocess, not process.run: that one keeps what a command printed in temporary files
+        //  for a moment, and lib_system_process, which may be running beside this case, counts them)
+        sender := subprocess.start("kill -" + signal + " " + child.id());
+        sender.wait();
+        sender.close();
+        thread.sleep(120);
+    }
+    return child;
+}
+
+def main(args: string[]) {
+    if(sizeof(args) > 0) {
+        be_the_child(args[0]);
+        return;
+    }
+    show_only_failures();
+    tests("lib_system_signals") {
+        if(build.is_windows()) {
+            test("(left out on Windows: no `kill` to send a signal with)") { expect(1).should_be(1); };
+        } else {
+            hooked := child_sent("interrupt", "INT", 1);
+            said := hooked.read_all_text();
+            test("the hooks run, in the order they were added") {
+                expect(said).should_contain("first hook");
+                expect(said).should_contain("second hook");
+            };
+            test("the program ends the way its hook says, not the way the signal would") { expect(hooked.wait()).should_be(7); };
+            hooked.close();
+
+            asked := child_sent("terminate", "TERM", 1);
+            heard := asked.read_all_text();
+            test("a hook that returns lets the program run on") {
+                expect(heard).should_contain("asked to end");
+                expect(heard).should_contain("still running");
+            };
+            test("... to its own end") { expect(asked.wait()).should_be(0); };
+            asked.close();
+
+            plain := child_sent("plain", "INT", 1);
+            plain.read_all_text();
+            test("without a hook the signal ends the program, as always") { expect(plain.wait() != 0).should_be(true); };
+            plain.close();
+
+            stuck := child_sent("stubborn", "INT", 5);
+            stuck_said := stuck.read_all_text();
+            test("a hook that never comes back does not make the program unstoppable") {
+                expect(stuck_said).should_contain("not coming back");
+                expect(stuck.wait() != 0).should_be(true);
+            };
+            stuck.close();
+        }
+    };
+    finish_tests("lib_system_signals");
+}

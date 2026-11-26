@@ -1,0 +1,248 @@
+mod std.time;
+
+/**
+ * A cursor over a string, used by every `parse` function in std.time.
+ *
+ * It reads from left to right and remembers where it is. The read functions
+ * throw a date_time_exception that names the text and the position when the
+ * text is not what they were asked to read, so the parsers built on it stay
+ * short and all report errors the same way:
+ *
+ *     r := new time_text_reader("2024-02-29", "date");
+ *     year : decimal = r.read_digits(4, 4);      // 2024
+ *     r.expect('-');
+ *     month : decimal = r.read_digits(2, 2);     // 2
+ *     ...
+ *     r.expect_end();
+ */
+class time_text_reader {
+    /** the characters being read (null for an empty string) */
+    private source : _int8[]?;
+    /** how many characters there are */
+    private count : decimal = 0;
+    /** index of the next character to read */
+    private position : decimal = 0;
+    /** the whole text, kept for error messages */
+    private original : string;
+    /** what is being parsed ("date", "duration" ...), for error messages */
+    private what : string;
+
+    time_text_reader(text: string, what: string) {
+        original = text;
+        self->what = what;
+        source = text.data;
+        count = sizeof(text.data);
+    }
+
+    /** true when every character has been read */
+    def at_end(): bool {
+        return position >= count;
+    }
+
+    /** index of the next character (0 at the start) */
+    def index(): decimal {
+        return position;
+    }
+
+    /** moves the cursor back (or forward) to an index returned by `index()` */
+    def seek(new_position: decimal) {
+        position = new_position;
+    }
+
+    /** how many characters are left */
+    def remaining(): decimal {
+        return count - position;
+    }
+
+    /** the next character without consuming it, or 0 at the end */
+    def peek(): decimal {
+        if(position >= count) {
+            return 0;
+        }
+        return source[position];
+    }
+
+    /** the character `ahead` places after the next one without consuming, or 0 past the end */
+    def peek_at(ahead: decimal): decimal {
+        if(position + ahead >= count) {
+            return 0;
+        }
+        return source[position + ahead];
+    }
+
+    /**
+     * Consumes and returns the next character.
+     * @throws date_time_exception at the end of the text
+     */
+    def next(): decimal {
+        if(position >= count) {
+            throw failure("unexpected end of text");
+        }
+        ch : decimal = source[position];
+        position++;
+        return ch;
+    }
+
+    /** consumes the next character when it is `ch`; returns true when it did */
+    def accept(ch: decimal): bool {
+        if(position < count && source[position] == ch) {
+            position++;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Like `accept` but upper and lower case letters are the same
+     * (`ch` may be given in either case).
+     */
+    def accept_ignore_case(ch: decimal): bool {
+        if(position < count && lower(source[position]) == lower(ch)) {
+            position++;
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * The next character must be `ch`.
+     * @throws date_time_exception when it is something else or the text has ended
+     */
+    def expect(ch: decimal) {
+        if(!accept(ch)) {
+            w := new time_text_writer();
+            w.put_text("expected '").put(ch).put('\'');
+            throw failure(w.text());
+        }
+    }
+
+    /**
+     * Nothing may be left to read.
+     * @throws date_time_exception when there are characters after the parsed value
+     */
+    def expect_end() {
+        if(position < count) {
+            throw failure("unexpected text after the value");
+        }
+    }
+
+    /** true when the next character is a digit 0-9 */
+    def at_digit(): bool {
+        return is_digit(peek());
+    }
+
+    /** how many digits follow from the cursor on, without consuming them */
+    def count_digits(): decimal {
+        n : decimal = 0;
+        while(position + n < count && is_digit(source[position + n])) {
+            n++;
+        }
+        return n;
+    }
+
+    /**
+     * Reads a whole number that is not negative: at least `min_digits` and at
+     * most `max_digits` digits (it stops at `max_digits` even when more
+     * digits follow, which is what makes "20240229" readable as 4 + 2 + 2).
+     *
+     * @throws date_time_exception when fewer than `min_digits` digits are found
+     */
+    def read_digits(min_digits: decimal, max_digits: decimal): decimal {
+        value : decimal = 0;
+        digits : decimal = 0;
+        while(digits < max_digits && position < count && is_digit(source[position])) {
+            value = value * 10 + (source[position] - '0');
+            position++;
+            digits++;
+        }
+        if(digits < min_digits) {
+            if(min_digits == max_digits) {
+                throw failure("expected " + time_math.whole_text(min_digits) + " digits");
+            }
+            throw failure("expected a number");
+        }
+        return value;
+    }
+
+    /**
+     * Reads the digits of a fraction (the part after a '.' or ',') and scales
+     * them to nanoseconds: "5" -> 500,000,000, "000001" -> 1,000. Between
+     * `min_digits` and `max_digits` (at most 9) digits are read.
+     *
+     * @throws date_time_exception when fewer than `min_digits` digits are found
+     */
+    def read_fraction_as_nanos(min_digits: decimal, max_digits: decimal): decimal {
+        value : decimal = 0;
+        digits : decimal = 0;
+        scale : decimal = 100000000;
+        while(digits < max_digits && position < count && is_digit(source[position])) {
+            value += (source[position] - '0') * scale;
+            scale = scale / 10;
+            position++;
+            digits++;
+        }
+        if(digits < min_digits) {
+            throw failure("expected fraction digits");
+        }
+        return value;
+    }
+
+    /**
+     * Tries each of `words` at the cursor, ignoring upper/lower case, and
+     * consumes the first one that matches. Returns its index, or -1 when
+     * none matches (nothing is consumed then). Put longer words first when
+     * one is the start of another.
+     */
+    def accept_word(words: string[]): decimal {
+        for(i : decimal = 0; i < sizeof(words); i++) {
+            if(matches_word(words[i])) {
+                position += sizeof(words[i].data);
+                return i;
+            }
+        }
+        return 0 - 1;
+    }
+
+    /** true when the characters at the cursor spell `word`, ignoring case */
+    private def matches_word(word: string): bool {
+        length : decimal = sizeof(word.data);
+        if(length == 0 || position + length > count) {
+            return false;
+        }
+        for(i : decimal = 0; i < length; i++) {
+            if(lower(source[position + i]) != lower(word.data[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Builds the exception every parser throws:
+     * `cannot parse <what> "<text>": <reason> at index <n>`.
+     */
+    def failure(reason: string): date_time_exception {
+        w := new time_text_writer();
+        w.put_text("cannot parse ").put_text(what).put_text(" \"").put_text(original).put_text("\": ")
+            .put_text(reason).put_text(" at index ").put_number(position);
+        return new date_time_exception(w.text());
+    }
+
+    /** true when `ch` is one of the characters '0' .. '9' */
+    static def is_digit(ch: decimal): bool {
+        return ch >= '0' && ch <= '9';
+    }
+
+    /** true when `ch` is a letter a-z or A-Z */
+    static def is_letter(ch: decimal): bool {
+        return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+    }
+
+    /** the lower case form of an upper case letter A-Z; anything else unchanged */
+    static def lower(ch: decimal): decimal {
+        if(ch >= 'A' && ch <= 'Z') {
+            return ch + ('a' - 'A');
+        }
+        return ch;
+    }
+}

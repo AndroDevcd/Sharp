@@ -1,0 +1,165 @@
+mod main;
+import ( std.testing, std.math )
+
+/**
+ * The functions of std.math are instructions of the runtime: floor, ceil and
+ * abs the processor's own (like sqrt: lib_math_sqrt_instruction), sin, pow
+ * and the others a call of the C library made straight from the instruction
+ * (`dmath`). With -O a call of one becomes the instruction where it is
+ * written. The answers must be the same from the interpreter, the JIT and the
+ * optimizer's version - also in a loop long enough for the JIT to take over.
+ */
+
+def close(a: decimal, b: decimal) : bool {
+    return abs(a - b) < 0.000000001;
+}
+
+def sum_of_floors(count: _int64) : decimal {
+    sum : decimal = 0;
+    at : decimal = 0 - 1000.5;
+    for(i : _int64 = 0; i < count; i++) {
+        at = at + 0.75;
+        sum += floor(at);
+    }
+    return sum;
+}
+
+def sum_of_ceils(count: _int64) : decimal {
+    sum : decimal = 0;
+    at : decimal = 0 - 1000.5;
+    for(i : _int64 = 0; i < count; i++) {
+        at = at + 0.75;
+        sum += ceil(at);
+    }
+    return sum;
+}
+
+def sum_of_distances(count: _int64) : decimal {
+    sum : decimal = 0;
+    at : decimal = 0 - 1000.5;
+    for(i : _int64 = 0; i < count; i++) {
+        at = at + 0.75;
+        sum += abs(at);
+    }
+    return sum;
+}
+
+/** sin squared + cos squared is 1 for every angle: 100000 of them */
+def circle_holds(count: _int64) : bool {
+    angle : decimal = 0;
+    for(i : _int64 = 0; i < count; i++) {
+        angle = angle + 0.001;
+        if(!close(sin(angle) * sin(angle) + cos(angle) * cos(angle), 1)) { return false; }
+    }
+    return true;
+}
+
+def sum_of_powers(count: _int64) : decimal {
+    sum : decimal = 0;
+    for(i : _int64 = 1; i <= count; i++) {
+        sum += pow(i, 2);
+    }
+    return sum;
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_math_instructions") {
+        test("floor") {
+            expect(floor(2.9)).should_be(2);
+            expect(floor(2)).should_be(2);
+            expect(floor(0 - 2.1)).should_be(0 - 3);
+            expect(floor(0 - 2)).should_be(0 - 2);
+            expect(floor(0.5)).should_be(0);
+            expect(floor(123456789012.75)).should_be(123456789012);
+        };
+        test("ceil") {
+            expect(ceil(2.1)).should_be(3);
+            expect(ceil(2)).should_be(2);
+            expect(ceil(0 - 2.9)).should_be(0 - 2);
+            expect(ceil(0.5)).should_be(1);
+            expect(ceil(123456789012.25)).should_be(123456789013);
+        };
+        test("floor and ceil of what is not a number, and of infinity") {
+            expect_true(is_nan(floor(NaN)));
+            expect_true(is_nan(ceil(NaN)));
+            expect_true(is_infinite(floor(POSITIVE_INFINITY)));
+            expect_true(is_infinite(ceil(NEGATIVE_INFINITY)));
+        };
+        test("abs") {
+            expect(abs(3.5)).should_be(3.5);
+            expect(abs(0 - 3.5)).should_be(3.5);
+            expect(abs(0)).should_be(0);
+            expect(abs(0 - 1e300)).should_be(1e300);
+            expect_true(is_nan(abs(NaN)));
+            expect_true(is_infinite(abs(NEGATIVE_INFINITY)));
+        };
+        test("abs of a variable, a whole number, inside an expression") {
+            v : decimal = 0 - 81;
+            n : _int64 = 0 - 7;
+            expect(abs(v)).should_be(81);
+            expect(abs(n)).should_be(7);
+            expect(abs(v) + abs(n) * 2).should_be(95);
+        };
+        test("the functions of one number") {
+            expect_true(close(sin(0), 0));
+            expect_true(close(sin(1), 0.8414709848078965));
+            expect_true(close(cos(0), 1));
+            expect_true(close(cos(1), 0.5403023058681398));
+            expect_true(close(tan(1), 1.5574077246549023));
+            expect_true(close(asin(0.5), 0.5235987755982989));
+            expect_true(close(acos(0.5), 1.0471975511965979));
+            expect_true(close(atan(1), 0.7853981633974483));
+            expect_true(close(sinh(1), 1.1752011936438014));
+            expect_true(close(cosh(1), 1.5430806348152437));
+            expect_true(close(tanh(1), 0.7615941559557649));
+            expect_true(close(exp(1), 2.718281828459045));
+            expect_true(close(log(10), 2.302585092994046));
+            expect_true(close(log10(1000), 3));
+        };
+        test("the functions of two numbers") {
+            expect(pow(2, 10)).should_be(1024);
+            expect(pow(9, 0.5)).should_be(3);
+            expect(pow(5, 0)).should_be(1);
+            expect_true(close(atan2(1, 1), 0.7853981633974483));
+            expect_true(close(atan2(0 - 1, 0 - 1), 0 - 2.356194490192345));
+            expect(fmod(7.5, 2)).should_be(1.5);
+            expect(fmod(0 - 7.5, 2)).should_be(0 - 1.5);
+            expect(ldexp(3, 4)).should_be(48);
+        };
+        test("the two numbers are not mixed up: pow(2, 3) and pow(3, 2)") {
+            a : decimal = 2;
+            b : decimal = 3;
+            expect(pow(a, b)).should_be(8);
+            expect(pow(b, a)).should_be(9);
+            expect(fmod(b, a)).should_be(1);
+            expect(fmod(a, b)).should_be(2);
+        };
+        test("results that are not numbers") {
+            expect_true(is_nan(log(0 - 1)));
+            expect_true(is_nan(asin(2)));
+            expect_true(is_infinite(log(0)));
+        };
+        test("a result nobody reads") {
+            floor(2.5);
+            sin(1);
+            pow(2, 2);
+            expect_true(true);
+        };
+        test("one function inside another") {
+            expect(floor(sqrt(17))).should_be(4);
+            expect(abs(floor(0 - 2.5))).should_be(3);
+            expect(ceil(pow(2, 0.5))).should_be(2);
+        };
+        test("the general call still answers: math_call(x, y, which)") {
+            expect(math_call(2, 10, 0xd)).should_be(1024);
+            expect(math_call(2.9, 0, 0x10)).should_be(2);
+        };
+        test("a hundred thousand floors in a loop") { expect(sum_of_floors(100000)).should_be(3649950000); };
+        test("a hundred thousand ceils in a loop") { expect(sum_of_ceils(100000)).should_be(3650025000); };
+        test("a hundred thousand abs in a loop") { expect(sum_of_distances(100000)).should_be(3651321166.5); };
+        test("sin and cos in a loop") { expect_true(circle_holds(100000)); };
+        test("pow in a loop") { expect(sum_of_powers(1000)).should_be(333833500); };
+    };
+    finish_tests("lib_math_instructions");
+}

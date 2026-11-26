@@ -1,0 +1,14 @@
+mod rel;
+
+class thing {
+    size : int;
+}
+
+class thing {
+    name : string;
+}
+
+def main() {
+    t := new thing();
+    t.size = "five";
+}

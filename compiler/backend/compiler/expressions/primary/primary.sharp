@@ -1,0 +1,27 @@
+mod backend.compiler.expressions.primary;
+
+/**
+ * PRIMARY EXPRESSIONS: names and what hangs off them
+ *
+ *      total           a plain name                    identifier_expression.sharp
+ *      std.io#name     a name in a named module        module_name_expression.sharp
+ *      self   base     the object itself               self_expression.sharp
+ *      a.b   a->b      a member of a value or class    the package below this one: primary/members
+ *      a?.b  a!!.b     ... of a value that may be null (member_expression.sharp, safe_navigation.sharp ...)
+ *
+ * and the three pieces they share:
+ *
+ *      found_names.sharp   what name lookup found -> the typed-tree node for it
+ *      field_access.sharp  reading a field: static or not, through its getter or not, its type
+ *      named_types.sharp   a class name written in an expression (`list<int>`) -> its resolved type
+ *
+ * The files of this package (module `backend.compiler.expressions.primary`)
+ * are the six named above plus this front door. The lookups themselves are
+ * in backend/compiler/names; this package turns their answers into tree
+ * nodes and checks the rules of USING a name (static against instance,
+ * access, null safety).
+ *
+ *      C++ comparison: compiler/expressions/primary/ (dotted_identifier,
+ *      self, base ...) and `resolve_normal_item` / `resolve_field` in
+ *      dependency.cpp, which do lookup and code generation in one step.
+ */

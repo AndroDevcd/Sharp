@@ -1,0 +1,21 @@
+mod backend.compiler.expressions.collections;
+
+/**
+ * ARRAYS AND DICTIONARIES
+ *
+ * The files of this package (module `backend.compiler.expressions.collections`):
+ *
+ *      collections.sharp               this front door
+ *      index_expression.sharp          a[i]                 an item of an array; on an OBJECT a call
+ *                                                           of its `operator[]` (E0414, E0501)
+ *      new_array_expression.sharp      new t[n]   new t[] { a, b }
+ *      array_literal_expression.sharp  { a, b, c }
+ *      array_items.sharp               one item written into a new array: converted; may-be-null is W1026
+ *      dictionary_expression.sharp     { "k" : v }  { as <k, v> : }   a dictionary of pairs (E0419)
+ *
+ * Sharp arrays have one dimension, a fixed length and no members
+ * (`sizeof(a)` gives the length). A dictionary literal builds the library's
+ * `pair` and `dictionary` objects.
+ *
+ * This file is the package's front door: it only says what is where.
+ */

@@ -1,0 +1,143 @@
+mod backend.finalizer.generation.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation,
+    backend.finalizer.generation.closures
+)
+
+/**
+ * FUNCTION VALUES AND THEIR CALLS (doc/codegen.md 4.6, 6.6, 6.12)
+ *
+ * A function value is an OBJECT of `platform.kernel#function_value`: which
+ * function (`address`) and what it captured (`captured`, a closure record, or
+ * null). Calling one is `calld`:
+ *
+ *      f := twice;             %f = new function_value; %f.address = <address of twice>
+ *      g := { x: _int64 -> x * 2 };   the same, with the lambda's own function
+ *      f(21)                   pushl %f; ipushl 21; calld 1; ipopl %t
+ *
+ * `calld n` takes the value out from under its n arguments, pushes the
+ * value's captured record after them when it is not null, and calls the
+ * function like a static function. So a function value of a function that
+ * takes no record must carry none - and here none does: a function named as
+ * a value is a global or static function (E0804), and a lambda that captures
+ * nothing has no record (`bound_lambda.record` is null). A lambda that DOES
+ * capture carries its record (`@parent`, `@self` and the captured variables:
+ * generation/closures, codegen.md 6.12).
+ *
+ * The function at address 0 can never be a value (`calld` refuses an address
+ * `<= 0`); layout gives that address to platform.tls_init, which no program
+ * names (11.5).
+ */
+
+/** `twice` used as a value: a function value of it, capturing nothing */
+def function_reference_value(g: generator, e: bound_function_reference) : _int64 {
+    return function_value_of(g, e.function, e);
+}
+
+/**
+ * A lambda: a function value of its own function. One that uses what is
+ * around it carries the closure record it needs in `captured` (6.12): `calld`
+ * hands that record to the lambda as its hidden last argument.
+ */
+def lambda_value(g: generator, e: bound_lambda) : _int64 {
+    record : _int64 = record_for_lambda(g, e);
+    made : _int64 = function_value_of(g, e.function, e);
+    if(record >= 0) {
+        captured := function_value_field(g, "captured");
+        if(captured == null) { g.stop("a function value (platform.kernel#function_value has no field `captured`)", e.unit, e.node); }
+        g.b.set_field(made, captured!!, record, NARROW_NONE);
+        g.b.release(record);
+    }
+    return made;
+}
+
+/** a field of platform.kernel#function_value; null when the program has no such class or field */
+def function_value_field(g: generator, name: string) : sharp_field? {
+    module := g.layout.analysed.prog.find_module("platform.kernel");
+    if(module == null) { return null; }
+    value_class := class_named(module!!, "function_value");
+    if(value_class == null) { return null; }
+    found := field_named(value_class!!, name);
+    if(found == null || found!!.address < 0) { return null; }
+    return found;
+}
+
+/** a new function value whose `address` is `function`'s, nothing captured */
+def function_value_of(g: generator, function: sharp_function, at: bound_expression) : _int64 {
+    if(function.address <= 0) {
+        g.stop("a function value of `" + function.full_name() + "`, which is not in the executable", at.unit, at.node);
+    }
+    target : _int64 = make_function_value(g, function);
+    if(target < 0) { g.stop("a function value (the class platform.kernel#function_value is missing)", at.unit, at.node); }
+    return target;
+}
+
+/**
+ * A new `function_value` object naming `function`, in a new slot; -1 when
+ * the program has no function_value class (only a program without the
+ * library). Its `captured` stays null (`newclass` sets every reference to null).
+ */
+def make_function_value(g: generator, function: sharp_function) : _int64 {
+    module := g.layout.analysed.prog.find_module("platform.kernel");
+    if(module == null) { return 0 - 1; }
+    value_class := class_named(module!!, "function_value");
+    if(value_class == null || value_class!!.address < 0) { return 0 - 1; }
+    address_field := field_named(value_class!!, "address");
+    if(address_field == null || address_field!!.address < 0) { return 0 - 1; }
+
+    made : _int64 = g.b.temp(SLOT_REF);
+    g.b.new_object(made, value_class!!);
+    address : _int64 = g.b.temp(SLOT_INT);
+    g.b.int_constant(address, function.address);
+    g.b.set_field(made, address_field!!, address, NARROW_NONE);
+    g.b.release(address);
+    return made;
+}
+
+/**
+ * `handler(5)`, `ops[i](a, b)`, `make()(x)`: the value, then the arguments
+ * left to right (each already converted to its parameter), then `calld`.
+ * `used` 0: the result, if any, is dropped (`pop`).
+ */
+def value_call_value(g: generator, e: bound_value_call, used: _int64) : _int64 {
+    callee : _int64 = held_over_all(g, value_of(g, e.callee), e.arguments, 0);
+    if(g.b.kind_of(callee) != SLOT_REF) { g.stop("a call of something that is not a function value", e.unit, e.node); }
+    arguments := new number_list();
+    add_arguments(g, arguments, e.arguments);
+    release_all(g, arguments);
+    g.b.release(callee);
+    returns : _int64 = !e.type.is_nil();
+    target : _int64 = 0 - 1;
+    if(used == 1 && returns == 1) { target = g.temp_for(e.type); }
+    g.line_of_node(e.unit, e.node);
+    call := g.b.emit(IR_CALL_VALUE);
+    call.target = target;
+    call.first = callee;
+    call.arguments = arguments;
+    call.detail = returns;
+    return target;
+}
+
+/** the field of a class written with this name; null when it has none */
+def field_named(holder: sharp_class, name: string) : sharp_field? {
+    for(i : _int64 = 0; i < holder.fields.size(); i++) {
+        if(holder.fields.at(i).name == name) { return holder.fields.at(i); }
+    }
+    return null;
+}
+
+/** the class of a module written with this name; null when it has none */
+def class_named(module: sharp_module, name: string) : sharp_class? {
+    for(i : _int64 = 0; i < module.classes.size(); i++) {
+        if(module.classes.at(i).name == name) { return module.classes.at(i); }
+    }
+    return null;
+}

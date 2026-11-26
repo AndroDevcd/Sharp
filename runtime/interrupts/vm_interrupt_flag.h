@@ -1,0 +1,113 @@
+//
+// Created by bknun on 9/16/2022.
+//
+
+#ifndef SHARP_VM_INTERRUPT_FLAG_H
+#define SHARP_VM_INTERRUPT_FLAG_H
+
+enum interrupt_flag
+{
+    OP_NOP     = 0x0,
+    OP_PRINTF     = 0x1,
+    OP_OS_TIME     = 0x2,
+    OP_GC_EXPLICIT     = 0x3,
+    OP_GC_LOW     = 0x4,
+    OP_GC_COLLECT     = 0x5,
+    OP_GC_SLEEP     = 0x6,
+    OP_GC_WAKEUP     = 0x7,
+    OP_GC_KILL     = 0x8,
+    OP_GC_STATE     = 0x9,
+    OP_GUI     = 0xa,
+    OP_NAN_TIME     = 0xb,
+    OP_THREAD_START     = 0xc,
+    OP_THREAD_JOIN     = 0xd,
+    OP_THREAD_INTERRUPT     = 0xe,
+    OP_THREAD_CREATE     = 0x10,
+    OP_THREAD_PRIORITY     = 0x11,
+    OP_THREAD_SUSPEND     = 0x12,
+    OP_THREAD_UNSUSPEND     = 0x13,
+    OP_THREAD_CURRENT     = 0x15,
+    OP_THREAD_ARGS     = 0x16,
+    OP_THREAD_SET_CURRENT   = 0x17,
+    OP_MATH     = 0x18,
+    OP_RANDOM_INT     = 0x19,
+    OP_SYSTEM_EXE     = 0x1a,
+    OP_KBHIT     = 0x1b,
+    OP_YIELD     = 0x1c,
+    OP_EXIT     = 0x1d,
+    OP_MEMORY_LIMIT     = 0x1e,
+    OP_MEMORY     = 0x1f,
+    OP_ABS_PATH     = 0x20,
+    OP_MEM_COPY     = 0x21,
+    OP_INVERT     = 0x22,
+    OP_REALLOC     = 0x23,
+    OP_FILE_ACCESS     = 0x24,
+    OP_FILE_ATTRS     = 0x25,
+    OP_FILE_UPDATE_TM     = 0x26,
+    OP_FILE_SIZE     = 0x27,
+    OP_FILE_CREATE     = 0x28,
+    OP_FILE_DELETE     = 0x29,
+    OP_GET_FILES     = 0x2a,
+    OP_CREATE_DIR     = 0x2b,
+    OP_DELETE_DIR     = 0x2c,
+    OP_UPDATE_FILE_TM     = 0x2d,
+    OP_CHMOD     = 0x2e,
+    OP_READ_FILE     = 0x2f,
+    OP_RENAME_FILE     = 0x30,
+    OP_WRITE_FILE     = 0x31,
+    OP_DISK_SPACE     = 0x32,
+    OP_SIZEOF     = 0x33,
+    OP_FLUSH     = 0x34,
+    OP_GET_FRAME_INFO     = 0x35,
+    OP_GET_STACK_TRACE     = 0x36,
+    OP_COPY     = 0x37,
+    OP_CORES     = 0x38,
+    OP_LOAD_LIBRARY     = 0x39,
+    OP_FREE_LIBRARY     = 0x3a,
+    OP_LINK_FUNC     = 0x3b,
+    OP_RANDOM_INT_RANGED     = 0x3f,
+    OP_RANDOM_DOUBLE    = 0x40,
+    OP_RANDOM_DOUBLE_RANGED  = 0x41,
+    OP_RANDOM_SEED     = 0x42,
+    OP_STRTOD     = 0x43,
+    OP_DELAY      = 0x44,
+    OP_FIBER_START      = 0x45,
+    OP_FIBER_SUSPEND      = 0x46,
+    OP_FIBER_UNSUSPEND      = 0x47,
+    OP_FIBER_KILL      = 0x48,
+    OP_FIBER_BIND      = 0x49,
+    OP_FIBER_BOUND_COUNT     = 0x4a,
+    OP_FIBER_STATE     = 0x4b,
+    OP_FIBER_CURRENT     = 0x4c,
+    OP_SERIALIZE     = 0x4d,
+    OP_DESERIALIZE     = 0x4e,
+    OP_CURRENT_DIRECTORY = 0x4f,
+    OP_STRTOL = 0x50,
+    OP_REFLECT_FACTS = 0x51,         // pop: b, a, a kind; push: numbers about the program (interrupts/reflection.cpp)
+    OP_REFLECT_TEXT = 0x52,          // pop: b, a, a kind; push: a name
+    OP_PROGRAM_PATH = 0x53,          // push: the whole path of the program file the VM is running
+    OP_OS_NAME = 0x54,               // push: the operating system the VM runs on, "win" or "posix"
+    OP_RUNTIME_PATH = 0x55,
+    OP_C_LIBRARY = 0x56,             // pop: where a C library is, pop: the library's name (cffi/c_bind.h)
+    OP_C_LINK_ALL = 0x57,
+    OP_C_KEEP = 0x58,                // pop: a function C will call after the call it is handed to (cffi/c_callback.h)
+    OP_C_DROP = 0x59,
+    OP_C_SERVE_ONE = 0x5a,           // run one call from a thread C started; push: an array of 1 item to go on, of none to stop
+    OP_C_SERVE_START = 0x5b,
+    OP_REFLECT_NEW = 0x5c,           // pop: a count, a class's number; push: an object of the class (count < 0) or an array of them
+    OP_REFLECT_PUT = 0x5d,           // pop: a value, an object, a field's place, a class's number: the field is given the value
+    OP_REFLECT_GET = 0x5e,           // pop: an object, a field's place, a class's number; push: the field's value
+    OP_REFLECT_CLASS_OF = 0x5f,      // pop: an object; push: what it is
+    OP_REFLECT_FIND = 0x60,          // pop: a class's full name; push: its number
+    OP_REFLECT_SPREAD = 0x61,        // pop: a function's number, a list of arguments; push: each argument, for the call that follows
+    OP_REFLECT_BOX = 0x62,           // pop: a function's number; the result of its call becomes an object
+    OP_SIGNAL_WATCH = 0x63,          // ebx: which signal, ecx: 1 hear about it / 0 let it end the program again (sig_handler.h)
+    OP_SIGNAL_TAKE = 0x64,           // ebx: how many milliseconds to wait; ebx: the signal that came, 0 for none
+    OP_PRINT_BYTES = 0x65,           // pop: an array of characters, printed whole; ebx: 1 for a line end after it
+    OP_GC_YOUNG = 0x66,              // ask for a minor collection, in either mode (memory/tracing_collector.h, MANUAL MODE)
+    OP_GC_FACT = 0x67,               // ebx: which number about the collector; ebx: the number (tgc_fact)
+    OP_MEMORY_HOOK = 0x68,           // ebx: a command of the out of memory hook, ecx: milliseconds; ebx: its answer (tgc_memory_hook)
+    OP_WHOLE_TEXT = 0x69,            // ebx: a whole number, ecx: 1 when it is unsigned; push: its digits (never by way of a decimal)
+};
+
+#endif //SHARP_VM_INTERRUPT_FLAG_H

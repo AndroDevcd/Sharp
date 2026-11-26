@@ -1,0 +1,190 @@
+mod backend.finalizer.listing;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.bytecode
+)
+
+/**
+ * -listing: THE EXECUTABLE AS READABLE TEXT
+ *
+ * With `-listing` (or `-d`) the compiler writes `<output>.listing` next to
+ * the executable: every class with its fields and methods, and every function
+ * with its frame numbers, its line table and its code, one instruction per
+ * line - the words decoded back into opcode and operands:
+ *
+ *      main#__srt_global.main  (address 9, normal, static)
+ *          file 3   stack 4   fp -1   sp 0   frame +4
+ *          lines  0:4 4:5 8:6
+ *             0  newstring       0
+ *             1  popl            1
+ *             2  pushl           1
+ *             3  call            2
+ *
+ * It is how a wrong program is traced to the instruction that is wrong. The C++
+ * compiler writes a similar `.aout` on EVERY compile; here it is asked for
+ * (codegen.md 10, G8: the listing of the library is megabytes).
+ *
+ * The files of this package (module `backend.finalizer.listing`): this one.
+ */
+def write_listing(layout: program_layout, path: string) : string {
+    out := new string_builder("");
+    out.append("classes: " + layout.classes.size() + ", functions: " + layout.functions.size() + ", strings: "
+               + layout.strings.count() + ", constants: " + layout.constants.count() + ", fiber-local slots: "
+               + layout.fiber_slots.value + "\n");
+    if(layout.entry != null) { out.append("entry: " + layout.entry!!.full_name + " (" + layout.entry!!.address + ")\n"); }
+    out.append("\n");
+    for(i : _int64 = 0; i < layout.classes.size(); i++) { list_class(out, layout.classes.at(i)); }
+    for(i : _int64 = 0; i < layout.functions.size(); i++) { list_function(out, layout.functions.at(i)); }
+    try {
+        target := new file(path);
+        file_natives.write(target.path, out.build());
+    } catch(e: exception) {
+        return "could not write the listing `" + path + "`: " + e.get_message();
+    }
+    return "";
+}
+
+/** one class: its fields with their slots, and the declared fields that were not kept */
+def list_class(out: string_builder, made: class_layout) {
+    out.append("class " + made.full_name + "  (address " + made.address);
+    if(made.base_layout != null) { out.append(", base " + made.base_layout!!.full_name); }
+    out.append(")\n");
+    for(i : _int64 = 0; i < made.instance_fields.size(); i++) {
+        field := made.instance_fields.at(i);
+        out.append("    field " + field.address + "  " + field.name + "\n");
+    }
+    for(i : _int64 = 0; i < made.static_fields.size(); i++) {
+        field := made.static_fields.at(i);
+        kind := "static";
+        if(field.has(FLAG_LOCALIZED)) { kind = "localized"; }
+        out.append("    " + kind + " " + field.address + "  " + field.name + "\n");
+    }
+    for(i : _int64 = 0; i < made.methods.size(); i++) {
+        out.append("    method " + made.methods.at(i).address + "  " + made.methods.at(i).name + "\n");
+    }
+    // the fields the class declares that no kept code names: they are not in its objects (codegen.md 5.5)
+    declared := made.of.fields;
+    if(made.is_module_globals == 1) { declared = made.module.fields; }
+    for(i : _int64 = 0; i < declared.size(); i++) {
+        if(declared.at(i).kept == 0) { out.append("    (not kept: " + declared.at(i).name + ")\n"); }
+    }
+    out.append("\n");
+}
+
+/** one function: frame numbers, line table, every instruction decoded */
+def list_function(out: string_builder, made: function_layout) {
+    out.append(made.full_name + "  (address " + made.address + ", " + kind_text(made.kind));
+    if(made.is_static == 1) { out.append(", static"); }
+    if(made.delegate_address >= 0) { out.append(", stands in for " + made.delegate_address); }
+    out.append(")\n");
+    if(made.code == null) {
+        out.append("\n");
+        return;
+    }
+    code : function_code = made.code!!;
+    out.append("    file " + made.file_index + "   stack " + code.stack_size + "   fp " + code.fp_offset + "   sp "
+               + code.sp_offset + "   frame +" + code.frame_stack_offset + "\n");
+    if(code.line_pcs.count > 0) {
+        out.append("    lines ");
+        for(i : _int64 = 0; i < code.line_pcs.count; i++) {
+            out.append(" " + code.line_pcs.at(i) + ":" + code.line_numbers.at(i));
+        }
+        out.append("\n");
+    }
+    for(i : _int64 = 0; i < code.tries.size(); i++) { out.append("    " + try_record_text(code.tries.at(i)) + "\n"); }
+    words := code.words;
+    pc : _int64 = 0;
+    while(pc < words.count) {
+        out.append("    " + pad_left("" + pc, 4) + "  " + instruction_text_at(words, pc) + "\n");
+        if(is_two_words(words.at(pc) & 0xff)) { pc += 2; } else { pc += 1; }
+    }
+    out.append("\n");
+}
+
+/** a try record: `try 3..19 block 3..9 catch 10 slot 2 class 41 finally 20..31 slot 6` (codegen.md 3.8) */
+def try_record_text(record: try_record) : string {
+    text := new string_builder("try " + record.try_start + ".." + record.try_end + " block " + record.block_start + ".."
+                               + record.block_end);
+    for(i : _int64 = 0; i < record.handler_pcs.count; i++) {
+        text.append(" catch " + record.handler_pcs.at(i) + " slot " + record.catch_slots.at(i) + " class "
+                    + record.catch_classes.at(i));
+    }
+    if(record.has_finally == 1) {
+        text.append(" finally " + record.finally_start + ".." + record.finally_end + " slot " + record.finally_slot);
+    }
+    return text.build();
+}
+
+/** one instruction, decoded: its opcode's name and its operands */
+def instruction_text_at(words: number_list, pc: _int64) : string {
+    word : _int64 = words.at(pc);
+    opcode : _int64 = word & 0xff;
+    text := new string_builder(pad_right(opcode_name(opcode), 16));
+    form : _int64 = opcode_form(opcode);
+    if(form == 'D') { text.append("" + signed_field(word, 9, 0x7fffff, 8)); }
+    else if(form == 'C') {
+        text.append("" + signed_field(word, 10, 0xf, 8) + ", " + signed_field(word, 14, 0x3ffff, 9));
+    }
+    else if(form == 'B') {
+        text.append("" + signed_field(word, 11, 0x7f, 8) + ", " + signed_field(word, 18, 0x7f, 9) + " -> "
+                    + signed_field(word, 25, 0x7f, 10));
+    }
+    else if(form == 'I') {
+        text.append("" + signed_field(word, 11, 0x7f, 8) + ", " + signed_field(word, 18, 0x7f, 9) + ", "
+                    + raw_number(words.at(pc + 1)));
+    }
+    else if(form == 'J') {
+        text.append("" + signed_field(word, 11, 0x7f, 8) + ", " + signed_field(word, 18, 0x7f, 9) + " is "
+                    + signed_field(word, 25, 0x7f, 10) + " -> " + raw_number(words.at(pc + 1)));
+    }
+    else if(form == 'K') { text.append("" + signed_field(word, 9, 0x7fffff, 8) + ", " + raw_number(words.at(pc + 1))); }
+    else if(form == 'X') { text.append(raw_number(words.at(pc + 1))); }
+    else if(form == 'G') {
+        second : _int64 = words.at(pc + 1);
+        text.append("" + signed_field(word, 9, 0x7fffff, 8) + ", count " + signed_field(second, 14, 0x3ffff, 9)
+                    + ", static " + signed_field(second, 10, 0xf, 8));
+    }
+    return text.build();
+}
+
+/** an operand of a word: its magnitude at `shift`, negative when its sign bit is 0 */
+def signed_field(word: _int64, shift: _int64, mask: _int64, sign_at: _int64) : _int64 {
+    magnitude : _int64 = (word >> shift) & mask;
+    if(((word >> sign_at) & 1) == 0) { return 0 - magnitude; }
+    return magnitude;
+}
+
+/** a raw second word as a signed 32-bit number, as text */
+def raw_number(word: _int64) : string {
+    if(word > 2147483647) { return "" + (word - 4294967296); }
+    return "" + word;
+}
+
+/** `normal`, `constructor` ... for a FUNCTION_ kind */
+def kind_text(kind: _int64) : string {
+    if(kind == FUNCTION_CONSTRUCTOR) { return "constructor"; }
+    if(kind == FUNCTION_INITIALIZER) { return "initializer"; }
+    if(kind == FUNCTION_OPERATOR) { return "operator"; }
+    if(kind == FUNCTION_DELEGATE) { return "delegate"; }
+    if(kind == FUNCTION_NATIVE) { return "native"; }
+    return "normal";
+}
+
+/** the text with spaces before it, up to `width` characters */
+def pad_left(text: string, width: _int64) : string {
+    out := new string_builder("");
+    for(i : _int64 = sizeof(text.data); i < width; i++) { out.append(" "); }
+    out.append(text);
+    return out.build();
+}
+
+/** the text with spaces after it, up to `width` characters */
+def pad_right(text: string, width: _int64) : string {
+    out := new string_builder(text);
+    for(i : _int64 = sizeof(text.data); i < width; i++) { out.append(" "); }
+    return out.build();
+}

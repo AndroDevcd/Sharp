@@ -1,0 +1,80 @@
+mod std.guikit.animation;
+
+import (
+    std.guikit.*
+)
+
+/** how a scrolling area's rows behave while it scrolls (.scroll_feel) */
+const SCROLL_PLAIN   : _int64 = 0;      // everything moves as one rigid sheet
+const SCROLL_STAGGER : _int64 = 1;      // rows trail a little behind, so gaps open while moving and close when it stops
+
+/**
+ * stagger - the "loose" scrolling feel: while a list is moving, each row lags
+ * a little behind the one before it, so the rows spread apart; as the
+ * movement dies down they close up again.
+ *
+ *      scroll { column { ... } }.scroll_feel(SCROLL_STAGGER);
+ *      lazy_column { ... }.scroll_feel(SCROLL_STAGGER);
+ *
+ * FRAMEWORK USE: a scroller or lazy list owns one of these and feeds it.
+ *
+ * HOW IT WORKS
+ *
+ *   `speed` is how fast the content has been moving lately: every scroll
+ *   adds the distance it moved, and every frame a share of it drains away,
+ *   so it rises while you scroll and falls back to 0 after.
+ *
+ *   A row's lag is the speed times how far the row is from the LEADING edge:
+ *   content moving up leads with its top, so the rows near the bottom lag
+ *   most; moving down it is the other way round. The lag is only painted
+ *   (view.sway_y) - layout never hears of it, so nothing can end up in the
+ *   wrong place when the movement stops.
+ *
+ * (iOS Messages has this feel; Android's RecyclerView can be given it with an
+ * item animator and a scroll listener. Compose: per-item graphicsLayer
+ * translation driven by scroll velocity.)
+ */
+stable class stagger {
+    private speed : decimal = 0;                        // pixels the content moved lately (down is positive)
+
+    private static const MOST : decimal = 44;           // a row never lags further than this
+    private static const PULL : decimal = 0.34;         // how much of the speed becomes lag at the trailing edge
+    private static const DRAIN : decimal = 9;           // the share of the speed lost per second (higher: settles sooner)
+
+    /** the content moved by `distance` pixels (positive: down) */
+    def push(distance: decimal) {
+        speed = num.between(speed + distance, 0 - 240, 240);
+    }
+
+    /**
+     * Give every row of `rows` its lag for this frame. `top` and `tall`
+     * describe the visible window the rows scroll through. Called while the
+     * scrolling area is painted, before its rows are.
+     */
+    def sway(rows: view, top: decimal, tall: decimal) {
+        count : _int64 = rows.kid_count();
+        moving : _int64 = 0;
+        if(speed > 0.4 || speed < 0 - 0.4) { moving = 1; }
+
+        for(i : _int64 = 0; i < count; i++) {
+            line : view = rows.kids.at(i);
+            if(moving == 0) {
+                line.sway_y = 0;
+            } else {
+                // 0 at the top of the window, 1 at the bottom
+                place : decimal = num.between((line.y + line.h / 2 - top) / num.larger(1, tall), 0, 1);
+                trailing : decimal = place;                 // moving up: the bottom trails
+                if(speed > 0) { trailing = 1 - place; }     // moving down: the top trails
+                line.sway_y = num.between(0 - speed * PULL * trailing, 0 - MOST, MOST);
+            }
+        }
+
+        if(moving == 1 && ui_host.current != null) {
+            host := ui_host.current!!;
+            speed = speed * num.larger(0, 1 - DRAIN * num.smaller(host.step, 0.05));
+            host.request_frame();
+        } else {
+            speed = 0;
+        }
+    }
+}

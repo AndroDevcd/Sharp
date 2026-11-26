@@ -1,0 +1,170 @@
+mod main;
+
+// output:
+// 3
+// 1
+// 4
+// 15
+// 11
+// 33
+// 75
+// 0
+// 100
+// 200
+// 300
+// ccc
+// 5
+// rex knows 2
+// rex says hello 8
+// rex says hello 8
+// init 42 44
+// 2
+// x/x!
+
+/*
+ * Lambdas that use what is around them (doc/codegen.md 6.12): every call of
+ * a function makes its own closure record, the captured variables live in it,
+ * and a lambda value carries the record it needs.
+ *
+ *  - a counter: a captured local outlives the call that made it; a second
+ *    call makes a second, separate counter
+ *  - a captured PARAMETER (copied into the record when the function starts)
+ *  - three lambdas deep: the innermost reaches a variable two functions out
+ *    (the record parameter, then `@parent`), and the middle lambda's own
+ *    variable, which is new on every call of the outer lambda
+ *  - recursion: each call has its own record, so each lambda sees its own `n`
+ *  - a `foreach` item and a reassigned local: one variable per call, shared
+ *    by every lambda of that call (the C++-built program gives the same)
+ *  - `self` captured: a field and a function of the object used inside a
+ *    lambda, also two lambdas deep (`@self` in the record)
+ *  - a lambda written in an `init { }` block, capturing a local of the block
+ *    and the object
+ *  - a lambda written in a constructor, capturing its parameter, after the
+ *    constructor's base call has used the same parameter
+ *
+ * The C++ compiler captures only objects (`int` boxes here); a captured
+ * number is in own/closure_rules.sharp.
+ */
+class animal {
+    name : string;
+    animal(name: string) { self->name = name; }
+    def describe() : string { return name + " says hello"; }
+}
+
+class dog base animal {
+    tricks : int = new int(0);
+    dog(name: string) -> base(name) { }
+
+    def teacher() : ()(string) {
+        return { -> (string) self->tricks += 1; return self->name + " knows " + self->tricks.value; };
+    }
+
+    def deep() : ()(string) {
+        prefix := new int(7);
+        return { -> (string)
+            inner : ()(string) = { -> (string) prefix += 1; return self->describe() + " " + prefix.value; };
+            return inner();
+        };
+    }
+}
+
+class keeper {
+    count : int = new int(0);
+    seen : string = "";
+    init {
+        tag := new int(40);
+        later : ()(_int64) = { -> (_int64) tag += 2; self->count += 1; return tag.value; };
+        seen = "init " + later() + " " + later();
+    }
+    keeper() { }
+}
+
+class base_box {
+    held : string;
+    base_box(held: string) { self->held = held; }
+}
+
+class box base base_box {
+    reader : ()(string);
+    box(start: string) -> base(start + "!") {
+        reader = { -> (string) return start + "/" + self->held; };
+    }
+}
+
+def make_counter() : ()(_int64) {
+    count := new int(0);
+    return { -> (_int64) count += 1; return count.value; };
+}
+
+def adder(amount: int) : (_int64)(_int64) {
+    return { x: _int64 -> (_int64) return x + amount.value; };
+}
+
+def three_deep() : ()(_int64) {
+    total := new int(1);
+    return { -> (_int64)
+        step := new int(10);
+        middle : ()(_int64) = { -> (_int64)
+            innermost : ()(_int64) = { -> (_int64) total += step.value; step += 1; return total.value; };
+            return innermost() + innermost();
+        };
+        return middle();
+    };
+}
+
+def recursive(n: _int64, sink: ()(_int64)[]) {
+    mine := new int(n);
+    sink[n] = { -> (_int64) return mine.value * 100; };
+    if(n > 0) { recursive(n - 1, sink); }
+}
+
+def each_item() : string {
+    fs := new ()(string)[3];
+    i := new int(0);
+    foreach(word in new string[] { "a", "b", "c" }) {
+        fs[i.value] = { -> (string) return word; };
+        i += 1;
+    }
+    out := "";
+    foreach(f in fs) { out += f(); }
+    return out;
+}
+
+def reassigned() : _int64 {
+    s := new int(1);
+    read : ()(_int64) = { -> (_int64) return s.value; };
+    s = new int(5);
+    return read();
+}
+
+def main() {
+    c := make_counter();
+    c();
+    c();
+    show(c());
+    other := make_counter();
+    show(other());
+    show(c());
+    add5 := adder(new int(5));
+    show(add5(10));
+    show(add5(add5(1)));
+    deep := three_deep();
+    show(deep());
+    show(deep());
+    sink := new ()(_int64)[4];
+    recursive(3, sink);
+    foreach(f in sink) { show(f()); }
+    println(each_item());
+    show(reassigned());
+    d := new dog("rex");
+    t := d.teacher();
+    t();
+    println(t());
+    println(d.deep()());
+    println(d.deep()());
+    k := new keeper();
+    println(k.seen);
+    show(k.count.value);
+    b := new box("x");
+    println(b.reader());
+}

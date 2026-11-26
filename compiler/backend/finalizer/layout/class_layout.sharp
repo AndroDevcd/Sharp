@@ -1,0 +1,215 @@
+mod backend.finalizer.layout;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * ONE CLASS AS THE EXECUTABLE HAS IT
+ *
+ * What the class record of the file says (doc/codegen.md 3.5), worked out
+ * from the class and what of it is kept:
+ *
+ *      class shape { name : string; static count : _int64 = 0; def area() : decimal; }
+ *      class circle base shape { radius : decimal; def area() : decimal { ... } }
+ *
+ *      circle      instance_fields   name (slot 0, declared by shape), radius (slot 1)
+ *                  static_fields     (none)
+ *                  methods           circle's own kept functions; the record lists
+ *                                    shape's first (the file writer walks `base`)
+ *      shape       static_fields     count (slot 0), @static_init_flag (slot 1)
+ *                  static_entries    count            (what static_init<shape> runs)
+ *
+ * A field's slot is in `sharp_field.address`: an instance field's place in
+ * every object of the class (the fields of the classes above come first, so a
+ * `circle` is a `shape` with more after it), a static field's place in the
+ * class's one static object, a `localized` field's fiber-local slot.
+ *
+ * The globals of a module are the static fields of a class of its own,
+ * `<module>#__srt_global`, and its global functions are that class's methods
+ * (`is_module_globals`; synthesized.sharp makes the sharp_class).
+ */
+class class_layout {
+    of : sharp_class;
+    module : sharp_module;
+    is_module_globals : _int64 = 0;
+    is_closure_record : _int64 = 0;         // the class of a closure record (synthesized.sharp, codegen.md 6.12)
+    address : _int64 = 0 - 1;
+    name : string;                          // `string`, `list<std#string>`
+    full_name : string;                     // `std#string`, `std#list<std#string>`
+    position : _int64 = 0;                  // where it is written (initialisation order, program_order.sharp)
+    key : string = "";                      // what tells instances of one blueprint apart (their arguments)
+
+    owner_layout : class_layout?;           // the class it is nested in; for a top-level class, its module's globals
+    base_layout : class_layout?;            // null only for `_object_`, the module globals and closure classes
+
+    instance_fields : list<sharp_field>;    // by slot: the fields of the classes above first
+    static_fields : list<sharp_declaration>;    // its own, by slot: enum values, static fields, @static_init_flag
+    methods : list<function_layout>;        // its own kept functions, by address
+    interface_layouts : list<class_layout>; // its interfaces AND those of the classes above, above first
+
+    // what is run to set it up (doc/codegen.md 6.14, 6.15), only what is kept:
+    static_entries : list<sharp_declaration>;   // static_init<C>: static fields with a value, enum values, static init { }
+    object_entries : list<sharp_declaration>;   // init<C>: instance fields with a value, init { } blocks
+    static_flag : sharp_field?;             // @static_init_flag: set once static_init<C> has run
+    static_init : function_layout?;         // static_init<C>; null when the class has no static part
+    object_init : function_layout?;         // init<C>; null when an object has nothing to set up
+    fields_laid_out : _int64 = 0;
+    interfaces_collected : _int64 = 0;
+
+    class_layout(of: sharp_class, module: sharp_module) {
+        self->of = of;
+        self->module = module;
+        name = of.name;
+        full_name = of.full_name();
+        instance_fields = new list<sharp_field>();
+        static_fields = new list<sharp_declaration>();
+        methods = new list<function_layout>();
+        interface_layouts = new list<class_layout>();
+        static_entries = new list<sharp_declaration>();
+        object_entries = new list<sharp_declaration>();
+    }
+
+    /** does the class have anything to run once (static values, enum values, static init blocks)? */
+    def has_static_part() : _int64 {
+        return static_entries.size() > 0;
+    }
+}
+
+/**
+ * The name and full name a class is written with. A generic instance is its
+ * blueprint's name with the canonical arguments (`list<std#string>`,
+ * `number<decimal, std#double>`), as the C++ compiler writes them; only
+ * reflection and stack traces read them (codegen.md 6.13).
+ */
+def name_class(made: class_layout) {
+    declared := made.of;
+    if(made.is_module_globals == 1) {
+        made.name = "__srt_global";
+        made.full_name = made.module.name + "#__srt_global";
+        return;
+    }
+    made.full_name = class_key(declared);
+    if(declared.is_instance()) {
+        made.name = declared.written.name + "<" + declared.instance_key + ">";
+        made.key = declared.instance_key;
+    } else {
+        made.name = declared.name;
+    }
+}
+
+/**
+ * Give a class its field slots, after the classes above it (an object of a
+ * class is an object of its base with more fields after: codegen.md 3.5).
+ * Only kept fields have a slot; the count of the fields is what `sizeof` of an
+ * object gives (probed, codegen.md 12, Q10). Localized fields get the next
+ * fiber-local slot from `fiber_slots`.
+ */
+def lay_out_fields(made: class_layout, fiber_slots: numbered, prog: sharp_program) {
+    if(made.fields_laid_out == 1) { return; }
+    made.fields_laid_out = 1;
+    if(made.base_layout != null) {
+        lay_out_fields(made.base_layout!!, fiber_slots, prog);
+        base_fields := made.base_layout!!.instance_fields;
+        for(i : _int64 = 0; i < base_fields.size(); i++) { made.instance_fields.add(base_fields.at(i)); }
+    }
+
+    declared := made.of;
+    own_fields : list<sharp_field> = declared.fields;
+    if(made.is_module_globals == 1) { own_fields = made.module.fields; }
+
+    // enum values first, as the C++ compiler writes them
+    for(i : _int64 = 0; i < declared.enum_values.size(); i++) {
+        value := declared.enum_values.at(i);
+        if(value.kept == 0) { continue; }
+        value.address = made.static_fields.size();
+        made.static_fields.add(value);
+    }
+    for(i : _int64 = 0; i < own_fields.size(); i++) {
+        field := own_fields.at(i);
+        if(field.kept == 0) { continue; }
+        if(is_static_storage(field, made)) {
+            if(field.has(FLAG_LOCALIZED)) {
+                field.address = fiber_slots.value;
+                fiber_slots.value++;
+            } else {
+                field.address = made.static_fields.size();
+            }
+            made.static_fields.add(field);
+        } else {
+            field.address = made.instance_fields.size();
+            made.instance_fields.add(field);
+        }
+    }
+}
+
+/** does a field live in the class's static object (or a fiber), not in each object? */
+def is_static_storage(field: sharp_field, made: class_layout) : _int64 {
+    return made.is_module_globals == 1 || field.has(FLAG_STATIC) || field.has(FLAG_LOCALIZED);
+}
+
+/**
+ * What static_init<C> and init<C> run, in the order analysis decided
+ * (backend.md 7.15.2, D70): only kept fields - a field no kept code names
+ * gets no value (codegen.md 5.5) - and every kept `init { }` block.
+ */
+def collect_entries(made: class_layout) {
+    declared := made.of;
+    statics : list<sharp_declaration>? = declared.static_initializers;
+    if(made.is_module_globals == 1) { statics = made.module.global_initializers; }
+    if(statics != null) {
+        for(i : _int64 = 0; i < statics!!.size(); i++) {
+            entry := statics!!.at(i);
+            if(entry.kept == 1 && !entry.has(FLAG_LOCALIZED)) { made.static_entries.add(entry); }
+        }
+    }
+    if(made.is_module_globals == 1) { return; }
+    // init<C> runs only from a constructor: a class no kept code makes objects of needs none
+    if(!has_kept_constructor(declared)) { return; }
+    objects : list<sharp_declaration>? = declared.instance_initializers;
+    if(objects != null) {
+        for(i : _int64 = 0; i < objects!!.size(); i++) {
+            entry := objects!!.at(i);
+            if(entry.kept == 1) { made.object_entries.add(entry); }
+        }
+    }
+}
+
+/** does the executable have a constructor (or an `init(x)` conversion) of this class? */
+def has_kept_constructor(declared: sharp_class) : _int64 {
+    for(i : _int64 = 0; i < declared.constructors.size(); i++) {
+        if(declared.constructors.at(i).kept == 1) { return 1; }
+    }
+    for(i : _int64 = 0; i < declared.init_blocks.size(); i++) {
+        block := declared.init_blocks.at(i);
+        if(block.kept == 1 && block.parameters.size() > 0) { return 1; }
+    }
+    return 0;
+}
+
+/** the interfaces of a class for its record: those of the classes above first, each once */
+def collect_interfaces(made: class_layout, by_address: list<class_layout>) {
+    if(made.interfaces_collected == 1) { return; }
+    made.interfaces_collected = 1;
+    if(made.base_layout != null) {
+        collect_interfaces(made.base_layout!!, by_address);
+        above := made.base_layout!!.interface_layouts;
+        for(i : _int64 = 0; i < above.size(); i++) { add_interface(made, above.at(i)); }
+    }
+    own := made.of.interfaces;
+    for(i : _int64 = 0; i < own.size(); i++) {
+        listed := own.at(i);
+        if(listed.kept == 1 && listed.address >= 0) { add_interface(made, by_address.at(listed.address)); }
+    }
+}
+
+/** add an interface to the class's list, once */
+def add_interface(made: class_layout, listed: class_layout) {
+    for(i : _int64 = 0; i < made.interface_layouts.size(); i++) {
+        if(made.interface_layouts.at(i) == listed) { return; }
+    }
+    made.interface_layouts.add(listed);
+}

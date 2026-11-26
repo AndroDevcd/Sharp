@@ -1,0 +1,202 @@
+mod backend.compiler.components;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.compiler.context
+)
+
+/**
+ * COMPONENTS, `get` AND `inject`: the dependency-injection system
+ *
+ *      component app {
+ *          single { new database("main") }             one object, made on first use
+ *          factory("worker") { new worker(get()) }     a new object every time, with a name;
+ *      }                                               its `get()` asks for what `worker(...)` takes
+ *
+ *      class service {
+ *          inject db : database;                       filled from the definition that provides a database
+ *      }
+ *      w := get<worker>("worker", app);                asked for where it is needed
+ *
+ * A component is a list of DEFINITIONS - recipes for objects. The rest of
+ * the program never builds those objects itself; it asks for them, by type
+ * or by name, and this package ties every such request to the one
+ * definition that answers it (the textbook name is a "service locator":
+ * the requests are resolved while compiling, so a missing or doubtful one is
+ * a compile error and not a surprise when the program runs).
+ *
+ * What is checked (doc/backend.md 7.20):
+ *
+ *      E0900   two components with one name
+ *      E0901   two definitions of one component that provide the same type, or have the same name
+ *      E0902   a `get()` with nothing that says what is wanted
+ *      E0903   a `get` that no definition answers
+ *      E0904   a `get<t>("name")` whose named definition provides another type
+ *      E0905   a definition whose expression has no value
+ *      E0906   an `inject` that no definition answers
+ *      E0908   definitions that need each other in a circle
+ *      E0909   a `get` / `inject` naming a component that does not exist
+ *      W1013   several components answer and none is named: the first is taken
+ *      W1014   a type written although name and component already decide
+ *
+ * The files of this package (module `backend.compiler.components`):
+ *
+ *      components.sharp        this front door: the two passes below; E0900, E0901
+ *      definitions.sharp       one definition analysed: its value, the type it provides (E0905)
+ *      definition_search.sharp which definition answers a request: the search, and nothing else
+ *      requests.sharp          a request settled: the definition found, or the message that says why not
+ *      get_expression.sharp    `get<t>("name", component)` as an expression; a `get()` that waits for
+ *                              the parameter it is given to (E0902, W1014)
+ *      injections.sharp        `inject` on fields, globals and locals
+ *      request_messages.sharp  the messages of failed requests (E0903, E0904, E0906, E0908, E0909, W1013)
+ *
+ * WHEN. A definition is analysed the first time something needs its type -
+ * a `get` in a function body, or another definition - and at the latest by
+ * `analyse_definitions`, which the driver of the body stages calls (a
+ * definition may name a generic class, `single { new list<int>() }`, whose
+ * instance then joins the driver's work list). When every body is done,
+ * `check_components` does what needs the whole picture.
+ *
+ *      C++ comparison: compiler/di/component_compiler.cpp,
+ *      dependency/component_manager.cpp, expressions/primary/get_expression.cpp
+ *      and `compile_field_injection_request` in compiler/field_compiler.cpp. The
+ *      C++ compiler compiles definitions in rounds ("maxTries") until their
+ *      types settle; here a definition is analysed on demand, once.
+ */
+
+/** every definition of every component, analysed (those already analysed on demand are skipped) */
+def analyse_definitions(session: analysis_session) {
+    components : list<sharp_component> = session.prog.components;
+    for(i : _int64 = 0; i < components.size(); i++) {
+        definitions := components.at(i).definitions;
+        for(j : _int64 = 0; j < definitions.size(); j++) { provides_of(session, definitions.at(j)); }
+    }
+}
+
+/**
+ * The pass after the bodies: what can only be said when every definition is
+ * known - components declared twice, definitions that answer the same
+ * request, the requests that had to wait, and the injected fields.
+ */
+def check_components(session: analysis_session) {
+    components : list<sharp_component> = session.prog.components;
+    for(i : _int64 = 0; i < components.size(); i++) {
+        declared_again : _int64 = report_if_declared_twice(session, components, i);
+        report_definitions_twice(session, components, i, declared_again);
+    }
+    settle_waiting_requests(session);
+    resolve_injected_fields(session);
+}
+
+/** are these two blocks the same component? Blocks without a name are all the main component */
+def same_component(first: sharp_component, second: sharp_component) : _int64 {
+    if(first.name == second.name) { return 1; }
+    return 0;
+}
+
+/** E0900: `component app { }` a second time. (Blocks without a name are one component and may be many.) */
+def report_if_declared_twice(session: analysis_session, components: list<sharp_component>, position: _int64) : _int64 {
+    declared := components.at(position);
+    if(declared.is_main()) { return 0; }
+    for(i : _int64 = 0; i < position; i++) {
+        earlier := components.at(i);
+        if(!same_component(earlier, declared)) { continue; }
+        context := context_of_component(session, declared);
+        if(context == null) { return 0; }
+        name_node : _int64 = context!!.tree.child_of_kind(declared.node, N_NAME);
+        d := problem_at(context!!, "E0900", "the component `" + declared.name + "` is declared twice", name_node);
+        d.with_label("a second `" + declared.name + "`");
+        d.with_related_place(place_of_declaration(earlier, "the first `" + declared.name + "` is declared here"));
+        d.with_note("a component is named once in the whole program; only blocks WITHOUT a name may be repeated (they all add to the main component)");
+        d.with_help("move these definitions into the first block, or give this component another name");
+        report(context!!, d);
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * E0901: two definitions of one component that answer the same request -
+ * two unnamed ones that provide the same type, or two with the same name.
+ * The definitions of every block of the component count together.
+ *
+ * When the block is itself a second `component app { }` (E0900, `declared_again`),
+ * its definitions are not compared with those of the first block: they only
+ * clash because the component was declared twice, which is reported once.
+ */
+def report_definitions_twice(session: analysis_session, components: list<sharp_component>, position: _int64, declared_again: _int64) {
+    declared := components.at(position);
+    for(i : _int64 = 0; i < declared.definitions.size(); i++) {
+        later := declared.definitions.at(i);
+        earlier : type_definition? = earlier_same_definition(components, position, i);
+        if(earlier == null) { continue; }
+        if(declared_again == 1 && !is_definition_of(declared, earlier!!)) { continue; }
+        context := context_of_component(session, declared);
+        if(context == null) { return; }
+
+        what := "provides a `" + later.provides!!.to_text() + "`";
+        if(later.name != null) { what = "is named \"" + later.name!! + "\""; }
+        d := problem_at(context!!, "E0901", "a second definition of " + declared.described() + " " + what, later.node);
+        d.with_label("which of the two would a `get` receive?");
+        d.with_related_place(place_of_node(earlier!!.unit, earlier!!.node, "the first one is here"));
+        if(later.name != null) {
+            d.with_note("a definition's name is how `get(\"" + later.name!! + "\")` finds it, so a name is used once per component");
+            d.with_help("give this one another name, or put it into another component");
+        } else {
+            d.with_note("a definition without a name is found by the TYPE it provides, so each type is provided once per component");
+            d.with_help("give this one a name - `" + later.written_as() + "(\"<name>\") { ... }` - and ask for it with `get<"
+                        + later.provides!!.to_text() + ">(\"<name>\")`, or put it into another component");
+        }
+        report(context!!, d);
+    }
+}
+
+/** the definition before `components[position].definitions[index]`, in the same component, that answers the same request */
+def earlier_same_definition(components: list<sharp_component>, position: _int64, index: _int64) : type_definition? {
+    declared := components.at(position);
+    later := declared.definitions.at(index);
+    if(!provides_a_type(later)) { return null; }
+    for(c : _int64 = 0; c <= position; c++) {
+        block := components.at(c);
+        if(!same_component(block, declared)) { continue; }
+        last : _int64 = block.definitions.size();
+        if(c == position) { last = index; }
+        for(i : _int64 = 0; i < last; i++) {
+            earlier := block.definitions.at(i);
+            if(answers_the_same(earlier, later)) { return earlier; }
+        }
+    }
+    return null;
+}
+
+/** would one request find both? The same name; or no name on either and the same type */
+def answers_the_same(first: type_definition, second: type_definition) : _int64 {
+    if(first.name != null && second.name != null) {
+        if(first.name!! == second.name!!) { return 1; }
+        return 0;
+    }
+    if(first.name != null || second.name != null) { return 0; }
+    if(!provides_a_type(first)) { return 0; }
+    return same_resolved_type(first.provides!!, second.provides!!);
+}
+
+/** a context for messages about a component: the file it is written in, no class, no function */
+def context_of_component(session: analysis_session, declared: sharp_component) : analysis_context? {
+    file := session.prog.file_of(declared.unit);
+    if(file == null) { return null; }
+    context := new analysis_context(session, file!!);
+    context.is_static = 1;
+    return context;
+}
+
+/** is `definition` one of the definitions written in this block? */
+def is_definition_of(block: sharp_component, definition: type_definition) : _int64 {
+    for(i : _int64 = 0; i < block.definitions.size(); i++) {
+        if(block.definitions.at(i) == definition) { return 1; }
+    }
+    return 0;
+}

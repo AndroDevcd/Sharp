@@ -1,0 +1,105 @@
+mod main;
+
+// output:
+// weighed: 774 calls 5
+// held: 24 24
+// ratio: 9.5
+// pick: 15 -15
+// leak: 10 same object: true
+// leak value only: 15 kept 15
+// seen: 52 size 6
+// same: 2
+
+/*
+ * THE OPTIMIZER, NATIVE RETURNS AND BOXES IN REUSED SLOTS (doc/codegen.md 7, doc/optimizations.md P1)
+ *
+ * Like cases/optimizer.sharp: codegen.sh builds the file plain and with -O, and both must print
+ * the block above (what the C++-built program prints). Each part is a way these two go wrong:
+ *
+ *   - a function too big to inline that returns a freshly made number object, called where only
+ *     the number is taken out (`.value`): with -O the call goes to a twin that returns the number;
+ *   - the same function called where the OBJECT is kept: that call must stay with the original;
+ *   - a function with two returns, both fresh; one returning a decimal object;
+ *   - a function that returns the object AND stores it in a field: no twin, the stored object and
+ *     the returned one must be the same object;
+ *   - objects made and read inside one function whose slots the inliner reuses for other values:
+ *     they become plain slots - but one slot that can hold either of two objects must stay objects.
+ */
+
+class meter {
+    count : _int64 = 0;
+    log := new list<string>();
+
+    // too big to inline: a loop; returns a freshly made number object
+    def weigh(n: _int64) : int {
+        sum : _int64 = 0;
+        for(i : _int64 = 0; i < n; i++) {
+            sum += i * 3 % 7;
+            if(sum > 1000) { sum -= 1000; }
+        }
+        count++;
+        return new int(sum);
+    }
+
+    // returns a decimal box
+    def ratio(a: decimal, b: decimal) : double {
+        r : decimal = 0;
+        for(i : _int64 = 0; i < 4; i++) { r += a / (b + i); }
+        return new double(r);
+    }
+
+    // two returns, both fresh
+    def pick(flag: _int64, n: _int64) : int {
+        total : _int64 = 0;
+        for(i : _int64 = 0; i < n; i++) { total += i; }
+        if(flag == 1) { return new int(total); }
+        return new int(0 - total);
+    }
+
+    // NOT a candidate: it keeps the object too
+    kept : int? = null;
+    def leak(n: _int64) : int {
+        sum : _int64 = 0;
+        for(i : _int64 = 0; i < n; i++) { sum += i; }
+        made := new int(sum);
+        kept = made;
+        return made;
+    }
+}
+
+def main(args: string[]) {
+    m := new meter();
+    total : _int64 = 0;
+    for(k : _int64 = 0; k < 5; k++) {
+        total += m.weigh(50 + k).value;          // only the number is taken: goes to the twin
+    }
+    println("weighed: " + total + " calls " + m.count);
+
+    held := m.weigh(9);                          // the object is kept: the original
+    println("held: " + held.value + " " + held.to_string());
+
+    println("ratio: " + m.ratio(10, 3).value);
+    println("pick: " + m.pick(1, 6).value + " " + m.pick(0, 6).value);
+    x := m.leak(5);
+    println("leak: " + x.value + " same object: " + (x == m.kept!!));
+    println("leak value only: " + m.leak(6).value + " kept " + m.kept!!.value);
+
+    // boxes made and read in one function, their slots reused by what the inliner copies in
+    a := new list<int>();
+    for(i : _int64 = 0; i < 6; i++) { a.add(new int(i * i)); }
+    seen : _int64 = 0;
+    for(i : _int64 = 0; i < a.size(); i++) {
+        if(a.at(i) == new int(9) || a.at(i) > new int(20)) { seen += a.at(i).value; }
+        one := new int(i);
+        two := new int(i + 1);
+        if(i % 2 == 0) { one = two; }               // one slot, two objects: must stay objects
+        seen += one.value;
+    }
+    println("seen: " + seen + " size " + a.size());
+    words := new string[] { "ab", "cd", "ab" };
+    same : _int64 = 0;
+    for(i : _int64 = 0; i < sizeof(words); i++) {
+        if(words[i] == "ab") { same++; }             // string.equals: a bool object taken apart at once
+    }
+    println("same: " + same);
+}

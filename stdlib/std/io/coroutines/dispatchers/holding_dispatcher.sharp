@@ -1,0 +1,33 @@
+mod std.io.coroutines;
+
+import ( std.io )
+
+/**
+ * holding_dispatcher - what a dispatcher ALSO is when it KEEPS the coroutines
+ * it is given instead of letting them start: they start when it says so. A
+ * class implements both: `class my_dispatcher : coroutine_dispatcher, holding_dispatcher`.
+ *
+ * It is what a test dispatcher is (std.guikit.testing: test_dispatcher()):
+ * the work a model starts must not run until the test asks for it, and then
+ * in the order it was started. An ordinary dispatcher only picks a thread; it
+ * cannot stop a coroutine from starting - on a thread that is busy too, the
+ * runtime gives a waiting fiber its turn sooner or later.
+ *
+ * start_coroutine (builders.sharp) hands every coroutine placed on a
+ * holding_dispatcher to hold() and does not start it. Whoever holds it calls
+ * start_held(coroutine) later; select_thread() then says where it runs, as
+ * for any dispatcher. A coroutine started INSIDE held work, without a
+ * dispatcher of its own, takes its parent's - so it is held too.
+ *
+ * Kotlin equivalent: StandardTestDispatcher, whose scheduler keeps the tasks
+ * until advanceUntilIdle() / runCurrent().
+ */
+interface holding_dispatcher {
+    /** keep this coroutine: it is attached to its parent, and has not started */
+    def hold(coroutine: job);
+}
+
+/** start a coroutine a holding_dispatcher was given to keep */
+def start_held(coroutine: job) {
+    coroutine.start();
+}

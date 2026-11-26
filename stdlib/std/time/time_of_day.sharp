@@ -1,0 +1,310 @@
+mod std.time;
+
+/**
+ * A time as shown by a wall clock, without a date and without a time zone:
+ * hour, minute, second and nanosecond, e.g. 13:45:30.5.
+ *
+ * Range: 00:00:00.000000000 (midnight) to 23:59:59.999999999. There is no
+ * 24:00 and no leap second (second 60).
+ *
+ * Arithmetic WRAPS AROUND midnight: 23:00 plus 2 hours is 01:00, and
+ * 00:10 minus 20 minutes is 23:50. Use `date_time` when the change of day
+ * matters. Values are immutable: every operation returns a new time.
+ *
+ * A time of day is at most 86,400 * 1e9 = 8.64e13 nanoseconds, far below
+ * 2^53, so the whole value fits in one `decimal` exactly (`to_nano_of_day`).
+ *
+ *     t := time_of_day.of(13, 45, 30);
+ *     t.plus_hours(12)            // 01:45:30
+ *     t.to_second_of_day()        // 49530
+ *     t.to_string()               // "13:45:30"
+ *     time_of_day.parse("07:05:00.250").nano()   // 250000000
+ */
+class time_of_day {
+    static const nanos_per_second : decimal = 1000000000;
+    static const seconds_per_day : decimal = 86400;
+    static const nanos_per_day : decimal = 86400000000000;
+
+    /** 00:00:00, the start of the day */
+    static const midnight : time_of_day = new time_of_day(0, 0, 0, 0);
+    /** 12:00:00 */
+    static const noon : time_of_day = new time_of_day(12, 0, 0, 0);
+    /** the earliest time: 00:00:00 */
+    static const min : time_of_day = new time_of_day(0, 0, 0, 0);
+    /** the latest time: 23:59:59.999999999 */
+    static const max : time_of_day = new time_of_day(23, 59, 59, 999999999);
+
+    private h : decimal = 0;
+    private mi : decimal = 0;
+    private s : decimal = 0;
+    private n : decimal = 0;
+
+    /** use time_of_day.of(...); the constructor does not validate */
+    private time_of_day(hour: decimal, minute: decimal, second: decimal, nano: decimal) {
+        h = hour;
+        mi = minute;
+        s = second;
+        n = nano;
+    }
+
+    // ------------------------------------------------------------------
+    //  creating
+    // ------------------------------------------------------------------
+
+    /**
+     * hour:minute:second.nano
+     * @throws date_time_exception when hour is not 0 .. 23, minute or second
+     *         not 0 .. 59, or nano not 0 .. 999,999,999
+     */
+    static def of(hour: decimal, minute: decimal, second: decimal, nano: decimal): time_of_day {
+        time_math.check_range("hour", hour, 0, 23);
+        time_math.check_range("minute", minute, 0, 59);
+        time_math.check_range("second", second, 0, 59);
+        time_math.check_range("nanosecond", nano, 0, 999999999);
+        return new time_of_day(hour, minute, second, nano);
+    }
+
+    /** hour:minute:second with no fraction (ranges as above) */
+    static def of(hour: decimal, minute: decimal, second: decimal): time_of_day {
+        return of(hour, minute, second, 0);
+    }
+
+    /** hour:minute:00 (ranges as above) */
+    static def of(hour: decimal, minute: decimal): time_of_day {
+        return of(hour, minute, 0, 0);
+    }
+
+    /**
+     * The time that is `second_of_day` seconds after midnight.
+     * @throws date_time_exception when it is not 0 .. 86,399
+     */
+    static def of_second_of_day(second_of_day: decimal): time_of_day {
+        time_math.check_range("second of day", second_of_day, 0, seconds_per_day - 1);
+        return new time_of_day(time_math.trunc_div(second_of_day, 3600),
+            time_math.trunc_div(second_of_day, 60) % 60, second_of_day % 60, 0);
+    }
+
+    /**
+     * The time that is `nano_of_day` nanoseconds after midnight.
+     * @throws date_time_exception when it is not 0 .. 86,399,999,999,999
+     */
+    static def of_nano_of_day(nano_of_day: decimal): time_of_day {
+        time_math.check_range("nanosecond of day", nano_of_day, 0, nanos_per_day - 1);
+        seconds : decimal = time_math.trunc_div(nano_of_day, nanos_per_second);
+        return new time_of_day(time_math.trunc_div(seconds, 3600), time_math.trunc_div(seconds, 60) % 60,
+            seconds % 60, nano_of_day - seconds * nanos_per_second);
+    }
+
+    /** the current time of day in UTC, read from the system clock */
+    static def now(): time_of_day {
+        return now(system_clock.instance, zone_offset.utc);
+    }
+
+    /** the time of day at `offset` from UTC according to `source` (a clock a test can control) */
+    static def now(source: clock, offset: zone_offset): time_of_day {
+        return date_time.of_instant(source.now(), offset).to_time();
+    }
+
+    // ------------------------------------------------------------------
+    //  reading
+    // ------------------------------------------------------------------
+
+    /** 0 .. 23 */
+    def hour(): decimal { return h; }
+    /** 0 .. 59 */
+    def minute(): decimal { return mi; }
+    /** 0 .. 59 */
+    def second(): decimal { return s; }
+    /** the fraction of the second in nanoseconds: 0 .. 999,999,999 */
+    def nano(): decimal { return n; }
+    /** the fraction of the second in whole milliseconds: 0 .. 999 */
+    def milli(): decimal { return time_math.trunc_div(n, 1000000); }
+
+    /** the hour on a 12-hour clock: 12, 1, 2 ... 11 (midnight and noon are 12) */
+    def hour_12(): decimal {
+        twelve : decimal = h % 12;
+        if(twelve == 0) {
+            return 12;
+        }
+        return twelve;
+    }
+
+    /** 1 from 12:00 on (PM), 0 before noon (AM) */
+    def is_pm(): bool { return h >= 12; }
+
+    /** whole seconds since midnight: 0 .. 86,399 (the fraction is dropped) */
+    def to_second_of_day(): decimal {
+        return h * 3600 + mi * 60 + s;
+    }
+
+    /** nanoseconds since midnight: 0 .. 86,399,999,999,999 (exact) */
+    def to_nano_of_day(): decimal {
+        return to_second_of_day() * nanos_per_second + n;
+    }
+
+    // ------------------------------------------------------------------
+    //  arithmetic - wraps around midnight (each returns a new time)
+    // ------------------------------------------------------------------
+
+    /** `hours` hours later (earlier when negative), wrapping around midnight */
+    def plus_hours(hours: decimal): time_of_day {
+        time_math.check_whole("hours", hours);
+        return new time_of_day(time_math.floor_mod(h + hours, 24), mi, s, n);
+    }
+
+    /** `minutes` minutes later (earlier when negative), wrapping around midnight */
+    def plus_minutes(minutes: decimal): time_of_day {
+        time_math.check_whole("minutes", minutes);
+        total : decimal = time_math.floor_mod(h * 60 + mi + minutes, 1440);
+        return new time_of_day(time_math.trunc_div(total, 60), total % 60, s, n);
+    }
+
+    /** `seconds` seconds later (earlier when negative), wrapping around midnight */
+    def plus_seconds(seconds: decimal): time_of_day {
+        time_math.check_whole("seconds", seconds);
+        total : decimal = time_math.floor_mod(to_second_of_day() + seconds, seconds_per_day);
+        return new time_of_day(time_math.trunc_div(total, 3600), time_math.trunc_div(total, 60) % 60, total % 60, n);
+    }
+
+    /**
+     * `nanos` nanoseconds later (earlier when negative), wrapping around
+     * midnight. The argument is reduced modulo one day first, so any whole
+     * number below 2^53 is fine.
+     */
+    def plus_nanos(nanos: decimal): time_of_day {
+        time_math.check_whole("nanoseconds", nanos);
+        shift : decimal = time_math.floor_mod(nanos, nanos_per_day);
+        return of_nano_of_day(time_math.floor_mod(to_nano_of_day() + shift, nanos_per_day));
+    }
+
+    def minus_hours(hours: decimal): time_of_day { return plus_hours(0 - hours); }
+    def minus_minutes(minutes: decimal): time_of_day { return plus_minutes(0 - minutes); }
+    def minus_seconds(seconds: decimal): time_of_day { return plus_seconds(0 - seconds); }
+    def minus_nanos(nanos: decimal): time_of_day { return plus_nanos(0 - nanos); }
+
+    /**
+     * This time plus a duration, wrapping around midnight; whole days in the
+     * duration have no effect (10:00 plus 25 hours is 11:00).
+     */
+    def plus(amount: duration): time_of_day {
+        return plus_seconds(time_math.floor_mod(amount.seconds(), seconds_per_day)).plus_nanos(amount.nanos());
+    }
+
+    /** this time minus a duration, wrapping around midnight */
+    def minus(amount: duration): time_of_day {
+        return plus(amount.negated());
+    }
+
+    /**
+     * The time from this time to `other` on the same day: positive when
+     * `other` is later, negative when it is earlier (no wrapping:
+     * 23:00 until 01:00 is -22 hours).
+     */
+    def until(other: time_of_day): duration {
+        return duration.of_seconds(other.to_second_of_day() - to_second_of_day(), other.n - n);
+    }
+
+    // ------------------------------------------------------------------
+    //  changing one field (each returns a new time)
+    // ------------------------------------------------------------------
+
+    /** @throws date_time_exception when `hour` is not 0 .. 23 */
+    def with_hour(hour: decimal): time_of_day { return of(hour, mi, s, n); }
+    /** @throws date_time_exception when `minute` is not 0 .. 59 */
+    def with_minute(minute: decimal): time_of_day { return of(h, minute, s, n); }
+    /** @throws date_time_exception when `second` is not 0 .. 59 */
+    def with_second(second: decimal): time_of_day { return of(h, mi, second, n); }
+    /** @throws date_time_exception when `nano` is not 0 .. 999,999,999 */
+    def with_nano(nano: decimal): time_of_day { return of(h, mi, s, nano); }
+
+    /** this time with the fraction of the second removed */
+    def truncated_to_seconds(): time_of_day { return new time_of_day(h, mi, s, 0); }
+    /** this time with seconds and fraction set to 0 */
+    def truncated_to_minutes(): time_of_day { return new time_of_day(h, mi, 0, 0); }
+    /** this time with minutes, seconds and fraction set to 0 */
+    def truncated_to_hours(): time_of_day { return new time_of_day(h, 0, 0, 0); }
+
+    /** this time on the given date */
+    def at_date(day: date): date_time {
+        return date_time.of(day, self);
+    }
+
+    // ------------------------------------------------------------------
+    //  comparing
+    // ------------------------------------------------------------------
+
+    /** -1 when this time is earlier in the day than `other`, 0 when equal, 1 when later */
+    def compare_to(other: time_of_day): decimal {
+        return time_math.compare(to_nano_of_day(), other.to_nano_of_day());
+    }
+
+    def is_before(other: time_of_day): bool { return compare_to(other) < 0; }
+    def is_after(other: time_of_day): bool { return compare_to(other) > 0; }
+
+    def operator==(other: time_of_day): bool { return compare_to(other) == 0; }
+    def operator!=(other: time_of_day): bool { return compare_to(other) != 0; }
+    def operator<(other: time_of_day): bool { return compare_to(other) < 0; }
+    def operator<=(other: time_of_day): bool { return compare_to(other) <= 0; }
+    def operator>(other: time_of_day): bool { return compare_to(other) > 0; }
+    def operator>=(other: time_of_day): bool { return compare_to(other) >= 0; }
+
+    /** time + duration, as `plus` (wraps around midnight) */
+    def operator+(amount: duration): time_of_day { return plus(amount); }
+    /** time - duration, as `minus` (wraps around midnight) */
+    def operator-(amount: duration): time_of_day { return minus(amount); }
+
+    /** a hash that is the same for equal times */
+    override def hash(): int {
+        return (to_second_of_day() * 31 + n) % 2147483647;
+    }
+
+    // ------------------------------------------------------------------
+    //  text
+    // ------------------------------------------------------------------
+
+    /**
+     * `HH:MM:SS`, followed by the fraction when there is one, as 3, 6 or 9
+     * digits (the fewest that lose nothing):
+     * "13:45:30", "07:05:00.250", "00:00:00.000001", "23:59:59.999999999".
+     */
+    override def to_string(): string? {
+        w := new time_text_writer();
+        write_to(w);
+        return w.text();
+    }
+
+    /** appends the `HH:MM:SS[.fff]` form to `w` (shared with date_time) */
+    def write_to(w: time_text_writer) {
+        w.put_padded(h, 2).put(':').put_padded(mi, 2).put(':').put_padded(s, 2).put_iso_fraction(n);
+    }
+
+    /**
+     * Reads `HH:MM`, `HH:MM:SS` or `HH:MM:SS.fraction` (1 to 9 fraction
+     * digits, after '.' or ','): "13:45", "13:45:30", "07:05:00.25".
+     *
+     * @throws date_time_exception when the text has another shape or a field
+     *         is out of range ("24:00", "12:60")
+     */
+    static def parse(text: string): time_of_day {
+        r := new time_text_reader(text, "time");
+        result : time_of_day = read_from(r);
+        r.expect_end();
+        return result;
+    }
+
+    /** reads a time at the cursor of `r` and leaves the cursor after it (shared with date_time) */
+    static def read_from(r: time_text_reader): time_of_day {
+        hour : decimal = r.read_digits(2, 2);
+        r.expect(':');
+        minute : decimal = r.read_digits(2, 2);
+        second : decimal = 0;
+        nano : decimal = 0;
+        if(r.accept(':')) {
+            second = r.read_digits(2, 2);
+            if(r.accept('.') || r.accept(',')) {
+                nano = r.read_fraction_as_nanos(1, 9);
+            }
+        }
+        return of(hour, minute, second, nano);
+    }
+}

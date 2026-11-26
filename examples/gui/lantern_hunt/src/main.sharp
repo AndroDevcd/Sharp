@@ -1,0 +1,266 @@
+mod app;
+
+import (
+    std,
+    std.guikit.*,
+    std.math,
+    platform
+)
+
+/**
+ * LANTERN HUNT  -  a small, complete 3D game.
+ *
+ *      sharpc examples/gui/lantern_hunt/src/main.sharp -o examples/gui/lantern_hunt/lantern_hunt
+ *      sharp examples/gui/lantern_hunt/lantern_hunt
+ *
+ * Dusk in a wooded valley. Eight lit lanterns are standing somewhere among the
+ * trees: find them all before the light goes. The arrow keys (or W A S D) walk
+ * and turn; a lantern is yours when you walk into it; barrels are in the way.
+ *
+ * WHAT IT SHOWS OF THE 3D LIBRARY, in about 250 lines:
+ *
+ *      land                terrain(...) from a height function, with a made grass texture
+ *      forests             scatter(pine(3), 900).on(land): one line for 900 trees, with a clearing
+ *      models from files   model("....gltf"): the lanterns and the barrels (Poly Haven, CC0)
+ *      things you build    the explorer is a group of a cylinder, a sphere, a cone and a cube
+ *      light               a low sun with shadows, a lamp in every lantern, fog, an evening sky
+ *      your own code       on_frame { ... }: the keys, walking over the land, bumping into
+ *                          barrels (touches), picking lanterns up, the camera that follows
+ *      widgets over it     hud { ... }: the count and the clock, and the start and end screens
+ *
+ * THE SHAPE OF IT is the shape of any screen in this library: a composable
+ * with a few states, and a build() that says what there is. When a state
+ * changes - a lantern is found, the game is won - the screen is built again,
+ * and the scene shows the new world. What moves every frame (the explorer, the
+ * camera) is kept in plain variables and changed in on_frame.
+ */
+
+const LANTERNS : _int64 = 8;
+const BARRELS : _int64 = 10;
+const SECONDS : decimal = 100;
+const LAND : decimal = 240;                 // the valley is this many metres square
+
+const WAITING : _int64 = 0;
+const PLAYING : _int64 = 1;
+const WON : _int64 = 2;
+const LOST : _int64 = 3;
+
+/** how high the valley's ground is at (x, z): two long swells and some smaller ones */
+def ground_at(x: decimal, z: decimal) : decimal {
+    return 6 + sin(x * 0.045) * 5 + cos(z * 0.06) * 4 + sin((x + z) * 0.11) * 1.6
+        + sin(x * 0.31) * cos(z * 0.27) * 0.5;
+}
+
+/** a number from 0 to 1 that looks random and is always the same for the same n */
+def chance(n: decimal) : decimal {
+    v : decimal = sin(n * 12.9898) * 43758.5453;
+    return v - floor(v);
+}
+
+class lantern_hunt base composable {
+    phase := state(WAITING);
+    found := state(0);
+    seconds_shown := state(SECONDS);
+
+    // the world: made once, the first time the screen is built (it needs the window)
+    land : terrain? = null;
+    fir : plant? = null;
+    oak : plant? = null;
+    explorer : thing? = null;
+    barrels : thing[]? = null;
+
+    // where the lanterns stand, and which have been found
+    lantern_x := new decimal[LANTERNS];
+    lantern_z := new decimal[LANTERNS];
+    taken := new bool[LANTERNS];
+
+    time_left : decimal = SECONDS;
+    assets : string = "";
+    straight_in : bool = false;             // start playing at once (main sets it)
+
+    def make_world() {
+        assets = program_folder() + "/assets/";
+
+        land = terrain(LAND, 96, { x: decimal, z: decimal -> return ground_at(x, z); });
+        land!!.texture(made_texture("grass", 1), 60);
+        fir = pine(3);
+        oak = tree(7);
+
+        // the explorer: a few plain shapes, built facing "forward" (along -z), feet at the origin
+        explorer = group {
+            cylinder(0.22, 0.3, 0.9, 12).at(0, 0.55, 0).color(0x2F6DB5FF);         // a coat
+            sphere(0.19).at(0, 1.2, 0).color(0xE8B796FF);                          // a head
+            cone(0.3, 0.3).at(0, 1.48, 0).color(0x8A4B2AFF);                       // a hat
+            cube(0.34, 0.42, 0.2).at(0, 0.72, 0.26).color(0x6B4A2EFF);             // a pack on the back
+            cube(0.14, 0.1, 0.3).at(0 - 0.12, 0.05, 0 - 0.04).color(0x2B2B2BFF);   // boots
+            cube(0.14, 0.1, 0.3).at(0.12, 0.05, 0 - 0.04).color(0x2B2B2BFF);
+        };
+
+        // the lanterns: each somewhere between 18 and 85 metres from the middle, always the same places
+        for(i : _int64 = 0; i < LANTERNS; i++) {
+            round : decimal = chance(i + 11) * PI_VALUE * 2;
+            far : decimal = 18 + 67 * chance(i + 37);
+            lantern_x[i] = LAND / 2 + cos(round) * far;
+            lantern_z[i] = LAND / 2 + sin(round) * far;
+        }
+
+        // the barrels: kept as things, so that the explorer can be asked whether it touches one
+        made := new thing[BARRELS];
+        for(i : _int64 = 0; i < BARRELS; i++) {
+            round : decimal = chance(i + 71) * PI_VALUE * 2;
+            far : decimal = 6 + 40 * chance(i + 91);
+            x : decimal = LAND / 2 + cos(round) * far;
+            z : decimal = LAND / 2 + sin(round) * far;
+            made[i] = model(assets + "Barrel_01/Barrel_01.gltf").at(x, ground_at(x, z), z).turn(chance(i) * 360).scale(1.5);
+        }
+        barrels = made;
+        start_over();
+        if(straight_in) { phase.value = PLAYING; }
+    }
+
+    /** everything back to the beginning of a game */
+    def start_over() {
+        for(i : _int64 = 0; i < LANTERNS; i++) { taken[i] = false; }
+        time_left = SECONDS;
+        explorer!!.at(LAND / 2, ground_at(LAND / 2, LAND / 2), LAND / 2).turn(20);
+        found.value = 0;
+        seconds_shown.value = SECONDS;
+    }
+
+    /** one frame of the game: the keys, the ground, the barrels, the lanterns, the clock */
+    def play(f: frame) {
+        me := explorer!!;
+        was_x : decimal = me.x;
+        was_z : decimal = me.z;
+
+        if(f.key_down(KEY_LEFT) == 1 || f.key_down('a') == 1) { me.turn_by(0 - 130 * f.step); }
+        if(f.key_down(KEY_RIGHT) == 1 || f.key_down('d') == 1) { me.turn_by(130 * f.step); }
+        if(f.key_down(KEY_UP) == 1 || f.key_down('w') == 1) { me.forward(7 * f.step); }
+        if(f.key_down(KEY_DOWN) == 1 || f.key_down('s') == 1) { me.back(3.5 * f.step); }
+
+        // stay on the land, and out of the barrels
+        blocked : bool = me.x < 4 || me.z < 4 || me.x > LAND - 4 || me.z > LAND - 4;
+        for(i : _int64 = 0; i < BARRELS && !blocked; i++) {
+            if(me.touches(barrels!![i])) { blocked = true; }
+        }
+        if(blocked) {
+            me.x = was_x;
+            me.z = was_z;
+        }
+        me.at(me.x, land!!.height_at(me.x, me.z), me.z);
+
+        // a lantern within reach is found
+        for(i : _int64 = 0; i < LANTERNS; i++) {
+            if(taken[i]) { continue; }
+            dx : decimal = lantern_x[i] - me.x;
+            dz : decimal = lantern_z[i] - me.z;
+            if(dx * dx + dz * dz < 1.7 * 1.7) {
+                taken[i] = true;
+                found.value = found.value + 1;                  // the screen is built again: the lantern is gone
+                if(found.value == LANTERNS) { phase.value = WON; }
+            }
+        }
+
+        time_left = time_left - f.step;
+        if(time_left <= 0) {
+            time_left = 0;
+            phase.value = LOST;
+        }
+        whole : decimal = ceil(time_left);
+        if(whole != seconds_shown.value) { seconds_shown.value = whole; }       // the clock on screen: once a second
+    }
+
+    override def build() : element {
+        if(land == null) { make_world(); }
+        me := explorer!!;
+        playing : bool = phase.value == PLAYING;
+
+        return scene {
+            sky(0x1D2B52FF, 0xF0A458FF);                                    // evening: dark above, orange at the horizon
+            sun().from(0 - 0.75, 0.22, 0 - 0.35).color(0xFFB070FF).strength(0.95).shadows(55);
+            daylight(0x4A5878FF, 0x2B2622FF);
+            fog(0xE09A5CFF, 45, 190);
+
+            add(land!!);
+            // two forests, with a clearing where the explorer starts
+            scatter(fir!!, 900).on(land!!).seed(1).clear_of(LAND / 2, LAND / 2, 12);
+            scatter(oak!!, 320).on(land!!).seed(2).clear_of(LAND / 2, LAND / 2, 12);
+
+            for(i : _int64 = 0; i < BARRELS; i++) { add(barrels!![i]); }
+
+            // the lanterns still to be found: each turns and floats, and lights the ground round it
+            for(i : _int64 = 0; i < LANTERNS; i++) {
+                if(taken[i]) { continue; }
+                group {
+                    model(assets + "Lantern_01/Lantern_01.gltf").scale(2.4).spin(50).glow(0.35);
+                    lamp().at(0, 0.5, 0).reach(11).color(0xFFC560FF).strength(1.6);
+                }.at(lantern_x[i], ground_at(lantern_x[i], lantern_z[i]) + 0.5, lantern_z[i])
+                .bob(0.14, 2.2);
+            }
+
+            add(me);
+
+            eye := camera();
+            on_frame { f: frame ->
+                if(phase.value == PLAYING) {
+                    play(f);
+                    // the camera: behind and above the explorer, looking a little over its head
+                    round : decimal = me.heading * PI_VALUE / 180;
+                    eye.at(me.x - sin(round) * 6, me.y + 3.1, me.z + cos(round) * 6).look_at(me.x, me.y + 1.5, me.z);
+                } else {
+                    // not playing: the camera drifts round the explorer
+                    round : decimal = f.time * 0.18;
+                    eye.at(me.x + sin(round) * 13, me.y + 6, me.z + cos(round) * 13).look_at(me.x, me.y + 1.2, me.z);
+                }
+            };
+
+            hud {
+                if(playing) {
+                    row(modifier().fill_width().padding(16)) {
+                        // (both on the left: the top right corner is the frame counter's)
+                        text("Lanterns  " + found.value + " / " + LANTERNS + "      " + seconds_shown.value + " s").size(22);
+                    };
+                } else {
+                    column(modifier().fill().padding(40)) {
+                        spacer();
+                        column(modifier().padding(26).background(gui.rgba(16, 18, 26, 215)).corner(16)) {
+                            if(phase.value == WAITING) {
+                                text("Lantern Hunt").size(36);
+                                text("Eight lanterns are lit among the trees. Find them before the light goes.").dim();
+                                text("Arrow keys or W A S D walk and turn.").dim();
+                                button("Start") { begin(); };
+                            } else if(phase.value == WON) {
+                                text("All eight found!").size(36);
+                                text("With " + seconds_shown.value + " seconds to spare.").dim();
+                                button("Play again") { begin(); };
+                            } else {
+                                text("The light is gone").size(36);
+                                text("You found " + found.value + " of " + LANTERNS + ".").dim();
+                                button("Try again") { begin(); };
+                            }
+                        }.gap(12);
+                        spacer();
+                    };
+                }
+            };
+        };
+    }
+
+    def begin() {
+        start_over();
+        phase.value = PLAYING;
+    }
+}
+
+def main(args: string[]) {
+    game := new lantern_hunt();
+    // `sharp lantern_hunt play` skips the start screen; `capped` holds it at 60 frames a second.
+    // Without `capped` it paints as fast as the machine can, and the corner says how fast.
+    gui.show_fps(true);
+    gui.frame_rate(0);
+    for(i := 0; i < sizeof(args); i++) {
+        if(args[i] == "play") { game.straight_in = true; }
+        if(args[i] == "capped") { gui.frame_rate(60); }
+    }
+    gui.run("Lantern Hunt", 1280, 720, game);
+}

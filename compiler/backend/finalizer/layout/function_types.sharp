@@ -1,0 +1,96 @@
+mod backend.finalizer.layout;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system
+)
+
+/**
+ * TYPES AS THE EXECUTABLE WRITES THEM (doc/codegen.md 3.4, 3.5)
+ *
+ * A type in the file is a number (the VM's `data_type`), followed by one more
+ * number for a class (its address) and for a function type (its position in
+ * the FUNCTION-TYPE TABLE):
+ *
+ *      _int8 .. _int64     0 .. 3          _uint8 .. _uint64   4 .. 7
+ *      decimal             9               object              10
+ *      a class             11, address     a function type     12, index
+ *      nil (no result)     19
+ *
+ * The function-type table lists every distinct function type a kept field,
+ * parameter or result has - and every function type INSIDE one of those
+ * (the parameter or the result of a function type). The C++ writer forgets
+ * the inner ones and writes index -1, which the loader turns into "the last
+ * real function" without a word (codegen.md 10, G18). One entry per distinct
+ * type, found by the type's canonical text (`resolved_type.key()`).
+ */
+const VM_TYPE_INT8    : _int64 = 0;
+const VM_TYPE_INT16   : _int64 = 1;
+const VM_TYPE_INT32   : _int64 = 2;
+const VM_TYPE_INT64   : _int64 = 3;
+const VM_TYPE_UINT8   : _int64 = 4;
+const VM_TYPE_UINT16  : _int64 = 5;
+const VM_TYPE_UINT32  : _int64 = 6;
+const VM_TYPE_UINT64  : _int64 = 7;
+const VM_TYPE_DECIMAL : _int64 = 9;
+const VM_TYPE_OBJECT  : _int64 = 10;
+const VM_TYPE_CLASS   : _int64 = 11;
+const VM_TYPE_FUNCTION : _int64 = 12;
+const VM_TYPE_NIL     : _int64 = 19;
+
+/** the function types the file lists, each once, in the order first met */
+class function_type_table {
+    types : list<resolved_type>;
+    numbers : name_table<numbered>;
+
+    function_type_table() {
+        types = new list<resolved_type>();
+        numbers = new name_table<numbered>();
+    }
+
+    /** note a type and every function type in it (its parts first, so the inner ones get the lower numbers) */
+    def note(type: resolved_type?) {
+        if(type == null || type!!.kind != RT_FUNCTION) { return; }
+        plain : resolved_type = type!!.with_marks(0, 0, 0);
+        key := plain.key();
+        if(numbers.at(key) != null) { return; }
+        for(i : _int64 = 0; i < plain.parameters!!.size(); i++) { note(plain.parameters!!.at(i)); }
+        note(plain.result);
+        numbers.put(key, new numbered(types.size()));
+        types.add(plain);
+    }
+
+    /** the position of a function type in the table; -1 when it was never noted (a bug the verifier reports) */
+    def index_of(type: resolved_type) : _int64 {
+        found := numbers.at(type.with_marks(0, 0, 0).key());
+        if(found == null) { return 0 - 1; }
+        return found!!.value;
+    }
+
+    /** how many function types the table holds */
+    def count() : _int64 {
+        return types.size();
+    }
+}
+
+/**
+ * The VM's number type of a number type: _int8 is 0 ... decimal is 9;
+ * -1 for anything that is not a plain number (an array, an object ...).
+ */
+def vm_number_type(type: resolved_type) : _int64 {
+    if(type.is_array == 1) { return 0 - 1; }
+    if(type.kind == RT_DECIMAL) { return VM_TYPE_DECIMAL; }
+    if(type.kind != RT_INTEGER) { return 0 - 1; }
+    return integer_type_number(type);
+}
+
+/** the VM's type number of an integer type, array or not */
+def integer_type_number(type: resolved_type) : _int64 {
+    first_number : _int64 = 0;
+    if(type.is_signed == 0) { first_number = 4; }
+    if(type.bits == 8) { return first_number; }
+    if(type.bits == 16) { return first_number + 1; }
+    if(type.bits == 32) { return first_number + 2; }
+    return first_number + 3;
+}

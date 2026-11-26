@@ -1,0 +1,62 @@
+mod backend.types.typed_tree;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.type_system,
+    backend.types.declarations
+)
+
+/**
+ * FUNCTION VALUES IN THE TYPED TREE
+ *
+ *      f := twice;                         bound_function_reference    function: twice(decimal)
+ *      g := { x: int -> (int) x * 2 };     bound_lambda                function: the lambda's own sharp_function
+ *
+ * A function value is an OBJECT of `platform.kernel#function_value` with two
+ * slots: WHICH function (its address) and what it CAPTURED (a closure record,
+ * or null). Calling it passes the captured record as a hidden last argument
+ * (doc/backend.md 4.3). Both nodes have a function TYPE, `(decimal)(decimal)`,
+ * in which the hidden argument does not appear.
+ *
+ * A function named as a value never captures anything: only global and
+ * static functions may be named so (E0804), and they need no object.
+ *
+ * A lambda is a static function of its own (`sharp_function.is_lambda`); its
+ * body is analysed like any other body and owned by that function. The node
+ * says which record the new function value gets: the record of the function
+ * the lambda is WRITTEN in, when the lambda (or a lambda inside it) uses
+ * something of that function or of one further out. Null when it captures
+ * nothing - then the value carries no record at all.
+ *
+ *      C++ comparison: `create_get_static_function_address_operation` in
+ *      lambda_expression.cpp and dependency.cpp; the closure object is found
+ *      there through hidden locals (`__closure`, `__captured`).
+ */
+
+/** `twice` used as a value: the function, and nothing captured */
+class bound_function_reference base bound_expression {
+    function : sharp_function;
+
+    bound_function_reference(unit: source_unit, node: _int64, function: sharp_function, type: resolved_type)
+            -> base(BX_FUNCTION_REFERENCE, unit, node, type) {
+        self->function = function;
+    }
+}
+
+/**
+ * A lambda. `function` is the lambda as a function (its parameters, result,
+ * body, locals); `record` the closure record the value is handed - the
+ * record of the function the lambda is written in (`function.enclosing`), or
+ * of the field whose value it is written in - or null when the lambda
+ * captures nothing.
+ */
+class bound_lambda base bound_expression {
+    function : sharp_function;
+    record : closure_record?;
+
+    bound_lambda(unit: source_unit, node: _int64, function: sharp_function, type: resolved_type)
+            -> base(BX_LAMBDA, unit, node, type) {
+        self->function = function;
+    }
+}

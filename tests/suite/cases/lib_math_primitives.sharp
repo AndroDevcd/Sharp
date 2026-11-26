@@ -1,0 +1,423 @@
+mod main;
+
+import ( std.testing )
+
+/**
+ * std - the additions to the number classes (the files in std/primitives/, added
+ * with `mutate`) and the exception classes of std/exceptions/.
+ */
+
+def check_common() {
+    n : int = 15;
+    m : int = 0 - 4;
+    zero : int = 0;
+
+    test("compare_to smaller") { expect(n.compare_to(20)).should_be(0 - 1); };
+    test("compare_to larger") { expect(n.compare_to(3)).should_be(1); };
+    test("compare_to equal") { expect(n.compare_to(15)).should_be(0); };
+    test("compare_to another box") { expect(m.compare_to(n)).should_be(0 - 1); };
+    test("is_odd") { expect_true(n.is_odd()); };
+    test("is_even") { expect_false(n.is_even()); };
+    test("is_even of a negative number") { expect_true(m.is_even()); };
+    test("is_even(0)") { expect_true(zero.is_even()); };
+    minus_three : int = 0 - 3;
+    test("is_odd of a negative number") { expect_true(minus_three.is_odd()); };
+    test("is_zero") { expect_true(zero.is_zero()); };
+    test("is_zero of 15") { expect_false(n.is_zero()); };
+    test("is_positive") { expect_true(n.is_positive()); };
+    test("is_positive of 0") { expect_false(zero.is_positive()); };
+    test("is_negative") { expect_true(m.is_negative()); };
+    test("is_negative of 15") { expect_false(n.is_negative()); };
+    test("sign positive") { expect(n.sign()).should_be(1); };
+    test("sign negative") { expect(m.sign()).should_be(0 - 1); };
+    test("sign zero") { expect(zero.sign()).should_be(0); };
+    test("abs of a negative number") { expect(m.abs().value).should_be(4); };
+    test("abs of a positive number") { expect(n.abs().value).should_be(15); };
+    test("abs leaves the original alone") { expect(m.value).should_be(0 - 4); };
+
+    test("coerce_in above") { expect(n.coerce_in(0, 10).value).should_be(10); };
+    test("coerce_in below") { expect(m.coerce_in(0, 10).value).should_be(0); };
+    test("coerce_in inside") { expect(n.coerce_in(0, 100).value).should_be(15); };
+    test("coerce_at_least") { expect(m.coerce_at_least(0).value).should_be(0); };
+    test("coerce_at_least when larger") { expect(n.coerce_at_least(0).value).should_be(15); };
+    test("coerce_at_most") { expect(n.coerce_at_most(10).value).should_be(10); };
+    test("coerce_at_most when smaller") { expect(m.coerce_at_most(10).value).should_be(0 - 4); };
+    try {
+        n.coerce_in(10, 0);
+        test("coerce_in(10, 0)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("coerce_in(10, 0) throws") { };
+    }
+    test("is_between") { expect_true(n.is_between(10, 20)); };
+    test("is_between includes the ends") { expect_true(n.is_between(15, 15)); };
+    test("is_between outside") { expect_false(n.is_between(16, 20)); };
+    test("max_with") { expect(n.max_with(40).value).should_be(40); };
+    test("max_with a smaller number") { expect(n.max_with(m).value).should_be(15); };
+    test("min_with") { expect(n.min_with(m).value).should_be(0 - 4); };
+
+    // the same methods on the other number classes
+    big : long = 5000000000;
+    test("long.compare_to") { expect(big.compare_to(4999999999)).should_be(1); };
+    test("long.is_even") { expect_true(big.is_even()); };
+    test("long.coerce_in") { expect(big.coerce_in(0, 1000).value).should_be(1000); };
+    small : short = 0 - 300;
+    test("short.abs") { expect(small.abs().value).should_be(300); };
+    test("short.sign") { expect(small.sign()).should_be(0 - 1); };
+    b : byte = 200;
+    test("byte.coerce_at_most") { expect(b.coerce_at_most(100).value).should_be(100); };
+    test("byte.is_between") { expect_true(b.is_between(0, 255)); };
+    d : double = 0 - 2.5;
+    test("double.abs") { expect(d.abs().value).should_be(2.5); };
+    test("double.compare_to") { expect(d.compare_to(0 - 2.25)).should_be(0 - 1); };
+    test("double.coerce_in") { expect(d.coerce_in(0 - 1, 1).value).should_be(0 - 1); };
+    test("double.sign") { expect(d.sign()).should_be(0 - 1); };
+    c : char = 'x';
+    test("char.compare_to") { expect(c.compare_to('y')).should_be(0 - 1); };
+}
+
+def check_text() {
+    n : int = 255;
+    test("to_hex_string") { expect(n.to_hex_string()).should_be("ff"); };
+    test("to_binary_string") { expect(n.to_binary_string()).should_be("11111111"); };
+    test("to_octal_string") { expect(n.to_octal_string()).should_be("377"); };
+    test("to_string_radix(36)") { expect(n.to_string_radix(36)).should_be("73"); };
+    test("to_string_radix(10)") { expect(n.to_string_radix(10)).should_be("255"); };
+    ten : int = 10;
+    test("10 in binary") { expect(ten.to_binary_string()).should_be("1010"); };
+    zero : int = 0;
+    test("0 in hexadecimal") { expect(zero.to_hex_string()).should_be("0"); };
+    minus : int = 0 - 5;
+    test("a negative number in binary") { expect(minus.to_binary_string()).should_be("-101"); };
+    big : long = 4294967296;
+    test("2^32 in hexadecimal") { expect(big.to_hex_string()).should_be("100000000"); };
+    thirty_five : int = 35;
+    test("the last digit of base 36") { expect(thirty_five.to_string_radix(36)).should_be("z"); };
+    fraction : double = 10.75;
+    test("the whole part of a double") { expect(fraction.to_binary_string()).should_be("1010"); };
+
+    seven : int = 7;
+    test("to_padded_string") { expect(seven.to_padded_string(3)).should_be("007"); };
+    test("to_padded_string of a negative number") { expect(minus.to_padded_string(3)).should_be("-05"); };
+    test("to_padded_string when already wide enough") { expect(n.to_padded_string(2)).should_be("255"); };
+    test("to_padded_string exact width") { expect(n.to_padded_string(3)).should_be("255"); };
+    test("to_padded_string of 0") { expect(zero.to_padded_string(4)).should_be("0000"); };
+
+    caught : decimal = 0;
+    try { n.to_string_radix(1); } catch(e: illegal_argument_exception) { caught++; }
+    try { n.to_string_radix(37); } catch(e: illegal_argument_exception) { caught++; }
+    try { int.parse_radix("11", 1); } catch(e: illegal_argument_exception) { caught++; }
+    test("a radix outside 2 .. 36 throws") { expect(caught).should_be(3); };
+}
+
+def check_parsing() {
+    test("parse_radix hexadecimal") { expect(int.parse_radix("ff", 16).value).should_be(255); };
+    test("parse_radix capital letters") { expect(int.parse_radix("FF", 16).value).should_be(255); };
+    test("parse_radix binary") { expect(int.parse_radix("1010", 2).value).should_be(10); };
+    test("parse_radix negative") { expect(int.parse_radix("-101", 2).value).should_be(0 - 5); };
+    test("parse_radix with a plus sign") { expect(int.parse_radix("+17", 8).value).should_be(15); };
+    test("parse_radix base 36") { expect(int.parse_radix("zz", 36).value).should_be(1295); };
+    test("parse_radix decimal") { expect(int.parse_radix("1234", 10).value).should_be(1234); };
+    test("long.parse_radix") { expect(long.parse_radix("100000000", 16).value).should_be(4294967296); };
+    test("double.parse_radix") { expect(double.parse_radix("11", 2).value).should_be(3); };
+
+    caught : decimal = 0;
+    try { int.parse_radix("12", 2); } catch(e: number_format_exception) { caught++; }
+    try { int.parse_radix("fg", 16); } catch(e: number_format_exception) { caught++; }
+    try { int.parse_radix("", 10); } catch(e: number_format_exception) { caught++; }
+    try { int.parse_radix("-", 10); } catch(e: number_format_exception) { caught++; }
+    try { int.parse_radix("1 2", 10); } catch(e: number_format_exception) { caught++; }
+    test("bad digits throw number_format_exception") { expect(caught).should_be(5); };
+
+    test("parse_or_null") { expect(int.parse_or_null("42")!!.value).should_be(42); };
+    test("parse_or_null negative") { expect(int.parse_or_null("-42")!!.value).should_be(0 - 42); };
+    test("parse_or_null of letters") { expect_null(int.parse_or_null("12x")); };
+    test("parse_or_null of nothing") { expect_null(int.parse_or_null("")); };
+    test("parse_or_null of a sign alone") { expect_null(int.parse_or_null("+")); };
+    test("parse_or_null of a fraction") { expect_null(int.parse_or_null("1.5")); };
+    test("long.parse_or_null") { expect(long.parse_or_null("5000000000")!!.value).should_be(5000000000); };
+    test("is_parsable") { expect_true(int.is_parsable("007")); };
+    test("is_parsable with a sign") { expect_true(int.is_parsable("-7")); };
+    test("is_parsable of a blank") { expect_false(int.is_parsable(" 7")); };
+    test("is_parsable of nothing") { expect_false(int.is_parsable("")); };
+    test("parse_or") { expect(int.parse_or("19", 0).value).should_be(19); };
+    test("parse_or falls back") { expect(int.parse_or("x", 7).value).should_be(7); };
+
+    // the parse() that was already there still works
+    test("int.parse") { expect(int.parse("321").value).should_be(321); };
+    test("int.parse negative") { expect(int.parse("-321").value).should_be(0 - 321); };
+}
+
+def check_limits() {
+    test("int.max_value") { expect(int.max_value).should_be(2147483647); };
+    test("int.min_value") { expect(int.min_value + 2147483647).should_be(0 - 1); };
+    test("uint.max_value") { expect(uint.max_value).should_be(4294967295); };
+    test("uint.min_value") { expect(uint.min_value).should_be(0); };
+    test("short.max_value") { expect(short.max_value).should_be(32767); };
+    test("short.min_value") { expect(short.min_value).should_be(0 - 32768); };
+    test("ushort.max_value") { expect(ushort.max_value).should_be(65535); };
+    test("ushort.min_value") { expect(ushort.min_value).should_be(0); };
+    test("char.max_value") { expect(char.max_value).should_be(127); };
+    test("char.min_value") { expect(char.min_value).should_be(0 - 128); };
+    test("uchar.max_value") { expect(uchar.max_value).should_be(255); };
+    test("uchar.min_value") { expect(uchar.min_value).should_be(0); };
+    test("byte.max_value") { expect(byte.max_value).should_be(255); };
+    test("long.max_exact_value") { expect(long.max_exact_value).should_be(9007199254740991); };
+    test("long.min_exact_value") { expect(long.min_exact_value + long.max_exact_value).should_be(0); };
+    test("ulong.max_exact_value") { expect(ulong.max_exact_value).should_be(9007199254740991); };
+    test("ulong.min_value") { expect(ulong.min_value).should_be(0); };
+    test("double.max_exact_value") { expect(double.max_exact_value).should_be(9007199254740991); };
+    test("double.max_value is huge") { expect_true(double.max_value > 1000000000000000000000); };
+    test("double.max_value is finite") { expect_true((double.max_value - double.max_value) == 0); };
+    test("twice double.max_value is infinite") { expect_true((double.max_value * 2 - double.max_value * 2) != 0); };
+    test("double.min_value") { expect(double.min_value + double.max_value).should_be(0); };
+    test("double.min_positive_value is above 0") { expect_true(double.min_positive_value > 0); };
+    test("half of double.min_positive_value is 0") { expect(double.min_positive_value / 2).should_be(0); };
+    one_more : decimal = 1 + double.epsilon;
+    test("1 + epsilon is above 1") { expect_true(one_more > 1); };
+    half_more : decimal = 1 + double.epsilon / 2;
+    test("1 + epsilon / 2 is 1") { expect(half_more).should_be(1); };
+
+    // the limits really are the limits of the types
+    top : int = int.max_value;
+    test("an int can hold int.max_value") { expect(top.value).should_be(2147483647); };
+    wrapped : _int32 = int.max_value + 1;
+    test("one more wraps around") { expect_true(wrapped < 0); };
+    top_byte : _uint8 = uchar.max_value;
+    test("a byte can hold 255") { expect(top_byte).should_be(255); };
+    over_byte : _uint8 = uchar.max_value + 1;
+    test("256 wraps to 0") { expect(over_byte).should_be(0); };
+}
+
+def check_double() {
+    d : double = 3.14159;
+    nan : double = 0;
+    nan = nan / 0;
+    infinite : double = 1;
+    infinite = infinite / 0;
+
+    test("is_nan") { expect_true(nan.is_nan()); };
+    test("is_nan of a number") { expect_false(d.is_nan()); };
+    test("is_nan of infinity") { expect_false(infinite.is_nan()); };
+    test("is_infinite") { expect_true(infinite.is_infinite()); };
+    test("is_infinite of a number") { expect_false(d.is_infinite()); };
+    test("is_infinite of NaN") { expect_false(nan.is_infinite()); };
+    test("is_finite") { expect_true(d.is_finite()); };
+    test("is_finite of infinity") { expect_false(infinite.is_finite()); };
+    test("is_finite of NaN") { expect_false(nan.is_finite()); };
+    whole : double = 0 - 7;
+    test("is_whole") { expect_true(whole.is_whole()); };
+    test("is_whole of a fraction") { expect_false(d.is_whole()); };
+    test("is_whole of infinity") { expect_false(infinite.is_whole()); };
+
+    low : double = 0 - 2.5;
+    test("floor") { expect(d.floor().value).should_be(3); };
+    test("floor of a negative number") { expect(low.floor().value).should_be(0 - 3); };
+    test("ceil") { expect(d.ceil().value).should_be(4); };
+    test("ceil of a negative number") { expect(low.ceil().value).should_be(0 - 2); };
+    half : double = 2.5;
+    test("round") { expect(half.round().value).should_be(3); };
+    test("round of a negative tie") { expect(low.round().value).should_be(0 - 3); };
+    test("round down") { expect(d.round().value).should_be(3); };
+    test("truncate") { expect(low.truncate().value).should_be(0 - 2); };
+    test("fraction_part") { expect(half.fraction_part().value).should_be(0.5); };
+    test("fraction_part of a negative number") { expect(low.fraction_part().value).should_be(0 - 0.5); };
+    test("round_to") { expect(d.round_to(2).value).should_be_near(3.14, 0.000000000001); };
+    test("the original is unchanged") { expect(d.value).should_be(3.14159); };
+    test("approx_equals") { expect_true(d.approx_equals(3.1416, 0.0001)); };
+    test("approx_equals too far") { expect_false(d.approx_equals(3.2, 0.0001)); };
+
+    test("to_fixed") { expect(d.to_fixed(3)).should_be("3.142"); };
+    test("to_fixed pads") { expect(half.to_fixed(3)).should_be("2.500"); };
+    test("to_short_string") { expect(d.to_short_string()).should_be("3.14159"); };
+    test("to_short_string of a whole number") { expect(whole.to_short_string()).should_be("-7"); };
+    test("to_short_string of NaN") { expect(nan.to_short_string()).should_be("NaN"); };
+    test("to_short_string of infinity") { expect(infinite.to_short_string()).should_be("Infinity"); };
+}
+
+def check_char_and_bool() {
+    capital : char = 'G';
+    small : char = 'g';
+    digit : char = '7';
+    blank : char = ' ';
+    dash : char = '-';
+
+    test("is_upper") { expect_true(capital.is_upper()); };
+    test("is_upper of a small letter") { expect_false(small.is_upper()); };
+    test("is_lower") { expect_true(small.is_lower()); };
+    test("is_lower of a digit") { expect_false(digit.is_lower()); };
+    test("is_letter") { expect_true(capital.is_letter()); };
+    test("is_letter of a digit") { expect_false(digit.is_letter()); };
+    test("is_digit") { expect_true(digit.is_digit()); };
+    test("is_digit of a letter") { expect_false(small.is_digit()); };
+    test("is_letter_or_digit") { expect_true(digit.is_letter_or_digit()); };
+    test("is_letter_or_digit of a dash") { expect_false(dash.is_letter_or_digit()); };
+    test("is_hex_digit of 7") { expect_true(digit.is_hex_digit()); };
+    hex_letter : char = 'F';
+    test("is_hex_digit of F") { expect_true(hex_letter.is_hex_digit()); };
+    test("is_hex_digit of G") { expect_false(capital.is_hex_digit()); };
+    test("is_whitespace of a blank") { expect_true(blank.is_whitespace()); };
+    tab : char = 9;
+    test("is_whitespace of a tab") { expect_true(tab.is_whitespace()); };
+    newline : char = 10;
+    test("is_whitespace of a line feed") { expect_true(newline.is_whitespace()); };
+    test("is_whitespace of a letter") { expect_false(small.is_whitespace()); };
+    test("to_upper") { expect(small.to_upper().value).should_be('G'); };
+    test("to_upper of a capital") { expect(capital.to_upper().value).should_be('G'); };
+    test("to_lower") { expect(capital.to_lower().value).should_be('g'); };
+    test("to_lower of a digit") { expect(digit.to_lower().value).should_be('7'); };
+    test("digit_value") { expect(digit.digit_value()).should_be(7); };
+    test("digit_value of a letter") { expect(small.digit_value()).should_be(16); };
+    test("digit_value of a capital letter") { expect(hex_letter.digit_value()).should_be(15); };
+    test("digit_value of a dash") { expect(dash.digit_value()).should_be(0 - 1); };
+    test("from_digit") { expect(char.from_digit(7).value).should_be('7'); };
+    test("from_digit above 9") { expect(char.from_digit(11).value).should_be('b'); };
+    test("from_digit(35)") { expect(char.from_digit(35).value).should_be('z'); };
+    try {
+        char.from_digit(36);
+        test("from_digit(36)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("from_digit(36) throws") { };
+    }
+    // the static functions that were already there still work
+    test("character.is_digit") { expect_true(character.is_digit(digit.value)); };
+    test("character.is_letter") { expect_true(character.is_letter(small.value)); };
+    test("character.to_upper") { expect(character.to_upper(small.value)).should_be('G'); };
+
+    yes : boolean = true;
+    no : boolean = false;
+    test("negate true") { expect_false(yes.negate()); };
+    test("negate false") { expect_true(no.negate()); };
+    test("xor: one of them") { expect_true(yes.xor(false)); };
+    test("xor: both") { expect_false(yes.xor(true)); };
+    test("xor: neither") { expect_false(no.xor(false)); };
+    test("same_as") { expect_true(no.same_as(false)); };
+    test("same_as differs") { expect_false(yes.same_as(false)); };
+    test("to_var of true") { expect(yes.to_var()).should_be(1); };
+    test("to_var of false") { expect(no.to_var()).should_be(0); };
+    test("from_string(true)") { expect_true(boolean.from_string("true")); };
+    test("from_string(false)") { expect_false(boolean.from_string("false")); };
+    test("from_string ignores case") { expect_true(boolean.from_string("TRUE")); };
+    test("from_string ignores case (False)") { expect_false(boolean.from_string("False")); };
+    test("from_string_or_null of other text") { expect_null(boolean.from_string_or_null("maybe")); };
+    test("from_string_or_null of nothing") { expect_null(boolean.from_string_or_null("")); };
+    test("from_string_or_null of true") { expect_not_null(boolean.from_string_or_null("true")); };
+    try {
+        boolean.from_string("yes");
+        test("from_string(yes)") { fail_test("no exception"); };
+    } catch(e: illegal_argument_exception) {
+        test("from_string(yes) throws") { };
+    }
+    test("to_string still works") { expect(yes.to_string()).should_be("true"); };
+}
+
+/* throws exception number `kind` with the message "m" */
+def throw_kind(kind: decimal) {
+    if(kind == 0) throw new invalid_operation_exception("m");
+    if(kind == 1) throw new no_such_element_exception("m");
+    if(kind == 2) throw new number_format_exception("m");
+    if(kind == 3) throw new arithmetic_exception("m");
+    if(kind == 4) throw new division_by_zero_exception("m");
+    if(kind == 5) throw new overflow_exception("m");
+    if(kind == 6) throw new timeout_exception("m");
+    if(kind == 7) throw new concurrent_modification_exception("m");
+    if(kind == 8) throw new illegal_state_exception("m");
+    if(kind == 9) throw new parse_exception("m");
+    if(kind == 10) throw new interrupted_exception("m");
+}
+
+/* which catch clause takes exception number `kind`? */
+def caught_by(kind: decimal): decimal {
+    try {
+        throw_kind(kind);
+    } catch(e: invalid_operation_exception) {
+        return 0;
+    } catch(e: no_such_element_exception) {
+        return 1;
+    } catch(e: number_format_exception) {
+        return 2;
+    } catch(e: division_by_zero_exception) {
+        return 4;
+    } catch(e: overflow_exception) {
+        return 5;
+    } catch(e: arithmetic_exception) {
+        return 3;
+    } catch(e: timeout_exception) {
+        return 6;
+    } catch(e: concurrent_modification_exception) {
+        return 7;
+    } catch(e: illegal_state_exception) {
+        return 8;
+    } catch(e: parse_exception) {
+        return 9;
+    } catch(e: interrupted_exception) {
+        return 10;
+    }
+    return 0 - 1;
+}
+
+def check_exceptions() {
+    for(kind : decimal = 0; kind <= 10; kind++) {
+        test("each exception reaches its own catch clause") { expect(caught_by(kind)).should_be(kind); };
+    }
+
+    try {
+        throw new no_such_element_exception("no user with id 42");
+    } catch(e: no_such_element_exception) {
+        test("the message is kept") { expect(e.get_message()).should_be("no user with id 42"); };
+    }
+
+    // every one of them is an exception
+    reached : decimal = 0;
+    for(kind : decimal = 0; kind <= 10; kind++) {
+        try {
+            throw_kind(kind);
+        } catch(e: exception) {
+            reached++;
+        }
+    }
+    test("catch(exception) takes all eleven") { expect(reached).should_be(11); };
+
+    // the hierarchy: a base class clause takes its subclasses
+    where : decimal = 0;
+    try {
+        throw new division_by_zero_exception("x");
+    } catch(e: arithmetic_exception) {
+        where = 1;
+    }
+    test("division_by_zero_exception is an arithmetic_exception") { expect(where).should_be(1); };
+    where = 0;
+    try {
+        throw new overflow_exception("x");
+    } catch(e: arithmetic_exception) {
+        where = 1;
+    }
+    test("overflow_exception is an arithmetic_exception") { expect(where).should_be(1); };
+    where = 0;
+    try {
+        throw new number_format_exception("x");
+    } catch(e: illegal_argument_exception) {
+        where = 1;
+    }
+    test("number_format_exception is an illegal_argument_exception") { expect(where).should_be(1); };
+    where = 0;
+    try {
+        throw new parse_exception("x");
+    } catch(e: illegal_argument_exception) {
+        where = 1;
+    }
+    test("parse_exception is an illegal_argument_exception") { expect(where).should_be(1); };
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_math_primitives") {
+        check_common();
+        check_text();
+        check_parsing();
+        check_limits();
+        check_double();
+        check_char_and_bool();
+        check_exceptions();
+    };
+    finish_tests("lib_math_primitives");
+}

@@ -1,0 +1,288 @@
+mod std;
+
+/**
+ * @class dictionary
+ *
+ * Values kept under keys, in the order they were added. It is what a
+ * dictionary literal makes:
+ *
+ *     ages := { "ann" : 31, "bob" : 45 };          // dictionary<string, int>
+ *     none := { as <string, int> : };              // an empty one, its types written
+ *
+ * A value is read and written through its key, in brackets:
+ *
+ *     ages["ann"];                                 // 31
+ *     ages["cy"] = 28;                             // a new key, added at the end
+ *     ages["ann"] = 32;                            // an old key: its value is replaced, its place kept
+ *     ages["dee"];                                 // no such key: no_such_element_exception
+ *
+ * and, without an exception when the key is missing:
+ *
+ *     ages.at("dee");                              // null
+ *     ages.at_or_default("dee", 0);                // 0
+ *     ages.contains_key("dee");                    // false
+ *
+ *     ages.remove("bob");
+ *     ages.size();                                 // 2
+ *     foreach(entry in ages) println(entry.first + " = " + entry.second);     // in the order they were added
+ *     ages.keys();   ages.values();                // lists, in that order too
+ *
+ * The types of a literal are those of its first pair, as `name := value`
+ * would make them: text is a `string`, a whole number an `int`, a number with
+ * a fraction a `double`. Write `as <key, value>` first for other types. When
+ * the same key is written twice, the later value is kept.
+ *
+ * How it works: a hash table (key.hash() picks a bucket, a bucket's entries
+ * form a chain searched with `==`), and every entry also knows the entry
+ * added before and after it, which is the order a loop follows. Reading,
+ * writing and removing are O(1) on average.
+ *
+ * Keys: equal keys must give the same hash() - string, int and the other
+ * value types of the library do. Not thread safe.
+ * (Python: dict. Kotlin: LinkedHashMap, mutableMapOf. JavaScript: Map.)
+ */
+class dictionary<k base _object_, v base _object_> : loopable<pair<k,v> > {
+    /** the buckets: slots[i] is the first entry of the chain of bucket i, or null */
+    private slots : dictionary_entry<k, v>[];
+    /** the entry added first and the one added last: the two ends of the order */
+    private oldest : dictionary_entry<k, v>?;
+    private newest : dictionary_entry<k, v>?;
+    /** the number of entries, and the number at which the table grows next */
+    private count : _int64 = 0;
+    private grow_at : _int64 = 12;
+
+    /** an empty dictionary */
+    dictionary() {
+        slots = new dictionary_entry<k, v>[16];
+    }
+
+    /** a dictionary of these pairs, in this order (what a literal calls); a key given twice keeps its later value */
+    dictionary(pairs : pair<k,v>[]) {
+        slots = new dictionary_entry<k, v>[16];
+        for(i : _int64 = 0; i < sizeof(pairs); i++) {
+            put(pairs[i].first, pairs[i].second);
+        }
+    }
+
+    /** the bucket of a hash: the hash modulo the number of buckets, without its sign */
+    private def slot_of(code: _int64) : _int64 {
+        index : _int64 = code % sizeof(slots);
+        if(index < 0) { index = 0 - index; }
+        return index;
+    }
+
+    /** the entry of a key, or null when the dictionary does not have the key */
+    private def entry_of(key: k, code: _int64) : dictionary_entry<k, v>? {
+        item : dictionary_entry<k, v>? = slots[slot_of(code)];
+        while(item != null) {
+            if(item!!.code == code && item!!.key == key) { return item; }
+            item = item!!.next;
+        }
+        return null;
+    }
+
+    /** twice the buckets, every entry in its new one (the order of the entries is not touched) */
+    private def grow() {
+        slots = new dictionary_entry<k, v>[sizeof(slots) * 2];
+        grow_at = sizeof(slots) * 3 / 4;
+        item : dictionary_entry<k, v>? = oldest;
+        while(item != null) {
+            index : _int64 = slot_of(item!!.code);
+            item!!.next = slots[index];
+            slots[index] = item!!;
+            item = item!!.after;
+        }
+    }
+
+    /** how many keys there are. O(1). */
+    def size() : _int64 {
+        return count;
+    }
+
+    /** is there nothing in it? O(1). */
+    def is_empty() : bool {
+        return count == 0;
+    }
+
+    /**
+     * `d[key]`: the value of a key. Throws no_such_element_exception when the
+     * dictionary does not have the key; at() gives null then.
+     */
+    def operator[](key: k) : v {
+        found := entry_of(key, key.hash().value);
+        if(found == null) {
+            throw new no_such_element_exception("the dictionary has no key `" + key + "`");
+        }
+        return found!!.value;
+    }
+
+    /** the value of a key, or null when the dictionary does not have the key */
+    def at(key: k) : v? {
+        found := entry_of(key, key.hash().value);
+        if(found == null) { return null; }
+        return found!!.value;
+    }
+
+    /** the value of a key, or `fallback` when the dictionary does not have the key */
+    def at_or_default(key: k, fallback: v) : v {
+        found := entry_of(key, key.hash().value);
+        if(found == null) { return fallback; }
+        return found!!.value;
+    }
+
+    /** does the dictionary have this key? */
+    def contains_key(key: k) : bool {
+        return entry_of(key, key.hash().value) != null;
+    }
+
+    /** does some key have this value (compared with `==`)? O(n). */
+    def contains_value(wanted: v) : bool {
+        item : dictionary_entry<k, v>? = oldest;
+        while(item != null) {
+            if(item!!.value == wanted) { return true; }
+            item = item!!.after;
+        }
+        return false;
+    }
+
+    /**
+     * `d[key] = value`: store a value under a key. A new key goes to the end
+     * of the order; a key that is there keeps its place and gets the value.
+     *
+     * @return true when the key is new
+     */
+    def put(key: k, value: v) : bool {
+        code : _int64 = key.hash().value;
+        found := entry_of(key, code);
+        if(found != null) {
+            found!!.value = value;
+            return false;
+        }
+        if(count >= grow_at) { grow(); }
+
+        added := new dictionary_entry<k, v>(key, value, code);
+        index : _int64 = slot_of(code);
+        added.next = slots[index];
+        slots[index] = added;
+        added.before = newest;
+        if(newest == null) { oldest = added; }
+        else { newest!!.after = added; }
+        newest = added;
+        count = count + 1;
+        return true;
+    }
+
+    /** every pair of another dictionary put into this one (a key both have gets the other's value) */
+    def put_all(other: dictionary<k, v>) {
+        item : dictionary_entry<k, v>? = other.oldest;
+        while(item != null) {
+            put(item!!.key, item!!.value);
+            item = item!!.after;
+        }
+    }
+
+    /**
+     * Take a key and its value out.
+     *
+     * @return true when the key was there
+     */
+    def remove(key: k) : bool {
+        code : _int64 = key.hash().value;
+        index : _int64 = slot_of(code);
+        previous : dictionary_entry<k, v>? = null;
+        item : dictionary_entry<k, v>? = slots[index];
+        while(item != null) {
+            if(item!!.code == code && item!!.key == key) {
+                // out of its bucket's chain
+                if(previous == null) { slots[index] = item!!.next; }
+                else { previous!!.next = item!!.next; }
+                // out of the order
+                if(item!!.before == null) { oldest = item!!.after; }
+                else { item!!.before!!.after = item!!.after; }
+                if(item!!.after == null) { newest = item!!.before; }
+                else { item!!.after!!.before = item!!.before; }
+                count = count - 1;
+                return true;
+            }
+            previous = item;
+            item = item!!.next;
+        }
+        return false;
+    }
+
+    /** take a key out and give the value it had; null when the key was not there */
+    def take(key: k) : v? {
+        found := at(key);
+        remove(key);
+        return found;
+    }
+
+    /** take everything out */
+    def clear() {
+        slots = new dictionary_entry<k, v>[16];
+        grow_at = 12;
+        oldest = null;
+        newest = null;
+        count = 0;
+    }
+
+    /** a new list of the keys, in the order they were added. O(n). */
+    def keys() : list<k> {
+        result := new list<k>();
+        item : dictionary_entry<k, v>? = oldest;
+        while(item != null) {
+            result.add(item!!.key);
+            item = item!!.after;
+        }
+        return result;
+    }
+
+    /** a new list of the values, in the order their keys were added. O(n). */
+    def values() : list<v> {
+        result := new list<v>();
+        item : dictionary_entry<k, v>? = oldest;
+        while(item != null) {
+            result.add(item!!.value);
+            item = item!!.after;
+        }
+        return result;
+    }
+
+    /**
+     * The pairs as an array, in the order they were added (`first` is the
+     * key, `second` the value), or null when there are none. It is what
+     * `foreach(entry in my_dictionary)` uses. The pairs are copies: changing
+     * one does not change the dictionary. O(n).
+     */
+    override def get_elements() : pair<k,v>[]? {
+        if(count == 0) { return null; }
+        made := new pair<k,v>[count];
+        at : _int64 = 0;
+        item : dictionary_entry<k, v>? = oldest;
+        while(item != null) {
+            made[at] = new pair<k,v>(item!!.key, item!!.value);
+            at = at + 1;
+            item = item!!.after;
+        }
+        return made;
+    }
+}
+
+/** one key and its value in a dictionary: a link of its bucket's chain, and of the order */
+class dictionary_entry<k, v> {
+    key : k;
+    value : v;
+    /** key.hash(), kept so growing the table hashes nothing again */
+    code : _int64 = 0;
+    /** the next entry of the same bucket (nothing when it is the last: the field is read into a `?` variable) */
+    next : dictionary_entry<k, v>;
+    /** the entries added just before and just after this one */
+    before : dictionary_entry<k, v>?;
+    after : dictionary_entry<k, v>?;
+
+    dictionary_entry(key: k, value: v, code: _int64) {
+        self->key = key;
+        self->value = value;
+        self->code = code;
+    }
+}

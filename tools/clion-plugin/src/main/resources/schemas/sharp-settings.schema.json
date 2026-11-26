@@ -1,0 +1,279 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://sharp-lang/schemas/settings.json",
+  "title": "Sharp project settings",
+  "description": "The settings of a Sharp project (sharpc -P <folder>). The compiler reads them in compiler/configuration/settings_processor.sharp; keep this file in step with it.",
+  "type": "object",
+  "additionalProperties": false,
+  "definitions": {
+    "texts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "toolchainValues": {
+      "compiler": {
+        "type": "string",
+        "description": "The C++ compiler: the path of g++ or clang++, or the name of one on the PATH. Without it: the SHARP_CXX environment variable, then a search (the PATH, then where MinGW is usually installed)."
+      },
+      "flags": {
+        "$ref": "#/definitions/texts",
+        "description": "Extra flags for the C++ compiler. They come after the ones Sharp gives itself (-shared, -std=c++17, -static on Windows, -fPIC elsewhere), so yours win: \"-std=c++20\", \"-O2\"."
+      },
+      "include": {
+        "$ref": "#/definitions/texts",
+        "description": "Folders that hold only header files (-I), as paths inside the project or absolute: another library's headers. The \"sources\" folders are searched for headers already - they are not named again here."
+      },
+      "libraries": {
+        "$ref": "#/definitions/texts",
+        "description": "More libraries to link (-l), by name: \"ws2_32\", \"m\"."
+      }
+    },
+    "systemToolchain": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "compiler": {
+          "$ref": "#/definitions/toolchainValues/compiler"
+        },
+        "flags": {
+          "$ref": "#/definitions/toolchainValues/flags"
+        },
+        "include": {
+          "$ref": "#/definitions/toolchainValues/include"
+        },
+        "libraries": {
+          "$ref": "#/definitions/toolchainValues/libraries"
+        },
+        "processor": {
+          "$ref": "#/definitions/processors"
+        },
+        "sources": {
+          "$ref": "#/definitions/texts",
+          "description": "C++ files or folders for this system only: compiled, and searched for header files."
+        }
+      }
+    },
+    "processorBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "flags": {
+          "$ref": "#/definitions/toolchainValues/flags"
+        },
+        "include": {
+          "$ref": "#/definitions/toolchainValues/include"
+        },
+        "libraries": {
+          "$ref": "#/definitions/toolchainValues/libraries"
+        },
+        "sources": {
+          "$ref": "#/definitions/texts",
+          "description": "C++ files or folders for this processor only: compiled, and searched for header files. Two folders with the same file names - one per processor - do not meet."
+        }
+      }
+    },
+    "processors": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Settings for one kind of processor, added only when the C++ compiler builds for it. The system and the processor are separate: ARM runs Linux and Windows. Written at the top of the toolchain it counts on every system; inside \"windows\" / \"linux\", for that processor on that system.",
+      "properties": {
+        "arm": {
+          "$ref": "#/definitions/processorBlock",
+          "description": "Every ARM processor, 32 and 64 bit (a Raspberry Pi): the libraries of its hardware go here."
+        },
+        "x86": {
+          "$ref": "#/definitions/processorBlock",
+          "description": "Every Intel / AMD processor, 32 and 64 bit (a PC)."
+        }
+      }
+    }
+  },
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The project's name (shown by the IDE and in messages)."
+    },
+    "version": {
+      "type": "string",
+      "description": "The version written into the executable (-v)."
+    },
+    "output": {
+      "type": "string",
+      "description": "The name of the executable: it is written to build/outputs/<output> (-o)."
+    },
+    "output_file": {
+      "type": "string",
+      "description": "Another name for \"output\"."
+    },
+    "compile_only": {
+      "type": "boolean",
+      "description": "true: check the program and write no executable (-c)."
+    },
+    "show_all_errors": {
+      "type": "boolean",
+      "description": "true: show every error, not only the first of each kind (-a)."
+    },
+    "debug": {
+      "type": "boolean",
+      "description": "true: keep the source text in the executable for stack traces (-dbg); false: leave it out (-R)."
+    },
+    "release": {
+      "type": "boolean",
+      "description": "true: a release build - no source text in the executable and the names obfuscated (-R -obf)."
+    },
+    "release_build": {
+      "type": "boolean",
+      "description": "Another name for \"release\"."
+    },
+    "obfuscate": {
+      "type": "boolean",
+      "description": "true: rename everything the `obfuscate` blocks do not keep (-obf)."
+    },
+    "optimize_level": {
+      "type": "integer",
+      "enum": [
+        0,
+        1,
+        2
+      ],
+      "description": "0: no optimizer (-O0). 1 or 2: the optimizer (-O)."
+    },
+    "cache_files": {
+      "type": "boolean",
+      "description": "false: do not keep or read the build cache (-cacheoff)."
+    },
+    "target": {
+      "type": "string",
+      "description": "The platform version the program is built for (-target)."
+    },
+    "target_api": {
+      "type": "string",
+      "description": "The version of the installed standard library to build with, for example \"0.4.3\"."
+    },
+    "warnings": {
+      "type": "boolean",
+      "description": "false: show no warnings (-w)."
+    },
+    "enable_warnings": {
+      "$ref": "#/definitions/texts",
+      "description": "Kinds of warning to turn on, by name."
+    },
+    "disable_warnings": {
+      "$ref": "#/definitions/texts",
+      "description": "Kinds of warning to turn off, by name."
+    },
+    "warnings_as_errors": {
+      "type": "boolean",
+      "description": "true: every warning stops the build (-werror)."
+    },
+    "error_limit": {
+      "type": [
+        "integer",
+        "string"
+      ],
+      "description": "How many errors are shown before the compiler stops (-errlmt)."
+    },
+    "green_mode": {
+      "type": "boolean",
+      "description": "true: use less memory and fewer threads while compiling (-g)."
+    },
+    "magic_mode": {
+      "type": "boolean",
+      "description": "A switch of the compiler for its own development."
+    },
+    "compiler_debug_mode": {
+      "type": "boolean",
+      "description": "true: the compiler prints what it is doing (for working on the compiler itself)."
+    },
+    "ignore_files": {
+      "$ref": "#/definitions/texts",
+      "description": "Files that are not part of the program: paths inside the project, or as written (-ignore)."
+    },
+    "ignore_folders": {
+      "$ref": "#/definitions/texts",
+      "description": "Folders that are not part of the program, for example \"build\" (-ignoredir)."
+    },
+    "tests_folder": {
+      "type": "string",
+      "description": "The folder that holds the project's tests, with a main of their own (default \"tests\"). It is left out of the program and built with it by -tests."
+    },
+    "extern_lib": {
+      "$ref": "#/definitions/texts",
+      "description": "Folders of Sharp libraries the program is compiled with (-L). A project that names none gets the installed standard library."
+    },
+    "extern_libs": {
+      "$ref": "#/definitions/texts",
+      "description": "Another name for \"extern_lib\"."
+    },
+    "ignore_extern_files": {
+      "$ref": "#/definitions/texts",
+      "description": "Files of the libraries that are left out, with paths as written."
+    },
+    "ignore_extern_folders": {
+      "$ref": "#/definitions/texts",
+      "description": "Folders of the libraries that are left out, with paths as written."
+    },
+    "c_libraries": {
+      "type": "object",
+      "description": "Which file each C library of the program's `extern \"name\" { }` blocks is: a file's name the system finds, or a path - absolute, or from the project's folder. One text or a list for every system, or an object with a text or a list per system.",
+      "additionalProperties": {
+        "anyOf": [
+          { "type": "string" },
+          { "type": "array", "items": { "type": "string" } },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "windows": { "anyOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+              "linux": { "anyOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] },
+              "mac": { "anyOf": [ { "type": "string" }, { "type": "array", "items": { "type": "string" } } ] }
+            }
+          }
+        ]
+      }
+    },
+    "native": {
+      "type": "object",
+      "description": "The C++ of the project's `native` functions (the Sharp Native Interface). With \"sources\" the compiler builds it into build/outputs/<group>.dll (.so on Linux) on every build.",
+      "additionalProperties": false,
+      "properties": {
+        "sources": {
+          "$ref": "#/definitions/texts",
+          "description": "The C++ files, or folders of them (their whole tree), as paths inside the project: [ \"src/cpp\" ]. Each folder is also searched for header files."
+        },
+        "toolchain": {
+          "type": "object",
+          "description": "The C++ compiler and its flags. Everything in it is optional: without a toolchain the compiler finds g++ or clang++ itself.",
+          "additionalProperties": false,
+          "properties": {
+            "compiler": {
+              "$ref": "#/definitions/toolchainValues/compiler"
+            },
+            "flags": {
+              "$ref": "#/definitions/toolchainValues/flags"
+            },
+            "include": {
+              "$ref": "#/definitions/toolchainValues/include"
+            },
+            "libraries": {
+              "$ref": "#/definitions/toolchainValues/libraries"
+            },
+            "windows": {
+              "$ref": "#/definitions/systemToolchain",
+              "description": "The same four settings, used on Windows only: \"compiler\" replaces the one above, the lists are added to it."
+            },
+            "linux": {
+              "$ref": "#/definitions/systemToolchain",
+              "description": "The same four settings, used on Linux only: \"compiler\" replaces the one above, the lists are added to it."
+            },
+            "processor": {
+              "$ref": "#/definitions/processors"
+            }
+          }
+        }
+      }
+    }
+  }
+}

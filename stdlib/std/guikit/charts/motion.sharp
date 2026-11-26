@@ -1,0 +1,287 @@
+mod std.guikit.charts;
+
+import (
+    std,
+    std.math,
+    std.guikit.*
+)
+
+/**
+ * HOW A MOVEMENT RUNS THROUGH ITS TIME: the curves a motion can follow.
+ *
+ *      motion.grow().ease(EASE_OVERSHOOT)
+ *
+ * Each takes "how much of the time has passed" (0 .. 1) and answers "how much
+ * of the way is done" (0 at the start, 1 at the end; two of them go past 1 on
+ * the way and come back, which is what makes a bar bounce into place).
+ */
+const EASE_LINEAR    : _int64 = 0;      // the same speed all the way
+const EASE_OUT       : _int64 = 1;      // quick at first, settling gently (the default)
+const EASE_IN        : _int64 = 2;      // slow at first, quick at the end
+const EASE_IN_OUT    : _int64 = 3;      // slow, quick, slow
+const EASE_OVERSHOOT : _int64 = 4;      // a little past the end, and back
+const EASE_SPRING    : _int64 = 5;      // past the end and back a few times, like a spring
+const EASE_BOUNCE    : _int64 = 6;      // drops onto the end and bounces, like a ball
+
+/** easing - the curves above as one function: easing.at(EASE_OUT, 0.5) */
+stable class easing {
+
+    /** how much of the way is done when `through` (0 .. 1) of the time has passed */
+    static def at(curve: _int64, through: decimal) : decimal {
+        t : decimal = through;
+        if(t <= 0) { return 0; }
+        if(t >= 1) { return 1; }
+
+        if(curve == EASE_OUT) {
+            left : decimal = 1 - t;
+            return 1 - left * left * left;
+        }
+        if(curve == EASE_IN) {
+            return t * t * t;
+        }
+        if(curve == EASE_IN_OUT) {
+            if(t < 0.5) { return 4 * t * t * t; }
+            left : decimal = 1 - t;
+            return 1 - 4 * left * left * left;
+        }
+        if(curve == EASE_OVERSHOOT) {
+            // the "back" curve: it leaves the end by a tenth of the way before settling on it
+            back : decimal = 1.70158;
+            left : decimal = t - 1;
+            return 1 + (back + 1) * left * left * left + back * left * left;
+        }
+        if(curve == EASE_SPRING) {
+            // a swing that dies away: each swing is smaller than the one before
+            return 1 - exp(0 - 6 * t) * cos(12 * t);
+        }
+        if(curve == EASE_BOUNCE) {
+            // four parabolas, each one lower than the one before
+            if(t < 1 / 2.75) { return 7.5625 * t * t; }
+            if(t < 2 / 2.75) { t = t - 1.5 / 2.75; return 7.5625 * t * t + 0.75; }
+            if(t < 2.5 / 2.75) { t = t - 2.25 / 2.75; return 7.5625 * t * t + 0.9375; }
+            t = t - 2.625 / 2.75;
+            return 7.5625 * t * t + 0.984375;
+        }
+        return t;
+    }
+}
+
+/**
+ * mark - ONE drawn thing of a chart: one bar, or one point of a line.
+ *
+ * A motion is handed every mark at the place where it comes to rest, and
+ * changes it into what it looks like part of the way there. A drawing
+ * function (bars(...).draw_bar, line(...).draw_dot) is handed the mark as it
+ * is to be painted right now.
+ *
+ *      a bar       (x, y) is its top-left corner; width and height its size
+ *      a point     (x, y) is its middle; width and height are 0; size is the dot's radius
+ *
+ * `baseline` is where the value 0 is, down the screen: a bar stands on it (or
+ * hangs from it, when its value is below 0).
+ */
+stable class mark {
+    index : _int64 = 0;             // which one of its series: 0 is the first
+    count : _int64 = 0;             // how many the series has
+    value : decimal = 0;            // the number it shows
+    x : decimal = 0;
+    y : decimal = 0;
+    width : decimal = 0;
+    height : decimal = 0;
+    baseline : decimal = 0;
+    size : decimal = 0;             // a point's radius
+    opacity : decimal = 1;          // 0: invisible .. 1: solid
+    tint : color?;                  // its colour
+    is_bar : _int64 = 0;            // 1: a bar; 0: a point of a line
+
+    /**
+     * Only `part` of the way from the baseline: 0 is flat on the baseline, 1
+     * is the full bar (or the point at its place). The everyday movement of a
+     * chart, written once for bars above 0, bars below 0 and points.
+     */
+    def grow(part: decimal) {
+        if(is_bar == 1) {
+            y = baseline + (y - baseline) * part;
+            height = height * part;
+            if(height < 0) {                // went past the baseline (a curve that swings back): flip it
+                y = y + height;
+                height = 0 - height;
+            }
+        } else {
+            y = baseline + (y - baseline) * part;
+        }
+    }
+}
+
+/**
+ * motion - HOW the marks of a chart move: when the chart appears, and when
+ * its numbers change.
+ *
+ *      chart { ... }.enter(motion.grow().stagger(0.04))            // bars rise one after another
+ *      line(values).enter(motion.draw_on().over(1.2))              // the line is drawn left to right
+ *      chart { ... }.change(motion.glide().ease(EASE_SPRING))      // new numbers spring into place
+ *
+ * WHAT THERE IS
+ *
+ *   motion.grow()        up from the baseline
+ *   motion.draw_on()     from left to right: a line as if drawn by a pen, bars one by one
+ *   motion.rise()        lifted a little into place while fading in
+ *   motion.fade()        fading in where it stands
+ *   motion.none()        no movement: it is simply there
+ *   motion.glide()       for .change(...): from the old numbers to the new ones
+ *   motion.custom { m: mark, t: decimal -> ... }       your own
+ *
+ * AND WHAT EVERY ONE OF THEM TAKES
+ *
+ *   .over(seconds)       how long one mark takes
+ *   .stagger(seconds)    each mark starts this much later than the one before it
+ *   .ease(curve)         EASE_OUT, EASE_SPRING ... (above), or a function of your own
+ *
+ * YOUR OWN: the function gets a mark at the place where it comes to rest and
+ * `t`, how much of the way it has come (0 at the start, 1 when it has arrived
+ * - after the easing, so with EASE_OVERSHOOT it passes 1 on the way). Change
+ * the mark into what it looks like at that moment:
+ *
+ *      motion.custom { m: mark, t: decimal ->
+ *          m.grow(t);                      // up from the baseline ...
+ *          m.opacity = t;                  // ... while fading in
+ *      }
+ *
+ * (They are functions of a class, not bare words, because `fade` already is
+ * a widget of this library and words like `grow` and `none` are likely to
+ * mean something in your own program.)
+ *
+ * (Compose: an AnimationSpec - tween, spring - handed to a chart library.
+ * CSS: a transition with its timing function and delay.)
+ */
+stable class motion {
+    private static const NONE : _int64 = 0;
+    private static const GROW : _int64 = 1;
+    private static const SWEEP : _int64 = 2;
+    private static const RISE : _int64 = 3;
+    private static const FADE : _int64 = 4;
+    private static const CUSTOM : _int64 = 5;
+
+    private how : _int64 = 1;
+    private seconds : decimal = 0.5;
+    private later : decimal = 0;                        // the stagger: seconds between one mark's start and the next
+    private curve : _int64 = EASE_OUT;
+    private own_curve : (decimal)(decimal)?;
+    private shaper : (mark, decimal)()?;
+
+    private motion(kind_of: _int64, time: decimal) {
+        how = kind_of;
+        seconds = time;
+    }
+
+    static def grow() : motion { return new motion(GROW, 0.55); }
+    static def draw_on() : motion { return new motion(SWEEP, 0.9); }
+    static def rise() : motion { return new motion(RISE, 0.45); }
+    static def fade() : motion { return new motion(FADE, 0.4); }
+    static def none() : motion { return new motion(NONE, 0); }
+    static def glide() : motion {
+        made := new motion(GROW, 0.4);
+        made.curve = EASE_IN_OUT;
+        return made;
+    }
+
+    static def custom(shape_it: (mark, decimal)()) : motion {
+        made := new motion(CUSTOM, 0.5);
+        made.shaper = shape_it;
+        return made;
+    }
+
+    /** how long one mark takes, in seconds */
+    def over(time: decimal) : motion {
+        seconds = time;
+        return self;
+    }
+
+    /** each mark starts this many seconds after the one before it */
+    def stagger(seconds_each: decimal) : motion {
+        later = seconds_each;
+        return self;
+    }
+
+    /** the curve the movement follows: EASE_OUT, EASE_SPRING ... */
+    def ease(which: _int64) : motion {
+        curve = which;
+        own_curve = null;
+        return self;
+    }
+
+    /** a curve of your own: the share of the time that has passed in, the share of the way out */
+    def ease(which: (decimal)(decimal)) : motion {
+        own_curve = which;
+        return self;
+    }
+
+    /** does it move at all? */
+    def moves() : _int64 {
+        if(how == NONE || seconds <= 0) { return 0; }
+        return 1;
+    }
+
+    /** is it the kind that uncovers a line from left to right (draw_on)? */
+    def sweeps() : _int64 {
+        if(how == SWEEP) { return 1; }
+        return 0;
+    }
+
+    /** how long it takes until the last of `count` marks has arrived, in seconds */
+    def total(count: _int64) : decimal {
+        if(moves() == 0) { return 0; }
+        if(how == SWEEP) { return seconds; }
+        if(count < 1) { return seconds; }
+        return seconds + later * (count - 1);
+    }
+
+    /**
+     * How much of its way mark `index` of `count` has come when `elapsed`
+     * seconds have passed since the movement began - after the easing.
+     */
+    def progress(elapsed: decimal, index: _int64, count: _int64) : decimal {
+        if(moves() == 0) { return 1; }
+
+        through : decimal = 0;
+        if(how == SWEEP) {
+            // the marks share the whole time: each takes four tenths of it, and they start evenly spread over the rest
+            wait : decimal = 0;
+            if(count > 1) { wait = seconds * 0.6 * index / (count - 1); }
+            through = (elapsed - wait) / (seconds * 0.4);
+        } else {
+            through = (elapsed - later * index) / seconds;
+        }
+        return eased(through);
+    }
+
+    /** how much of the WHOLE movement is done (no stagger): what a line being drawn, or a scale that changes, follows */
+    def overall(elapsed: decimal) : decimal {
+        if(moves() == 0) { return 1; }
+        return eased(elapsed / seconds);
+    }
+
+    private def eased(through: decimal) : decimal {
+        if(through <= 0) { return 0; }
+        if(through >= 1) { return 1; }
+        if(own_curve != null) { return own_curve!!(through); }
+        return easing.at(curve, through);
+    }
+
+    /** change a mark at rest into what it looks like when it has come `t` of its way */
+    def shape(m: mark, t: decimal) {
+        if(how == GROW) {
+            m.grow(t);
+        } else if(how == SWEEP) {
+            if(m.is_bar == 1) { m.grow(t); }           // (a line is uncovered as a whole: chart.sharp)
+        } else if(how == RISE) {
+            if(m.is_bar == 1) { m.grow(0.7 + 0.3 * t); }
+            else { m.y = m.y + (1 - t) * 18; }
+            m.opacity = m.opacity * num.between(t, 0, 1);
+        } else if(how == FADE) {
+            m.opacity = m.opacity * num.between(t, 0, 1);
+        } else if(how == CUSTOM) {
+            shaper!!(m, t);
+        }
+    }
+}

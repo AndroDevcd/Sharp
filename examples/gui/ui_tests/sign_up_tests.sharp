@@ -1,0 +1,127 @@
+mod main;
+
+import ( std, std.testing, std.guikit.*, std.guikit.testing )
+
+/**
+ * UI TESTS OF A SMALL APP: a sign-up form, the page it leads to, and a dialog.
+ *
+ *      sharpc sign_up_tests.sharp -o sign_up_tests
+ *      sharp sign_up_tests             runs the tests: no window opens, it takes a moment
+ *      sharp sign_up_tests -watch      the same tests in a real window, slowly, to look at
+ *
+ * The app is the class sign_up below; the tests follow it. Every widget a
+ * test uses has a tag (modifier().tag("...")): that is what the tests find
+ * it by.
+ */
+class sign_up base composable {
+    name := state("");
+    email := state("");
+    agreed := state(0);
+    plan := state(1);
+    problem := state("");
+    joined := state(0);
+    leaving := state(0);
+
+    def submit() {
+        if(name.value.size() == 0) {
+            problem.value = "Say what to call you";
+        } else if(!email.value.find("@")) {
+            problem.value = "That is not an email address";
+        } else if(agreed.value == 0) {
+            problem.value = "The terms have to be agreed to";
+        } else {
+            problem.value = "";
+            joined.value = 1;
+        }
+    }
+
+    override def build() : element {
+        if(joined.value == 1) {
+            return column(modifier().fill().padding(32)) {
+                text("Welcome, " + name.value, modifier().tag("welcome")).size(28).bold();
+                text(plan.value == 2 ? "You are on the yearly plan" : "You are on the monthly plan", modifier().tag("plan_line"));
+                button("Sign out", modifier().tag("sign_out")) { leaving.value = 1; };
+                dialog(leaving) {
+                    text("Sign out of your account?");
+                    row {
+                        button("Stay", modifier().tag("stay")) { leaving.value = 0; }.outline();
+                        button("Sign out", modifier().tag("really_out")) {
+                            leaving.value = 0;
+                            joined.value = 0;
+                            name.value = "";
+                            email.value = "";
+                            agreed.value = 0;
+                        };
+                    }.gap(8);
+                };
+            }.gap(14);
+        }
+        return column(modifier().fill().padding(32)) {
+            text("Create your account").size(28).bold();
+            text_field(name, modifier().tag("name").width(340)).label("Name");
+            text_field(email, modifier().tag("email").width(340)).label("Email");
+            row {
+                radio("Monthly", plan, 1, modifier().tag("monthly"));
+                radio("Yearly", plan, 2, modifier().tag("yearly"));
+            }.gap(16);
+            checkbox("I agree to the terms", agreed, modifier().tag("agree"));
+            text(problem.value, modifier().tag("problem").show(problem.value.size() > 0 ? 1 : 0)).color(gui.rgb(230, 90, 90));
+            button("Join", modifier().tag("join")) { submit(); };
+        }.gap(14);
+    }
+}
+
+def main(args: string[]) {
+    tests("signing up") {
+        ui_test("an empty form says what is missing") {
+            set_content(new sign_up());
+            on_tag("problem").should_not_exist();
+            on_tag("join").click();
+            on_tag("problem").should_be_shown().should_say("Say what to call you");
+        };
+
+        ui_test("an email address needs an @") {
+            set_content(new sign_up());
+            on_tag("name").type("Ann");
+            on_tag("email").type("ann.example.com");
+            on_tag("join").click();
+            on_tag("problem").should_say("That is not an email address");
+            on_tag("email").replace("ann@example.com");
+            on_tag("join").click();
+            on_tag("problem").should_say("The terms have to be agreed to");
+        };
+
+        ui_test("a filled-in form leads to the welcome page") {
+            set_content(new sign_up());
+            on_tag("name").type("Ann");
+            on_tag("email").type("ann@example.com");
+            on_tag("yearly").click().should_be_selected();
+            on_tag("monthly").should_be_off();
+            on_tag("agree").click().should_be_on();
+            on_tag("join").click();
+
+            on_tag("welcome").should_say("Welcome, Ann");
+            on_tag("plan_line").should_say("You are on the yearly plan");
+            on_tag("join").should_not_exist();
+        };
+
+        ui_test("signing out asks first") {
+            set_content(new sign_up());
+            on_tag("name").type("Ann");
+            on_tag("email").type("ann@example.com");
+            on_tag("agree").click();
+            on_tag("join").click();
+
+            on_tag("sign_out").click();
+            on_text("Sign out of your account?").should_be_shown();
+            on_tag("stay").click();
+            on_tag("welcome").should_be_shown();
+
+            on_tag("sign_out").click();
+            on_tag("really_out").click();
+            on_tag("join").should_be_shown();
+            on_tag("name").should_say("");
+        };
+    };
+    finish_tests();
+}

@@ -1,0 +1,12 @@
+mod frontend.syntax.assembly;
+
+/**
+ * `asm { }` BLOCKS: the instruction table and their parser
+ *
+ * The files of this package (module `frontend.syntax.assembly`):
+ *
+ *      asm_instructions.sharp  every instruction name and the operands it takes
+ *      parse_asm.sharp         parses the inside of an asm block
+ *
+ * This file is the package's front door: it only says what is where.
+ */

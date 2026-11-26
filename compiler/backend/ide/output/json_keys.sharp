@@ -1,0 +1,116 @@
+mod backend.ide.output;
+
+import (
+    std.io
+)
+
+/**
+ * THE NAMES OF THE JSON MEMBERS, MADE ONCE
+ *
+ * Every member of a JSON object has a name: `"name"`, `"flags"`, `"at"`. The
+ * natural way to write one is `w.key("name")` - but on this VM a string
+ * literal is not free: every time a line with `"name"` in it RUNS, a new
+ * string object is made (three objects, about a hundred bytes). The index of
+ * the standard library has some 6,500 members with a dozen names each, so the
+ * literals alone were 800,000 objects and 39 MB on every run: more than
+ * everything else the editor files cost, and enough to bring on a pause of the
+ * garbage collector (a quarter of a second) in the middle of the writing.
+ *
+ * A constant is made once, when the program starts, and reading it makes
+ * nothing. So the names are constants here, and the writers say
+ *
+ *      w.key(KEY_NAME);  w.text(field.name);
+ *
+ * `KEY_X` is always the text `x`, in the spelling of doc/ide.md section 4;
+ * there is nothing else to know about this file. A name that is new to the
+ * format gets a line here.
+ *
+ * (Measured on the standard library: 43 MB and 920,000 objects per run before,
+ * see doc/ide.md 4.8 for the figures after.)
+ *
+ *      C++ comparison: `static const std::string` members instead of
+ *      constructing a std::string from a literal at every call.
+ */
+const KEY_ALIASES       : string = "aliases";
+const KEY_ARGS          : string = "args";
+const KEY_ARRAY         : string = "array";
+const KEY_AT            : string = "at";
+const KEY_BASE          : string = "base";
+const KEY_BODIES        : string = "bodies";
+const KEY_BODY          : string = "body";
+const KEY_BOUND         : string = "bound";
+const KEY_CLASS         : string = "class";
+const KEY_CLASSES       : string = "classes";
+const KEY_CODE          : string = "code";
+const KEY_COLUMN        : string = "column";
+const KEY_CONST         : string = "const";
+const KEY_CONSTRUCTORS  : string = "constructors";
+const KEY_DECL          : string = "decl";
+const KEY_DECLARATIONS  : string = "declarations";
+const KEY_DIAGNOSTICS   : string = "diagnostics";
+const KEY_ELEMENT       : string = "element";
+const KEY_END_COLUMN    : string = "end_column";
+const KEY_END_LINE      : string = "end_line";
+const KEY_ERRORS        : string = "errors";
+const KEY_EXTENDS       : string = "extends";
+const KEY_EXTENSION     : string = "extension";
+const KEY_FIELDS        : string = "fields";
+const KEY_FILE          : string = "file";
+const KEY_FILES         : string = "files";
+const KEY_FLAGS         : string = "flags";
+const KEY_FORMAT        : string = "format";
+const KEY_FROM          : string = "from";
+const KEY_FUNCTION      : string = "function";
+const KEY_FUNCTIONS     : string = "functions";
+const KEY_GETTER        : string = "getter";
+const KEY_GLOBALS       : string = "globals";
+const KEY_GROUPS        : string = "groups";
+const KEY_HASH          : string = "hash";
+const KEY_HELPS         : string = "helps";
+const KEY_ID            : string = "id";
+const KEY_IMPORTS       : string = "imports";
+const KEY_IN            : string = "in";
+const KEY_INSTANCE      : string = "instance";
+const KEY_INTERFACES    : string = "interfaces";
+const KEY_KIND          : string = "kind";
+const KEY_LABEL         : string = "label";
+const KEY_LAMBDA        : string = "lambda";
+const KEY_LEVEL         : string = "level";
+const KEY_LIBRARY       : string = "library";
+const KEY_LINE          : string = "line";
+const KEY_LINES         : string = "lines";
+const KEY_LOCALS        : string = "locals";
+const KEY_MESSAGE       : string = "message";
+const KEY_MODULE        : string = "module";
+const KEY_MODULES       : string = "modules";
+const KEY_MUTATED       : string = "mutated";
+const KEY_NAME          : string = "name";
+const KEY_NODE          : string = "node";
+const KEY_NOTES         : string = "notes";
+const KEY_NULLABLE      : string = "nullable";
+const KEY_NUMBER        : string = "number";
+const KEY_OPERATOR      : string = "operator";
+const KEY_PARAM         : string = "param";
+const KEY_PARAMS        : string = "params";
+const KEY_PATH          : string = "path";
+const KEY_PROBLEM       : string = "problem";
+const KEY_RELATED       : string = "related";
+const KEY_RESULT        : string = "result";
+const KEY_RUN           : string = "run";
+const KEY_SETTER        : string = "setter";
+const KEY_SEVERITY      : string = "severity";
+const KEY_SIG           : string = "sig";
+const KEY_SIZE          : string = "size";
+const KEY_STATIC        : string = "static";
+const KEY_TEXT          : string = "text";
+const KEY_TO            : string = "to";
+const KEY_TPARAMS       : string = "tparams";
+const KEY_TRUNCATED     : string = "truncated";
+const KEY_TYPE          : string = "type";
+const KEY_TYPES         : string = "types";
+const KEY_UNREADABLE    : string = "unreadable";
+const KEY_USES          : string = "uses";
+const KEY_VALUES        : string = "values";
+const KEY_VISIBLE       : string = "visible";
+const KEY_WARNINGS      : string = "warnings";
+const KEY_WRITTEN_IN_MS : string = "written_in_ms";

@@ -1,0 +1,188 @@
+mod std;
+
+/**
+* @class synced_list
+*
+* Description:
+* A list<T> that several threads may use at the same time: the same
+* functions, each run inside lock(self).
+*
+* Each single call is atomic; a SEQUENCE of calls is not. "if(!l.is_empty())
+* l.pop_last()" can still fail when another thread empties the list in
+* between. To loop while other threads change the list, loop over a
+* snapshot: foreach (get_elements() copies the elements) or to_list() - and
+* to_list() is also the way to the functions of a list (filter, map ...).
+*/
+class synced_list<T base _object_> : loopable<T> {
+    /** the list that does the work; every use of it is inside lock(self) */
+    private items : list<T>;
+
+    synced_list() {
+        items = new list<T>();
+    }
+
+    synced_list(starting_capacity: int) {
+        items = new list<T>(starting_capacity);
+    }
+
+    /** A copy of the elements as an array, or null when the list is empty (what foreach uses). */
+    override def get_elements() : T[]? {
+        lock(self) { return items.get_elements(); }
+    }
+
+    /** A new array with the elements (length 0 for an empty list). */
+    def to_array() : T[] {
+        lock(self) { return items.to_array(); }
+    }
+
+    /** A new plain list with the elements. */
+    def to_list() : list<T> {
+        lock(self) { return items.sub_list(0, items.size()); }
+    }
+
+    def operator[](index: int): T {
+        lock(self) { return items.at(index); }
+    }
+
+    def at(index: int): T {
+        lock(self) { return items.at(index); }
+    }
+
+    def first(): T {
+        lock(self) { return items.first(); }
+    }
+
+    def last(): T {
+        lock(self) { return items.last(); }
+    }
+
+    /** Replace the element at a position; returns the element that was there. */
+    def put(index: int, element: T) : T {
+        lock(self) { return items.put(index, element); }
+    }
+
+    def add(element: T) {
+        lock(self) { items.add(element); }
+    }
+
+    /** Add every element of a plain list at the end, in order. */
+    def add_all(lst: list<T>) {
+        lock(self) { items.add_all(lst); }
+    }
+
+    def insert(index: int, element: T) {
+        lock(self) { items.insert(index, element); }
+    }
+
+    def clear() {
+        lock(self) { items.clear(); }
+    }
+
+    /** Remove the last element and return it; throws out_of_bounds_exception when the list is empty. */
+    def pop_last() : T {
+        lock(self) { return items.pop_last(); }
+    }
+
+    /** Remove the first element and return it; throws out_of_bounds_exception when the list is empty. */
+    def pop_first() : T {
+        lock(self) { return items.pop_first(); }
+    }
+
+    /** Remove the last element; does nothing when the list is empty. */
+    def pop_back() {
+        lock(self) { items.pop_back(); }
+    }
+
+    /** Remove the first element that equals `val`; does nothing when there is none. */
+    def remove(val: T) {
+        lock(self) { items.remove(val); }
+    }
+
+    /** Remove the first element for which compare_fun(val, element) answers true. */
+    def remove(val: T, compare_fun: (T, T)(bool)) {
+        lock(self) { items.remove(val, compare_fun); }
+    }
+
+    def remove_at(index: int) {
+        lock(self) { items.remove_at(index); }
+    }
+
+    def size() : _int64 {
+        lock(self) { return items.size(); }
+    }
+
+    def is_empty() : bool {
+        lock(self) { return items.is_empty(); }
+    }
+
+    def contains(element: T) : bool {
+        lock(self) { return items.contains(element); }
+    }
+
+    /** Position of the first element that equals `element`, or -1. */
+    def index_of(element: T) : _int64 {
+        lock(self) { return items.index_of(element); }
+    }
+
+    /** Position of the first element for which find_func(element, comparer) answers true, or -1. */
+    def index_of(comparer: T, find_func: (T, T)(bool)) : _int64 {
+        lock(self) { return items.index_of(comparer, find_func); }
+    }
+
+    /** Position of the last element that equals `element`, or -1. */
+    def last_index_of(element: T) : _int64 {
+        lock(self) { return items.last_index_of(element); }
+    }
+
+    /** The first element for which find_func(element, comparer) answers true, or null. */
+    def find(comparer : T, find_func: (T, T)(bool)) : T? {
+        lock(self) { return items.find(comparer, find_func); }
+    }
+
+    /** Replace the first element for which compare_fun(val, element) answers true with `val`. */
+    def replace(val: T, compare_fun: (T, T)(decimal)) : bool {
+        lock(self) { return items.replace(val, compare_fun); }
+    }
+
+    /** Sort in place (see list.sort): no other thread sees the list half sorted. */
+    def sort(compare: (T, T)(decimal)) {
+        lock(self) { items.sort(compare); }
+    }
+
+    /** Reverse the order of the elements in place. */
+    def reverse() {
+        lock(self) { items.reverse(); }
+    }
+
+    /** "[ a, b, c ]" */
+    override def to_string() : string? {
+        elements := to_array();
+        str := new string_builder();
+
+        str += "[ ";
+        for(i : _int64 = 0; i < sizeof(elements); i++) {
+            str += elements[i];
+
+            if((i + 1) < sizeof(elements)) {
+                str += ", ";
+            }
+        }
+
+        str += " ]";
+        return str.to_string();
+    }
+
+    override def hash() : int {
+        elements := to_array();
+        hash_value := 0;
+        multiplier := 0;
+        const m := 1e9 + 9;
+
+        for(i : _int64 = 0; i < sizeof(elements); i++) {
+            hash_value = (hash_value + elements[i].hash().value + multiplier) % m;
+            multiplier = (i + 1) * ((i + 1) % 10);
+        }
+
+        return hash_value;
+    }
+}

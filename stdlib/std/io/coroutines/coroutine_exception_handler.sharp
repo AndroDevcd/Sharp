@@ -1,0 +1,26 @@
+mod std.io.coroutines;
+
+/**
+ * coroutine_exception_handler - what happens to an exception nobody is left
+ * to receive: a coroutine started with launch() directly in global_scope (or
+ * in a supervisor) ended with an exception that is not a cancellation.
+ *
+ * USAGE
+ *     class log_errors : coroutine_exception_handler {
+ *         override def handle_exception(failed: job, error: throwable) {
+ *             println("coroutine failed: ${error.get_message()}");
+ *         }
+ *     }
+ *
+ *     coroutine_exceptions.set_handler(new log_errors());
+ *
+ * The handler runs in the fiber that finished the failed coroutine: keep it
+ * short, do not block in it, and do not throw from it (an exception thrown by
+ * the handler is dropped).
+ *
+ * Kotlin equivalent: kotlinx.coroutines.CoroutineExceptionHandler.
+ * Java equivalent: Thread.UncaughtExceptionHandler.
+ */
+interface coroutine_exception_handler {
+    def handle_exception(failed: job, error: throwable);
+}

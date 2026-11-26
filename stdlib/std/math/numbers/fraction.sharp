@@ -1,0 +1,392 @@
+mod std.math;
+
+/**
+ * @class fraction
+ *
+ * An exact rational number numerator / denominator.
+ *
+ * Unlike a floating point number a fraction has no rounding error:
+ * 1/3 + 1/6 is exactly 1/2. A fraction is always kept NORMALISED:
+ *
+ *   - numerator and denominator have no common divisor (6/8 is stored as 3/4)
+ *   - the denominator is positive (1/-2 is stored as -1/2)
+ *   - zero is 0/1
+ *
+ * so two equal fractions always have equal fields. Fractions are VALUES:
+ * the fields cannot be changed from outside and every operation returns a
+ * new fraction.
+ *
+ *     a := new fraction(1, 3);
+ *     b := new fraction(1, 6);
+ *     c := a + b;                 // 1/2
+ *     d := c * 4;                 // 2
+ *     x : decimal = c.to_var();       // 0.5
+ *
+ * Operators: + - * / with a fraction or a whole number on the right,
+ * unary -, == != < > <= >=.
+ *
+ * Numerator and denominator are native numbers, so they are exact up to
+ * 2^53; results whose parts grow beyond that lose exactness (use big_integer
+ * based arithmetic for such sizes).
+ */
+class fraction {
+    /** the top number; carries the sign of the fraction (read only) */
+    numerator : decimal = 0;
+        private set v -> { numerator = v; }
+
+    /** the bottom number; always >= 1 (read only) */
+    denominator : decimal = 1;
+        private set v -> { denominator = v; }
+
+    /**
+     * The fraction numerator / denominator, normalised.
+     *
+     * Throws division_by_zero_exception when denominator is 0 and
+     * illegal_argument_exception when either number is not whole.
+     */
+    fraction(numerator: decimal, denominator: decimal) {
+        if(denominator == 0)
+            throw new division_by_zero_exception("fraction: the denominator cannot be 0");
+        if(floor(numerator) != numerator || floor(denominator) != denominator)
+            throw new illegal_argument_exception("fraction: numerator and denominator must be whole numbers");
+
+        // normalise: positive denominator, no common divisor
+        if(denominator < 0) {
+            numerator = 0 - numerator;
+            denominator = 0 - denominator;
+        }
+
+        divisor : decimal = gcd(numerator, denominator);
+        if(divisor > 1) {
+            numerator = numerator / divisor;
+            denominator = denominator / divisor;
+        }
+
+        self->numerator = numerator;
+        self->denominator = denominator;
+    }
+
+    /**
+     * The whole number `whole` as a fraction (whole / 1): fraction.of(5).
+     * (A static function and not a constructor on purpose: a constructor
+     * taking one number would make every number silently convertible to a
+     * fraction, which makes `new fraction(7)` and `f * 2` ambiguous.)
+     *
+     * Throws illegal_argument_exception when it is not whole (see from_decimal).
+     */
+    static def of(whole: decimal): fraction {
+        return new fraction(whole, 1);
+    }
+
+    /** a copy of another fraction */
+    fraction(other: fraction) {
+        numerator = other.numerator;
+        denominator = other.denominator;
+    }
+
+    /** 0/1 */
+    static def zero(): fraction { return new fraction(0, 1); }
+
+    /** 1/1 */
+    static def one(): fraction { return new fraction(1, 1); }
+
+    /**
+     * Read a fraction from text: "3/4", "-6/8" (gives -3/4), "5" (gives 5/1).
+     * Spaces around the numbers are not allowed.
+     *
+     * Throws number_format_exception when the text is not of that form and
+     * division_by_zero_exception when the denominator is 0.
+     */
+    static def parse(text: string): fraction {
+        length : decimal = text.size();
+        slash : decimal = 0 - 1;
+        for(i : decimal = 0; i < length; i++) {
+            if(text.at(i).value == '/') {
+                slash = i;
+                break;
+            }
+        }
+
+        if(slash < 0) {
+            return new fraction(parse_whole(text, 0, length), 1);
+        }
+        return new fraction(parse_whole(text, 0, slash), parse_whole(text, slash + 1, length));
+    }
+
+    /** read the whole number in text[from .. to), with an optional leading sign */
+    private static def parse_whole(text: string, from: decimal, to: decimal): decimal {
+        position : decimal = from;
+        negative : decimal = 0;
+
+        if(position < to && (text.at(position).value == '-' || text.at(position).value == '+')) {
+            negative = text.at(position).value == '-';
+            position++;
+        }
+
+        if(position >= to)
+            throw new number_format_exception("fraction: not a fraction: " + text);
+
+        result : decimal = 0;
+        while(position < to) {
+            digit : decimal = text.at(position).value - '0';
+            if(digit < 0 || digit > 9)
+                throw new number_format_exception("fraction: not a fraction: " + text);
+            result = result * 10 + digit;
+            position++;
+        }
+
+        if(negative) return 0 - result;
+        return result;
+    }
+
+    /**
+     * The fraction closest to `value` whose denominator is at most
+     * `max_denominator`: from_decimal(0.75, 100) is 3/4,
+     * from_decimal(3.14159265, 1000) is 355/113.
+     *
+     * Algorithm: continued fractions. value = a0 + 1 / (a1 + 1 / (a2 + ...));
+     * cutting the expansion after each term gives the "convergents"
+     * h(n) / k(n) with h(n) = a(n) h(n-1) + h(n-2), k(n) = a(n) k(n-1) + k(n-2),
+     * each the best approximation for its denominator size. The last
+     * convergent whose denominator still fits is returned.
+     *
+     * Throws illegal_argument_exception when value is NaN or infinite or
+     * max_denominator is < 1.
+     */
+    static def from_decimal(value: decimal, max_denominator: decimal): fraction {
+        if((value - value) != 0)
+            throw new illegal_argument_exception("fraction: NaN and infinity are not fractions");
+        if(max_denominator < 1)
+            throw new illegal_argument_exception("fraction: max_denominator must be >= 1");
+
+        negative : decimal = value < 0;
+        remaining : decimal = abs(value);
+
+        // h(-2) / k(-2) = 0 / 1 and h(-1) / k(-1) = 1 / 0
+        h_before : decimal = 0;
+        k_before : decimal = 1;
+        h_last : decimal = 1;
+        k_last : decimal = 0;
+
+        for(step : decimal = 0; step < 64; step++) {
+            term : decimal = floor(remaining);
+            h_next : decimal = term * h_last + h_before;
+            k_next : decimal = term * k_last + k_before;
+
+            if(k_next > max_denominator) break;
+
+            h_before = h_last;
+            k_before = k_last;
+            h_last = h_next;
+            k_last = k_next;
+
+            rest : decimal = remaining - term;
+            if(rest < 0.000000000001) break;         // the expansion has ended
+            remaining = 1 / rest;
+        }
+
+        if(negative) return new fraction(0 - h_last, k_last);
+        return new fraction(h_last, k_last);
+    }
+
+    /** a/b + c/d = (a d + c b) / (b d) */
+    def operator+(other: fraction): fraction {
+        return new fraction(
+            numerator * other.denominator + other.numerator * denominator,
+            denominator * other.denominator);
+    }
+
+    /** add a whole number */
+    def operator+(whole: decimal): fraction {
+        return operator+(new fraction(whole, 1));
+    }
+
+    /** a/b - c/d = (a d - c b) / (b d) */
+    def operator-(other: fraction): fraction {
+        return new fraction(
+            numerator * other.denominator - other.numerator * denominator,
+            denominator * other.denominator);
+    }
+
+    /** subtract a whole number */
+    def operator-(whole: decimal): fraction {
+        return operator-(new fraction(whole, 1));
+    }
+
+    /** the negation: -a/b */
+    def operator-(): fraction {
+        return new fraction(0 - numerator, denominator);
+    }
+
+    /** a/b * c/d = (a c) / (b d) */
+    def operator*(other: fraction): fraction {
+        return new fraction(numerator * other.numerator, denominator * other.denominator);
+    }
+
+    /** multiply by a whole number */
+    def operator*(whole: decimal): fraction {
+        return operator*(new fraction(whole, 1));
+    }
+
+    /**
+     * (a/b) / (c/d) = (a d) / (b c).
+     * Throws division_by_zero_exception when `other` is zero.
+     */
+    def operator/(other: fraction): fraction {
+        if(other.numerator == 0)
+            throw new division_by_zero_exception("fraction: division by zero");
+        return new fraction(numerator * other.denominator, denominator * other.numerator);
+    }
+
+    /**
+     * Divide by a whole number.
+     * Throws division_by_zero_exception when it is 0.
+     */
+    def operator/(whole: decimal): fraction {
+        return operator/(new fraction(whole, 1));
+    }
+
+    /**
+     * Three-way comparison: -1 when this < other, 0 when equal, 1 when
+     * this > other. Compares a d with c b (both denominators are positive).
+     */
+    def compare_to(other: fraction): decimal {
+        left : decimal = numerator * other.denominator;
+        right : decimal = other.numerator * denominator;
+        if(left < right) return 0 - 1;
+        if(left > right) return 1;
+        return 0;
+    }
+
+    /** true when both fractions have the same value (fractions are normalised, so the fields are compared) */
+    def operator==(other: fraction): bool {
+        return numerator == other.numerator && denominator == other.denominator;
+    }
+
+    /** true when the values differ */
+    def operator!=(other: fraction): bool {
+        return numerator != other.numerator || denominator != other.denominator;
+    }
+
+    /** true when this fraction is smaller than `other` */
+    def operator<(other: fraction): bool {
+        return compare_to(other) < 0;
+    }
+
+    /** true when this fraction is larger than `other` */
+    def operator>(other: fraction): bool {
+        return compare_to(other) > 0;
+    }
+
+    /** true when this fraction is smaller than or equal to `other` */
+    def operator<=(other: fraction): bool {
+        return compare_to(other) <= 0;
+    }
+
+    /** true when this fraction is larger than or equal to `other` */
+    def operator>=(other: fraction): bool {
+        return compare_to(other) >= 0;
+    }
+
+    /**
+     * The fraction turned upside down: b/a.
+     * Throws division_by_zero_exception when this fraction is zero.
+     */
+    def reciprocal(): fraction {
+        if(numerator == 0)
+            throw new division_by_zero_exception("fraction: zero has no reciprocal");
+        return new fraction(denominator, numerator);
+    }
+
+    /** the fraction without its sign */
+    def abs(): fraction {
+        return new fraction(abs(numerator), denominator);
+    }
+
+    /**
+     * The fraction raised to a whole power; a negative exponent inverts it
+     * first: (2/3)^2 == 4/9, (2/3)^-2 == 9/4, anything^0 == 1.
+     *
+     * Throws illegal_argument_exception when exponent is not whole and
+     * division_by_zero_exception for zero raised to a negative power.
+     */
+    def pow(exponent: decimal): fraction {
+        if(floor(exponent) != exponent)
+            throw new illegal_argument_exception("fraction: the exponent must be a whole number");
+
+        if(exponent < 0) {
+            if(numerator == 0)
+                throw new division_by_zero_exception("fraction: zero cannot be raised to a negative power");
+            return new fraction(int_pow(denominator, 0 - exponent), int_pow(numerator, 0 - exponent));
+        }
+        return new fraction(int_pow(numerator, exponent), int_pow(denominator, exponent));
+    }
+
+    /** -1, 0 or 1: the sign of the fraction */
+    def sign(): decimal {
+        if(numerator > 0) return 1;
+        if(numerator < 0) return 0 - 1;
+        return 0;
+    }
+
+    /** true when the fraction is 0 */
+    def is_zero(): bool {
+        return numerator == 0;
+    }
+
+    /** true when the fraction is a whole number (its denominator is 1) */
+    def is_whole(): bool {
+        return denominator == 1;
+    }
+
+    /** the value as a native floating point number: numerator / denominator */
+    def to_var(): decimal {
+        return numerator / denominator;
+    }
+
+    /** the largest whole number <= the fraction: floor(7/2) == 3, floor(-7/2) == -4 */
+    def floor(): decimal {
+        return floor(numerator / denominator);
+    }
+
+    /** the smallest whole number >= the fraction: ceil(7/2) == 4, ceil(-7/2) == -3 */
+    def ceil(): decimal {
+        return ceil(numerator / denominator);
+    }
+
+    /** the nearest whole number, ties away from zero: round(5/2) == 3, round(-5/2) == -3 */
+    def round(): decimal {
+        return round_half_away(numerator / denominator);
+    }
+
+    /** the whole part, rounded toward zero: 7/4 -> 1, -7/4 -> -1 */
+    def whole_part(): decimal {
+        return trunc(numerator / denominator);
+    }
+
+    /** "3/4", or just "5" when the denominator is 1 */
+    override def to_string(): string? {
+        if(denominator == 1) {
+            return number_to_string(numerator);
+        }
+        return number_to_string(numerator) + "/" + number_to_string(denominator);
+    }
+
+    /**
+     * Whole part and rest written separately: 7/4 is "1 3/4", -7/4 is
+     * "-1 3/4", 3/4 is "3/4" and 8/4 is "2".
+     */
+    def to_mixed_string(): string {
+        whole : decimal = trunc(numerator / denominator);
+        rest : decimal = abs(numerator) - abs(whole) * denominator;
+
+        if(rest == 0) return number_to_string(whole);
+        if(whole == 0) return number_to_string(numerator) + "/" + number_to_string(denominator);
+        return number_to_string(whole) + " " + number_to_string(rest) + "/" + number_to_string(denominator);
+    }
+
+    /** a hash code built from numerator and denominator (equal fractions have equal hashes) */
+    override def hash(): int {
+        return (numerator * 31 + denominator) % 2147483647;
+    }
+}

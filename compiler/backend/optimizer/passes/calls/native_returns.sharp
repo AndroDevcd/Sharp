@@ -1,0 +1,349 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.optimizer.analysis
+)
+
+/**
+ * NATIVE RETURNS: a function that hands back a number in an object gets a
+ * second version that hands back the number
+ *
+ * Sharp's numbers are often objects (`int`, `long`, `bool` ... - "boxes").
+ * A function that returns one makes an object, puts the number in it and
+ * returns the object; the caller, more often than not, takes the number
+ * straight back out and throws the object away:
+ *
+ *      def scale(x: decimal) : int { return new int(x * 2); }
+ *      ...
+ *      total += scale(i).value;
+ *
+ *      scale                                   the caller
+ *      -----------------------------           ------------------------------
+ *      new_object  %4, std#int                 call      %7, scale(%2)
+ *      set_field   %4.value, %3                get_field %8, %7.value      <- the only thing done with %7
+ *      return_value %4
+ *
+ * Box elimination (box_elimination.sharp) cannot help: the object crosses a
+ * call, and it only sees one function at a time. Inlining helps when `scale`
+ * is small enough to copy into the caller - and not otherwise. This pass is
+ * for the "otherwise": `scale` gets a TWIN that returns the number itself,
+ *
+ *      scale$value                             the caller
+ *      -----------------------------           ------------------------------
+ *      new_object  %4, std#int                 call  %9, scale$value(%2)   <- %9 is a number slot
+ *      set_field   %4.value, %3                copy  %8, %9
+ *      get_field   %5, %4.value
+ *      return_value %5
+ *
+ * and now the object in the twin never leaves it, so box elimination removes
+ * it there: no object is made for this call any more. The original `scale` is
+ * never changed, and every caller that does anything else with the result -
+ * keeps it, passes it on, compares it, calls a function on it - still calls
+ * the original and still gets a real object.
+ *
+ * WHICH FUNCTIONS GET A TWIN (returns_fresh_boxes): one where every `return`
+ * gives an object made right there by `new_object`, and that object goes
+ * nowhere else in the function - it is only filled, read and returned. Then
+ * the object is always there (never null) and nobody else can have a
+ * reference to it, so "the number in it" is known for certain at the return
+ * and cannot change afterwards. A function with a `try`, an `asm` block or a
+ * closure of its own is left alone.
+ *
+ * WHICH CALLS ARE REDIRECTED (site_field): a direct call whose result is read
+ * only as the OBJECT of field reads of ONE number field, right after the
+ * call. Anything else, and the call is left as it is.
+ *
+ * Why it is safe to read the field in the callee instead of in the caller:
+ * the caller's read was legal for whatever the function returns (the type
+ * rules), the object is never null (it was just made), and nothing can change
+ * the field between the return and the caller's read (nobody else has it).
+ *
+ * The twin is a function of the executable like any other: it gets the next
+ * free address, a record in the file, a place in its class's list of methods
+ * (add_twin). It is made AFTER inlining, when the constructor of the box has
+ * been copied into the function and the `new_object` is plain to see.
+ *
+ *      C++ comparison: passes/pass_native_returns.cpp. That one works on the
+ *      finished bytecode: it matches the exact instructions of a number box's
+ *      constructor at the end of the callee and `call ; popobj2 ; getf` in the
+ *      caller, and writes a second copy of the function's bytecode. Here the
+ *      rule is about where the reference goes, so any class with a number
+ *      field qualifies, and the twin is only the original's IR with one
+ *      instruction added per return - the passes that already exist do the rest.
+ */
+
+/** what make_native_returns did */
+class native_returns_result {
+    twins := new list<function_layout>();   // the functions added, in the order they were first needed
+    rewritten := new number_list();         // the positions in `chosen` of the callers that were changed
+    sites : _int64 = 0;                     // how many calls now go to a twin
+}
+
+/** a twin, and what it is the twin of */
+class native_twin {
+    original : function_layout;
+    field : sharp_declaration;      // the number field of the returned object the twin gives back
+    twin : function_layout;
+
+    native_twin(original: function_layout, field: sharp_declaration, twin: function_layout) {
+        self->original = original;
+        self->field = field;
+        self->twin = twin;
+    }
+}
+
+/**
+ * Redirect every call that only wants the number out of a freshly made object
+ * to a twin of the callee that returns the number, and add those twins to the
+ * program. `chosen` are the functions the optimizer works on.
+ */
+def make_native_returns(layout: program_layout, chosen: list<function_layout>) : native_returns_result {
+    result := new native_returns_result();
+    made := new list<native_twin>();
+
+    // asked once per function: -1 not asked yet, 0 no, 1 yes (by address)
+    fresh := new _int64[layout.functions.size() + 1];
+    for(i : _int64 = 0; i < sizeof(fresh); i++) { fresh[i] = 0 - 1; }
+    known_functions : _int64 = layout.functions.size();     // twins are added behind these
+
+    // ---- 1. the callers: every call that qualifies is redirected to a twin (made empty for now)
+    for(c : _int64 = 0; c < chosen.size(); c++) {
+        caller := chosen.at(c);
+        code : ir_function = caller.ir!!;
+        if(code.tries.size() > 0) { continue; }         // (the slots a `try` names are written by the VM: left alone)
+        graph : flow_graph? = null;                     // made when the first call that might qualify is met
+        live : liveness? = null;
+        reads := new number_list();
+        changed : _int64 = 0;
+        total : _int64 = code.instructions.size();
+        for(i : _int64 = 0; i < total; i++) {
+            call := code.instructions.at(i);
+            if(call.kind != IR_CALL || call.number != CALL_HOW_DIRECT || call.declaration == null || call.target < 0) { continue; }
+            address : _int64 = call.declaration!!.address;
+            if(address < 0 || address >= known_functions) { continue; }
+            callee := layout.functions.at(address);
+            if(fresh[address] < 0) { fresh[address] = returns_fresh_boxes(callee); }
+            if(fresh[address] == 0) { continue; }
+
+            // (nothing below moves an instruction, so the graph made once stays right for the whole function)
+            if(graph == null) {
+                graph = build_flow_graph(code);
+                live = compute_liveness(graph!!);
+            }
+            field := site_field(code, graph!!, live!!, i, reads);
+            if(field == null) { continue; }
+
+            twin := twin_for(layout, made, callee, field!!);
+            number_slot : _int64 = code.slot_kinds.count;
+            code.slot_kinds.add(kind_of_field(field!!));
+            redirect(code, call, twin.of, number_slot, reads);
+            result.sites++;
+            changed = 1;
+        }
+        if(changed == 1) { result.rewritten.add(c); }
+    }
+
+    // ---- 2. the twins get their code: the original's as it is NOW (it may have been a caller above)
+    for(t : _int64 = 0; t < made.size(); t++) {
+        entry := made.at(t);
+        entry.twin.ir = code_of_twin(entry.original.ir!!, entry.field, entry.twin.full_name);
+        result.twins.add(entry.twin);
+    }
+    return result;
+}
+
+/**
+ * Does every `return` of this function give an object that was made in the
+ * function by `new_object` and goes nowhere else (the rule in the header)?
+ *
+ * Slots are reused (the inliner shares its extra slots between the bodies it
+ * copies in, copy coalescing merges slots), so "the slot is written once" is
+ * not the question. The question is about each VALUE: for every `return`,
+ * which instructions can have written what it returns, and where can each of
+ * those objects go (reaching_definitions and object_stays_here, both in
+ * object_paths.sharp).
+ */
+def returns_fresh_boxes(callee: function_layout) : _int64 {
+    if(callee.ir == null || callee.returns_value() == 0) { return 0; }
+    if(callee.of.takes_record != 0 || callee.of.closure != null || callee.of.is_lambda == 1) { return 0; }
+    code : ir_function = callee.ir!!;
+    if(code.tries.size() > 0 || !can_be_optimized(code)) { return 0; }
+
+    // looked at first without the graph: most functions do not return a slot `new_object` ever writes
+    count : _int64 = code.instructions.size();
+    news := new _int64[code.slot_count() + 1];
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        if(made.kind == IR_NEW_OBJECT && made.target >= 0) { news[made.target] = 1; }
+    }
+    returns : _int64 = 0;
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        if(made.kind != IR_RETURN_VALUE) { continue; }
+        if(made.first < 0 || news[made.first] == 0) { return 0; }
+        returns++;
+    }
+    if(returns == 0) { return 0; }
+
+    graph := build_flow_graph(code);
+    definitions := new number_list();
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        if(made.kind != IR_RETURN_VALUE) { continue; }
+        definitions.count = 0;
+        if(!reaching_definitions(code, graph, i, made.first, definitions)) { return 0; }
+        for(d : _int64 = 0; d < definitions.count; d++) {
+            if(code.instructions.at(definitions.at(d)).kind != IR_NEW_OBJECT) { return 0; }
+            if(!object_stays_here(code, graph, definitions.at(d), made.first, 1, null)) { return 0; }
+        }
+    }
+    return 1;
+}
+
+/**
+ * The number field the result of the call at `at` is read for, and the
+ * instructions that read it (into `reads`): from the call to where its result
+ * slot is written again, every read of the slot is a field read with the slot
+ * as the object, all of ONE field, and that field holds a number. The search
+ * stays inside the call's block - `call ; get_field` is how the generator
+ * writes "take the number out", next to each other - and when the block ends
+ * with the object still in its slot, nobody may read it afterwards (liveness).
+ * Null when the result is used in any other way, or not at all.
+ */
+def site_field(code: ir_function, graph: flow_graph, live: liveness, at: _int64, reads: number_list) : sharp_declaration? {
+    slot : _int64 = code.instructions.at(at).target;
+    block : _int64 = graph.block_of[at];
+    field : sharp_declaration? = null;
+    reads.count = 0;
+    for(i : _int64 = at + 1; i < graph.ends[block]; i++) {
+        made := code.instructions.at(i);
+        if(reads_slot(made, slot)) {
+            if(made.kind != IR_GET_FIELD || made.first != slot || made.declaration == null) { return null; }
+            read : sharp_declaration = made.declaration!!;
+            if(kind_of_field(read) == SLOT_REF) { return null; }
+            if(field == null) {
+                field = read;
+            } else if(field!! != read && !(field!!.address >= 0 && field!!.address == read.address
+                                           && kind_of_field(field!!) == kind_of_field(read))) {
+                return null;        // two different fields: the caller needs the object
+            }
+            reads.add(i);
+        }
+        if(slot_written(made) == slot) { return field; }        // the slot holds something else from here on
+    }
+    if(slot < live.slots && live.out_of(block).has(slot)) { return null; }
+    return field;
+}
+
+/** the call now goes to the twin and gives its number into `number_slot`; the field reads become copies of it */
+def redirect(code: ir_function, call: ir_instruction, twin: sharp_function, number_slot: _int64, reads: number_list) {
+    call.declaration = twin;
+    call.target = number_slot;
+    for(r : _int64 = 0; r < reads.count; r++) {
+        made := code.instructions.at(reads.at(r));
+        made.kind = IR_COPY;
+        made.first = number_slot;
+        made.number = NARROW_NONE;
+        made.declaration = null;
+    }
+}
+
+/** the twin of `original` for `field`: the one made before, or a new one (without code yet) */
+def twin_for(layout: program_layout, made: list<native_twin>, original: function_layout,
+             field: sharp_declaration) : function_layout {
+    for(i : _int64 = 0; i < made.size(); i++) {
+        known := made.at(i);
+        if(known.original == original && (known.field == field
+                || (known.field.address >= 0 && known.field.address == field.address
+                    && kind_of_field(known.field) == kind_of_field(field)))) {
+            return known.twin;
+        }
+    }
+    twin := add_twin(layout, original, field);
+    made.add(new native_twin(original, field, twin));
+    return twin;
+}
+
+/**
+ * A new function of the executable: `original` again under the name
+ * `<name>$<field>`, with the same owner, parameters and modifiers, returning
+ * the field's number. It gets the next free address and is listed with its
+ * class's methods, so the file's records and the bytecode step treat it like
+ * any function the program wrote.
+ */
+def add_twin(layout: program_layout, original: function_layout, field: sharp_declaration) : function_layout {
+    return add_copy_of_function(layout, original, original.name + "$$" + field.name, (field as sharp_field).value_type);
+}
+
+/**
+ * A new function of the executable (without code yet): `original` again
+ * under another name, with the same owner, parameters and modifiers, and
+ * the result type given. It gets the next free address and is listed with
+ * its class's methods, so the file's records and the bytecode step treat it
+ * like any function the program wrote. (Native returns and string
+ * concatenation flattening both add such twins.)
+ */
+def add_copy_of_function(layout: program_layout, original: function_layout, name: string, result: resolved_type?) : function_layout {
+    source : sharp_function = original.of;
+
+    declared := new sharp_function(D_FUNCTION, name, source.unit, source.node, source.owner, source.module);
+    declared.flags = source.flags;
+    declared.parameters = source.parameters;
+    declared.result_type = result;
+    declared.extension_of = source.extension_of;
+    declared.is_operator = source.is_operator;
+    declared.is_synthesized = 1;
+    declared.kept = 1;
+
+    twin := new function_layout(declared, original.owner, name);
+    twin.kind = FUNCTION_NORMAL;
+    twin.made_from = MADE_FROM_BODY;
+    twin.is_static = original.is_static;
+    twin.vm_flags = original.vm_flags;
+    // it is called exactly, never through an override family
+    if((twin.vm_flags & VM_OVERRIDE) != 0) { twin.vm_flags = twin.vm_flags - VM_OVERRIDE; }
+    twin.file_index = original.file_index;
+    twin.position = original.position;
+
+    number_function(layout, twin);
+    original.owner.methods.add(twin);
+    layout.direct_calls.add(0 - 1);
+    layout.function_types.note(declared.result_type);
+    return twin;
+}
+
+/**
+ * The code of a twin: the original's, where every `return_value %b` has become
+ *
+ *      get_field    %n, %b.field
+ *      return_value %n
+ */
+def code_of_twin(original: ir_function, field: sharp_declaration, name: string) : ir_function {
+    code := new ir_function(name);
+    code.slot_kinds.add_all(original.slot_kinds);
+    code.fixed_slots = original.fixed_slots;
+    code.label_count = original.label_count;
+    number_slot : _int64 = code.slot_kinds.count;
+    code.slot_kinds.add(kind_of_field(field));
+
+    total : _int64 = original.instructions.size();
+    for(i : _int64 = 0; i < total; i++) {
+        copied := copy_of_instruction(original.instructions.at(i));
+        if(copied.kind == IR_RETURN_VALUE) {
+            read := new ir_instruction(IR_GET_FIELD);
+            read.target = number_slot;
+            read.first = copied.first;
+            read.declaration = field;
+            code.instructions.add(read);
+            copied.first = number_slot;
+            copied.number = NARROW_NONE;        // the field holds the number as it was stored: nothing to cut
+        }
+        code.instructions.add(copied);
+    }
+    return code;
+}

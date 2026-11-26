@@ -1,0 +1,281 @@
+mod std.io;
+
+/**
+ * File operations as plain functions that take paths as strings, for when
+ * making `file` objects is not worth it:
+ *
+ *     file_utils.write_text("out/result.txt", "done\n");    // creates "out" too
+ *     file_utils.copy("out", "backup/out");
+ *     if(file_utils.same_content("a.bin", "b.bin")) { ... }
+ *     file_utils.delete_tree("out");
+ *
+ * Everything is static. Most functions are one call to the `file` class;
+ * the comments say which. What only exists here: comparing files and trees,
+ * counting, "touch", and writing with the directories created on the way.
+ *
+ * Functions throw io_exception when the operation cannot be done, and
+ * nullptr_exception for an empty path.
+ */
+class file_utils {
+
+    /** true when a file or directory exists at `file_path` */
+    static def exists(file_path: string) : bool {
+        return new file(file_path).exists();
+    }
+
+    /** true when `file_path` is an existing plain file */
+    static def is_file(file_path: string) : bool {
+        return new file(file_path).is_file();
+    }
+
+    /** true when `file_path` is an existing directory */
+    static def is_directory(file_path: string) : bool {
+        return new file(file_path).is_directory();
+    }
+
+    /**
+     * The content of a file as a string (file.read_text).
+     * Throws io_exception when it does not exist or is a directory.
+     */
+    static def read_text(file_path: string) : string {
+        return new file(file_path).read_text();
+    }
+
+    /**
+     * The lines of a file (file.read_lines).
+     * Throws io_exception when it does not exist or is a directory.
+     */
+    static def read_lines(file_path: string) : list<string> {
+        return new file(file_path).read_lines();
+    }
+
+    /**
+     * Replace the content of a file with `text`. Unlike file.write_text
+     * the directories on the way to the file are created when they do not
+     * exist.
+     * Throws io_exception when the file cannot be written.
+     */
+    static def write_text(file_path: string, text: string) {
+        target := new file(file_path);
+        ensure_parent(target);
+        target.write_text(text);
+    }
+
+    /**
+     * Replace the content of a file with the given lines, each followed by
+     * "\n"; directories on the way are created.
+     * Throws io_exception when the file cannot be written.
+     */
+    static def write_lines(file_path: string, lines: list<string>) {
+        target := new file(file_path);
+        ensure_parent(target);
+        target.write_lines(lines);
+    }
+
+    /**
+     * Add `text` at the end of a file, creating the file and the
+     * directories on the way when they do not exist.
+     * Throws io_exception when the file cannot be written.
+     */
+    static def append_text(file_path: string, text: string) {
+        target := new file(file_path);
+        ensure_parent(target);
+        target.append_text(text);
+    }
+
+    /** create the directory a file lies in when it is missing */
+    private static def ensure_parent(target: file) {
+        up := target.parent();
+        if(up == null) {
+            return;
+        }
+        dir := up!!;
+        if(!dir.mkdirs()) {
+            throw new io_exception("could not create directory: " + dir.path);
+        }
+    }
+
+    /**
+     * Make sure the directory `dir_path` exists, creating it and the
+     * directories above it when needed.
+     * Throws io_exception when that is not possible (e.g. a file with that
+     * name exists).
+     */
+    static def ensure_directory(dir_path: string) {
+        dir := new file(dir_path);
+        if(!dir.mkdirs()) {
+            throw new io_exception("could not create directory: " + dir_path);
+        }
+    }
+
+    /**
+     * Create an empty file when nothing exists at `file_path` (with the
+     * directories on the way), and set the modification time of an existing
+     * file or directory to now - like the unix command `touch`.
+     * Throws io_exception when the file cannot be created.
+     */
+    static def touch(file_path: string) {
+        target := new file(file_path);
+        if(target.exists()) {
+            target.set_last_modified(floor_seconds(utc_mills().value));
+            return;
+        }
+        ensure_parent(target);
+        if(!target.create_new()) {
+            throw new io_exception("could not create file: " + file_path);
+        }
+    }
+
+    /** milliseconds to whole seconds */
+    private static def floor_seconds(mills: decimal) : decimal {
+        return (mills - mills % 1000) / 1000;
+    }
+
+    /**
+     * Copy a file, or a directory with everything in it, from `from_path`
+     * to `to_path` (the path of the copy itself, not of the directory to
+     * put it in). The directories on the way to `to_path` are created.
+     * Existing files are replaced. See file.copy_to.
+     *
+     * Throws io_exception when the source does not exist, the destination
+     * lies inside the source, or something cannot be read or written.
+     */
+    static def copy(from_path: string, to_path: string) {
+        target := new file(to_path);
+        ensure_parent(target);
+        new file(from_path).copy_to(target);
+    }
+
+    /**
+     * Move a file or directory from `from_path` to `to_path` (the new path
+     * itself). The directories on the way to `to_path` are created. See
+     * file.move_to.
+     *
+     * Throws io_exception when the source does not exist, the destination
+     * exists already, or the move fails.
+     */
+    static def move(from_path: string, to_path: string) {
+        target := new file(to_path);
+        ensure_parent(target);
+        new file(from_path).move_to(target);
+    }
+
+    /**
+     * Delete a plain file. Returns true when it was deleted, false when
+     * there was no such file or it could not be deleted. A directory is not
+     * touched (see delete_tree).
+     */
+    static def delete(file_path: string) : bool {
+        target := new file(file_path);
+        if(!target.is_file()) {
+            return false;
+        }
+        return target.remove();
+    }
+
+    /**
+     * Delete a file, or a directory with everything in it
+     * (file.delete_recursively). Returns true when nothing is left at the
+     * path - also when nothing was there.
+     */
+    static def delete_tree(file_path: string) : bool {
+        return new file(file_path).delete_recursively();
+    }
+
+    /**
+     * The size in bytes of a file, or of all files in a directory tree
+     * added up (file.tree_size). 0 when nothing exists at the path.
+     */
+    static def size_of_tree(file_path: string) : decimal {
+        return new file(file_path).tree_size();
+    }
+
+    /** the number of plain files in a directory and all directories below it (0 when it does not exist; 1 for a plain file) */
+    static def count_files(dir_path: string) : decimal {
+        start := new file(dir_path);
+        if(!start.exists()) {
+            return 0;
+        }
+        if(!start.is_directory()) {
+            return 1;
+        }
+        return new directory_walker(start).files_only().to_list().size();
+    }
+
+    /**
+     * The paths of everything below a directory, relative to it and written
+     * with '/' whatever the operating system: "a.txt", "sub", "sub/b.txt".
+     * Directories come before their content; entries of one directory are
+     * sorted by name.
+     * Throws io_exception when the directory does not exist.
+     */
+    static def list_tree(dir_path: string) : list<string> {
+        start := new file(dir_path);
+        result := new list<string>();
+        skip : decimal = sizeof(start.path.data);
+        last : decimal = start.path.data[skip - 1];
+        if(last != '/' && last != 92) {
+            skip++;
+        }
+        entries := start.walk();
+        count : decimal = entries.size();
+        for(i : decimal = 0; i < count; i++) {
+            relative := io_strings.slice_from(entries.at(i).path, skip);
+            result.add(io_strings.replace_char(relative, 92, '/'));
+        }
+        return result;
+    }
+
+    /**
+     * True when the two files have exactly the same content. Two empty
+     * files are the same.
+     * Throws io_exception when one of them does not exist or is a
+     * directory.
+     */
+    static def same_content(first_path: string, second_path: string) : bool {
+        first := new file(first_path);
+        second := new file(second_path);
+        if(first.is_file()) {
+            if(second.is_file()) {
+                if(first.size() != second.size()) {
+                    return false; // different sizes: no need to read
+                }
+            }
+        }
+        return io_strings.equals(first.read_text(), second.read_text());
+    }
+
+    /**
+     * True when two directories hold the same tree: the same names of files
+     * and directories at the same places, and the same content in every
+     * file. Time stamps and permissions are not compared.
+     * Throws io_exception when one of them does not exist.
+     */
+    static def same_tree(first_path: string, second_path: string) : bool {
+        first := list_tree(first_path);
+        second := list_tree(second_path);
+        if(first.size() != second.size()) {
+            return false;
+        }
+
+        first_root := new file(first_path);
+        second_root := new file(second_path);
+        count : decimal = first.size();
+        for(i : decimal = 0; i < count; i++) {
+            if(!io_strings.equals(first.at(i), second.at(i))) {
+                return false;
+            }
+            a := first_root.child(first.at(i));
+            b := second_root.child(second.at(i));
+            if(a.is_directory() != b.is_directory()) {
+                return false;
+            }
+            if(!a.is_directory()) {
+                if(!io_strings.equals(a.read_text(), b.read_text())) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+}

@@ -1,0 +1,177 @@
+mod std.guikit.gestures;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * reorder - drag the children of a column into a new order. Asked for with
+ * .reorderable { from, to -> ... } on a column.
+ *
+ *      column {
+ *          for(...) { task_card(t); }
+ *      }.animate_items().reorderable { from: _int64, to: _int64 -> model.move(from, to); };
+ *
+ * Press a row and HOLD (a long press) to pick it up: it lifts above the
+ * others. Drag it up or down and the rows it passes move aside to show where
+ * it would land. Let go, and the function is called with where the row was
+ * and where it is now - both counted among the column's children as they are
+ * on the screen. The function changes the list; the screen is built again
+ * from it, and the row settles into its new place.
+ *
+ * A quick drag without holding first is not a pick-up: it scrolls the list
+ * the column is in, as before.
+ *
+ * FRAMEWORK USE: the column owns one of these and calls wire_all() whenever
+ * it arranges its children.
+ * (Android: ItemTouchHelper with onMove. Compose: no built-in; libraries do
+ * exactly this with detectDragGesturesAfterLongPress.)
+ *
+ * HOW IT WORKS: nothing is laid out differently while a row is carried. The
+ * carried row and the rows that step aside are only PAINTED somewhere else
+ * (view.shift_y). When the list really changes, the new layout puts every
+ * row in its new slot, finds it is already being painted there, and has
+ * nothing left to animate (glide.sharp) - so the drop is seamless.
+ */
+stable class reorder {
+    private rows : view;                        // the container whose children are reordered
+    private moved : (_int64, _int64)();
+    private space : decimal = 0;                // the gap between rows (the container tells us)
+
+    private carried : view?;                    // the row in the hand (null: none)
+    private lift : decimal = 0;                 // how far it has been carried from its slot
+    private from : _int64 = 0;                  // its place when it was picked up
+    private target : _int64 = 0;                // the place it would land on now
+    private shadow_before : decimal = 0;
+
+    reorder(container: view, on_move: (_int64, _int64)()) {
+        rows = container;
+        moved = on_move;
+    }
+
+    /** every child that has not got them yet is given the handlers that make it reorderable */
+    def wire_all(gap: decimal) {
+        space = gap;
+        count : _int64 = rows.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            if(rows.kids.at(i).wired == 0) {
+                wire(rows.kids.at(i));
+            }
+        }
+    }
+
+    /**
+     * One child's handlers. What the child already did with a long press or a
+     * drag (a row that can be swiped away has a drag of its own) is kept and
+     * still happens whenever the row is not being carried.
+     */
+    private def wire(row_view: view) {
+        row_view.wired = 1;
+        held_before : ()()? = row_view.on_long_press;
+        drag_before : (decimal, decimal)()? = row_view.on_drag;
+        ended_before : ()()? = row_view.on_press_end;
+
+        row_view.on_long_press = { ->
+            if(held_before != null) { held_before(); }
+            pick_up(row_view);
+        };
+        row_view.on_drag = { dx: decimal, dy: decimal ->
+            if(carried != null && carried!! == row_view) {
+                carry(dy);
+            } else if(drag_before != null) {
+                drag_before(dx, dy);
+            } else if(ui_host.current != null) {
+                ui_host.current!!.scroll_by_hand(row_view, dx, dy);     // not picked up: the list scrolls
+            }
+        };
+        row_view.on_press_end = { ->
+            if(ended_before != null) { ended_before(); }
+            if(carried != null && carried!! == row_view) {
+                put_down();
+            }
+        };
+    }
+
+    /** the place of a child among the SHOWN children (what the app counts in) */
+    private def place_of(wanted: view) : _int64 {
+        place : _int64 = 0;
+        count : _int64 = rows.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = rows.kids.at(i);
+            if(kid == wanted) { return place; }
+            if(kid.shown == 1) { place = place + 1; }
+        }
+        return 0;
+    }
+
+    private def pick_up(row_view: view) {
+        carried = row_view;
+        lift = 0;
+        from = place_of(row_view);
+        target = from;
+        row_view.raised = 1;                    // painted above the others
+        shadow_before = row_view.shadow;
+        row_view.shadow = shadow_before + 10;   // ... and looks lifted
+        if(ui_host.current != null) { ui_host.current!!.repaint(); }
+    }
+
+    /** the row in the hand moved `dy` further: it follows, and the rows it passes step aside */
+    private def carry(dy: decimal) {
+        held : view = carried!!;
+        lift = lift + dy;
+        held.shift_y = lift;
+        held.glide_on = 0;                      // it follows the hand, not an animation
+
+        // where it would land: as many rows are above its middle as have their own middle above it
+        middle : decimal = held.y + held.h / 2 + lift;
+        above : _int64 = 0;
+        count : _int64 = rows.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = rows.kids.at(i);
+            if(kid != held && kid.shown == 1 && kid.y + kid.h / 2 < middle) { above = above + 1; }
+        }
+        target = above;
+
+        // the rows between its old place and its landing place step aside by its height
+        step : decimal = held.h + space;
+        place : _int64 = 0;
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = rows.kids.at(i);
+            if(kid.shown == 0) {
+                continue;
+            }
+            if(kid != held) {
+                aim : decimal = 0;
+                if(place > from && place <= target) { aim = 0 - step; }     // it passed this row going down: the row moves up
+                if(place < from && place >= target) { aim = step; }         // ... going up: the row moves down
+                on_its_way : _int64 = 0;
+                if(kid.glide_on == 1 && kid.glide_aim_y == aim) { on_its_way = 1; }
+                if(kid.glide_on == 0 && kid.shift_y == aim) { on_its_way = 1; }
+                if(on_its_way == 0) {
+                    glide.to(kid, 0, aim);
+                }
+            }
+            place = place + 1;
+        }
+        if(ui_host.current != null) { ui_host.current!!.repaint(); }
+    }
+
+    private def put_down() {
+        held : view = carried!!;
+        carried = null;
+        held.raised = 0;
+        held.shadow = shadow_before;
+
+        if(target != from) {
+            moved(from, target);                // the app changes its list; the screen is built again
+        }
+        // Everything heads back to where layout has it. When the list did
+        // change, the next layout finds each row already painted in its new
+        // slot and stops this at once (glide.settle); when it did not, the
+        // rows simply glide home.
+        count : _int64 = rows.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            glide.to(rows.kids.at(i), 0, 0);
+        }
+    }
+}

@@ -1,0 +1,64 @@
+mod std.io.coroutines;
+
+/**
+ * global_scope - the scope of coroutines that belong to nobody: they live
+ * until they are finished or the program ends.
+ *
+ * USAGE
+ *     launch({ -> background_work(); });       // outside any coroutine: lands here by itself
+ *     global_scope.launch({ -> ... });         // inside a coroutine: start one that is NOT its child
+ *     global_scope.active_count();             // how many are still running
+ *
+ * Its job is a supervisor: a coroutine that fails here does not disturb the
+ * others, its exception goes to coroutine_exceptions. Coroutines run on the
+ * default pool. The program does not wait for them when main returns; use
+ * run_blocking { } or job.join() when you need them to finish.
+ *
+ * Kotlin equivalent: GlobalScope (and like there: prefer a scope with an end).
+ *
+ * LOCKING DISCIPLINE: `guard` protects root (created once, on first use).
+ */
+class global_scope {
+
+    private static guard : object = new _object_();
+    private static root_job : job?;
+
+    /** the job every top level coroutine is a child of. It is never cancelled or completed. */
+    static def root() : job {
+        result : job? = null;
+        lock(guard) {
+            if(root_job == null) {
+                created := new job();
+                created.supervisor = 1;
+                root_job = created;
+            }
+            result = root_job;
+        }
+
+        r := result!!;
+        if(r.dispatcher == null) {
+            r.dispatcher = dispatchers.default_pool();
+        }
+        return r;
+    }
+
+    /** Start a top level coroutine, also from inside another coroutine. THE CLOSURE RULE applies. Kotlin: GlobalScope.launch { } */
+    static def launch(block: ()()) : job {
+        return start_coroutine(new job(block), root(), null);
+    }
+
+    /** launch() with a state object handed to the coroutine */
+    static def launch(state: object?, block: (object)()) : job {
+        return start_coroutine(new job(state, block), root(), null);
+    }
+
+    /** launch() for a coroutine_body object */
+    static def launch(task: coroutine_body) : job {
+        return start_coroutine(new job(task), root(), null);
+    }
+
+    /** number of top level coroutines that are not finished yet */
+    static def active_count() : decimal {
+        return root().child_count();
+    }
+}

@@ -1,0 +1,394 @@
+mod backend.optimizer.passes.values;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * CONSTANT PROPAGATION: values known while compiling are computed while
+ * compiling, and branches on known conditions are decided
+ *
+ *      int_constant %3, 0              int_constant %3, 0
+ *      copy %1, %3                     int_constant %1, 0          (a copy of a known value is that value)
+ *      int_constant %5, 1              int_constant %5, 1
+ *      jump_unless %5, L4              (gone: %5 is 1, the jump is never taken)
+ *
+ * This is the textbook forward data-flow problem of "reaching constants"
+ * (the dragon book, 9.4): for every slot, at every point, one of
+ *
+ *      not yet seen    no path to this point has written it yet (the optimistic start)
+ *      known k         every path that reaches here leaves it holding k
+ *      varying         two paths disagree, or it was written by something not known
+ *
+ * The meet of two paths: not-yet-seen meets x is x; k meets k is k; anything
+ * else is varying. The value entering the function, and entering a handler
+ * the VM jumps to for an exception, is varying for every slot (a handler can
+ * be entered from the middle of any block of its range). The state at the
+ * start of every block is computed again and again until it no longer
+ * changes; then one more walk rewrites what it found:
+ *
+ *  - an instruction that only computes (folding.sharp says which) whose
+ *    operands are all known becomes the constant it gives;
+ *  - `jump_if` / `jump_unless` on a known condition becomes `jump`, or goes;
+ *  - a jump into a block that only tests a slot known at the jump goes past
+ *    the test (branch_threading.sharp: what `&&` and `||` leave);
+ *  - an integer `+`, `-` or `*` with ONE known operand that fits 32 bits
+ *    becomes `int_immediate` (immediates.sharp): the VM takes the number in
+ *    the instruction itself.
+ *
+ * Only slots that some constant is ever written into are followed (most
+ * slots never hold one), and only those among them that some block reads
+ * before writing are CARRIED from block to block (liveness.sharp,
+ * `read_before_written`): a temporary made and used inside one block - most
+ * of them - is followed there alone. That keeps the tables small: blocks x
+ * the carried slots.
+ *
+ *      C++ comparison: passes/pass_constant_propagation.cpp, over the VM's registers.
+ */
+
+const NOT_SEEN : _int64 = 0;
+const KNOWN    : _int64 = 1;
+const VARYING  : _int64 = 2;
+
+/** a function's tables would be larger than this: it is left as it is (time and memory) */
+const CONSTANT_TABLE_LIMIT : _int64 = 4000000;
+/** the states of all blocks are computed at most this many times over (see propagate_constants) */
+const MAX_SWEEPS : _int64 = 200;
+
+/** what is known of the followed slots at one point */
+class constant_state {
+    index : _int64[];               // per slot of the function: its place among the followed slots, -1 when not followed
+    kinds : _int64[];               // per followed slot: NOT_SEEN, KNOWN, VARYING
+    wholes : _int64[];
+    reals : decimal[];
+    decimal_slot : _int64[];        // per followed slot: 1 when it holds a decimal
+
+    constant_state(index: _int64[], followed: _int64) {
+        self->index = index;
+        kinds = new _int64[followed + 1];
+        wholes = new _int64[followed + 1];
+        reals = new decimal[followed + 1];
+        decimal_slot = new _int64[followed + 1];
+    }
+
+    /** is the value of `slot` known here? */
+    def knows(slot: _int64) : _int64 {
+        if(slot < 0 || slot >= sizeof(index)) { return 0; }
+        place : _int64 = index[slot];
+        return place >= 0 && kinds[place] == KNOWN;
+    }
+
+    def whole_of(slot: _int64) : _int64 { return wholes[index[slot]]; }
+
+    def real_of(slot: _int64) : decimal { return reals[index[slot]]; }
+
+    /** after an instruction wrote `slot`: what `value` says (known, or varying) */
+    def written(slot: _int64, value: folded) {
+        if(slot < 0) { return; }
+        place : _int64 = index[slot];
+        if(place < 0) { return; }
+        // only the half the slot holds is kept, the other is 0: the same state always compares the same
+        wholes[place] = 0;
+        reals[place] = 0;
+        if(value.known == 1) {
+            kinds[place] = KNOWN;
+            if(decimal_slot[place] == 1) { reals[place] = value.real; } else { wholes[place] = value.whole; }
+        } else {
+            kinds[place] = VARYING;
+        }
+    }
+}
+
+/** the work of one run of the pass over a function */
+class constant_tables {
+    followed : _int64;              // how many slots are carried between blocks (the header)
+    carried : _int64[];             // per carried slot: its place in the state
+    blocks : _int64;
+    in_kinds : _int64[];            // [block * followed + k]: carried slot k at the start of the block
+    in_wholes : _int64[];
+    in_reals : decimal[];
+    out_kinds : _int64[];
+    out_wholes : _int64[];
+    out_reals : decimal[];
+
+    constant_tables(blocks: _int64, followed: _int64, carried: _int64[]) {
+        self->blocks = blocks;
+        self->followed = followed;
+        self->carried = carried;
+        size : _int64 = blocks * followed + 1;
+        in_kinds = new _int64[size];
+        in_wholes = new _int64[size];
+        in_reals = new decimal[size];
+        out_kinds = new _int64[size];
+        out_wholes = new _int64[size];
+        out_reals = new decimal[size];
+    }
+}
+
+/** run the pass on a function; the number of instructions it changed or removed (`immediates`: 0 when -nimmediates) */
+def propagate_constants(analyses: function_analyses, immediates: _int64) : _int64 {
+    code := analyses.code;
+    slots : _int64 = code.slot_count();
+    index := new _int64[slots + 1];
+    followed : _int64 = 0;
+    for(s : _int64 = 0; s <= slots; s++) { index[s] = 0 - 1; }
+    total : _int64 = code.instructions.size();
+    for(i : _int64 = 0; i < total; i++) {
+        made := code.instructions.at(i);
+        if((made.kind == IR_INT_CONSTANT || made.kind == IR_DECIMAL_CONSTANT) && made.target >= 0 && index[made.target] < 0) {
+            index[made.target] = followed;
+            followed++;
+        }
+    }
+    if(followed == 0) { return 0; }
+    graph := analyses.graph();
+    blocks : _int64 = graph.block_count();
+    exposed := read_before_written(graph);
+    carried := new _int64[followed + 1];
+    carried_count : _int64 = 0;
+    for(s : _int64 = 0; s < slots; s++) {
+        if(index[s] >= 0 && exposed[s] == 1) {
+            carried[carried_count] = index[s];
+            carried_count++;
+        }
+    }
+    if(blocks * carried_count > CONSTANT_TABLE_LIMIT) { return 0; }
+
+    state := new constant_state(index, followed);
+    for(s : _int64 = 0; s < slots; s++) {
+        if(index[s] >= 0) { state.decimal_slot[index[s]] = code.slot_kinds.at(s) == SLOT_DEC; }
+    }
+    tables := new constant_tables(blocks, carried_count, carried);
+    reached := reachable_blocks(graph);
+    value := new folded();
+
+    // ---- the states at the start and the end of every block, until nothing changes
+    // (nothing to carry: every block starts knowing nothing, and one walk is enough)
+    changed : _int64 = carried_count > 0;
+    sweeps : _int64 = 0;
+    while(changed == 1) {
+        // A slot's state at a block's start only ever goes not-seen -> known -> varying, so the
+        // sweeps end on their own after a few. The limit is a guard: should a function ever keep
+        // them going, it is left as it is - a missed optimization, never a compiler that hangs.
+        sweeps++;
+        if(sweeps > MAX_SWEEPS) { return 0; }
+        changed = 0;
+        for(b : _int64 = 0; b < blocks; b++) {
+            if(reached[b] == 0) { continue; }
+            state_at_block_start(graph, tables, reached, b, state);
+            save_state(state, tables, tables.in_kinds, tables.in_wholes, tables.in_reals, b * carried_count);
+            for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+                made := code.instructions.at(i);
+                written : _int64 = slot_written(made);
+                if(written >= 0 && index[written] >= 0) {
+                    evaluate(made, state, value);
+                    state.written(written, value);
+                }
+            }
+            if(save_state(state, tables, tables.out_kinds, tables.out_wholes, tables.out_reals, b * carried_count) == 1) { changed = 1; }
+        }
+    }
+
+    // ---- the rewrite, with the state before each instruction
+    facts := label_facts_of(code);
+    plan := new thread_plan(code);
+    removed := new number_list();
+    changes : _int64 = 0;
+    for(b : _int64 = 0; b < blocks; b++) {
+        if(reached[b] == 0) { continue; }
+        load_state(state, tables, tables.in_kinds, tables.in_wholes, tables.in_reals, b * carried_count);
+        for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+            made := code.instructions.at(i);
+            outcome : _int64 = rewrite(code, facts, made, i, state, value, immediates);
+            if(outcome == 2) { removed.add(i); }
+            if(outcome > 0) { changes++; }
+            // a jump into a test whose answer is known here goes past it (branch_threading.sharp)
+            if(outcome != 2 && thread_jump(code, facts, made, state, plan) == 1) { changes++; }
+            written : _int64 = slot_written(made);
+            if(outcome != 2 && written >= 0 && index[written] >= 0) {
+                evaluate(made, state, value);
+                state.written(written, value);
+            }
+        }
+    }
+    rebuild_with_labels(code, removed, plan);
+    if(changes > 0) { analyses.changed(); }
+    return changes;
+}
+
+/**
+ * The state entering block `b`: varying everywhere at the entry of the
+ * function and at a handler; otherwise the meet of what its predecessors
+ * that can run leave.
+ */
+def state_at_block_start(graph: flow_graph, tables: constant_tables, reached: _int64[], b: _int64, state: constant_state) {
+    // a slot that is not carried is written in this block before it is read: what the state says of
+    // it (left from another block) is never looked at, so it is not set
+    followed : _int64 = tables.followed;
+    if(b == 0 || graph.is_handler[b] == 1) {
+        for(k : _int64 = 0; k < followed; k++) { state.kinds[tables.carried[k]] = VARYING; }
+        return;
+    }
+    for(k : _int64 = 0; k < followed; k++) { state.kinds[tables.carried[k]] = NOT_SEEN; }
+    for(i : _int64 = graph.first_predecessor[b]; i < graph.first_predecessor[b + 1]; i++) {
+        from : _int64 = graph.predecessors[i];
+        if(reached[from] == 0) { continue; }
+        offset : _int64 = from * followed;
+        for(k : _int64 = 0; k < followed; k++) {
+            p : _int64 = tables.carried[k];
+            theirs : _int64 = tables.out_kinds[offset + k];
+            if(theirs == NOT_SEEN || state.kinds[p] == VARYING) { continue; }
+            if(state.kinds[p] == NOT_SEEN) {
+                state.kinds[p] = theirs;
+                state.wholes[p] = tables.out_wholes[offset + k];
+                state.reals[p] = tables.out_reals[offset + k];
+            } else if(theirs == VARYING || !same_value(state, p, tables.out_wholes[offset + k], tables.out_reals[offset + k])) {
+                state.kinds[p] = VARYING;
+            }
+        }
+    }
+}
+
+/** does followed slot `p` (known) hold exactly this value? */
+def same_value(state: constant_state, p: _int64, whole: _int64, real: decimal) : _int64 {
+    if(state.decimal_slot[p] == 1) { return state.reals[p] == real; }
+    return state.wholes[p] == whole;
+}
+
+/** the carried slots of the state into a table at `offset`; 1 when that changed the table */
+def save_state(state: constant_state, tables: constant_tables, kinds: _int64[], wholes: _int64[], reals: decimal[], offset: _int64) : _int64 {
+    changed : _int64 = 0;
+    for(k : _int64 = 0; k < tables.followed; k++) {
+        p : _int64 = tables.carried[k];
+        kind : _int64 = state.kinds[p];
+        if(kinds[offset + k] != kind
+           || (kind == KNOWN && (wholes[offset + k] != state.wholes[p] || reals[offset + k] != state.reals[p]))) {
+            changed = 1;
+            kinds[offset + k] = kind;
+            wholes[offset + k] = state.wholes[p];
+            reals[offset + k] = state.reals[p];
+        }
+    }
+    return changed;
+}
+
+/** the state from a table at `offset`: the carried slots as they were (the others are written before they are read) */
+def load_state(state: constant_state, tables: constant_tables, kinds: _int64[], wholes: _int64[], reals: decimal[], offset: _int64) {
+    for(k : _int64 = 0; k < tables.followed; k++) {
+        p : _int64 = tables.carried[k];
+        state.kinds[p] = kinds[offset + k];
+        state.wholes[p] = wholes[offset + k];
+        state.reals[p] = reals[offset + k];
+    }
+}
+
+/**
+ * What an instruction gives, from what is known before it (`out`). Only the
+ * instructions that do nothing but compute (folding.sharp) can be known.
+ */
+def evaluate(made: ir_instruction, state: constant_state, out: folded) {
+    kind : _int64 = made.kind;
+    if(kind == IR_INT_CONSTANT) { out.set_whole(made.number); return; }
+    if(kind == IR_DECIMAL_CONSTANT) { out.set_real(made.real); return; }
+    if(kind == IR_COPY) {
+        if(!state.knows(made.first)) { out.unknown(); return; }
+        if(state.decimal_slot[state.index[made.first]] == 1) { out.set_real(state.real_of(made.first)); }
+        else { out.set_whole(narrowed(state.whole_of(made.first), made.number)); }
+        return;
+    }
+    if(kind == IR_CONVERT) {
+        if(!state.knows(made.first)) { out.unknown(); return; }
+        fold_conversion(made.number, made.detail, state.whole_of(made.first), state.real_of(made.first), out);
+        return;
+    }
+    if(kind == IR_INT_IMMEDIATE) {
+        if(!state.knows(made.first)) { out.unknown(); return; }
+        fold_whole_operation(made.number, state.whole_of(made.first), made.detail, out);
+        return;
+    }
+    if(kind == IR_NEGATE || kind == IR_NOT) {
+        if(!state.knows(made.first)) { out.unknown(); return; }
+        if(made.detail == 1) {
+            real : decimal = state.real_of(made.first);
+            if(kind == IR_NOT) {
+                if(real == 0) { out.set_whole(1); } else { out.set_whole(0); }
+                return;
+            }
+            // 0 - x is -x except for 0, whose negation is -0.0 (no constant can hold it)
+            if(real == 0) { out.unknown(); return; }
+            out.set_real(0 - real);
+            return;
+        }
+        whole : _int64 = state.whole_of(made.first);
+        if(kind == IR_NOT) {
+            if(whole == 0) { out.set_whole(1); } else { out.set_whole(0); }
+            return;
+        }
+        out.set_whole(0 - whole);
+        return;
+    }
+    if(kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY || kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE) {
+        if(!state.knows(made.first) || !state.knows(made.second)) { out.unknown(); return; }
+        if(kind == IR_INT_BINARY) {
+            fold_whole_operation(made.number, state.whole_of(made.first), state.whole_of(made.second), out);
+        } else if(kind == IR_DECIMAL_BINARY) {
+            fold_decimal_operation(made.number, state.real_of(made.first), state.real_of(made.second), out);
+        } else if(kind == IR_INT_COMPARE) {
+            out.set_whole(whole_comparison(made.number, state.whole_of(made.first), state.whole_of(made.second)));
+        } else {
+            out.set_whole(decimal_comparison(made.number, state.real_of(made.first), state.real_of(made.second)));
+        }
+        return;
+    }
+    out.unknown();
+}
+
+/**
+ * The rewrite of one instruction with what is known before it: 0 nothing
+ * changed, 1 it was changed in place, 2 it is to be removed.
+ */
+def rewrite(code: ir_function, facts: label_facts, made: ir_instruction, index: _int64, state: constant_state, value: folded,
+            immediates: _int64) : _int64 {
+    kind : _int64 = made.kind;
+    if(kind == IR_JUMP_IF || kind == IR_JUMP_UNLESS) {
+        if(!state.knows(made.first)) { return 0; }
+        taken : _int64 = state.whole_of(made.first) != 0;
+        if(kind == IR_JUMP_UNLESS) { taken = !taken; }
+        if(taken) {
+            made.kind = IR_JUMP;
+            made.first = 0 - 1;
+            return 1;
+        }
+        // a jump that is never taken: gone, unless it is what closes the range of a `try` (rule R1)
+        if(closes_a_range(code, facts, index)) { return 0; }
+        return 2;
+    }
+    if(kind == IR_COPY || kind == IR_CONVERT || kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY
+       || kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE || kind == IR_NEGATE || kind == IR_NOT
+       || kind == IR_INT_IMMEDIATE) {
+        evaluate(made, state, value);
+        if(value.known == 1) {
+            become_constant(made, value);
+            return 1;
+        }
+        if(kind == IR_INT_BINARY && immediates == 1) { return use_immediate(made, state); }
+    }
+    return 0;
+}
+
+/** the instruction becomes `target = the value` */
+def become_constant(made: ir_instruction, value: folded) {
+    if(value.is_decimal == 1) {
+        made.kind = IR_DECIMAL_CONSTANT;
+        made.real = value.real;
+    } else {
+        made.kind = IR_INT_CONSTANT;
+        made.number = value.whole;
+    }
+    made.first = 0 - 1;
+    made.second = 0 - 1;
+    made.detail = 0;
+    made.text = null;
+}

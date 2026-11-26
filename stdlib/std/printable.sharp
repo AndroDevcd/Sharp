@@ -1,0 +1,15 @@
+mod std;
+
+/**
+* Created by bknun on 9/4/2022
+* 
+* @class printable
+*
+* Description:
+* Printable serves as the base level interface for all methods in
+* Sharp. Printable is inherited by the Object class to allow
+* for printing of any object.
+*/
+interface printable {
+    def to_string() : string?;
+}

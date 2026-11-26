@@ -1,0 +1,314 @@
+mod backend.optimizer.passes.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.optimizer.analysis
+)
+
+/**
+ * PURE FUNCTION DETECTION: what a call can and cannot do
+ *
+ * To the passes a call has been a wall: it may change any field, read any
+ * field, raise, or never come back, so nothing is carried across it and it is
+ * never removed. Most functions do far less. This file works out, for every
+ * function of the program, a few FACTS, and writes them on the function
+ * (`sharp_function.optimizer_facts`, the FACT_... bits of
+ * analysis/instruction_facts.sharp):
+ *
+ *      FACT_WRITES_NOTHING     it changes nothing that existed before the call
+ *      FACT_ONLY_INITIALIZES   ... except that it may run the static part of a
+ *                              class (the once-only `static_init<C>`)
+ *      FACT_WRITES_ONLY_SELF   ... or it changes only fields of its own object
+ *                              (a constructor, a setter)
+ *      FACT_READS_NOTHING      its result depends on the VALUES of its arguments
+ *                              alone: it reads no field, static or element of
+ *                              anything that existed before the call
+ *      FACT_NEVER_RAISES       no exception can leave it
+ *      FACT_ALWAYS_ENDS        it has no loop and calls nothing that may not
+ *                              come back (so it is not recursive either)
+ *      FACT_SAFE_WITH_SELF     no exception can leave it as long as its own
+ *                              object is not null (a constructor reads and
+ *                              writes `self`: called on a new object it
+ *                              cannot raise)
+ *      FACT_NO_STATIC_PART     it never runs a class's static part
+ *
+ * (Each of the three "writes" facts includes the ones above it in the list.)
+ *
+ * What they are for:
+ *
+ *   - a call whose result nobody reads, to a function that WRITES NOTHING,
+ *     NEVER RAISES and ALWAYS ENDS, is removed (`has_effect` is 0 for it: the
+ *     removal passes do it without knowing why);
+ *   - two calls of one function with the same arguments give the same result
+ *     when nothing it reads changed in between (common subexpressions), and a
+ *     call inside a loop whose arguments do not change can be made once
+ *     before it (loop-invariant code motion): the passes that come next.
+ *
+ * AN OBJECT THE FUNCTION MADE ITSELF IS NOT "SOMETHING THAT EXISTED BEFORE".
+ * `new point(1, 2)` fills the fields of an object nobody else has seen yet;
+ * to the rest of the program that is no change. So a field read or written
+ * through a slot that can only hold an object made by `new_object` in this
+ * function (reaching definitions, object_paths.sharp) does not count, and
+ * neither does a call of a function that WRITES ONLY SELF with such an
+ * object as its `self` - which is what a constructor is.
+ *
+ * HOW. Two steps, as every textbook does it for facts that depend on other
+ * functions ("interprocedural" analysis: Muchnick 19; the facts are what GCC
+ * calls `pure` and `const`):
+ *
+ *   1. each function alone: the facts its own instructions allow, and a list
+ *      of the direct calls it makes (with what it passes as `self`);
+ *   2. all functions together: a function keeps a fact only when everything
+ *      it calls has it too. This is repeated until nothing changes. For the
+ *      first five facts every function starts out HAVING the fact and loses
+ *      it when a reason is found, so two functions that call each other can
+ *      both be pure; ALWAYS ENDS starts out NOT had and is earned, so a
+ *      function that calls itself never gets it.
+ *
+ * A call through an object's class (virtual), of a function value or of a
+ * native function can be anything: no facts. (Devirtualization turns some of
+ * the first into direct calls; the facts are worked out again after it.)
+ *
+ *      C++ comparison: the C++ optimizer has nothing like it - it sees one
+ *      function's bytecode at a time. LLVM's FunctionAttrs pass infers
+ *      `readnone`, `readonly`, `nounwind` and `willreturn` the same way.
+ */
+
+/** what was found, for -Oreport */
+class function_facts_result {
+    functions : _int64 = 0;         // functions looked at
+    write_nothing : _int64 = 0;     // ... that change nothing
+    read_nothing : _int64 = 0;      // ... and also read nothing (the result depends on the arguments alone)
+    removable : _int64 = 0;         // ... whose unused call can be removed (writes nothing, never raises, always ends)
+}
+
+// what a call passes as the callee's `self` (step 1 notes it, step 2 uses it)
+const SELF_IS_OTHER : _int64 = 0;      // anything else, or the callee is static
+const SELF_IS_FRESH : _int64 = 1;      // an object this function made
+const SELF_IS_OURS  : _int64 = 2;      // this function's own `self`
+
+/** every fact a function can start out with (ALWAYS_ENDS is earned instead) */
+const FACTS_ASSUMED : _int64 = 223;    // all but FACT_ALWAYS_ENDS: the three of writing, READS_NOTHING, NEVER_RAISES,
+                                       // SAFE_WITH_SELF, NO_STATIC_PART
+/** the three facts about what it changes */
+const FACTS_OF_WRITING : _int64 = 7;
+
+/**
+ * Work the facts of every function out and write them on the functions.
+ * It can be run again after a pass that changes what is called how.
+ */
+def find_function_facts(layout: program_layout) : function_facts_result {
+    result := new function_facts_result();
+    count : _int64 = layout.functions.size();
+
+    // ---- 1. each function alone
+    own := new _int64[count + 1];               // the facts its own instructions allow (with FACT_ALWAYS_ENDS: no loop)
+    known := new _int64[count + 1];             // 1: it has code that was looked at
+    first_site := new _int64[count + 2];        // its direct calls are sites first_site[f] .. first_site[f + 1] - 1
+    site_callee := new number_list();
+    site_self := new number_list();
+    for(f : _int64 = 0; f < count; f++) {
+        first_site[f] = site_callee.count;
+        made := layout.functions.at(f);
+        made.of.optimizer_facts = 0;
+        if(made.ir == null) { continue; }       // a native function, a delegate: nothing is known
+        code : ir_function = made.ir!!;
+        if(!can_be_optimized(code)) { continue; }
+        known[f] = 1;
+        result.functions++;
+        own[f] = facts_of_own_code(made, code, site_callee, site_self);
+    }
+    first_site[count] = site_callee.count;
+
+    // ---- 2. all together, until nothing changes
+    facts := new _int64[count + 1];
+    for(f : _int64 = 0; f < count; f++) {
+        if(known[f] == 1) { facts[f] = own[f] & FACTS_ASSUMED; }
+    }
+    changed : _int64 = 1;
+    while(changed == 1) {
+        changed = 0;
+        for(f : _int64 = 0; f < count; f++) {
+            if(known[f] == 0) { continue; }
+            now_has : _int64 = own[f];
+            for(s : _int64 = first_site[f]; s < first_site[f + 1] && now_has != 0; s++) {
+                callee : _int64 = site_callee.at(s);
+                theirs : _int64 = 0;
+                if(callee >= 0 && callee < count) { theirs = facts[callee]; }
+                now_has = now_has & after_call(theirs, site_self.at(s));
+            }
+            // the assumed facts can only be lost, ALWAYS_ENDS only be earned
+            now_has = (now_has & facts[f] & FACTS_ASSUMED) | (now_has & FACT_ALWAYS_ENDS);
+            if(now_has != facts[f]) {
+                facts[f] = now_has;
+                changed = 1;
+            }
+        }
+    }
+
+    for(f : _int64 = 0; f < count; f++) {
+        if(known[f] == 0) { continue; }
+        layout.functions.at(f).of.optimizer_facts = facts[f];
+        if((facts[f] & FACT_WRITES_NOTHING) != 0) {
+            result.write_nothing++;
+            if((facts[f] & FACT_READS_NOTHING) != 0) { result.read_nothing++; }
+        }
+        if((facts[f] & FACTS_REMOVABLE) == FACTS_REMOVABLE) { result.removable++; }
+    }
+    return result;
+}
+
+/**
+ * What is left of a caller's facts after one call: the callee's facts, with
+ * what the callee does to ITS `self` seen from the caller's side.
+ *
+ *      the callee ...             and `self` is ...     so the caller ...
+ *      writes nothing             (any)                 loses nothing
+ *      only initializes           (any)                 no longer "writes nothing"
+ *      writes only self           a fresh object        the same: nobody saw that object before
+ *      writes only self           the caller's `self`   writes only self too
+ *      writes only self           anything else         may have changed anything
+ */
+def after_call(theirs: _int64, self_is: _int64) : _int64 {
+    kept : _int64 = theirs & (FACT_READS_NOTHING | FACT_ALWAYS_ENDS | FACT_NO_STATIC_PART);
+    // a callee that raises only for a null `self`: handed a new object it cannot raise, handed our own
+    // `self` it raises only when we were called on null ourselves
+    if((theirs & FACT_NEVER_RAISES) != 0) { kept = kept | FACT_NEVER_RAISES | FACT_SAFE_WITH_SELF; }
+    else if((theirs & FACT_SAFE_WITH_SELF) != 0) {
+        if(self_is == SELF_IS_FRESH) { kept = kept | FACT_NEVER_RAISES | FACT_SAFE_WITH_SELF; }
+        else if(self_is == SELF_IS_OURS) { kept = kept | FACT_SAFE_WITH_SELF; }
+    }
+    if((theirs & FACT_WRITES_NOTHING) != 0) { return kept | FACTS_OF_WRITING; }
+    if((theirs & FACT_ONLY_INITIALIZES) != 0) { return kept | FACT_ONLY_INITIALIZES | FACT_WRITES_ONLY_SELF; }
+    if((theirs & FACT_WRITES_ONLY_SELF) != 0) {
+        if(self_is == SELF_IS_FRESH) { return kept | FACT_ONLY_INITIALIZES | FACT_WRITES_ONLY_SELF; }
+        if(self_is == SELF_IS_OURS) { return kept | FACT_WRITES_ONLY_SELF; }
+    }
+    return kept;
+}
+
+/**
+ * Step 1 for one function: every fact (ALWAYS_ENDS too: "it has no loop")
+ * minus what its own instructions rule out. Its direct calls are added to
+ * the two lists; any other kind of call rules everything out.
+ */
+def facts_of_own_code(made: function_layout, code: ir_function, site_callee: number_list, site_self: number_list) : _int64 {
+    facts : _int64 = FACTS_ASSUMED | FACT_ALWAYS_ENDS;
+    total : _int64 = code.instructions.size();
+    // the static part of a class writes that class's static fields: that is what "initializes" means
+    is_static_part : _int64 = made.kind == FUNCTION_INITIALIZER && made.is_static == 1;
+    if(is_static_part) { facts = without(facts, FACT_NO_STATIC_PART); }
+    has_self : _int64 = made.is_static == 0;
+    if(code.tries.size() > 0) {
+        // (the walks behind `holds` do not follow the edges into handlers: nothing is "fresh" here)
+        has_self = 0;
+    }
+
+    // where each label is, to tell a jump backwards (a loop); which slots `new_object` ever writes;
+    // is slot 0 ever written (then it is not always `self`)
+    label_at := new _int64[code.label_count + 1];
+    news := new _int64[code.slot_count() + 1];
+    self_written : _int64 = 0;
+    for(i : _int64 = 0; i < total; i++) {
+        at := code.instructions.at(i);
+        if(at.kind == IR_LABEL && at.number >= 0 && at.number < sizeof(label_at)) { label_at[at.number] = i; }
+        if(at.kind == IR_NEW_OBJECT && at.target >= 0) { news[at.target] = 1; }
+        if(slot_written(at) == 0) { self_written = 1; }
+    }
+    if(self_written == 1) { has_self = 0; }
+
+    graph : flow_graph? = null;         // made when the first "is this object fresh?" is asked
+    found := new number_list();
+    for(i : _int64 = 0; i < total; i++) {
+        at := code.instructions.at(i);
+        kind : _int64 = at.kind;
+        if(kind == IR_GET_FIELD || kind == IR_SET_FIELD) {
+            holds : _int64 = SELF_IS_OTHER;
+            if(at.first >= 0) {
+                if(at.first == 0 && has_self == 1) { holds = SELF_IS_OURS; }
+                else if(news[at.first] == 1 && code.tries.size() == 0) {
+                    if(graph == null) { graph = build_flow_graph(code); }
+                    if(only_fresh_objects(code, graph!!, i, at.first, found)) { holds = SELF_IS_FRESH; }
+                }
+            }
+            if(holds != SELF_IS_FRESH) {
+                // a `localized` field (first is -1) lives in the fiber: it cannot be null, but it is shared state
+                if(at.first >= 0) {
+                    facts = without(facts, FACT_NEVER_RAISES);
+                    if(holds != SELF_IS_OURS) { facts = without(facts, FACT_SAFE_WITH_SELF); }
+                }
+                if(kind == IR_GET_FIELD) {
+                    facts = without(facts, FACT_READS_NOTHING);
+                } else if(holds == SELF_IS_OURS) {
+                    facts = without(facts, FACT_WRITES_NOTHING | FACT_ONLY_INITIALIZES);
+                } else {
+                    facts = without(facts, FACTS_OF_WRITING);
+                }
+            }
+        } else if(kind == IR_SET_STATIC) {
+            if(is_static_part) { facts = without(facts, FACT_WRITES_NOTHING); }
+            else { facts = without(facts, FACTS_OF_WRITING); }
+        } else if(kind == IR_GET_STATIC) {
+            // the flag every constructor tests before it runs the static part is part of "initializes"
+            if(at.declaration == null || at.declaration!!.name != "@static_init_flag") { facts = without(facts, FACT_READS_NOTHING); }
+        } else if(kind == IR_SET_ELEMENT) {
+            facts = without(facts, FACTS_OF_WRITING | FACT_NEVER_RAISES | FACT_SAFE_WITH_SELF);
+        } else if(kind == IR_GET_ELEMENT) {
+            facts = without(facts, FACT_READS_NOTHING | FACT_NEVER_RAISES | FACT_SAFE_WITH_SELF);
+        } else if(kind == IR_LENGTH) {
+            facts = without(facts, FACT_READS_NOTHING);     // (WHICH array a field holds changes, and `realloc` changes the length of one)
+        } else if(kind == IR_LOCK || kind == IR_UNLOCK) {
+            return 0;                               // it may wait for another fiber: anything can happen meanwhile
+        } else if(kind == IR_CALL_VALUE || kind == IR_ASM) {
+            return 0;
+        } else if(kind == IR_CALL) {
+            if(at.number != CALL_HOW_DIRECT || at.declaration == null || at.declaration!!.address < 0) { return 0; }
+            passes : _int64 = SELF_IS_OTHER;
+            if((at.declaration!!.flags & FLAG_STATIC) == 0 && at.arguments != null && at.arguments!!.count > 0) {
+                receiver : _int64 = at.arguments!!.at(0);
+                if(receiver == 0 && has_self == 1) { passes = SELF_IS_OURS; }
+                else if(receiver >= 0 && news[receiver] == 1 && code.tries.size() == 0) {
+                    if(graph == null) { graph = build_flow_graph(code); }
+                    if(only_fresh_objects(code, graph!!, i, receiver, found)) { passes = SELF_IS_FRESH; }
+                }
+            }
+            site_callee.add(at.declaration!!.address);
+            site_self.add(passes);
+        } else if(kind == IR_JUMP || kind == IR_JUMP_IF || kind == IR_JUMP_UNLESS) {
+            if(at.number >= 0 && at.number < sizeof(label_at) && label_at[at.number] <= i) { facts = without(facts, FACT_ALWAYS_ENDS); }
+        } else if(may_raise(at) && kind != IR_NEW_OBJECT && kind != IR_TEXT) {
+            // a cast, `%` by zero, a new array of a negative size, `throw`
+            // (running out of memory for a new object is not part of what the program means)
+            facts = without(facts, FACT_NEVER_RAISES | FACT_SAFE_WITH_SELF);
+        }
+    }
+    return facts;
+}
+
+/** `facts` without the facts in `lost` */
+def without(facts: _int64, lost: _int64) : _int64 {
+    return facts - (facts & lost);
+}
+
+/** can `slot`, as instruction `at` reads it, only hold an object made by `new_object` in this function? */
+def only_fresh_objects(code: ir_function, graph: flow_graph, at: _int64, slot: _int64, found: number_list) : _int64 {
+    found.count = 0;
+    if(!reaching_definitions(code, graph, at, slot, found)) { return 0; }
+    for(d : _int64 = 0; d < found.count; d++) {
+        if(code.instructions.at(found.at(d)).kind != IR_NEW_OBJECT) { return 0; }
+    }
+    return found.count > 0;
+}
+
+/** does the function call anything whose call could be removed (so the removal passes are worth running again)? */
+def calls_something_removable(code: ir_function) : _int64 {
+    total : _int64 = code.instructions.size();
+    for(i : _int64 = 0; i < total; i++) {
+        at := code.instructions.at(i);
+        if(at.kind == IR_CALL && has_effect(at) == 0) { return 1; }
+    }
+    return 0;
+}

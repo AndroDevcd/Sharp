@@ -1,0 +1,300 @@
+mod main;
+
+import ( std.testing, std.io, std.data )
+
+/**
+ * std.data ini_file / ini_section (sections, key = value, comments, quoted
+ * values, load / save, malformed input) and xml_writer (nesting,
+ * attributes, escaping, CDATA, comments, indentation, misuse).
+ *
+ * Works only inside /tmp/sharp_suite_io_config and removes it at the end.
+ */
+
+base_dir : string = "/tmp/sharp_suite_io_config";
+
+q : string = "\"";
+
+def expect_ini_error(name: string, text: string) {
+    try {
+        ini_file.parse(text);
+        test(name) { fail_test("no exception"); };
+    } catch(e: parse_exception) {
+        test(name) { };
+    }
+}
+
+def test_ini_reading() {
+    text : string = "; a comment\n# another\nname = demo\nempty =\n\n[server]\nhost = localhost\nport=8080\n  debug  =  yes  \nurl: http://x/y?a=b\n\n[paths]\nhome = " + q + "  C:\\\\dir  " + q + "\nmsg = " + q + "say \\" + q + "hi\\" + q + "\\n" + q + "\n[empty section]\n[server]\nport = 9090\n";
+    config := ini_file.parse(text);
+
+    test("sections") { expect(io_strings.join(config.sections(), "|")).should_be("|server|paths|empty section"); };
+    test("size") { expect(config.size()).should_be(8); };
+    test("global value") { expect(config.find("", "name")!!).should_be("demo"); };
+    test("empty value") { expect(config.find("", "empty")!!).should_be(""); };
+    test("section value") { expect(config.find("server", "host")!!).should_be("localhost"); };
+    test("no spaces around =") { expect(config.value_or("server", "port", "?")).should_be("9090"); };
+    test("spaces trimmed") { expect(config.find("server", "debug")!!).should_be("yes"); };
+    test("colon separator, = inside the value") { expect(config.find("server", "url")!!).should_be("http://x/y?a=b"); };
+    test("quoted value keeps spaces") { expect(config.find("paths", "home")!!).should_be("  C:\\dir  "); };
+    test("quoted value escapes") { expect(config.find("paths", "msg")!!).should_be("say " + q + "hi" + q + "\n"); };
+    test("keys of a section") { expect(io_strings.join(config.keys("server"), "|")).should_be("host|port|debug|url"); };
+    test("keys of empty section") { expect(config.keys("empty section").size()).should_be(0); };
+    test("keys of missing section") { expect(config.keys("nope").size()).should_be(0); };
+    test("has_section") { expect_true(config.has_section("paths")); };
+    test("has_section empty") { expect_true(config.has_section("empty section")); };
+    test("has_section missing") { expect_false(config.has_section("Server")); };
+    test("has") { expect_true(config.has("server", "host")); };
+    test("has missing key") { expect_false(config.has("server", "Host")); };
+    test("has missing section") { expect_false(config.has("nope", "host")); };
+    test("find missing key is null") { expect_true(io_strings.is_null(config.find("server", "nope"))); };
+    test("find missing section is null") { expect_true(io_strings.is_null(config.find("nope", "host"))); };
+    test("value_or fallback") { expect(config.value_or("server", "nope", "dflt")).should_be("dflt"); };
+    test("value_or missing section") { expect(config.value_or("nope", "host", "dflt")).should_be("dflt"); };
+
+    test("number_or") { expect(config.number_or("server", "port", 80)).should_be(9090); };
+    test("number_or fallback") { expect(config.number_or("server", "timeout", 30)).should_be(30); };
+    try { config.number_or("server", "host", 0); test("number_or on text") { fail_test("no exception"); }; }
+    catch(e: number_format_exception) { test("number_or on text") { }; }
+    test("bool_or yes") { expect_true(config.bool_or("server", "debug", false)); };
+    test("bool_or fallback") { expect_true(config.bool_or("server", "nope", true)); };
+    try { config.bool_or("server", "host", false); test("bool_or on text") { fail_test("no exception"); }; }
+    catch(e: parse_exception) { test("bool_or on text") { }; }
+    words := ini_file.parse("a = TRUE\nb = On\nc = 1\nd = false\ne = No\nf = OFF\ng = 0\n");
+    test("TRUE") { expect_true(words.bool_or("", "a", false)); };
+    test("On") { expect_true(words.bool_or("", "b", false)); };
+    test("1") { expect_true(words.bool_or("", "c", false)); };
+    test("false") { expect_false(words.bool_or("", "d", true)); };
+    test("No") { expect_false(words.bool_or("", "e", true)); };
+    test("OFF") { expect_false(words.bool_or("", "f", true)); };
+    test("0") { expect_false(words.bool_or("", "g", true)); };
+
+    section := config.section("server")!!;
+    test("section name") { expect(section.name()).should_be("server"); };
+    test("section size") { expect(section.size()).should_be(4); };
+    test("key_at") { expect(section.key_at(1)).should_be("port"); };
+    test("value_at") { expect(section.value_at(1)).should_be("9090"); };
+    test("section missing") { expect_null(config.section("nope")); };
+    section.put("added", "through the section");
+    test("change through the section object") { expect(config.find("server", "added")!!).should_be("through the section"); };
+
+    test("empty text") { expect(ini_file.parse("").size()).should_be(0); };
+    test("only comments") { expect(ini_file.parse("; x\n# y\n\n").size()).should_be(0); };
+    test("crlf lines") { expect(ini_file.parse("a=1\r\n[s]\r\nb=2\r\n").size()).should_be(2); };
+    test("crlf value is clean") { expect(ini_file.parse("a=1\r\n").find("", "a")!!).should_be("1"); };
+    test("section name is trimmed") { expect(ini_file.parse("[  s  ]\nk=v\n").find("s", "k")!!).should_be("v"); };
+    test("last duplicate wins") { expect(ini_file.parse("k=1\nk=2\n").find("", "k")!!).should_be("2"); };
+    test("single quote char value") { expect(ini_file.parse("k=" + q + "\n").find("", "k")!!).should_be(q); };
+
+    expect_ini_error("line without separator", "just some words\n");
+    expect_ini_error("missing key", "= value\n");
+    expect_ini_error("unclosed section", "[server\nhost=x\n");
+    expect_ini_error("unknown escape", "k = " + q + "a\\qb" + q + "\n");
+    try {
+        ini_file.parse("a=1\nb=2\noops\n");
+        test("message") { fail_test("no exception"); };
+    } catch(e: parse_exception) {
+        test("message names the line") { expect_true(io_strings.contains(e.get_message(), "line 3")); };
+    }
+}
+
+def test_ini_writing() {
+    config := new ini_file();
+    config.put("", "name", "demo").put("server", "host", "localhost").put_number("server", "port", 8080).put_bool("server", "debug", true);
+    config.put("paths", "home", "  padded  ").put("paths", "multi", "two\nlines\t" + q + "x" + q + " \\ end");
+    config.put("", "version", "1.5");
+    test("to_string") { expect(config.to_string()!!).should_be("name = demo\nversion = 1.5\n\n[server]\nhost = localhost\nport = 8080\ndebug = true\n\n[paths]\nhome = " + q + "  padded  " + q + "\nmulti = " + q + "two\\nlines\\t\\" + q + "x\\" + q + " \\\\ end" + q + "\n"); };
+
+    back := ini_file.parse(config.to_string()!!);
+    test("round trip size") { expect(back.size()).should_be(7); };
+    test("round trip sections") { expect(io_strings.join(back.sections(), "|")).should_be("|server|paths"); };
+    test("round trip padded") { expect(back.find("paths", "home")!!).should_be("  padded  "); };
+    test("round trip multi line") { expect(back.find("paths", "multi")!!).should_be("two\nlines\t" + q + "x" + q + " \\ end"); };
+    test("round trip number") { expect(back.number_or("server", "port", 0)).should_be(8080); };
+    test("round trip bool") { expect_true(back.bool_or("server", "debug", false)); };
+    test("written again the same") { expect(back.to_string()!!).should_be(config.to_string()!!); };
+
+    config.put("server", "port", "9090");
+    test("put replaces") { expect(config.find("server", "port")!!).should_be("9090"); };
+    test("...and keeps its place") { expect(config.keys("server").at(1)).should_be("port"); };
+    test("remove") { expect_true(config.remove("server", "debug")); };
+    test("remove again") { expect_false(config.remove("server", "debug")); };
+    test("remove from missing section") { expect_false(config.remove("nope", "x")); };
+    test("remove_section") { expect_true(config.remove_section("paths")); };
+    test("remove_section again") { expect_false(config.remove_section("paths")); };
+    test("after removals") { expect(config.to_string()!!).should_be("name = demo\nversion = 1.5\n\n[server]\nhost = localhost\nport = 9090\n"); };
+
+    only := new ini_file();
+    only.put("s", "k", "v");
+    test("no global section") { expect(only.to_string()!!).should_be("[s]\nk = v\n"); };
+    test("empty settings") { expect(new ini_file().to_string()!!).should_be(""); };
+    late := ini_file.parse("[s]\nk=v\n");
+    late.put("", "g", "1");
+    test("global entries are written first") { expect(late.to_string()!!).should_be("g = 1\n\n[s]\nk = v\n"); };
+    test("...and read back") { expect(ini_file.parse(late.to_string()!!).find("", "g")!!).should_be("1"); };
+
+    try { config.put("s", "", "v"); test("empty key") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("empty key") { }; }
+    try { config.put("s", "a=b", "v"); test("key with =") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("key with =") { }; }
+    try { config.put("s", "[k", "v"); test("key starting with [") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("key starting with [") { }; }
+    try { config.put("s", ";k", "v"); test("key starting with ;") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("key starting with ;") { }; }
+    try { config.put("s]x", "k", "v"); test("section with ]") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("section with ]") { }; }
+    try { config.put("s", "two\nlines", "v"); test("key with line end") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("key with line end") { }; }
+
+    // files
+    target := new file(base_dir + "/app.ini");
+    config.save(target);
+    loaded := ini_file.load(target);
+    test("load after save") { expect(loaded.to_string()!!).should_be(config.to_string()!!); };
+    try { ini_file.load(new file(base_dir + "/missing.ini")); test("load missing") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("load missing") { }; }
+    more := new ini_file();
+    more.put("server", "host", "old").put("x", "y", "z");
+    more.read_text("[server]\nhost = new\nextra = 1\n");
+    test("read_text merges") { expect(more.to_string()!!).should_be("[server]\nhost = new\nextra = 1\n\n[x]\ny = z\n"); };
+}
+
+def test_xml() {
+    xml := new xml_writer();
+    xml.start("a").end();
+    test("empty element") { expect(xml.to_string()!!).should_be("<a/>"); };
+
+    xml = new xml_writer();
+    xml.start("root").attribute("id", "1").attribute_number("n", 2.5).text("hello").end();
+    test("attributes and text") { expect(xml.to_string()!!).should_be("<root id=" + q + "1" + q + " n=" + q + "2.5" + q + ">hello</root>"); };
+
+    xml = new xml_writer();
+    xml.start("t").text("a < b & c > d " + q + "quoted" + q + " 'single'").end();
+    test("text escaping") { expect(xml.to_string()!!).should_be("<t>a &lt; b &amp; c &gt; d " + q + "quoted" + q + " 'single'</t>"); };
+    xml = new xml_writer();
+    xml.start("t").attribute("v", "a<b&c>" + q + "d" + q + "\n\te").end();
+    test("attribute escaping") { expect(xml.to_string()!!).should_be("<t v=" + q + "a&lt;b&amp;c&gt;&quot;d&quot;&#10;&#9;e" + q + "/>"); };
+    test("escape()") { expect(xml_writer.escape("1 < 2 && 3 > 2")).should_be("1 &lt; 2 &amp;&amp; 3 &gt; 2"); };
+    test("escape() of nothing special") { expect(xml_writer.escape("plain")).should_be("plain"); };
+
+    xml = new xml_writer();
+    xml.declaration();
+    xml.start("library").attribute("city", "Oslo");
+    xml.start("book").attribute("id", "1");
+    xml.element("title", "Tom & Jerry");
+    xml.end();
+    xml.start("empty").end();
+    xml.end();
+    test("compact document") { expect(xml.to_string()!!).should_be("<?xml version=" + q + "1.0" + q + " encoding=" + q + "UTF-8" + q + "?>\n<library city=" + q + "Oslo" + q + "><book id=" + q + "1" + q + "><title>Tom &amp; Jerry</title></book><empty/></library>"); };
+
+    xml = new xml_writer();
+    xml.set_indent(2);
+    xml.declaration();
+    xml.start("library").attribute("city", "Oslo");
+    xml.comment(" the books ");
+    xml.start("book").attribute("id", "1");
+    xml.element("title", "Tom & Jerry");
+    xml.start("note").text("mixed ").start("b").text("bold").end().text(" text").end();
+    xml.end();
+    xml.start("empty").end();
+    test("depth") { expect(xml.depth()).should_be(1); };
+    xml.end();
+    test("indented document") { expect(xml.to_string()!!).should_be("<?xml version=" + q + "1.0" + q + " encoding=" + q + "UTF-8" + q + "?>\n<library city=" + q + "Oslo" + q + ">\n  <!-- the books -->\n  <book id=" + q + "1" + q + ">\n    <title>Tom &amp; Jerry</title>\n    <note>mixed <b>bold</b> text</note>\n  </book>\n  <empty/>\n</library>\n"); };
+
+    xml = new xml_writer();
+    xml.start("c").cdata("if(a < b && c) { x[y[0]]>1 }").end();
+    test("cdata") { expect(xml.to_string()!!).should_be("<c><![CDATA[if(a < b && c) { x[y[0]]]]><![CDATA[>1 }]]></c>"); };
+    xml = new xml_writer();
+    xml.start("c").cdata("").cdata("plain").end();
+    test("empty and plain cdata") { expect(xml.to_string()!!).should_be("<c><![CDATA[]]><![CDATA[plain]]></c>"); };
+
+    xml = new xml_writer();
+    xml.comment("before");
+    xml.start("r").text("").end();
+    xml.comment("after");
+    test("comments outside the root; empty text adds nothing") { expect(xml.to_string()!!).should_be("<!--before-->\n<r/>\n<!--after-->"); };
+
+    xml = new xml_writer();
+    xml.start("a").start("b").start("c");
+    test("depth 3") { expect(xml.depth()).should_be(3); };
+    xml.end_all();
+    test("end_all") { expect(xml.depth()).should_be(0); };
+    test("end_all result") { expect(xml.to_string()!!).should_be("<a><b><c/></b></a>"); };
+
+    xml = new xml_writer();
+    xml.start("ns:item").attribute("xml:lang", "en").attribute("data-x_1.y", "v").end();
+    test("names with : - _ . and digits") { expect(xml.to_string()!!).should_be("<ns:item xml:lang=" + q + "en" + q + " data-x_1.y=" + q + "v" + q + "/>"); };
+
+    // misuse
+    try { new xml_writer().start("1abc"); test("name starting with a digit") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("name starting with a digit") { }; }
+    try { new xml_writer().start("a b"); test("name with a space") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("name with a space") { }; }
+    try { new xml_writer().start(""); test("empty name") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("empty name") { }; }
+    try { new xml_writer().start("a<b"); test("name with <") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("name with <") { }; }
+    bad := new xml_writer();
+    bad.start("a").attribute("x", "1");
+    try { bad.attribute("x", "2"); test("duplicate attribute") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("duplicate attribute") { }; }
+    try { bad.attribute("bad name", "2"); test("attribute name") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("attribute name") { }; }
+    bad.text("content");
+    try { bad.attribute("y", "2"); test("attribute after content") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("attribute after content") { }; }
+    try { bad.to_string(); test("to_string with open element") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("to_string with open element") { }; }
+    try { bad.save(new file(base_dir + "/never.xml")); test("save with open element") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("save with open element") { }; }
+    bad.end();
+    try { bad.end(); test("end without open element") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("end without open element") { }; }
+    try { bad.start("second"); test("second root") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("second root") { }; }
+    try { bad.text("outside"); test("text outside the root") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("text outside the root") { }; }
+    try { bad.cdata("outside"); test("cdata outside the root") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("cdata outside the root") { }; }
+    try { bad.declaration(); test("late declaration") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("late declaration") { }; }
+    try { bad.comment("a -- b"); test("comment with --") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("comment with --") { }; }
+    try { bad.comment("ends with -"); test("comment ending with -") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("comment ending with -") { }; }
+    try { new xml_writer().to_string(); test("no root") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("no root") { }; }
+    try { new xml_writer().set_indent(0 - 1); test("negative indent") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("negative indent") { }; }
+    ctl := new xml_writer();
+    ctl.start("a");
+    try { ctl.text(io_strings.from_char(1)); test("control character") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("control character") { }; }
+
+    // a file
+    doc := new xml_writer();
+    doc.set_indent(4);
+    doc.start("items");
+    for(i : decimal = 0; i < 3; i++) {
+        doc.start("item").attribute_number("n", i).end();
+    }
+    doc.end();
+    target := new file(base_dir + "/doc.xml");
+    doc.save(target);
+    test("saved file") { expect(target.read_text()).should_be("<items>\n    <item n=" + q + "0" + q + "/>\n    <item n=" + q + "1" + q + "/>\n    <item n=" + q + "2" + q + "/>\n</items>\n"); };
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_data_config") {
+        start := new file(base_dir);
+        start.delete_recursively();
+        test("test directory created") { expect_true(start.mkdirs()); };
+
+        test_ini_reading();
+        test_ini_writing();
+        test_xml();
+
+        test("cleanup") { expect_true(start.delete_recursively()); };
+    };
+    finish_tests("lib_data_config");
+}

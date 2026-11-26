@@ -1,0 +1,85 @@
+mod backend.ide.bodies;
+
+import (
+    std.io,
+    frontend.syntax.tree
+)
+
+/**
+ * WHICH TOKEN IS THE NAME OF A USE
+ *
+ * A "use" in the editor files is a piece of text that NAMES something: the
+ * range the programmer hovers over or clicks to go to the definition. The
+ * typed tree knows the syntax node every expression was built from
+ * (`bound_node.node`), but that node is not always at the name:
+ *
+ *      count                     N_IDENTIFIER   at the name                     the name
+ *      box.width                 N_MEMBER       at the dot; its LAST child is the name
+ *      area(2)                   N_CALL         at the `(`; the first child is the callee:
+ *                                                 an N_IDENTIFIER, an N_MEMBER (its name), or an
+ *                                                 N_MODULE_NAME (std.io#println: its N_IDENTIFIER)
+ *      new point(1, 2)           N_NEW          at `new`; the type child's last name part: `point`
+ *      a + b                     N_BINARY       at the operator, and that IS the use of operator+
+ *      o[i]                      N_INDEX        at the `[`
+ *
+ * `name_token_of` answers with the index of the token, or -1 when the node has
+ * no name (a call of something that is not a name: `get_callback()(1)`).
+ */
+def name_token_of(tree: syntax_tree, node: _int64) : _int64 {
+    kind : _int64 = tree.kinds!![node];
+
+    if(kind == N_MEMBER) {
+        return name_token_of(tree, last_child_of(tree, node));
+    }
+    if(kind == N_MODULE_NAME) {
+        identifier : _int64 = tree.child_of_kind(node, N_IDENTIFIER);
+        if(identifier < 0) { return 0 - 1; }
+        return tree.tokens!![identifier];
+    }
+    if(kind == N_CALL) {
+        callee : _int64 = tree.first_child!![node];
+        if(callee < 0) { return 0 - 1; }
+        callee_kind : _int64 = tree.kinds!![callee];
+        if(callee_kind == N_IDENTIFIER || callee_kind == N_MEMBER || callee_kind == N_MODULE_NAME) {
+            return name_token_of(tree, callee);
+        }
+        return 0 - 1;
+    }
+    if(kind == N_NEW) {
+        written : _int64 = tree.first_child!![node];
+        if(written < 0) { return 0 - 1; }
+        return type_name_token(tree, written);
+    }
+    if(kind == N_TYPE || kind == N_TYPE_NAME) {
+        return type_name_token(tree, node);
+    }
+    return tree.tokens!![node];
+}
+
+/** the last child of a node, or -1 */
+def last_child_of(tree: syntax_tree, node: _int64) : _int64 {
+    return tree.last_child!![node];
+}
+
+/**
+ * The token of the name a written type ends in: `file` in `std.io#file`, `inner` in
+ * `outer.inner`, `list` in `list<int>`. Works for an N_TYPE (it holds the N_TYPE_NAME)
+ * and for the N_TYPE_NAME itself; -1 for a type with no name in it (`decimal`, a function type).
+ */
+def type_name_token(tree: syntax_tree, node: _int64) : _int64 {
+    name_node : _int64 = node;
+    if(tree.kinds!![node] == N_TYPE) {
+        name_node = tree.child_of_kind(node, N_TYPE_NAME);
+        if(name_node < 0) { return 0 - 1; }
+    }
+    if(tree.kinds!![name_node] != N_TYPE_NAME) { return 0 - 1; }
+
+    last_part : _int64 = 0 - 1;
+    child : _int64 = tree.first_child!![name_node];
+    while(child >= 0) {
+        if(tree.kinds!![child] == N_TYPE_PART) { last_part = child; }
+        child = tree.next_sibling!![child];
+    }
+    if(last_part < 0) { return 0 - 1; }
+    return tree.tokens!![last_part];
+}

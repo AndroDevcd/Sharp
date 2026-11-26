@@ -1,0 +1,13 @@
+// expect: E0381
+// help: def name(value: h) { ... }
+// replace: mutate h { def name() { } }
+// dots: println("h");
+mod tests.helps;
+import (std, std.io);
+
+stable class h { }
+mutate h { def name() { } }
+
+def main() {
+    x := new h();
+}

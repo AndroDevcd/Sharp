@@ -1,0 +1,328 @@
+mod std.net;
+
+import ( std.io, std.data, std.crypto )
+
+/**
+ * WEBSOCKETS: a connection both sides can send on at any time, in whole messages
+ *
+ *      chat := web_socket.connect("wss://chat.example/room/7");
+ *      chat.send("hello");                         // a text message
+ *      while(true) {
+ *          message := chat.receive();              // waits for the next one; null: the other side closed
+ *          if(message == null) { break; }
+ *          print(message!!.text() + "\n");
+ *      }
+ *      chat.close();
+ *
+ * HTTP answers once per request. A websocket starts as an HTTP request
+ * ("may we switch?") and from then on is a two-way pipe of MESSAGES: what
+ * one side sends as one message arrives as one message, however large,
+ * text or bytes. It is what chats, live dashboards and games use.
+ *
+ *      web_socket.connect(address)             "ws://..." (plain) or "wss://..." (encrypted, the server's certificate checked)
+ *      web_socket.connect(address) { ... }     with a block for the opening request (`it` is an http_request: headers, a token)
+ *      send(text)   send_bytes(data)           one message
+ *      receive()                               the next message (web_message), null when the other side has closed
+ *      receive_text()                          the next message as text, null when closed
+ *      ping()                                  "are you there?" - answered by the other side without the program seeing it
+ *      set_timeout(ms)                         receive() gives up after this long (socket_timeout); 0: waits for ever
+ *      close()   close(code, reason)           say goodbye and close (1000 is "done")
+ *
+ * A server takes websockets on a route of an http_server:
+ * server.socket("/room/{id}") { ... } (http_server.sharp).
+ *
+ * Pings from the other side are answered by receive(), so a program that
+ * wants to stay connected keeps calling it. One thread may receive while
+ * another sends.
+ *
+ *      Java comparison: java.net.http.WebSocket; JavaScript: new WebSocket(url).
+ */
+class web_socket_exception base socket_exception {
+    public web_socket_exception(message : string?) -> base(message) {}
+}
+
+/** one message: text or bytes */
+class web_message {
+    private data : _int8[];
+    private textual : bool;
+
+    web_message(data: _int8[], textual: bool) {
+        self->data = data;
+        self->textual = textual;
+    }
+
+    def is_text() : bool { return textual; }
+    def bytes() : _int8[] { return data; }
+    def size() : _int64 { return sizeof(data); }
+
+    def text() : string {
+        if(sizeof(data) == 0) { return ""; }
+        return new string(data, 0, sizeof(data));
+    }
+}
+
+class web_socket {
+    private static const MAGIC : string = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+    private static const MOST : _int64 = 64 * 1024 * 1024;      // a message larger than this is refused
+
+    private line : http_line;
+    private masks : bool;                   // a client hides ("masks") what it sends; a server does not
+    private open : bool = true;
+    private said_goodbye : bool = false;
+    private writing : web_socket_turn = new web_socket_turn();
+    /** why the other side closed (1000: done, 1001: going away ...); 0 while open or when it said nothing */
+    close_code : _int64 = 0;
+    close_reason : string = "";
+
+    private web_socket(line: http_line, masks: bool) {
+        self->line = line;
+        self->masks = masks;
+    }
+
+    // ================================================================ a client
+
+    static def connect(address: string) : web_socket {
+        return open_with(new http_request("GET", as_http(address)));
+    }
+
+    static def connect(address: string, extras: (http_request)()) : web_socket {
+        asked := new http_request("GET", as_http(address));
+        extras(asked);
+        return open_with(asked);
+    }
+
+    /** ws://  ->  http://,  wss://  ->  https:// */
+    private static def as_http(address: string) : string {
+        if(io_strings.starts_with(address, "ws://")) { return "http://" + io_strings.slice_from(address, 5); }
+        if(io_strings.starts_with(address, "wss://")) { return "https://" + io_strings.slice_from(address, 6); }
+        throw new illegal_argument_exception("`" + address + "` is not a websocket address: it has to start with ws:// or wss://");
+    }
+
+    private static def open_with(asked: http_request) : web_socket {
+        where : url = url.parse(asked.resolved_address());
+        made : http_line? = null;
+        try {
+            if(where.is_secure()) {
+                secure := tls_socket.connect(where.host, where.port);
+                made = new http_line(secure, null, secure, where.origin());
+            } else {
+                plain := tcp_socket.connect(where.host, where.port);
+                made = new http_line(plain, plain, null, where.origin());
+            }
+        } catch(unreachable: socket_exception) {
+            throw new web_socket_exception(where.origin() + ": " + unreachable.get_message());
+        }
+        line : http_line = made!!;
+        try {
+            key : string = base64.encode_bytes(secure_random.bytes(16));
+            head := new char_buffer();
+            head.append("GET ").append(where.target()).append(" HTTP/1.1\r\nHost: ").append(where.host_and_port());
+            head.append("\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: ").append(key).append("\r\n");
+            for(i : _int64 = 0; i < asked.headers.size(); i++) {
+                head.append(asked.headers.name_at(i)).append(": ").append(asked.headers.value_at(i)).append("\r\n");
+            }
+            head.append("\r\n");
+            bytes : _int8[] = head.to_array()!!;
+            line.set_timeout(30000);
+            line.wire.write(bytes, sizeof(bytes));
+
+            first : string? = line.read_line();
+            if(first == null) { throw new web_socket_exception(where.origin() + ": the server closed the connection"); }
+            agreed : string = "";
+            while(true) {
+                one : string? = line.read_line();
+                if(one == null || sizeof(one!!.data) == 0) { break; }
+                colon : _int64 = io_strings.index_of(one!!, ':') as _int64;
+                if(colon > 0 && io_strings.equals_ignore_case(io_strings.slice(one!!, 0, colon), "Sec-WebSocket-Accept")) {
+                    agreed = io_strings.trim(io_strings.slice_from(one!!, colon + 1));
+                }
+            }
+            if(!io_strings.contains(first!!, " 101")) {
+                throw new web_socket_exception(where.to_string()!! + " is not a websocket: the server answered `" + http_line.shown(first!!) + "`");
+            }
+            if(agreed != accept_for(key)) {
+                throw new web_socket_exception(where.to_string()!! + ": the server's answer to the opening request is wrong");
+            }
+            line.set_timeout(0);
+        } catch(problem: throwable) {
+            line.close();
+            throw problem;
+        }
+        return new web_socket(line, true);
+    }
+
+    /** what a server answers to a key: proof that it read the request as a websocket's */
+    static def accept_for(key: string) : string {
+        return base64.encode_bytes(sha1.bytes(key + MAGIC));
+    }
+
+    /** (for http_server) a websocket on a connection whose opening request was answered */
+    static def of_server(line: http_line) : web_socket {
+        return new web_socket(line, false);
+    }
+
+    // ================================================================ messages
+
+    def is_open() : bool { return open; }
+
+    def set_timeout(milliseconds: _int64) : web_socket {
+        line.set_timeout(milliseconds);
+        return self;
+    }
+
+    /** send one text message */
+    def send(text: string) {
+        frame(1, text.data);
+    }
+
+    /** send one message of bytes */
+    def send_bytes(data: _int8[]?) {
+        frame(2, data);
+    }
+
+    def ping() {
+        frame(9, null);
+    }
+
+    /**
+     * Wait for the next message. Null: the other side has closed (close_code
+     * and close_reason say why). Throws socket_timeout when a timeout is set
+     * and nothing came, web_socket_exception when what came is not a
+     * websocket's.
+     */
+    def receive() : web_message? {
+        whole : byte_buffer? = null;
+        first_kind : _int64 = 0;
+        while(open) {
+            head : _int8[]? = read_or_closed(2);
+            if(head == null) { open = false; return null; }
+            last : bool = (head!![0] & 0x80) != 0;
+            kind : _int64 = head!![0] & 0x0F;
+            masked : bool = (head!![1] & 0x80) != 0;
+            size : _int64 = head!![1] & 0x7F;
+            if(size == 126) {
+                more : _int8[] = line.read_exactly(2);
+                size = ((more[0] & 0xFF) << 8) | (more[1] & 0xFF);
+            } else if(size == 127) {
+                more : _int8[] = line.read_exactly(8);
+                size = 0;
+                for(i : _int64 = 0; i < 8; i++) { size = (size << 8) | (more[i] & 0xFF); }
+            }
+            if(size < 0 || size > MOST) { fail(1009, "a message of " + size + " bytes is larger than this side takes"); }
+            key : _int8[]? = null;
+            if(masked) { key = line.read_exactly(4); }
+            data : _int8[] = new _int8[0];
+            if(size > 0) { data = line.read_exactly(size); }
+            if(masked) {
+                for(i : _int64 = 0; i < size; i++) { data[i] = data[i] ^ key!![i % 4]; }
+            }
+
+            if(kind == 8) {                             // goodbye
+                if(size >= 2) {
+                    close_code = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
+                    if(size > 2) { close_reason = new string(data, 2, size); }
+                }
+                if(!said_goodbye) {
+                    try { frame(8, data); } catch(gone: socket_exception) { }
+                }
+                open = false;
+                line.close();
+                return null;
+            }
+            if(kind == 9) { frame(10, data); continue; }        // ping: answer it
+            if(kind == 10) { continue; }                        // an answer to a ping of ours
+
+            if(kind == 1 || kind == 2) {
+                if(whole != null) { fail(1002, "a new message started inside another"); }
+                if(last) { return new web_message(data, kind == 1); }
+                first_kind = kind;
+                whole = new byte_buffer();
+                whole!!.put_bytes(data);
+            } else if(kind == 0) {
+                if(whole == null) { fail(1002, "a piece of a message without its start"); }
+                whole!!.put_bytes(data);
+                if(whole!!.size() > MOST) { fail(1009, "a message larger than this side takes"); }
+                if(last) { return new web_message(whole!!.to_array() ?: new _int8[0], first_kind == 1); }
+            } else {
+                fail(1002, "an unknown kind of frame (" + kind + ")");
+            }
+        }
+        return null;
+    }
+
+    /** the next message as text; null when the other side has closed */
+    def receive_text() : string? {
+        message : web_message? = receive();
+        if(message == null) { return null; }
+        return message!!.text();
+    }
+
+    /** `count` bytes, or null when the connection ended exactly here (between two frames) */
+    private def read_or_closed(count: _int64) : _int8[]? {
+        try {
+            return line.read_exactly(count);
+        } catch(ended: http_exception) {
+            return null;
+        }
+        return null;
+    }
+
+    /** the other side broke the rules: tell it, close, and throw */
+    private def fail(code: _int64, why: string) {
+        try { close(code, why); } catch(gone: socket_exception) { }
+        throw new web_socket_exception("the other side sent " + why);
+    }
+
+    /** one frame: the kind (1 text, 2 bytes, 8 close, 9 ping, 10 pong), the length, the mask, the data */
+    private def frame(kind: _int64, data: _int8[]?) {
+        if(!open) { throw new web_socket_exception("the websocket is closed"); }
+        size : _int64 = sizeof(data);
+        out := new byte_buffer();
+        out.put_int8(0x80 | kind);
+        hidden : _int64 = 0;
+        if(masks) { hidden = 0x80; }
+        if(size < 126) { out.put_int8(hidden | size); }
+        else if(size < 65536) { out.put_int8(hidden | 126); out.put_int8((size >> 8) & 0xFF); out.put_int8(size & 0xFF); }
+        else {
+            out.put_int8(hidden | 127);
+            for(i : _int64 = 7; i >= 0; i--) { out.put_int8((size >> (8 * i)) & 0xFF); }
+        }
+        if(masks) {
+            key : _int8[] = secure_random.bytes(4);
+            out.put_bytes(key);
+            if(size > 0) {
+                covered := new _int8[size];
+                for(i : _int64 = 0; i < size; i++) { covered[i] = data!![i] ^ key[i % 4]; }
+                out.put_bytes(covered);
+            }
+        } else if(size > 0) {
+            out.put_bytes(data);
+        }
+        bytes : _int8[] = out.to_array()!!;
+        lock(writing) {
+            line.wire.write(bytes, sizeof(bytes));
+        }
+    }
+
+    /** say goodbye ("done") and close. Closing twice does nothing. */
+    def close() {
+        close(1000, "");
+    }
+
+    def close(code: _int64, reason: string) {
+        if(!open) { return; }
+        if(!said_goodbye) {
+            said_goodbye = true;
+            said := new byte_buffer();
+            said.put_int8((code >> 8) & 0xFF);
+            said.put_int8(code & 0xFF);
+            if(sizeof(reason.data) > 0) { said.put_bytes(reason.data); }
+            try { frame(8, said.to_array()); } catch(gone: socket_exception) { }
+        }
+        open = false;
+        line.close();
+    }
+}
+
+/** what two threads that send on one websocket take turns on */
+class web_socket_turn { }

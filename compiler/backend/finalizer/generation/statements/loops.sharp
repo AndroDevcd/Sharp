@@ -1,0 +1,169 @@
+mod backend.finalizer.generation.statements;
+
+import (
+    std.io,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation,
+    backend.finalizer.generation.values,
+    backend.finalizer.generation.collections,
+    backend.finalizer.generation.closures
+)
+
+/**
+ * LOOPS, `break`, `continue` (doc/codegen.md 6.10)
+ *
+ *      while(c) body           top: c' = c; jump_unless c', end; body; next: jump top; end:
+ *      do body while(c);       top: body; next: c' = c; jump_if c', top; end:
+ *      for(i; c; s) body       i; top: [c' = c; jump_unless c', end]; body; next: [s]; jump top; end:
+ *      foreach(x in a) body    the array once, an index from 0 to its length
+ *      break / continue        jump end / jump next of their loop; through a lock or a finally:
+ *                              exits.sharp
+ *
+ * A loop goes back with a backward `jmp`, which is where the JIT takes a hot
+ * loop over (4.8).
+ *
+ * `continue` in a `do` loop goes to `next`, the CONDITION - as in every
+ * language with this loop. The C++ compiler sends it to `top`, past the
+ * condition (do_while_statement.cpp gives the block the loop's begin label
+ * for it): a deliberate difference (codegen.md 10, G31).
+ */
+
+/** while, do-while, for: the shapes at the top of this file. `is_endless` leaves the condition out */
+def generate_loop(g: generator, loop: bound_loop) {
+    top : _int64 = g.b.new_label();
+    next : _int64 = g.b.new_label();
+    finish : _int64 = g.b.new_label();
+    kind : _int64 = loop.kind;
+
+    if(kind == BS_FOR) {
+        for_loop := loop as bound_for;
+        for(i : _int64 = 0; i < for_loop.initializers.size(); i++) { generate_statement(g, for_loop.initializers.at(i)); }
+    }
+    g.b.place(top);
+    if(kind == BS_WHILE && loop.is_endless == 0) {
+        condition : _int64 = condition_of(g, (loop as bound_while).condition);
+        g.b.jump_unless(condition, finish);
+        g.b.release(condition);
+    }
+    if(kind == BS_FOR && loop.is_endless == 0 && (loop as bound_for).condition != null) {
+        condition : _int64 = condition_of(g, (loop as bound_for).condition!!);
+        g.b.jump_unless(condition, finish);
+        g.b.release(condition);
+    }
+
+    enter_loop(g, loop, finish, next);
+    generate_statement(g, loop.body);
+    leave_loop(g);
+
+    g.b.place(next);
+    if(kind == BS_DO_WHILE) {
+        do_loop := loop as bound_do_while;
+        if(loop.is_endless == 0 && do_loop.condition != null) {
+            condition : _int64 = condition_of(g, do_loop.condition!!);
+            g.b.jump_if(condition, top);
+            g.b.release(condition);
+        } else {
+            g.b.jump(top);
+        }
+    } else {
+        if(kind == BS_FOR && (loop as bound_for).step != null) {
+            effect_of(g, (loop as bound_for).step!!);
+        }
+        g.b.jump(top);
+    }
+    g.b.place(finish);
+}
+
+/**
+ * `foreach(x in items) body` (6.10): `items` is always an array here - for an
+ * object that is `loopable` analysis made it the call of its get_elements().
+ * It is evaluated once; then an index runs from 0 up to its length, read
+ * again every round (a null array has length 0: the loop does not run -
+ * probed, Q4), and each round the element is converted to the variable's
+ * type and stored in it before the body runs.
+ */
+def generate_foreach(g: generator, loop: bound_foreach) {
+    top : _int64 = g.b.new_label();
+    next : _int64 = g.b.new_label();
+    finish : _int64 = g.b.new_label();
+
+    array_slot : _int64 = g.slot_of(loop.array_variable, loop.unit, loop.node);
+    index_slot : _int64 = g.slot_of(loop.index_variable, loop.unit, loop.node);
+    collection : _int64 = value_of(g, loop.collection);
+    g.b.copy(array_slot, collection, NARROW_NONE);
+    g.b.release(collection);
+    g.b.int_constant(index_slot, 0);
+
+    g.b.place(top);
+    length : _int64 = g.b.temp(SLOT_INT);
+    measured := g.b.emit(IR_LENGTH);
+    measured.target = length;
+    measured.first = array_slot;
+    more : _int64 = g.b.temp(SLOT_INT);
+    g.b.binary(IR_INT_COMPARE, CMP_LT, more, index_slot, length);
+    g.b.release(length);
+    g.b.jump_unless(more, finish);
+    g.b.release(more);
+
+    item : _int64 = g.temp_for(loop.item_type);
+    element := g.b.emit(IR_GET_ELEMENT);
+    element.target = item;
+    element.first = array_slot;
+    element.second = index_slot;
+    element.number = element_code_of(loop.item_type);
+    value : _int64 = converted(g, item, loop.item_conversion, loop.collection);
+    store_local(g, loop.variable, value, loop.unit, loop.node);
+    g.b.release(value);         // (a conversion that made a new slot has given `item` back already)
+
+    enter_loop(g, loop, finish, next);
+    generate_statement(g, loop.body);
+    leave_loop(g);
+
+    g.b.place(next);
+    one : _int64 = g.b.temp(SLOT_INT);
+    g.b.int_constant(one, 1);
+    g.b.binary(IR_INT_BINARY, ARITH_ADD, index_slot, index_slot, one);
+    g.b.release(one);
+    g.b.jump(top);
+    g.b.place(finish);
+}
+
+/** a loop's body begins: `break` and `continue` inside it jump to these labels */
+def enter_loop(g: generator, loop: bound_statement, finish: _int64, next: _int64) {
+    g.loops.add(loop);
+    g.break_labels.add(finish);
+    g.continue_labels.add(next);
+}
+
+/** the loop's body is done */
+def leave_loop(g: generator) {
+    g.loops.pop_last();
+    g.break_labels.pop_last();
+    g.continue_labels.pop_last();
+}
+
+/** `break` / `continue`: a jump to the end / the next round of their loop, through what it leaves (exits.sharp) */
+def generate_jump(g: generator, statement: bound_statement) {
+    loop : bound_loop? = null;
+    leaves : list<bound_statement>? = null;
+    broken : _int64 = 0;
+    if(statement.kind == BS_BREAK) {
+        jump := statement as bound_break;
+        loop = jump.loop;
+        leaves = jump.leaves;
+        broken = jump.broken;
+    } else {
+        jump := statement as bound_continue;
+        loop = jump.loop;
+        leaves = jump.leaves;
+        broken = jump.broken;
+    }
+    if(broken == 1 || loop == null) { g.stop("a jump reported as wrong", statement.unit, statement.node); }
+    way : _int64 = WAY_CONTINUE;
+    if(statement.kind == BS_BREAK) { way = WAY_BREAK; }
+    leave_by(g, way, loop, leaves!!, 0, statement.unit, statement.node);
+}

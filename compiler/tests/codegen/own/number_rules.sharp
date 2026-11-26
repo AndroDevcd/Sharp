@@ -1,0 +1,90 @@
+mod main;
+
+// output:
+// 9223372036854775807
+// 9223372036854775807
+// 9223372036854775807
+// 9223372036854775807
+// -9223372036854775808
+// -9223372036854775808
+// -1
+// -1
+// -1
+// -1
+// 0.5
+// 150
+// -1
+// 1
+// 44
+// -2
+// 44
+// 3
+// 77
+
+/*
+ * Deliberate differences from the C++-built program that the completeness
+ * critics found (doc/codegen.md section 10). The C++-built program prints
+ * other numbers for every line here, so this is an own case; the C++ output
+ * is in the comment of each part.
+ *
+ * G42 - a constant decimal out of the 64-bit range is folded as `d2i`
+ * converts it while the program runs: the nearest end. So the constant
+ * `1e30`, the folded `(1.0e30 as _int64)` and the run-time `pw(2, 63)` agree.
+ * (C++: -9223372036854775808 for the two constants, 9223372036854775807 for pw.)
+ *
+ * G43 - a hexadecimal literal is the 64 bits it writes, two's complement.
+ * (C++: 9223372036854775807, 9223372036854775807, 7, 0, 9.223372036854776e+18.)
+ *
+ * G44 - a typed `foreach` variable converts each item. (C++: 0, 7.4e-322,
+ * -nan, then 1, 0, 0.)
+ *
+ * G45 - asm encodes what is written: `mov8 ecx, ebx` narrows ebx into ecx,
+ * `dmovi` is one instruction. (C++: 17, then the `dput` line is lost, 77.)
+ */
+// (`show` and `show_decimal` print exactly, with asm: tests/codegen/print.sharp)
+def pw(a: _int64, b: _int64) : _int64 { return a ** b; }
+
+def main() {
+    // G42
+    n : _int64 = 1e30;
+    show(n);
+    j : _int64 = (1.0e30 as _int64);
+    show(j);
+    show(pw(2, 63));
+    big : decimal = 1e30;
+    show(big as _int64);
+    m : _int64 = -1e30;
+    show(m);
+
+    // G43
+    show(0x8000000000000000);
+    a : _int64 = 0xFFFFFFFFFFFFFFFF;
+    show(a);
+    show(a >> 60);
+    show(0x8000000000000000 >> 63);
+    d : decimal = 0xFFFFFFFFFFFFFFFF;
+    show_decimal(d);
+
+    // G44
+    nums := new _int64[] { 1, 300, -2 };
+    foreach(x : decimal in nums) { show_decimal(x / 2); }
+    foreach(b : _int8 in nums) { show(b); }
+
+    // G45
+    asm {
+        movi ebx, 300
+        movi ecx, 17
+        mov8 ecx, ebx
+        put ecx
+        movi adx, 10
+        putc adx
+        dmovi ebx, 3
+        dput ebx
+        movi adx, 10
+        putc adx
+        movi ebx, 77
+        put ebx
+        movi adx, 10
+        putc adx
+    }
+}

@@ -1,0 +1,87 @@
+mod std.collections;
+
+/**
+ * @class collections
+ *
+ * LISTS OF LISTS: chunked, windowed, flatten.
+ *
+ *     rows := collections<int>.chunked(numbers, 3);      // [[1,2,3],[4,5,6],[7]]
+ *     pairs := collections<int>.windowed(numbers, 2);    // [[1,2],[2,3],[3,4], ...]
+ *     all := collections<int>.flatten(rows);             // [1,2,3,4,5,6,7]
+ *
+ * Everything else of this kind - filter, map, sorted_by, group_by ... - is
+ * a function of the list itself (collection_functions.sharp):
+ * `numbers.filter { it > 3 }`. These three are static functions of a class
+ * because a function of every list cannot give a list of lists.
+ *
+ * The source is any collection (`loopable<T>`): a list, a linked_list, a
+ * deque, a hash_set, a tree_set ... It is never changed.
+ *
+ * Limitation: T has to be an object type; native `decimal` cannot be used.
+ */
+class collections<T base _object_> {
+
+    /** One list with the elements of all the given lists, one list after the other. O(total size). */
+    static def flatten(lists: loopable<list<T> >) : list<T> {
+        result := new list<T>();
+        outer := lists.get_elements();
+        if(outer == null) return result;
+        for(i : decimal = 0; i < sizeof(outer); i++) {
+            inner := outer[i];
+            n : decimal = inner.size();
+            for(j : decimal = 0; j < n; j++)
+                result.add(inner.at(j));
+        }
+        return result;
+    }
+
+    /**
+     * Cut the source into lists of `size` elements; the last one holds the
+     * remainder and may be shorter. chunked([1,2,3,4,5], 2) = [[1,2],[3,4],[5]]. O(n).
+     *
+     * @throws illegal_argument_exception when size is not positive
+     */
+    static def chunked(source: loopable<T>, size: int) : list<list<T> > {
+        if(size.value <= 0)
+            throw new illegal_argument_exception("collections.chunked: size must be positive, got $size");
+
+        result := new list<list<T> >();
+        items := source.get_elements();
+        if(items == null) return result;
+
+        chunk := new list<T>();
+        for(i : decimal = 0; i < sizeof(items); i++) {
+            chunk.add(items[i]);
+            if(chunk.size() == size.value) {
+                result.add(chunk);
+                chunk = new list<T>();
+            }
+        }
+        if(chunk.size() > 0) result.add(chunk);
+        return result;
+    }
+
+    /**
+     * Every run of `size` neighbouring elements, each run starting one
+     * element after the previous: windowed([1,2,3,4], 2) = [[1,2],[2,3],[3,4]].
+     * Empty when the source has fewer than `size` elements. O(n * size).
+     *
+     * @throws illegal_argument_exception when size is not positive
+     */
+    static def windowed(source: loopable<T>, size: int) : list<list<T> > {
+        if(size.value <= 0)
+            throw new illegal_argument_exception("collections.windowed: size must be positive, got $size");
+
+        result := new list<list<T> >();
+        items := source.get_elements();
+        if(items == null) return result;
+
+        for(start : decimal = 0; start + size.value <= sizeof(items); start++) {
+            window := new list<T>();
+            for(i : decimal = 0; i < size.value; i++)
+                window.add(items[start + i]);
+            result.add(window);
+        }
+        return result;
+    }
+}

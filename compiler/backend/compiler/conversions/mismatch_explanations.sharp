@@ -1,0 +1,311 @@
+mod backend.compiler.conversions;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context
+)
+
+/**
+ * WHY A VALUE DOES NOT FIT, AND WHAT TO WRITE INSTEAD
+ *
+ * "expected `decimal[]`, found `_int32[]`" says what is wrong. This file adds
+ * the two lines that make the message useful: the RULE that is in the way
+ * (a note) and the TEXT that would be right (a help), chosen by the reason
+ * the conversion table gave (`conversion.problem`, the WHY_ kinds) and by
+ * what the two types are:
+ *
+ *      found                   wanted          the help
+ *      ----------------------  --------------  ---------------------------------------------
+ *      a plain number          object          new long(n)
+ *      a plain number          string          "" + n
+ *      an `int` object         a number        an_int.value
+ *      an enum value           a number        c.ordinal
+ *      object                  a class         anything as animal
+ *      one value               an array        { value }
+ *      an array                one value       numbers[0]
+ *      { 1, 2 }                decimal[]       { 1.0, 2.0 }  /  new decimal[] { 1, 2 }
+ *      a class                 an interface    add `: walker` to the class
+ *      list<dog>               list<animal>    (two instances of a generic class are two classes)
+ *
+ * Used by `report_no_conversion` (conversion_messages.sharp) for E0410.
+ */
+def whole_of_constant(value: constant_value) : _int64 {
+    if(value.kind == CONST_DECIMAL) { return value.number as _int64; }
+    return value.integer;
+}
+
+def explain_mismatch(context: analysis_context, d: diagnostic, value: bound_expression, how: conversion) {
+    from : resolved_type = how.from;
+    to : resolved_type = how.to;
+    written := source_text_of(context, value.node);
+
+    if(value.literal == LIT_TEXT && to.is_array == 1) {
+        // names : string[] = "text";
+        d.with_note("a text literal is ONE piece of text; it becomes one `string`, never an array of them");
+        if(to.kind == RT_CLASS) { d.with_help("make an array with one item: `{ " + written + " }`"); }
+    } else if(value.literal == LIT_TEXT && to.is_number()) {
+        // n : _int64 = "5";
+        d.with_note("text in quotes is text, also when it spells a number");
+        d.with_help("write the number without the quotes; for ONE character as its number use single quotes: `'a'`");
+    } else if(value.literal == LIT_TEXT && to.is_array == 0 && (to.kind == RT_CLASS || to.kind == RT_OBJECT)) {
+        // take("5") for `n: int`;  list<int>["k"];  o : object = "x";
+        explain_text_for_object(context, d, to, written);
+    } else if(to.kind == RT_FUNCTION && to.is_array == 0 && from.kind != RT_FUNCTION) {
+        // run(5) where a function value is wanted
+        d.with_note("a function value is wanted here: something of the type `" + to.as_non_null().to_text() + "` that can be called");
+        d.with_help("pass a lambda, `{ ... }`, or the name of a function with those parameters");
+    } else if(how.problem == WHY_NUMBER_TO_BOOL) {
+        d.with_note("a `bool` is true or false; a number does not become one by itself");
+        if(value.literal == LIT_INTEGER && value.constant != null && whole_of_constant(value.constant!!) == 1) { d.with_help("write `true`"); }
+        else if(value.literal == LIT_INTEGER && value.constant != null && whole_of_constant(value.constant!!) == 0) { d.with_help("write `false`"); }
+        else { d.with_help("say what is being asked: `" + as_operand_text(context, value.node) + " != 0`"); }
+    } else if(how.problem == WHY_NUMBER_TO_OBJECT) {
+        explain_number_for_object(context, d, from, to, written, as_operand_text(context, value.node));
+    } else if(how.problem == WHY_OBJECT_TO_NUMBER) {
+        explain_object_for_number(context, d, value, from);
+    } else if(how.problem == WHY_NEEDS_CAST) {
+        d.with_note("an `object` can be anything; the compiler cannot know it is a `" + to.to_text() + "`");
+        d.with_help("say what it is: `" + as_operand_text(context, value.node) + " as " + to.to_text() + "` (the program checks it when it runs)");
+    } else if(how.problem == WHY_ARRAY) {
+        if(from.is_array == 1) {
+            d.with_note("an array cannot be used where a single `" + to.to_text() + "` is wanted");
+            d.with_help("use one of its items: `" + as_operand_text(context, value.node) + "[0]`");
+        } else {
+            d.with_note("a single value cannot be used where an array is wanted");
+            d.with_help("make an array of it: `{ " + written + " }`");
+        }
+    } else if(how.problem == WHY_FUNCTION_SHAPE) {
+        d.with_note("function types must match exactly: the same parameter types and the same result");
+        d.with_help("wrap it in a function of the wanted type that calls it");
+    } else if(from.kind == RT_CLASS && to.kind == RT_CLASS && from.is_array == to.is_array) {
+        explain_unrelated_classes(d, from, to);
+    } else if(from.is_array == 1 && to.is_array == 1) {
+        explain_array_mismatch(d, value, from, to);
+    }
+}
+
+/**
+ * `o : object = 5;`  `s : string = 5;`  `p : point = 5;`. `operand` is the
+ * value as it must be written after `"" +`: an operation in parentheses, since
+ * `"" + n + 1` would be the text of `n` followed by the text `1`.
+ */
+def explain_number_for_object(context: analysis_context, d: diagnostic, from: resolved_type, to: resolved_type, written: string, operand: string) {
+    if(to.kind == RT_OBJECT) {
+        d.with_note("a plain number is not an object; `object` holds objects and arrays");
+        d.with_help("wrap it: `new " + box_name_of(from) + "(" + written + ")`");
+    } else if(to.as_non_null() == context.session.string_type()) {
+        d.with_note("a number is not text. (A single CHARACTER - an `_int8` - does become a `string`; a wider number does not.)");
+        d.with_help("to write the number out as text: `\"\" + " + operand + "`");
+    } else {
+        d.with_note("a plain number is not an object, and `" + to.to_text() + "` has no constructor that takes one");
+    }
+}
+
+/**
+ * A text literal where one OBJECT is wanted:
+ *
+ *      take("5")           take(n: int)            int holds a number: write 5
+ *      ready("true")       ready(b: bool)          write true
+ *      list_of_ints["k"]   the index is an int     a number is wanted
+ *      s.equals("y")       equals(o: _object_)     a string object is one: new string("y")
+ *      paint("red")        paint(c: color)         text is never a `color`: no fix to offer
+ *
+ * A text literal is an `_int8[]`; it becomes a `string` only where a
+ * `string` is wanted (7.5). It is ONE value, so "use one of its items"
+ * (the help for arrays in general) would be the wrong advice.
+ */
+def explain_text_for_object(context: analysis_context, d: diagnostic, to: resolved_type, written: string) {
+    session : analysis_session = context.session;
+    if(to.kind == RT_CLASS && is_box_value(session, to.as_non_null())) {
+        d.with_note("text in quotes is text, also when it spells a number; `" + to.to_text() + "` holds a number");
+        unquoted := without_quotes(written);
+        if(is_number_text(unquoted) || unquoted == "true" || unquoted == "false") {
+            d.with_help("write it without the quotes: `" + unquoted + "`");
+        } else if(sizeof(unquoted.data) == 1) {
+            d.with_help("give a number here; for the character as its number use single quotes: `'" + unquoted + "'`");
+        } else {
+            d.with_help("give a number here; for ONE character as its number use single quotes: `'a'`");
+        }
+        return;
+    }
+    d.with_note("a text literal is an array of characters (`_int8[]`); it becomes a `string` only where a `string` is wanted");
+    if(find_conversion(session, session.string_type(), to.as_non_null(), 0).converts()) {
+        // a `string` object would do here (the class `_object_`, an interface string has)
+        d.with_help("to give it as a `string` object, write `new string(" + written + ")`");
+    } else {
+        d.with_note("text is never a `" + to.as_non_null().to_text() + "`: an object of that class is wanted here");
+    }
+}
+
+/** `"5"` -> `5`: the text between the quotes (the text itself when it has none) */
+def without_quotes(written: string) : string {
+    chars : _int8[]? = written.data;
+    count : _int64 = sizeof(chars);
+    if(count >= 2 && chars!![0] == '"' && chars!![count - 1] == '"') { return new string(chars!!, 1, count - 1); }
+    return written;
+}
+
+/** "42", "-7", "1.5": a number written in digits, with at most one `.` between them */
+def is_number_text(text: string) : _int64 {
+    chars : _int8[]? = text.data;
+    count : _int64 = sizeof(chars);
+    start : _int64 = 0;
+    points : _int64 = 0;
+    if(count > 0 && chars!![0] == '-') { start = 1; }
+    if(count <= start) { return 0; }
+    for(i : _int64 = start; i < count; i++) {
+        if(chars!![i] == '.' && i > start && i < count - 1 && points == 0) { points++; }
+        else if(chars!![i] < '0' || chars!![i] > '9') { return 0; }
+    }
+    return 1;
+}
+
+/** `n : _int64 = an_int;`  `n : _int64 = color.red;`  `n : _int64 = account.total;` */
+def explain_object_for_number(context: analysis_context, d: diagnostic, value: bound_expression, from: resolved_type) {
+    written := as_operand_text(context, value.node);
+    if(is_box_value(context.session, from.as_non_null())) {
+        d.with_note("`" + from.to_text() + "` is an object that holds a number; it is used as its number only in conditions and as an index");
+        if(from.is_nullable == 1) { d.with_help("read the number: `" + written + "!!.value` (it may be null: `!!` says it is not)"); }
+        else { d.with_help("read the number: `" + written + ".value`"); }
+        add_inferred_box_help(context, d, value);
+    } else if(from.kind == RT_CLASS && from.class_of!!.is_enum()) {
+        d.with_note("an enum value is an object, not a number");
+        d.with_help("read its number: `" + written + ".ordinal`");
+    } else if(add_call_it(context, d, value)) {
+        // `x : _int64 = account.total;` - the `()` is missing
+    } else {
+        d.with_note("an object does not become a number by itself");
+    }
+}
+
+/**
+ * `total` where `total()` was meant: a function NAMED where its result
+ * belongs - the commonest way to end up with a function value. The call
+ * to write, `total()`, or `total(...)` when the function takes parameters;
+ * "" when `value` is not the plain name of a function.
+ */
+def call_meant_by(context: analysis_context, value: bound_expression) : string {
+    if(value.kind != BX_FUNCTION_REFERENCE || value.type.kind != RT_FUNCTION || value.type.is_array == 1) { return ""; }
+    function : sharp_function = (value as bound_function_reference).function;
+    written := source_text_of(context, value.node);
+    if(written == "<value>") { return ""; }
+    if(function.parameters.size() == 0) { return written + "()"; }
+    return written + "(...)";
+}
+
+/**
+ * The note and the help for a function named without its `( )` (see
+ * call_meant_by) - for any message about a value that does not fit where it
+ * stands: a declaration, an operand, an argument.
+ * @return 1 when `value` is such a name and the help was added
+ */
+def add_call_it(context: analysis_context, d: diagnostic, value: bound_expression) : _int64 {
+    call := call_meant_by(context, value);
+    if(sizeof(call.data) == 0) { return 0; }
+    d.with_note("`" + source_text_of(context, value.node) + "` names the function; only calling it gives its result");
+    d.with_help("call it: `" + call + "`");
+    return 1;
+}
+
+/**
+ * `r := 0;` makes `r` an `int` OBJECT (7.3) - the most common way to end up
+ * with an object where a plain number is wanted. When the value reads such
+ * a local, say so: declaring it with its type keeps it a plain number.
+ */
+def add_inferred_box_help(context: analysis_context, d: diagnostic, value: bound_expression) {
+    found : local_variable? = inferred_box_local_in(context, value);
+    if(found == null) { return; }
+    // (`a < b` is a `bool` object because of BOTH its sides: naming one variable would not fix it)
+    if(found!!.type.as_non_null() != value.type.as_non_null()) { return; }
+    name := found!!.name;
+    d.with_help("or declare `" + name + "` as a plain number where it is made: `" + name + " : _int64 = ...` (`"
+                + name + " := 0` makes an `int` object)");
+}
+
+/** a local read in `value` whose type is a number class and was not written (`r := 0`); null when none */
+def inferred_box_local_in(context: analysis_context, value: bound_expression) : local_variable? {
+    work := new list<bound_expression>();
+    work.add(value);
+    for(steps : _int64 = 0; work.size() > 0 && steps < 64; steps++) {
+        next : bound_expression = work.pop_last();
+        if(next.kind == BX_LOCAL) {
+            variable : local_variable = (next as bound_local).variable;
+            if(variable.is_parameter == 0 && variable.unit == context.unit && is_box_value(context.session, variable.type.as_non_null())
+               && context.tree.kinds!![variable.node] == N_VARIABLE && context.tree.child_of_kind(variable.node, N_TYPE) < 0) {
+                return variable;
+            }
+        }
+        add_parts(next, work);
+    }
+    return null;
+}
+
+/** `c : cat = a_dog;`  `w : walker = a_rock;`  `a : list<animal> = dogs;` */
+def explain_unrelated_classes(d: diagnostic, from: resolved_type, to: resolved_type) {
+    from_class : sharp_class = from.class_of!!;
+    to_class : sharp_class = to.class_of!!;
+
+    if(from_class.written == to_class.written) {
+        d.with_note("two instances of one generic class are different classes: a `list<dog>` is not a `list<animal>`");
+        d.with_help("build a `" + to_class.qualified_name() + "` and add the items to it one by one");
+    } else if(to_class.is_interface()) {
+        wanted := to.as_non_null().to_text();
+        other := other_instance_listed(from_class, to_class);
+        if(other != null) {
+            // class evaluator : visitor<double>, given where a visitor<string> is wanted
+            d.with_note("`" + from_class.qualified_name() + "` has the interface `" + other!!.qualified_name() + "`, not `" + wanted
+                        + "`: with other type arguments it is another interface");
+            d.with_help("give something that is a `" + wanted + "` here, or use the function that takes a `" + other!!.qualified_name() + "`");
+        } else {
+            d.with_note("`" + from_class.qualified_name() + "` does not have the interface `" + wanted
+                        + "`: neither it nor a class above it lists it");
+            // (a class of the standard library is not the programmer's to change)
+            if(!from_class.module.is_library()) {
+                d.with_help("list it on the class: `class " + from_class.written.name + " : " + wanted + " { ... }`");
+            }
+        }
+    } else {
+        d.with_note("`" + from_class.qualified_name() + "` does not inherit from `" + to_class.qualified_name()
+                    + "`, and `" + to_class.qualified_name() + "` has no constructor that takes one");
+    }
+}
+
+/**
+ * The interface made from the same generic interface as `wanted`, with
+ * other type arguments, that `declared` or a class above it lists:
+ * `visitor<double>` for a wanted `visitor<string>`. Null when there is none.
+ */
+def other_instance_listed(declared: sharp_class, wanted: sharp_class) : sharp_class? {
+    if(wanted.blueprint == null) { return null; }
+    current : sharp_class? = declared;
+    for(depth : _int64 = 0; current != null && depth < 64; depth++) {
+        for(i : _int64 = 0; i < current!!.interfaces.size(); i++) {
+            listed := current!!.interfaces.at(i);
+            if(listed != wanted && listed.blueprint == wanted.blueprint) { return listed; }
+        }
+        current = current!!.base_class;
+    }
+    return null;
+}
+
+/** `d : decimal[] = { 1, 2 };`  `d : decimal[] = whole_numbers;`  `a : animal[] = words;` */
+def explain_array_mismatch(d: diagnostic, value: bound_expression, from: resolved_type, to: resolved_type) {
+    element : resolved_type = to.element_type().as_non_null();
+    if(value.kind == BX_ARRAY_LITERAL) {
+        d.with_note("`{ a, b }` is an array of whatever its FIRST item is, whatever type is expected");
+        d.with_help("name the type of the array: `new " + element.to_text() + "[] { ... }`");
+    } else if(from.kind == RT_CLASS && to.kind == RT_CLASS) {
+        d.with_note("an array converts like its items, and a `" + from.element_type().as_non_null().to_text() + "` is not a `" + element.to_text() + "`");
+    } else {
+        d.with_note("an array of numbers is only ever an array of exactly that number type: the items are stored differently");
+        d.with_help("make a `new " + element.to_text() + "[sizeof(...)]` and copy the items in a loop");
+    }
+}

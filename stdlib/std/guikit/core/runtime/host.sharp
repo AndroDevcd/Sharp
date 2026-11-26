@@ -1,0 +1,1423 @@
+mod std.guikit.core.runtime;
+
+import (
+    std.guikit.*,
+    std.io
+)
+
+/**
+ * ui_host - runs an app: owns the window and the tree, and turns the crank.
+ *
+ * gui.run(...) makes one and calls run(). There is one live host at a time
+ * (`ui_host.current`); widgets reach it for the theme, fonts, the focus and to
+ * ask for another frame.
+ *
+ * THE LOOP - every turn:
+ *
+ *      1. EVENTS    read what happened and route it: the mouse to the view
+ *                   under it, keys to the focused view (input, below)
+ *      2. REBUILD   every composable whose state changed runs build() again
+ *                   and its new widgets are settled in (reconciler.sharp)
+ *      3. LAYOUT    if anything changed size: measure, then arrange, the tree
+ *      4. PAINT     if anything changed: paint the tree and show the frame
+ *      5. REST      nothing changed and nothing is animating: SLEEP until the
+ *                   next event instead of spinning
+ *
+ * Step 5 is why an idle Sharp app uses no processor and does not drain a
+ * battery: a screen that is not changing is not repainted. A widget that
+ * animates asks for the next frame with request_frame(); a widget that needs
+ * a repaint later (a blinking text cursor) with wake_in(seconds).
+ * (A game's canvas simply asks for a frame every frame.)
+ *
+ * THE FRAME RATE (gui.frame_rate, 60 unless the program says otherwise)
+ *
+ *   Step 4 paints at most that many times a second. While something moves,
+ *   the loop SLEEPS between two frames instead of painting the next one at
+ *   once - so 30 does about half the work of 60, and 10 is visibly jerky and
+ *   costs very little. Events are still read the moment they arrive; only
+ *   what they change on the screen waits for the next frame. With 0 there is
+ *   no limit at all: frames are painted and shown as fast as the machine can.
+ *
+ *   The loop times the frames itself for every limit, and showing a frame
+ *   never waits for the screen's refresh (follow_frame_limit says why).
+ *
+ * INPUT ROUTING
+ *
+ *   mouse   The view under the mouse is found from the tree (view.find_at);
+ *           the nearest INTERACTIVE view at or above it becomes `hover`. On a
+ *           press that view becomes `active` and keeps getting the mouse
+ *           until the release, also when the mouse leaves it (dragging). A
+ *           release still over it is a click.
+ *   wheel   Goes to the nearest view at or above the mouse that scrolls.
+ *   keys    Go to the view with the FOCUS (clicking a focusable view gives it
+ *           the focus; Tab and Shift+Tab move it). Enter or Space on a
+ *           focused clickable view clicks it.
+ *
+ * hover / active / focus are pointers INTO THE TREE. When a rebuild replaces
+ * the views they point at, the reconciler tells the host (replace_view) and
+ * the pointers move to the new views - so focus survives a rebuild.
+ */
+stable class ui_host {
+    /** the host that is running (null when no app runs) */
+    static current : ui_host?;
+
+    /** the theme the next host starts with (gui.use_theme) */
+    static chosen_theme : theme?;
+
+    /**
+     * The composable whose build() is running right now (null: none). A state
+     * that is read looks here to learn who depends on it (state.sharp).
+     */
+    static building : composable?;
+
+    /**
+     * The number of the layout pass. A view remembers the pass it was last
+     * measured in, so asking it the same question twice in one pass is free
+     * (view.measure); a new pass makes every view measure afresh.
+     */
+    static pass : _int64 = 0;
+
+    /** the most frames painted in a second (gui.frame_rate); 0: no limit */
+    static frame_limit : _int64 = 60;
+
+    /** is the frames-per-second box painted in the top right corner? (gui.show_fps) */
+    static fps_shown : bool = false;
+
+    /** does showing a frame wait for the screen's refresh? (gui.vsync; off unless the program turns it on) */
+    static vsync_wanted : bool = false;
+
+    /**
+     * Set the open window's vsync to vsync_wanted. Off by default because the loop keeps
+     * the frame rate itself, and where showing a frame does wait for the refresh - a
+     * Raspberry Pi has no compositor - a frame that misses one waits for the next: a limit
+     * of 30 or 60 came out at 24 frames a second on a Pi that paints 100 without vsync.
+     */
+    static def apply_vsync() {
+        if(vsync_wanted) { surface_pace(1); }
+        else { surface_pace(0); }
+    }
+
+    /** the app's name and icon as the program chose them ("": not chosen) (gui.app_name, gui.app_icon) */
+    static name_wanted : string = "";
+    static icon_wanted : string = "";
+
+    /** give the open window the chosen name and icon */
+    static def apply_name_and_icon() {
+        if(name_wanted != "") { surface_title(name_wanted); }
+        if(icon_wanted != "") { surface_icon(icon_wanted); }
+    }
+
+    win : window;
+    look : theme;
+
+    private top : view?;                // the root of the tree
+    private hover : view?;              // the interactive view under the mouse
+    private active : view?;             // the view the mouse button went down on (until it comes up)
+    private focus : view?;              // the view that gets the keyboard
+
+    private stale : list<composable> = new list<composable>();     // composables waiting for rebuild()
+
+    // the popups that are open (dialogs, menus), in the order they opened: each
+    // is the view of a `popup` widget, collected afresh on every layout (popup.sharp)
+    private overlays : list<view> = new list<view>();
+
+    // the screen stack that the back key (Escape) steps back in: the innermost
+    // one on the page, collected afresh on every layout (screens.sharp)
+    private back_stack : navigator?;
+
+    // ---- gestures (see "gestures" below)
+    private press_at : decimal = 0;         // the time the button went down
+    private press_x : decimal = 0;          // ... and where
+    private press_y : decimal = 0;
+    private last_x : decimal = 0;           // where the mouse was at the last move while held
+    private last_y : decimal = 0;
+    private held_fired : _int64 = 0;        // 1: this press already counted as a long press - no click when it ends
+    private dragging : _int64 = 0;          // 0: not a drag. 1: a view's own drag handler. 2: a scroller is being dragged.
+    private drag_owner : view?;             // the view whose handler, or which scroller
+    private clicked_last : view?;           // the view clicked last, and when: a second click soon after is a double click
+    private clicked_at : decimal = 0 - 10;
+
+    // ---- the tooltip
+    private tip_owner : view?;              // the view under the mouse that has words to show
+    private tip_since : decimal = 0;        // since when the mouse has rested on it
+    private tip_on : _int64 = 0;            // 1: the words are showing
+
+    // ---- toasts: short messages at the bottom of the window
+    private toasts : list<toast_note> = new list<toast_note>();
+
+    private layout_due : _int64 = 1;
+    private paint_due : _int64 = 1;
+    private frame_wanted : _int64 = 0;  // a widget is animating: paint again right away
+    private wake_at : decimal = 0;      // the time (win.time()) a repaint is needed anyway (0: none)
+    private ring_shown : _int64 = 0;    // 1 once the keyboard moved the focus: show where it is
+
+    // ---- the frame rate (see THE FRAME RATE above)
+    private limit_in_force : _int64 = 0 - 1;    // the frame_limit the two numbers below were worked out for (-1: none yet)
+    private frame_gap : decimal = 0;            // seconds between two frames the loop itself keeps (0: it keeps none)
+    private next_frame_at : decimal = 0;        // the time (win.time()) the next frame may be painted
+
+    // ---- the frames-per-second box
+    private fps_frames : _int64 = 0;            // frames painted since fps_since
+    private fps_since : decimal = 0;
+    private fps_value : _int64 = 0 - 1;         // what the box says (-1: nothing measured yet)
+    private fps_ms : decimal = 0;               // how long the last frame took to paint, in milliseconds
+    private fps_own_frame : bool = false;       // the next frame is only painted to update the box: it is not counted
+
+    // fonts by size, so widgets do not make a font object per frame
+    private font_sizes : list<font> = new list<font>();
+    private bold_sizes : list<font> = new list<font>();
+
+    // what the canvas and games ask about
+    mouse_x : decimal = 0;
+    mouse_y : decimal = 0;
+    mouse_held : _int64 = 0;
+    moved_x : decimal = 0;              // how far the mouse moved since the previous frame was painted (frame.moved_x)
+    moved_y : decimal = 0;
+    now : decimal = 0;                  // seconds since the window opened, at the start of this turn
+    step : decimal = 0;                 // seconds since the previous FRAME was painted (frame.step; never over 0.1)
+    private keys_held : list<int> = new list<int>();
+
+    /**
+     * A host on a window that is not there (window.sharp): for UI tests. Nothing
+     * opens; begin(...), turn() and end() run the screen (see THE LOOP IN THREE PARTS).
+     */
+    ui_host(width: _int32, height: _int32) {
+        if(chosen_theme == null) {
+            chosen_theme = theme.dark();
+        }
+        look = chosen_theme!!;
+        win = new window(width, height);
+        title_given = "";
+    }
+
+    ui_host(title: string, width: _int32, height: _int32) {
+        if(chosen_theme == null) {
+            chosen_theme = theme.dark();
+        }
+        look = chosen_theme!!;
+        win = new window(title, width, height);
+        title_given = new string(title);
+    }
+
+    /** the same, with the window opened maximized or fullscreen (window_mode in window.sharp) */
+    ui_host(title: string, width: _int32, height: _int32, opened_as: window_mode) {
+        if(chosen_theme == null) {
+            chosen_theme = theme.dark();
+        }
+        look = chosen_theme!!;
+        win = new window(title, width, height, opened_as);
+        title_given = new string(title);
+    }
+
+    private title_given : string = "";      // the window title: also names the app's data folder (saved.sharp)
+
+    // ------------------------------------------------------------ the loop
+
+    /** show `root` and run until the window is closed */
+    /** the thread that runs the window: the only one that may change what the screen reads (main_queue.sharp) */
+    static main_thread : thread?;
+
+    /** is the calling thread NOT the one that runs the window? (always 0 while no window is open) */
+    static def off_main_thread() : _int64 {
+        if(current == null || main_thread == null) {
+            return 0;
+        }
+        if(thread.current() == main_thread!!) {
+            return 0;
+        }
+        return 1;
+    }
+
+    def run(root: element) {
+        begin(root);
+        while(win.is_open()) {
+            turn();
+        }
+        end();
+    }
+
+    private painted_at : decimal = 0;       // when the last frame was painted (win.time())
+
+    /**
+     * THE LOOP IN THREE PARTS: begin(root), turn() again and again, end().
+     * run() is exactly that. A UI test (std.guikit.testing) calls them itself,
+     * on a window that is not there (ui_host(width, height)): it turns the loop
+     * when it has sent an event or moved the clock, and looks at the tree in
+     * between.
+     */
+    def begin(root: element) {
+        current = self;
+        main_thread = thread.current();
+        if(!win.is_pretend()) {
+            saved_store.open(title_given);          // saved states take their values from their files (saved.sharp)
+        }
+        top = root.node();
+        reconciler.settle(top!!, null);          // builds every composable in the tree
+        if(!win.is_pretend()) {
+            apply_vsync();                       // a window opens waiting for the refresh; this is what the program chose
+            apply_name_and_icon();
+        }
+        painted_at = win.time();
+    }
+
+    /** one turn of the loop: events, timers, rebuilding, layout, and - when one is due - a frame */
+    def turn() {
+        now = win.time();
+
+        read_events();
+        if(!win.is_open()) {
+            return;
+        }
+        main_queue.run_waiting();             // what background threads handed over with on_main (main_queue.sharp)
+        timer.run_due(now);                   // gui.after / gui.every (timer.sharp)
+        if(!win.is_open()) {
+            return;                           // what just ran closed the window: nothing left to paint on
+        }
+        if(animated.step_all(now) == 1) {     // numbers that are gliding (animated.sharp)
+            frame_wanted = 1;
+        }
+        if(glide.step(now) == 1) {            // boxes that are gliding to a new place (glide.sharp)
+            frame_wanted = 1;
+        }
+        watch_the_clock();                    // long presses, tooltips and toasts are about time passing
+        if(fps_shown) {
+            count_frames();                   // once a second: what the frames-per-second box says
+        }
+
+        rebuild_stale();
+
+        width : decimal = win.width();
+        height : decimal = win.height();
+
+        if(layout_due == 1) {
+            layout_due = 0;
+            pass = pass + 1;
+            overlays.clear();                 // open popups and the back stack announce themselves while arranging
+            back_stack = null;
+            top!!.measure(width, width, height, height);      // the root is exactly the window
+            top!!.arrange(0, 0, width, height);
+            place_overlays(width, height);
+            glide.settle(top!!);              // boxes that are somewhere new start gliding there
+            paint_due = 1;
+        }
+
+        if(win.is_pretend()) {
+            // A window that is not there (a UI test): no time to sleep through - the test turns the
+            // loop itself - and nothing to paint ON. The tree is painted all the same, with a painter
+            // that draws nothing: what a widget does while it is painted (a screen sliding in) happens.
+            if(paint_due == 1 || frame_wanted == 1) {
+                step = now - painted_at;
+                if(step > 0.1) { step = 0.1; }
+                painted_at = now;
+                paint_due = 0;
+                frame_wanted = 0;
+                wake_at = 0;
+                quiet := win.painter();
+                quiet.reset();
+                top!!.paint(quiet);
+                paint_overlays(quiet, width, height);
+                paint_toasts(quiet, width, height);
+                moved_x = 0;
+                moved_y = 0;
+            }
+            return;
+        }
+
+        p := win.painter();
+        if(paint_due == 1 || frame_wanted == 1) {
+            follow_frame_limit();             // gui.frame_rate(...) may have changed since the last frame
+            started : decimal = win.time();
+
+            if(frame_gap > 0 && started < next_frame_at) {
+                // There is something to paint, but the frame rate says not
+                // yet: sleep until it is time. This sleep is what the limit
+                // saves. (An event ends it early; the event is read, and the
+                // loop comes back here to sleep out the rest.)
+                wait_for_frame(next_frame_at - started);
+            } else {
+                // How long since the last frame: what everything that moves by itself moves by.
+                // (Measured frame to frame. This loop turns several times between two frames when
+                // the frame rate is limited - it wakes for events and timers - and a step measured
+                // turn to turn made everything run slow under a limit.) After a pause - the app
+                // was idle, the window was dragged - things carry on from where they were: they
+                // do not jump ahead by the whole pause.
+                step = started - painted_at;
+                if(step > 0.1) { step = 0.1; }
+                painted_at = started;
+
+                paint_due = 0;
+                frame_wanted = 0;
+                wake_at = 0;                  // widgets that still need waking ask again while painting
+                p.reset();
+                win.clear(look.background);
+                top!!.paint(p);
+                paint_overlays(p, width, height);
+                paint_focus_ring(p);
+                paint_tip(p, width, height);
+                paint_toasts(p, width, height);
+                paint_touch(p);
+                if(fps_shown) {
+                    paint_frames_box(p, width);    // last: on top of everything
+                }
+
+                if(fps_own_frame) {
+                    fps_own_frame = false;        // painted only to update the box: not a frame of the app
+                } else {
+                    fps_frames += 1;
+                    fps_ms = (win.time() - started) * 1000;
+                }
+                if(pixel_wanted) {
+                    pixel_got = surface_pixel(pixel_x, pixel_y);     // (before it is shown: after that the picture is the screen's)
+                    pixel_wanted = false;
+                }
+                win.show();
+                moved_x = 0;                  // the frame has seen how far the mouse moved: count again
+                moved_y = 0;
+
+                // when the next frame may come: one gap after this one was DUE
+                // (not after it was painted, which would let the rate drift
+                // down) - unless the loop was resting, then one gap from now
+                if(frame_gap > 0) {
+                    if(next_frame_at + frame_gap < started) {
+                        next_frame_at = started + frame_gap;
+                    } else {
+                        next_frame_at = next_frame_at + frame_gap;
+                    }
+                }
+            }
+        } else {
+            rest();
+        }
+    }
+
+    /** the window closed: everything that was on the screen is gone (timers of composables stop) */
+    def end() {
+        if(top != null) { reconciler.retire(top!!); }
+        model_store.app.drop_all();                 // the models that belonged to no screen
+        current = null;
+        main_thread = null;
+    }
+
+    // ------------------------------------------------------------ what a UI test asks the host (std.guikit.testing)
+
+    /** the root of the tree (null before begin) */
+    def root() : view? {
+        return top;
+    }
+
+    /** the view that has the keyboard (null: none) */
+    def focused() : view? {
+        return focus;
+    }
+
+    /** is nothing waiting to be built again or laid out? */
+    def settled() : bool {
+        return stale.size() == 0 && layout_due == 0;
+    }
+
+    private pixel_wanted : bool = false;
+    private pixel_x : decimal = 0;
+    private pixel_y : decimal = 0;
+    private pixel_got : _int64 = 0 - 1;
+
+    /**
+     * The colour that is painted at a point of the window, as 0xRRGGBBAA (-1:
+     * it could not be read). A frame is painted to find out. Only a real
+     * window paints: on one that is not there this answers -1.
+     */
+    def color_painted_at(px: decimal, py: decimal) : _int64 {
+        if(win.is_pretend()) {
+            return 0 - 1;
+        }
+        pixel_wanted = true;
+        pixel_x = px;
+        pixel_y = py;
+        pixel_got = 0 - 1;
+        for(i : _int64 = 0; i < 400 && pixel_wanted && win.is_open(); i++) {
+            paint_due = 1;
+            turn();
+        }
+        pixel_wanted = false;
+        return pixel_got;
+    }
+
+    // where a UI test that is being watched pressed last, and when (mark_touch)
+    private touch_x : decimal = 0;
+    private touch_y : decimal = 0;
+    private touch_at : decimal = 0 - 10;
+
+    /** a UI test that is being watched presses here: a ring shows where, for a moment */
+    def mark_touch(px: decimal, py: decimal) {
+        touch_x = px;
+        touch_y = py;
+        touch_at = win.time();
+        paint_due = 1;
+    }
+
+    private def paint_touch(p: painter) {
+        age : decimal = win.time() - touch_at;
+        if(age < 0 || age > 0.45) {
+            return;
+        }
+        gone : decimal = age / 0.45;
+        solid : _int64 = 230 * (1 - gone);
+        p.circle(touch_x, touch_y, 7, look.primary.with_alpha(solid));
+        p.ring(touch_x, touch_y, 10 + gone * 18, 3, look.primary.with_alpha(solid));
+        frame_wanted = 1;
+    }
+
+    /**
+     * The words of the toasts that are up, the oldest first. (Toasts and the
+     * tooltip are painted by the host itself: they are not widgets of the tree,
+     * so a test cannot find them there.)
+     */
+    def toast_words() : list<string> {
+        said := new list<string>();
+        count : _int64 = toasts.size();
+        for(i : _int64 = 0; i < count; i++) {
+            said.add(toasts.at(i).words);
+        }
+        return said;
+    }
+
+    /** the words of the tooltip that is showing ("": none is) */
+    def tip_words() : string {
+        if(tip_on == 0 || tip_owner == null) {
+            return "";
+        }
+        return tip_owner!!.tip;
+    }
+
+    /** the next click is a first click, whatever was clicked a moment ago (a test's two clicks are not a double click) */
+    def forget_last_click() {
+        clicked_last = null;
+    }
+
+    /** the view a press at this point of the window would land on: in the topmost open popup, else on the page */
+    def at_point(px: decimal, py: decimal) : view? {
+        if(top == null) { return null; }
+        return view_under(px, py);
+    }
+
+    // ------------------------------------------------------------ overlays: content that floats above the page
+
+    /** a popup is open: remember it for placing, painting and input (called while the page is arranged) */
+    def add_overlay(floating: view) {
+        count : _int64 = overlays.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(overlays.at(i) == floating) {
+                return;                           // already listed (a scroller arranged its part of the page again)
+            }
+        }
+        overlays.add(floating);
+    }
+
+    /**
+     * Every open popup puts its content into the window. A popup's content may
+     * itself hold an open popup (a menu in a dialog): that one announces itself
+     * while its parent's content is arranged here, so the list can grow as we go.
+     */
+    private def place_overlays(width: decimal, height: decimal) {
+        for(i : _int64 = 0; i < overlays.size(); i++) {
+            floating := overlays.at(i).how as popup;
+            floating.place_content(width, height);
+        }
+    }
+
+    private def paint_overlays(p: painter, width: decimal, height: decimal) {
+        count : _int64 = overlays.size();
+        for(i : _int64 = 0; i < count; i++) {
+            floating := overlays.at(i).how as popup;
+            floating.paint_floating(p, width, height);
+        }
+    }
+
+    /** the topmost open popup, or null when none is open */
+    private def top_overlay() : popup? {
+        count : _int64 = overlays.size();
+        if(count == 0) {
+            return null;
+        }
+        return overlays.at(count - 1).how as popup;
+    }
+
+    /**
+     * The view under a window point: in the topmost popup when one is open -
+     * and ONLY there (null when the point is outside it: an open popup shields
+     * the page) - otherwise in the page.
+     */
+    private def view_under(px: decimal, py: decimal) : view? {
+        floating : popup? = top_overlay();
+        if(floating != null) {
+            return floating!!.content_at(px, py);
+        }
+        return top!!.find_at(px, py);
+    }
+
+    /** the screen stack that the back key steps back in (called by screens while the page is arranged) */
+    def set_back_stack(stack: navigator) {
+        back_stack = stack;
+    }
+
+    /** change the theme while the app runs: everything is built and laid out again with the new look */
+    def set_theme(next: theme) {
+        look = next;
+        chosen_theme = next;
+        if(top != null && top!!.how is composable) {
+            root := top!!.how as composable;
+            schedule_rebuild(root);
+        }
+        layout_due = 1;
+    }
+
+    /** nothing to paint: sleep until an event arrives (or a widget asked to be woken) */
+    private def rest() {
+        if(win.is_pretend()) { return; }
+        // Sleep in short naps (at most a tenth of a second), so the loop stays
+        // responsive to the window being closed from the program's side.
+        nap_ms : _int64 = 100;
+        if(wake_at > 0) {
+            left : decimal = wake_at - win.time();
+            if(left <= 0) {
+                wake_at = 0;
+                paint_due = 1;                     // the time is up: repaint
+                return;
+            }
+            if(left < 0.1) {
+                nap_ms = left * 1000;
+                if(nap_ms < 1) { nap_ms = 1; }
+            }
+        }
+
+        // a timer that is due sooner than the nap: sleep only until then
+        timer_in : decimal = timer.next_due_in(win.time());
+        if(timer_in >= 0 && timer_in * 1000 < nap_ms) {
+            nap_ms = timer_in * 1000;
+            if(nap_ms < 1) { nap_ms = 1; }
+        }
+        surface_wait(nap_ms);
+    }
+
+    // ------------------------------------------------------------ the frame rate
+
+    /**
+     * Work out how the frame_limit is kept, when it has changed:
+     *
+     *   0           no limit
+     *   any other   the loop keeps it: frame_gap seconds between two frames
+     */
+    private def follow_frame_limit() {
+        if(limit_in_force == frame_limit) {
+            return;
+        }
+        limit_in_force = frame_limit;
+
+        if(frame_limit <= 0) {
+            frame_gap = 0;
+            return;
+        }
+
+        frame_gap = 1.0 / frame_limit;
+        next_frame_at = 0;
+    }
+
+    /** a frame is due in `seconds`: sleep until then, or until an event or a timer needs the loop */
+    private def wait_for_frame(seconds: decimal) {
+        nap_ms : _int64 = seconds * 1000;
+        if(nap_ms < 1) { nap_ms = 1; }
+
+        timer_in : decimal = timer.next_due_in(win.time());
+        if(timer_in >= 0 && timer_in * 1000 < nap_ms) {
+            nap_ms = timer_in * 1000;
+            if(nap_ms < 1) { nap_ms = 1; }
+        }
+        surface_wait(nap_ms);
+    }
+
+    // ------------------------------------------------------------ the frames-per-second box (gui.show_fps)
+
+    /**
+     * Once a second: how many frames were painted in it. When the number is
+     * not the one in the box, the box is painted again - by a frame of its
+     * own if the app has none coming, and that frame is not counted. So an
+     * app that is standing still shows 0 and stays asleep: the box never
+     * keeps the screen busy to measure it.
+     */
+    private def count_frames() {
+        passed : decimal = now - fps_since;
+        if(passed < 1) {
+            return;
+        }
+        painted : _int64 = fps_frames / passed + 0.5;
+        fps_frames = 0;
+        fps_since = now;
+
+        if(painted != fps_value) {
+            fps_value = painted;
+            if(paint_due == 0 && frame_wanted == 0) {
+                fps_own_frame = true;
+                paint_due = 1;
+            }
+        }
+    }
+
+    /** the box itself: "60 fps  3.2 ms", in the top right corner, over everything */
+    private def paint_frames_box(p: painter, width: decimal) {
+        shown : _int64 = fps_value;
+        if(shown < 0) { shown = 0; }
+        whole : _int64 = fps_ms;
+        tenth : _int64 = (fps_ms - whole) * 10;
+        words : string = "" + shown + " fps  " + whole + "." + tenth + " ms";
+
+        f : font = font_of(look.text_size);
+        box_w : decimal = f.width_of(words) + 16;
+        box_h : decimal = f.line_height + 8;
+        left : decimal = width - box_w - 8;
+
+        p.rect(left, 8, box_w, box_h, 6, look.text);
+        p.text(words, left + 8, 12, f, look.background);
+    }
+
+    // ------------------------------------------------------------ what widgets ask the host for
+
+    /** paint another frame right after this one (an animation is running) */
+    def request_frame() {
+        frame_wanted = 1;
+    }
+
+    /** repaint in about this many seconds even if nothing happens (a blinking cursor) */
+    def wake_in(seconds: decimal) {
+        at : decimal = win.time() + seconds;
+        if(wake_at <= 0 || at < wake_at) {
+            wake_at = at;
+        }
+    }
+
+    /** something looks different: paint again */
+    def repaint() {
+        paint_due = 1;
+    }
+
+    /** something changed size or place: lay the tree out again (and paint) */
+    def relayout() {
+        layout_due = 1;
+    }
+
+    /** the standard font at a size - made once per size and kept */
+    def font_of(size: decimal) : font {
+        return font_of(size, 0);
+    }
+
+    /** the standard font at a size, regular (bold 0) or bold (1) - made once per size and weight and kept */
+    def font_of(size: decimal, bold: _int64) : font {
+        kept : list<font> = font_sizes;
+        if(bold == 1) { kept = bold_sizes; }
+
+        count : _int64 = kept.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(kept.at(i).size == size) {
+                return kept.at(i);
+            }
+        }
+        // "*bold" is the native side's name for the system's standard bold font (native/text.cpp)
+        path : string = "";
+        if(bold == 1) { path = "*bold"; }
+        made := new font(path, size);
+        kept.add(made);
+        return made;
+    }
+
+    /** is this key held down right now? (games: host.key_held(KEY_LEFT)) */
+    def key_held(key: _int64) : _int64 {
+        count : _int64 = keys_held.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(keys_held.at(i).value == key) { return 1; }
+        }
+        return 0;
+    }
+
+    /** does this view have the keyboard focus? */
+    def has_focus(v: view) : _int64 {
+        if(focus != null && focus!! == v) { return 1; }
+        return 0;
+    }
+
+    /** give the keyboard to this view (null: to nobody) */
+    def focus_on(v: view?) {
+        focus = v;
+        paint_due = 1;
+    }
+
+    // ------------------------------------------------------------ rebuilding
+
+    /** a state of this composable changed: build it again before the next frame */
+    def schedule_rebuild(part: composable) {
+        if(part.waiting == 0) {
+            part.waiting = 1;
+            stale.add(part);
+        }
+    }
+
+    private def rebuild_stale() {
+        count : _int64 = stale.size();
+        if(count == 0) {
+            return;
+        }
+        // A rebuild may replace composables further down that are on the list
+        // too; those were rebuilt as part of their parent and are skipped.
+        for(i : _int64 = 0; i < count; i++) {
+            part : composable = stale.at(i);
+            if(part.waiting == 1) {
+                part.waiting = 0;
+                if(is_in_tree(part.node()) == 1) {
+                    part.rebuild(part.built());
+                }
+            }
+        }
+        stale.clear();
+        layout_due = 1;
+    }
+
+    /** is this view still part of the live tree (reachable from the root through parents)? */
+    private def is_in_tree(v: view) : _int64 {
+        at : view? = v;
+        while(at != null) {
+            if(at!! == top!!) { return 1; }
+            at = at!!.parent;
+        }
+        return 0;
+    }
+
+    /** the reconciler replaced `before` with `fresh`: move the pointers that were on `before` */
+    def replace_view(before: view, fresh: view) {
+        if(hover != null && hover!! == before) { hover = fresh; }
+        if(active != null && active!! == before) { active = fresh; }
+        if(focus != null && focus!! == before) { focus = fresh; }
+        if(drag_owner != null && drag_owner!! == before) { drag_owner = fresh; }
+        if(clicked_last != null && clicked_last!! == before) { clicked_last = fresh; }
+        if(tip_owner != null && tip_owner!! == before) { tip_owner = fresh; }
+    }
+
+    /** after a rebuild: drop pointers to views that are not in the tree any more */
+    private def drop_dead_pointers() {
+        if(hover != null && is_in_tree(hover!!) == 0) { hover = null; }
+        if(active != null && is_in_tree(active!!) == 0) { active = null; }
+        if(focus != null && is_in_tree(focus!!) == 0) { focus = null; }
+        if(drag_owner != null && is_in_tree(drag_owner!!) == 0) { drag_owner = null; dragging = 0; }
+        if(clicked_last != null && is_in_tree(clicked_last!!) == 0) { clicked_last = null; }
+        if(tip_owner != null && is_in_tree(tip_owner!!) == 0) { tip_owner = null; tip_on = 0; }
+    }
+
+    // ------------------------------------------------------------ events
+
+    private def read_events() {
+        e := win.next_event();
+        while(e.kind != EVENT_NONE) {
+            drop_dead_pointers();
+            route(e);
+            paint_due = 1;                          // anything that happened may change how things look
+            if(!win.is_open()) {
+                return;
+            }
+            e = win.next_event();
+        }
+    }
+
+    private def route(e: event) {
+        if(e.kind == EVENT_QUIT) {
+            win.close();
+        } else if(e.kind == EVENT_RESIZE) {
+            layout_due = 1;
+        } else if(e.kind == EVENT_MOUSE_MOVE) {
+            moved_x = moved_x + e.moved_x;
+            moved_y = moved_y + e.moved_y;
+            mouse_moved(e.x, e.y);
+        } else if(e.kind == EVENT_MOUSE_DOWN) {
+            if(e.button == MOUSE_LEFT) { mouse_pressed(e.x, e.y); }
+            else if(e.button == MOUSE_RIGHT) { right_pressed(e.x, e.y); }
+        } else if(e.kind == EVENT_MOUSE_UP) {
+            if(e.button == MOUSE_LEFT) { mouse_released(e.x, e.y); }
+        } else if(e.kind == EVENT_WHEEL) {
+            wheel_turned(e.x, e.y, e.wheel_x, e.wheel_y);
+        } else if(e.kind == EVENT_KEY_DOWN) {
+            key_pressed(e);
+        } else if(e.kind == EVENT_KEY_UP) {
+            key_released(e.key);
+        } else if(e.kind == EVENT_TEXT) {
+            if(focus != null && focus!!.how is key_target) {
+                target := focus!!.how as key_target;
+                target.typed(e.text);
+            }
+        }
+    }
+
+    /**
+     * The nearest view at or above `from` that reacts to input (null: none).
+     *
+     * A DISABLED view that would react stops the search and gives null: a
+     * click on a greyed-out button goes nowhere, it does not fall through to
+     * a clickable row behind it. (Android does the same: a disabled clickable
+     * View consumes the touch and does nothing - View.onTouchEvent.)
+     */
+    private def interactive_from(from: view?) : view? {
+        at : view? = from;
+        while(at != null) {
+            if(at!!.wants_input() == 1) {
+                if(at!!.enabled == 0) {
+                    return null;
+                }
+                return at;
+            }
+            at = at!!.parent;
+        }
+        return null;
+    }
+
+    private def set_hover(target: view?) {
+        if(hover != null) { hover!!.hovered = 0; }
+        hover = target;
+        if(hover != null) { hover!!.hovered = 1; }
+    }
+
+    private def mouse_moved(px: decimal, py: decimal) {
+        mouse_x = px;
+        mouse_y = py;
+
+        if(active != null) {
+            // held: the pressed view keeps the mouse, wherever it goes
+            held : view = active!!;
+            held.pressed = held.contains(px, py);
+            if(held.how is pointer_target) {
+                target := held.how as pointer_target;
+                target.pointer(POINTER_DRAG, px, py);
+            }
+            follow_drag(held, px, py);
+            return;
+        }
+        set_hover(interactive_from(view_under(px, py)));
+        rest_tip_on(view_under(px, py));
+    }
+
+    private def mouse_pressed(px: decimal, py: decimal) {
+        mouse_x = px;
+        mouse_y = py;
+        mouse_held = 1;
+        ring_shown = 0;                             // the mouse is in use: no focus ring
+
+        // A press OUTSIDE the topmost open popup closes it - and does nothing
+        // else: it must not also press whatever on the page happens to be there.
+        // (Android's PopupWindow consumes the outside touch in the same way.)
+        floating : popup? = top_overlay();
+        if(floating != null && floating!!.content_at(px, py) == null) {
+            set_hover(null);
+            active = null;
+            floating!!.ask_to_close();
+            return;
+        }
+
+        target : view? = interactive_from(view_under(px, py));
+        set_hover(target);
+        active = target;
+
+        // where and when: a long press, a drag and a double click are all measured from here
+        press_at = win.time();
+        press_x = px;
+        press_y = py;
+        last_x = px;
+        last_y = py;
+        held_fired = 0;
+        dragging = 0;
+        drag_owner = null;
+        tip_owner = null;                           // pressing dismisses a tooltip
+        tip_on = 0;
+        if(target != null && owner_of_long_press(target) != null) {
+            wake_in(LONG_PRESS_TIME);               // nothing else may happen while it is held: wake up to notice
+        }
+
+        // clicking a focusable view focuses it; clicking anywhere else drops the focus
+        if(target != null && target!!.is_focusable() == 1) {
+            focus = target;
+        } else {
+            focus = null;
+        }
+
+        if(target != null) {
+            target!!.pressed = 1;
+            if(target!!.how is pointer_target) {
+                taker := target!!.how as pointer_target;
+                taker.pointer(POINTER_PRESS, px, py);
+            }
+        }
+    }
+
+    private def mouse_released(px: decimal, py: decimal) {
+        mouse_x = px;
+        mouse_y = py;
+        mouse_held = 0;
+
+        if(active != null) {
+            held : view = active!!;
+            active = null;
+            held.pressed = 0;
+            if(held.how is pointer_target) {
+                target := held.how as pointer_target;
+                target.pointer(POINTER_RELEASE, px, py);
+            }
+
+            if(dragging == 1) {
+                // a drag of a view with a drag handler ends; it was not a click
+                if(drag_owner != null) {
+                    drag_owner!!.drag_ended();
+                }
+            } else if(dragging == 0 && held_fired == 0 && held.contains(px, py) == 1) {
+                finish_click(held, px, py);         // pressed and released on the same view: a click
+            }
+            dragging = 0;
+            drag_owner = null;
+
+            // whatever the press turned into (a click, a long press, a drag): it is over
+            ender : view? = held;
+            while(ender != null && ender!!.on_press_end == null) {
+                ender = ender!!.parent;
+            }
+            if(ender != null) {
+                done : ()() = ender!!.on_press_end!!;
+                done();
+            }
+        }
+        if(top != null) {
+            set_hover(interactive_from(view_under(px, py)));
+        }
+    }
+
+    // ------------------------------------------------------------ gestures
+    //
+    // Everything a press can turn into, decided from WHERE and WHEN the button
+    // went down (press_x / press_y / press_at):
+    //
+    //      released soon, in place ............ a click
+    //      a second click soon after .......... a double click
+    //      held in place ...................... a long press (and then no click)
+    //      moved further than DRAG_SLOP ....... a drag (and then no click):
+    //                                             the view's own .drag handler, or
+    //                                             the scroller it is in, scrolled by hand
+    //      the right button ................... a right click
+    //
+    // A handler set by a modifier may sit on the view that was pressed or on
+    // any view around it (a long press on a row is felt by the text in it), so
+    // each gesture looks UP the tree for the nearest view that has one. Android
+    // makes the same decisions in View.onTouchEvent with getTapTimeout,
+    // getLongPressTimeout and getScaledTouchSlop.
+
+    private static const LONG_PRESS_TIME : decimal = 0.5;      // seconds held before it is a long press
+    private static const DOUBLE_CLICK_TIME : decimal = 0.4;    // the most seconds between the clicks of a double click
+    private static const DRAG_SLOP : decimal = 6;              // pixels the mouse may wander and still be "in place"
+    private static const TIP_DELAY : decimal = 0.6;            // seconds the mouse rests before a tooltip shows
+
+    private def owner_of_long_press(from: view?) : view? {
+        at : view? = from;
+        while(at != null) {
+            if(at!!.on_long_press != null) { return at; }
+            at = at!!.parent;
+        }
+        return null;
+    }
+
+    private def owner_of_double_click(from: view?) : view? {
+        at : view? = from;
+        while(at != null) {
+            if(at!!.on_double_click != null) { return at; }
+            at = at!!.parent;
+        }
+        return null;
+    }
+
+    private def owner_of_right_click(from: view?) : view? {
+        at : view? = from;
+        while(at != null) {
+            if(at!!.on_right_click != null) { return at; }
+            at = at!!.parent;
+        }
+        return null;
+    }
+
+    private def owner_of_drag(from: view?) : view? {
+        at : view? = from;
+        while(at != null) {
+            if(at!!.on_drag != null) { return at; }
+            at = at!!.parent;
+        }
+        return null;
+    }
+
+    /**
+     * Scroll whatever scrolling area is around `from` by hand, as if its
+     * content had been dragged this far. For a widget that owns a drag (a row
+     * that can be swiped sideways) and finds the drag is not for it.
+     */
+    def scroll_by_hand(from: view, dx: decimal, dy: decimal) {
+        around : view? = scroller_around(from);
+        if(around != null) {
+            scrolled := around!!.how as drag_scroller;
+            scrolled.drag_by(dx, dy);
+        }
+    }
+
+    /** the nearest view at or above `from` that scrolls when its content is dragged */
+    private def scroller_around(from: view?) : view? {
+        at : view? = from;
+        while(at != null) {
+            if(at!!.how is drag_scroller) { return at; }
+            at = at!!.parent;
+        }
+        return null;
+    }
+
+    /**
+     * The mouse moved while held on `held`. Once it has moved further than
+     * DRAG_SLOP from where it went down, the press is a DRAG: of the nearest
+     * view with a drag handler - or, when there is none, of the scroller around
+     * it. A widget that follows the mouse itself (a slider, a text field) keeps
+     * the gesture and is left alone.
+     */
+    private def follow_drag(held: view, px: decimal, py: decimal) {
+        if(dragging == 0) {
+            far_x : decimal = px - press_x;
+            far_y : decimal = py - press_y;
+            if(far_x < 0) { far_x = 0 - far_x; }
+            if(far_y < 0) { far_y = 0 - far_y; }
+
+            if(far_x > DRAG_SLOP || far_y > DRAG_SLOP) {
+                owner : view? = owner_of_drag(held);
+                if(owner != null) {
+                    dragging = 1;
+                    drag_owner = owner;
+                    owner!!.drag_started();
+                } else if(!(held.how is pointer_target) || held.how is drag_scroller) {
+                    around : view? = scroller_around(held);
+                    if(around != null) {
+                        dragging = 2;
+                        drag_owner = around;
+                    }
+                }
+            }
+        }
+
+        if(dragging != 0) {
+            held.pressed = 0;                       // it is being dragged, not pressed: no click will follow
+            if(drag_owner != null) {
+                if(dragging == 1) {
+                    drag_owner!!.dragged(px - last_x, py - last_y);
+                } else {
+                    scrolled := drag_owner!!.how as drag_scroller;
+                    scrolled.drag_by(px - last_x, py - last_y);
+                }
+            }
+        }
+        last_x = px;
+        last_y = py;
+    }
+
+    /** a press ended where it began: a click - or, soon after another click on the same view, a double click */
+    private def finish_click(held: view, px: decimal, py: decimal) {
+        again : _int64 = 0;
+        if(clicked_last != null && clicked_last!! == held && win.time() - clicked_at <= DOUBLE_CLICK_TIME) {
+            again = 1;
+        }
+
+        if(again == 1) {
+            clicked_last = null;                    // a third click starts over
+            if(held.how is pointer_target) {
+                target := held.how as pointer_target;
+                target.pointer(POINTER_DOUBLE, px, py);
+            }
+            owner : view? = owner_of_double_click(held);
+            if(owner != null && owner!!.enabled == 1) {
+                owner!!.double_clicked();
+                return;                             // the double click was the point: not also a second click
+            }
+        } else {
+            clicked_last = held;
+            clicked_at = win.time();
+        }
+        held.click();
+    }
+
+    /** the right button went down: the nearest view at or above the mouse that listens for it */
+    private def right_pressed(px: decimal, py: decimal) {
+        mouse_x = px;
+        mouse_y = py;
+        tip_owner = null;                           // pressing dismisses a tooltip
+        tip_on = 0;
+
+        // like the left button: outside an open popup, it only closes the popup
+        floating : popup? = top_overlay();
+        if(floating != null && floating!!.content_at(px, py) == null) {
+            floating!!.ask_to_close();
+            return;
+        }
+        owner : view? = owner_of_right_click(view_under(px, py));
+        if(owner != null && owner!!.enabled == 1) {
+            owner!!.right_clicked();
+        }
+    }
+
+    /**
+     * The things that happen because TIME passed while nothing else did: a
+     * press becomes a long press, a resting mouse gets its tooltip, a toast's
+     * time is up. Looked at once per turn of the loop; each of them asked to be
+     * woken (wake_in) for the moment it matters, so the loop is not asleep then.
+     */
+    private def watch_the_clock() {
+        // held in place long enough: a long press
+        if(active != null && held_fired == 0 && dragging == 0 && win.time() - press_at >= LONG_PRESS_TIME) {
+            owner : view? = owner_of_long_press(active);
+            if(owner != null && owner!!.enabled == 1) {
+                held_fired = 1;
+                active!!.pressed = 0;
+                paint_due = 1;
+                owner!!.long_pressed();
+            }
+        }
+
+        // rested long enough: show the tooltip
+        if(tip_owner != null && tip_on == 0 && active == null && win.time() - tip_since >= TIP_DELAY) {
+            tip_on = 1;
+            paint_due = 1;
+        }
+
+        // toasts whose time is up
+        count : _int64 = toasts.size();
+        for(i : _int64 = count - 1; i >= 0; i--) {
+            if(win.time() >= toasts.at(i).until) {
+                toasts.remove_at(i);
+                paint_due = 1;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ the tooltip
+
+    /** the mouse is over `under` (or nothing): the nearest view with tooltip words starts, or keeps, its wait */
+    private def rest_tip_on(under: view?) {
+        owner : view? = null;
+        at : view? = under;
+        while(at != null && owner == null) {
+            if(at!!.tip != "") { owner = at; }
+            at = at!!.parent;
+        }
+
+        same : _int64 = 0;
+        if(owner == null && tip_owner == null) { same = 1; }
+        if(owner != null && tip_owner != null && owner!! == tip_owner!!) { same = 1; }
+        if(same == 1) {
+            return;
+        }
+
+        if(tip_on == 1) { paint_due = 1; }          // a tooltip was showing: it goes away
+        tip_owner = owner;
+        tip_on = 0;
+        tip_since = win.time();
+        if(owner != null) {
+            wake_in(TIP_DELAY);
+        }
+    }
+
+    /** the tooltip: a small box with the view's words, just below the mouse, kept inside the window */
+    private def paint_tip(p: painter, width: decimal, height: decimal) {
+        if(tip_on == 0 || tip_owner == null) {
+            return;
+        }
+        f : font = font_of(look.small_size);
+        words : string = tip_owner!!.tip;
+        box_w : decimal = f.width_of(words) + 16;
+        box_h : decimal = f.line_height + 10;
+
+        left : decimal = num.between(mouse_x + 12, 4, num.larger(4, width - box_w - 4));
+        top : decimal = mouse_y + 20;
+        if(top + box_h > height - 4) { top = mouse_y - box_h - 8; }
+
+        p.rect(left, top, box_w, box_h, 6, look.text);
+        p.text(words, left + 8, top + 5, f, look.background);
+    }
+
+    // ------------------------------------------------------------ toasts
+
+    /** show a short message at the bottom of the window for a few seconds (gui.toast) */
+    def show_toast(words: string, seconds: decimal) {
+        toasts.add(new toast_note(words, win.time() + seconds));
+        wake_in(seconds - TOAST_FADE);
+        paint_due = 1;
+    }
+
+    private static const TOAST_FADE : decimal = 0.35;          // seconds a toast takes to fade away at the end
+
+    /** the toasts, newest lowest, each fading out over the last moment of its time */
+    private def paint_toasts(p: painter, width: decimal, height: decimal) {
+        count : _int64 = toasts.size();
+        if(count == 0) {
+            return;
+        }
+        f : font = font_of(look.text_size);
+        bottom : decimal = height - 24;
+
+        for(i : _int64 = count - 1; i >= 0; i--) {
+            note : toast_note = toasts.at(i);
+            box_w : decimal = f.width_of(note.words) + 32;
+            box_h : decimal = f.line_height + 18;
+            left : decimal = (width - box_w) / 2;
+            top : decimal = bottom - box_h;
+
+            // fading out: the last TOAST_FADE seconds
+            remaining : decimal = note.until - win.time();
+            before : decimal = 1;
+            fading : _int64 = 0;
+            if(remaining < TOAST_FADE) {
+                fading = 1;
+                before = p.fade(num.between(remaining / TOAST_FADE, 0, 1));
+                frame_wanted = 1;
+            } else {
+                wake_in(remaining - TOAST_FADE);
+            }
+
+            p.rect(left, top, box_w, box_h, box_h / 2, look.text);
+            p.text(note.words, left + 16, top + 9, f, look.background);
+
+            if(fading == 1) { p.unfade(before); }
+            bottom = top - 8;
+        }
+    }
+
+    private def wheel_turned(px: decimal, py: decimal, dx: decimal, dy: decimal) {
+        at : view? = view_under(px, py);
+        while(at != null) {
+            if(at!!.how is wheel_target) {
+                scroller := at!!.how as wheel_target;
+                if(scroller.wheel(dx, dy) == 1) {
+                    return;
+                }
+            }
+            at = at!!.parent;
+        }
+    }
+
+    private def key_pressed(e: event) {
+        if(key_held(e.key) == 0) {
+            keys_held.add(new int(e.key));
+        }
+
+        // The focused view first, then the views around it, innermost to
+        // outermost: a key the text field does not use can still be a shortcut
+        // of the panel it sits in. (Compose bubbles onKeyEvent leaf-to-root in
+        // the same way.)
+        at : view? = focus;
+        while(at != null) {
+            if(at!!.enabled == 1 && at!!.how is key_target) {
+                target := at!!.how as key_target;
+                if(target.key(e) == 1) {
+                    return;
+                }
+            }
+            at = at!!.parent;
+        }
+
+        // then the keys the framework itself understands
+        if(e.key == KEY_TAB) {
+            ring_shown = 1;
+            if(e.has_shift()) { move_focus(0 - 1); }
+            else { move_focus(1); }
+        } else if(e.key == KEY_ENTER || e.key == KEY_SPACE) {
+            if(focus != null && e.repeat == 0) {
+                focus!!.click();
+            }
+        } else if(e.key == KEY_ESCAPE) {
+            // Escape is "back": close the topmost popup; with none open, go back
+            // one screen; with nowhere to go back to, just drop the focus.
+            // (On a desktop, Compose treats Escape as Android's back button.)
+            floating : popup? = top_overlay();
+            if(floating != null) {
+                floating!!.ask_to_close();
+            } else if(back_stack != null && back_stack!!.back() == 1) {
+                return;
+            } else {
+                focus = null;
+            }
+        }
+    }
+
+    private def key_released(key: _int64) {
+        count : _int64 = keys_held.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(keys_held.at(i).value == key) {
+                keys_held.remove_at(i);
+                return;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------ the focus
+
+    /** move the focus to the next (direction 1) or previous (-1) focusable view, in tree order, wrapping around */
+    private def move_focus(direction: _int64) {
+        stops := new list<view>();
+        collect_focusable(top!!, stops);
+        count : _int64 = stops.size();
+        if(count == 0) {
+            focus = null;
+            return;
+        }
+
+        at : _int64 = 0 - 1;
+        if(focus != null) {
+            for(i : _int64 = 0; i < count; i++) {
+                if(stops.at(i) == focus!!) { at = i; }
+            }
+        }
+
+        next : _int64 = at + direction;
+        if(at < 0 && direction < 0) { next = count - 1; }
+        if(next >= count) { next = 0; }
+        if(next < 0) { next = count - 1; }
+        focus = stops.at(next);
+    }
+
+    private def collect_focusable(from: view, into: list<view>) {
+        if(from.shown == 0) {
+            return;
+        }
+        if(from.is_focusable() == 1) {
+            into.add(from);
+        }
+        count : _int64 = from.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            collect_focusable(from.kids.at(i), into);
+        }
+    }
+
+    /**
+     * A ring around the focused view, so keyboard users can see where they
+     * are. Shown only once Tab has been used - a mouse click does not ring
+     * every button it touches.
+     */
+    private def paint_focus_ring(p: painter) {
+        if(focus == null || ring_shown == 0) {
+            return;
+        }
+        v : view = focus!!;
+        if(v.shown == 0 || v.w <= 0) {
+            return;
+        }
+        p.outline(v.x - 2, v.y - 2, v.w + 4, v.h + 4, v.corner + 2, 2, look.primary.with_alpha(160));
+    }
+}
+
+/** one toast that is showing: its words, and the time it goes away */
+local stable class toast_note {
+    words : string;
+    until : decimal;
+
+    toast_note(message: string, gone_at: decimal) {
+        words = message;
+        until = gone_at;
+    }
+}

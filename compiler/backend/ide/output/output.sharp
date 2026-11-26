@@ -1,0 +1,38 @@
+mod backend.ide.output;
+
+import (
+    std.io,
+    platform.kernel
+)
+
+/**
+ * OUTPUT: WRITING THE FILES
+ *
+ * Everything the editor files have in common: how text becomes JSON, how a
+ * file reaches the disk, how a run is named.
+ *
+ * The files of this package (module `backend.ide.output`):
+ *
+ *      output.sharp         this front door: the run id
+ *      json_writer.sharp    a small JSON writer that keeps the commas right
+ *      json_text.sharp      one string as JSON text: escapes, UTF-8 check, hex
+ *      atomic_write.sharp   write a temporary file and rename it over the real one
+ *      failure_note.sharp   `failed.txt`: why nothing was written, when the writing itself failed
+ */
+
+/**
+ * The name of this run: the VM's nanosecond clock in hex, 16 digits. It is
+ * written into every file of the run, so the plugin can tell that the files
+ * belong together (a leftover of a run that was killed has another one).
+ */
+def run_id() : string {
+    now : _int64 = vm.time_in_nanoseconds().value;
+    return hex_text(now, 16);
+}
+
+/** the compiler's own clock in milliseconds: for the `written_in_ms` of the manifest */
+def clock_ms() : _int64 {
+    return vm.time_in_nanoseconds().value / 1000000;
+}
+
+

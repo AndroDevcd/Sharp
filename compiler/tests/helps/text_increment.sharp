@@ -1,0 +1,12 @@
+// expect: E0511
+// help: n := s.to_int();
+// replace: s++;
+mod tests.helps;
+import (std, std.io);
+
+import (std.text);
+
+def main() {
+    s : string = "5";
+    s++;
+}

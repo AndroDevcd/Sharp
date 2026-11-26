@@ -1,0 +1,214 @@
+mod frontend.syntax.assembly;
+
+import (
+    std.io
+)
+
+/**
+ * THE INSTRUCTIONS OF AN `asm { }` BLOCK
+ *
+ * Every instruction the assembler knows, and the operands it takes, in order:
+ *
+ *      R       a register                  adx  cx  cmt  ebx  ecx  ecf  edf  ehf  bmr  egx
+ *      L       a literal                   12   0xff   'c'   "text"   true
+ *      A       an assembler operand        a literal (also negative: -1),  @label,
+ *                                          [name] (a local or member),  $type,  $type[member]
+ *
+ *      movi  RA        movi ebx, 12            movi adx, [count]
+ *      int   L         int 0x45
+ *      nop   (none)    nop
+ *
+ * GENERATED from the instruction list of the C++ compiler
+ * (parser::parseAssemblyInstruction in lib/grammar/frontend/parser/Parser.cpp),
+ * so the two compilers accept exactly the same instructions. Do not edit the
+ * table by hand: when an instruction is added to the runtime, add it there
+ * and here in the same form.
+ *
+ * asm_operands(name) gives the operand letters of an instruction, or null
+ * when there is no instruction with that name.
+ */
+
+asm_table : hash_map<string, string>? = null;
+
+def asm_operands(name: string) : string? {
+    if(asm_table == null) {
+        asm_table = build_asm_table();
+    }
+    return asm_table!!.at(name);
+}
+
+/** every instruction name: what "did you mean" chooses from */
+def asm_instruction_names() : list<string> {
+    if(asm_table == null) {
+        asm_table = build_asm_table();
+    }
+    return asm_table!!.keys();
+}
+
+def build_asm_table() : hash_map<string, string> {
+    table := new hash_map<string, string>();
+    table.put("nop", "");
+    table.put("int", "L");
+    table.put("movi", "RA");
+    table.put("dmovi", "RA");
+    table.put("ret", "A");
+    table.put("hlt", "");
+    table.put("newVarArray", "RA");
+    table.put("cast", "R");
+    table.put("mov8", "RR");
+    table.put("mov16", "RR");
+    table.put("mov32", "RR");
+    table.put("mov64", "RR");
+    table.put("d2i", "RR");
+    table.put("i2d", "RR");
+    table.put("movu8", "RR");
+    table.put("movu16", "RR");
+    table.put("movu32", "RR");
+    table.put("movu64", "RR");
+    table.put("rstore", "R");
+    table.put("add", "RRR");
+    table.put("dadd", "RRR");
+    table.put("sub", "RRR");
+    table.put("dsub", "RRR");
+    table.put("mul", "RRR");
+    table.put("dmul", "RRR");
+    table.put("ddiv", "RRR");
+    table.put("mod", "RRR");
+    table.put("iadd", "RA");
+    table.put("diadd", "RA");
+    table.put("isub", "RA");
+    table.put("disub", "RA");
+    table.put("didiv", "RA");
+    table.put("imod", "RA");
+    table.put("pop", "");
+    table.put("inc", "R");
+    table.put("dinc", "R");
+    table.put("dec", "R");
+    table.put("ddec", "R");
+    table.put("movr", "RR");
+    table.put("aload64", "RR");
+    table.put("aloadu32", "RR");
+    table.put("aload32", "RR");
+    table.put("aloadu16", "RR");
+    table.put("aload16", "RR");
+    table.put("aloadu8", "RR");
+    table.put("aload8", "RR");
+    table.put("brh", "");
+    table.put("ife", "");
+    table.put("ifne", "");
+    table.put("lt", "RR");
+    table.put("dlt", "RR");
+    table.put("gt", "RR");
+    table.put("dgt", "RR");
+    table.put("le", "RR");
+    table.put("dlte", "RR");
+    table.put("ge", "RR");
+    table.put("dgte", "RR");
+    table.put("movl", "A");
+    table.put("movsl", "A");
+    table.put("sizeof", "R");
+    table.put("put", "R");
+    table.put("dput", "R");
+    table.put("putc", "R");
+    table.put("checklen", "R");
+    table.put("jmp", "A");
+    table.put("loadpc", "R");
+    table.put("pushObj", "");
+    table.put("del", "");
+    table.put("call", "A");
+    table.put("newClass", "A");
+    table.put("movn", "A");
+    table.put("sleep", "R");
+    table.put("te", "RR");
+    table.put("dtest", "RR");
+    table.put("tne", "RR");
+    table.put("dtne", "RR");
+    table.put("lock", "");
+    table.put("ulock", "");
+    table.put("movg", "A");
+    table.put("movnd", "R");
+    table.put("newObjArray", "R");
+    table.put("not", "RR");
+    table.put("dnot", "RR");
+    table.put("skip", "L");
+    table.put("loadVal", "R");
+    table.put("shl", "RRR");
+    table.put("shr", "RRR");
+    table.put("skipife", "RL");
+    table.put("skipifne", "RL");
+    table.put("and", "RR");
+    table.put("uand", "RR");
+    table.put("or", "RR");
+    table.put("xor", "RR");
+    table.put("throw", "");
+    table.put("checknull", "R");
+    table.put("returnObj", "");
+    table.put("newClassArray", "RA");
+    table.put("newString", "L");
+    table.put("addl", "RA");
+    table.put("daddl", "RA");
+    table.put("subl", "RA");
+    table.put("dsubl", "RA");
+    table.put("mull", "RA");
+    table.put("dmull", "RA");
+    table.put("ddivl", "RA");
+    table.put("modl", "RA");
+    table.put("iaddl", "LL");
+    table.put("diaddl", "LL");
+    table.put("isubl", "LL");
+    table.put("disubl", "LL");
+    table.put("didivl", "LL");
+    table.put("imull", "LL");
+    table.put("dimull", "LL");
+    table.put("imodl", "LL");
+    table.put("loadl", "RA");
+    table.put("getf", "RA");
+    table.put("popObj", "");
+    table.put("smovr", "RL");
+    table.put("andl", "RL");
+    table.put("orl", "RL");
+    table.put("xorl", "RL");
+    table.put("astore64", "RR");
+    table.put("astore32", "RR");
+    table.put("astore16", "RR");
+    table.put("astore8", "RR");
+    table.put("smov", "RL");
+    table.put("returnVal", "R");
+    table.put("istore", "L");
+    table.put("distore", "L");
+    table.put("smovr2", "AR");
+    table.put("putf", "AR");
+    table.put("smovr3", "L");
+    table.put("istorel", "LL");
+    table.put("distorel", "LL");
+    table.put("popl", "A");
+    table.put("pushNull", "");
+    table.put("ipushl", "A");
+    table.put("pushl", "A");
+    table.put("itest", "R");
+    table.put("invokeDelegate", "LLL");
+    table.put("get", "R");
+    table.put("isadd", "LL");
+    table.put("disadd", "LL");
+    table.put("je", "L");
+    table.put("jne", "L");
+    table.put("ipopl", "A");
+    table.put("cmp", "RL");
+    table.put("dcmp", "RL");
+    table.put("calld", "L");
+    table.put("varCast", "LL");
+    table.put("tlsMovl", "L");
+    table.put("dup", "");
+    table.put("popObj2", "");
+    table.put("swap", "");
+    table.put("ldc", "RL");
+    table.put("neg", "RR");
+    table.put("dneg", "RR");
+    table.put("dsqrt", "RR");
+    table.put("dfloor", "RR");
+    table.put("dceil", "RR");
+    table.put("dabs", "RR");
+    table.put("dmath", "RRL");
+    table.put(".", "");
+    return table;
+}

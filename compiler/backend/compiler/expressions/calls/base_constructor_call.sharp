@@ -1,0 +1,101 @@
+mod backend.compiler.expressions.calls;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.inheritance,
+    backend.postprocessor.generics,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions
+)
+
+/**
+ * A CONSTRUCTOR'S CALL OF THE BASE CONSTRUCTOR:  -> base(args)
+ *
+ *      class animal {
+ *          animal(name: string) { ... }
+ *      }
+ *      class dog base animal {
+ *          dog(name: string, age: _int64) -> base(name) { ... }
+ *      }
+ *
+ * Before a constructor's own body runs, the part of the object that belongs
+ * to the base class is set up by one of the BASE class's constructors
+ * (doc/backend.md 7.15.2). `-> base(args)` says which: overload resolution
+ * among the constructors of the class directly above, exactly as for
+ * `new animal(args)`. The arguments are analysed as code of the constructor:
+ * its parameters are visible.
+ *
+ * The result is a bound_call with dispatch CALL_CONSTRUCTOR, kept on the
+ * constructor (`sharp_function.bound_base_call`) - it is not a statement of
+ * the body. A constructor that writes no `-> base(...)` runs the base
+ * constructor without parameters; that implied call is added by the stage
+ * that puts constructors together (doc/backend.md 10.5).
+ *
+ *      E0509   no constructor of the base class takes the arguments
+ *      E0503   several fit equally well
+ *
+ *      C++ comparison: `compile_function` in
+ *      compiler/functions/function_compiler.cpp ("could not resolve base
+ *      class constructor in class `animal`").
+ */
+def bind_base_constructor_call(context: analysis_context, function: sharp_function, node: _int64) : bound_expression? {
+    arguments := arguments_of(context, node);
+    owner : sharp_class? = function.owner;
+    if(owner == null) { return null; }
+    above : sharp_class? = real_base_of(context.prog, owner!!);
+    if(above == null) {
+        // only `_object_` itself, the class above every class, has nothing above it
+        d := problem_at(context, "E0509", "`" + owner!!.written.name + "` has no base class to call", node);
+        d.with_label("there is no constructor above this class");
+        d.with_help("remove `-> base(...)`");
+        report(context, d);
+        return null;
+    }
+
+    base_class : sharp_class = above!!;
+    ensure_members(context.prog, base_class);
+    result := resolve_overload(context, base_class.constructors, arguments, null, null);
+    if(result.best == null) {
+        if(has_error_argument(arguments) == 1) { return null; }
+        if(result.tied.size() > 0) {
+            report_ambiguous(context, base_class.written.name, node, result.tied, arguments);
+        } else {
+            report_no_base_constructor(context, owner!!, base_class, node, result.rejected, arguments);
+        }
+        return null;
+    }
+
+    chosen : call_candidate = result.best!!;
+    call := new bound_call(context.unit, node, chosen.function, null, context.session.types.nil_type);
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        argument := arguments.at(i);
+        call.add_argument(argument_for(context, argument, chosen.conversions.at(i), chosen.function.parameters.at(i).value_type,
+                                       i, chosen.function.name));
+    }
+    call.dispatch = CALL_CONSTRUCTOR;
+    return call;
+}
+
+/** E0509, with the base class's constructors and why each does not fit */
+def report_no_base_constructor(context: analysis_context, owner: sharp_class, base_class: sharp_class, node: _int64,
+                               rejected: list<call_candidate>, arguments: list<call_argument>) {
+    // `class oops base exeption`: the base class was not found (E0301) and `_object_` stands in
+    // for it - its constructors say nothing about what `-> base(...)` was written for
+    if(owner.inherits_uncertainly() == 1) { return; }
+    help := "";
+    if(base_class.written.name == "_object_") {
+        help = "`" + owner.written.name + "` names no base class, so there is nothing to hand arguments to: remove `-> base(...)`,"
+               + " or name the base class: `class " + owner.written.name + " base <class> { ... }`";
+    }
+    report_no_fit_with_help(context, "E0509", "no constructor of the base class `" + base_class.written.name + "` takes "
+                            + argument_types_text(arguments), node, rejected, arguments, help);
+}

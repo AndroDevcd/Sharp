@@ -1,0 +1,139 @@
+mod backend.compiler.statements.loops;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions,
+    backend.compiler.statements
+)
+
+/**
+ * `foreach(item in items) body`  /  `foreach(item: type in items) body`
+ *
+ * WHAT IS WALKED: an array, or the array a `loopable` object hands over
+ * (iterable.sharp). It is evaluated once, before the variable exists:
+ * `foreach(x in x)` means the OUTER `x`.
+ *
+ * THE VARIABLE (doc/backend.md 7.12.2, checked with the C++ compiler):
+ *
+ *      foreach(n in numbers)           no type: the type of the items. Over a `t[]??`
+ *                                      (items that may be null) that is `t?` (D25)
+ *      foreach(n: decimal in numbers)  a type: each item must convert to it, as a value
+ *                                      given to a variable does (a number widens, an object
+ *                                      is made through a one-argument constructor ...)
+ *      foreach(s: shape in things)     things : object[] - an `object` item may be given
+ *                                      to a class variable: it is tested when the program
+ *                                      runs (as in the C++ compiler, which casts it)
+ *
+ * The variable holds ONE item at a time, so its type cannot be an array
+ * (E0610). It is a local of the loop: the loop is a scope of its own, and
+ * the name may not be a local still in scope (E0600).
+ *
+ * The loop also gets two hidden locals: the array (evaluated once) and the
+ * position in it - what the code generator needs to count through it.
+ *
+ *      E0600   the variable has the name of a local still in scope
+ *      E0609   the value cannot be looped over (iterable.sharp)
+ *      E0610   the variable cannot hold the items, or is written as an array
+ *
+ *      C++ comparison: compiler/functions/statements/for_each_statement.cpp
+ *      ("incompatible types, cannot convert X to Y", "type assigned to field
+ *      cannot evaluate to an array"; the hidden `foreach_index` and
+ *      `foreach_array_result` locals).
+ */
+def analyse_foreach(context: analysis_context, node: _int64) : bound_statement {
+    tree : syntax_tree = context.tree;
+    types : type_table = context.session.types;
+    parameter : _int64 = tree.child_of_kind(node, N_PARAMETER);
+    collection_node : _int64 = 0 - 1;
+    if(parameter >= 0) { collection_node = tree.next_sibling!![parameter]; }
+    body_node : _int64 = 0 - 1;
+    if(collection_node >= 0) { body_node = tree.next_sibling!![collection_node]; }
+
+    context.open_scope();
+
+    // the collection, before the variable exists
+    array : bound_expression = new bound_error(context.unit, node, types.error_type);
+    if(collection_node >= 0) {
+        array = collection_as_array(context, analyse_value(context, collection_node, null), collection_node);
+    }
+    item_type : resolved_type = types.error_type;
+    if(array.type.kind != RT_ERROR) { item_type = array.type.element_type(); }
+
+    // the variable: the item type, or the type written and the way from one to the other
+    name := "item";
+    variable_type : resolved_type = item_type;
+    how := new conversion(CONV_IDENTITY, item_type, item_type);
+    if(parameter >= 0) {
+        name = name_at(context, parameter);
+        type_node : _int64 = tree.child_of_kind(parameter, N_TYPE);
+        if(type_node >= 0) {
+            variable_type = resolve_type_at(context, type_node);
+            how = item_conversion(context, item_type, variable_type, array, name, type_node);
+        }
+        report_if_already_local(context, name, parameter);
+    }
+    variable := new local_variable(name, variable_type, context.unit, parameter);
+    variable.writes++;
+    context.declare(variable);
+
+    array_variable := context.hidden_local("foreach array", array.type, node);
+    index_variable := context.hidden_local("foreach position", types.int64, node);
+    loop := new bound_foreach(context.unit, node, variable, array, item_type, how, array_variable, index_variable);
+
+    context.enter_frame(FRAME_LOOP, loop);
+    loop.body = analyse_part(context, body_node);
+    context.leave_frame();
+
+    context.close_scope();
+    return loop;
+}
+
+/**
+ * How an item becomes the variable `name : wanted`. E0610 (and the
+ * "after an error" conversion) when it cannot.
+ */
+def item_conversion(context: analysis_context, item: resolved_type, wanted: resolved_type, array: bound_expression,
+                    name: string, type_node: _int64) : conversion {
+    if(item.kind == RT_ERROR || wanted.kind == RT_ERROR) { return new conversion(CONV_ERROR, item, wanted); }
+
+    if(wanted.is_array == 1) {
+        d := problem_over(context, "E0610", "the variable of a `foreach` holds one item at a time; `" + wanted.to_text()
+                          + "` is an array", type_node);
+        d.with_label("an array type");
+        d.with_note("each round of the loop puts ONE item of the array into `" + name + "`");
+        if(item.is_array == 1) { d.with_help("the items are arrays themselves: write `" + name + " : " + item.to_text() + "`"); }
+        else { d.with_help("write the type of one item: `" + name + " : " + wanted.element_type().to_text() + "`, or leave it out"); }
+        report(context, d);
+        return new conversion(CONV_ERROR, item, wanted);
+    }
+
+    // `foreach(s: shape in things)` with things : object[] - tested when it runs
+    if(item.kind == RT_OBJECT && item.is_array == 0 && wanted.kind == RT_CLASS) {
+        tested := new conversion(CONV_DOWNCAST, item, wanted);
+        tested.checked = 1;
+        return tested;
+    }
+
+    how := find_conversion(context.session, item, wanted, 1);
+    if(how.kind == CONV_NONE || (how.kind == CONV_CONSTRUCT && how.function == null)) {
+        d := problem_over(context, "E0610", "`" + name + " : " + wanted.to_text() + "` cannot hold the items of this loop, which are "
+                          + described_type(item), type_node);
+        d.with_label("cannot hold " + described_type(item));
+        d.with_related_place(place_of_node(context.unit, array.node, "the items come from here"));
+        if(how.kind == CONV_CONSTRUCT) { d.with_note("several constructors of `" + wanted.to_text() + "` could make one from an item equally well"); }
+        else if(how.only_nullable_in_the_way == 1) { d.with_note("the items may be null, and `" + wanted.to_text() + "` cannot hold null"); }
+        d.with_help("leave the type out to take the items as they are: `foreach(" + name + " in ...)`, or write `"
+                    + name + " : " + item.to_text() + "`");
+        report(context, d);
+        return new conversion(CONV_ERROR, item, wanted);
+    }
+    return how;
+}

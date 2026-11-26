@@ -1,0 +1,75 @@
+mod shapes;
+
+import ( std.io )
+
+// A clean program that uses everything the index has to describe:
+// inheritance, an interface, a generic class and its instances, a lambda,
+// an extension function, a property with get and set, an enum, an alias,
+// a global and a global function.
+
+interface printable {
+    def describe() : string;
+}
+
+class shape : printable {
+    name : string = "shape";
+    sides : _int64 = 0;
+
+    shape(name: string) { self->name = name; }
+
+    def area() : decimal { return 0; }
+    override def describe() : string { return name; }
+}
+
+class circle base shape {
+    radius : decimal = 1;
+
+    circle(radius: decimal) -> base("circle") {
+        self->radius = radius;
+    }
+
+    def area() : decimal {
+        half := radius / 2;
+        return radius * half;
+    }
+
+    diameter : decimal;
+        get { return radius * 2; }
+        set value -> { radius = value / 2; }
+}
+
+class box<T> {
+    item : T;
+
+    box(item: T) { self->item = item; }
+
+    def get_item() : T { return item; }
+}
+
+enum color { red, green = 5, blue }
+
+alias list<string> as names;
+
+limit : _int64 = 10;
+
+def string.shout() : string { return self + "!"; }
+
+def total(scale: decimal) : decimal {
+    c := new circle(scale);
+    b := new box<string>("hello");
+    t := new box<_int64>(3);
+    text := b.get_item().shout();
+    result : decimal = c.area() + c.diameter;
+    adder := { x: decimal -> (decimal) return x + scale; };
+    for(i : _int64 = 0; i < limit; i++) {
+        result += adder(i);
+    }
+    foreach(n in { 1, 2, 3 }) { result += n; }
+    chosen := color.green;
+    return result + t.get_item();
+}
+
+def main(args: string[]) : int {
+    println("total: " + total(2));
+    return 0;
+}

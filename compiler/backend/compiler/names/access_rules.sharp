@@ -1,0 +1,198 @@
+mod backend.compiler.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.inheritance,
+    backend.compiler.context
+)
+
+/**
+ * ACCESS RULES: who may use a declaration
+ *
+ *      modifier        may be used from                                    otherwise
+ *      --------------  --------------------------------------------------  ---------
+ *      public          anywhere (the default for everything)
+ *      private         code of the SAME class. Not a class declared         E0700
+ *                      inside it, not a class below it.
+ *      protected       code of the same class, of a class above or below    E0701
+ *                      it, and any code in the same MODULE
+ *      local           (only on things declared in a module) the same FILE  E0702
+ *
+ * For something declared in a module, outside any class, `private` and
+ * `protected` mean something else - see `check_access_to_global` below.
+ *
+ * Checked wherever a field, a class, an alias or an enum is USED by name in
+ * an expression. A TYPE written where a type is expected (`x : plate;`,
+ * `new plate()`) is checked by the type-names stage
+ * (backend/postprocessor/names/type_access.sharp), with the same rules.
+ * For functions and constructors `private` is checked by the calls stage,
+ * and is only a warning there (the C++ compiler does not check it at all).
+ *
+ * And the static rule:
+ *
+ *      an instance field needs an object. By its plain name it can only be
+ *      used where there is a `self`; `point.x` (through the class) and a use
+ *      in a static function are E0703.
+ *
+ *      C++ comparison: `check_access` in dependency/dependency.cpp.
+ */
+
+/**
+ * May the code of `context` use `declared`? Reports E0700 / E0701 / E0702
+ * at `node` when not. Returns 1 when it may.
+ */
+def check_access(context: analysis_context, declared: sharp_declaration, node: _int64) : _int64 {
+    flags : _int64 = declared.flags;
+    if((flags & (FLAG_PRIVATE | FLAG_PROTECTED | FLAG_LOCAL)) == 0) { return 1; }
+
+    // a class may always name ITSELF: `private class plate { def deep() := plate.depth; }`.
+    // (A class declared inside it may not - checked with the C++ compiler.)
+    if(context.class_of != null && (declared.kind == D_CLASS || declared.kind == D_INTERFACE || declared.kind == D_ENUM)) {
+        if(context.class_of!!.written == (declared as sharp_class).written) { return 1; }
+    }
+
+    if((flags & FLAG_LOCAL) != 0 && declared.owner == null) {
+        if(declared.unit == context.unit) { return 1; }
+        d := problem_at(context, "E0702", "`" + declared.name + "` is `local` to its file and cannot be used here", node);
+        d.with_label("declared `local` in another file");
+        d.with_related_place(place_of_declaration(declared, "`" + declared.name + "` is declared here, `local`"));
+        d.with_note("`local` means: visible only in the file that declares it");
+        d.with_help("remove `local` from the declaration to use it from other files");
+        report(context, d);
+        return 0;
+    }
+
+    if(declared.owner == null) { return check_access_to_global(context, declared, node); }
+    owner : sharp_class = declared.owner!!;
+
+    if((flags & FLAG_PRIVATE) != 0) {
+        if(context.class_of != null && context.class_of!!.written == owner.written) { return 1; }
+        d := problem_at(context, "E0700", "`" + declared.name + "` is private to `" + owner.written.qualified_name() + "`", node);
+        d.with_label("cannot be used outside `" + owner.written.name + "`");
+        d.with_related_place(place_of_declaration(declared, "declared `private` here"));
+        if(context.class_of != null && is_declared_inside(context.class_of!!, owner)) {
+            d.with_note("a class declared inside `" + owner.written.name + "` is a class of its own: it does not see the private members around it");
+        } else if(context.class_of != null && inherits_from(context.prog, context.class_of!!, owner)) {
+            d.with_note("`private` shuts out the classes below too");
+            d.with_help("declare it `protected` to let `" + context.class_of!!.written.name + "` use it");
+        } else {
+            d.with_note("`private` means: only code of the class itself");
+            d.with_help("use a public function of `" + owner.written.name + "`, or declare `" + declared.name + "` `public` or `protected`");
+        }
+        report(context, d);
+        return 0;
+    }
+
+    if((flags & FLAG_PROTECTED) != 0) {
+        if(context.file.module == declared.module) { return 1; }
+        if(context.class_of != null) {
+            user : sharp_class = context.class_of!!;
+            if(user.written == owner.written || inherits_from(context.prog, user, owner)
+               || inherits_from(context.prog, owner, user)) { return 1; }
+        }
+        d := problem_at(context, "E0701", "`" + declared.name + "` is protected in `" + owner.written.qualified_name() + "`", node);
+        d.with_label("cannot be used from here");
+        d.with_related_place(place_of_declaration(declared, "declared `protected` here"));
+        d.with_note("`protected` means: the class itself, the classes above and below it, and code in module `"
+                    + declared.module.name + "`");
+        report(context, d);
+        return 0;
+    }
+    return 1;
+}
+
+/**
+ * `private` and `protected` on something declared in a MODULE (a global
+ * variable, a class, an alias, an enum outside any class). The module's
+ * globals behave like the members of one hidden class per module, so:
+ *
+ *      private     only the module's own GLOBAL code: its global functions
+ *                  and the values of its globals, in any file of the module.
+ *                  Not the classes of the module.                          E0700
+ *      protected   any code of the same module, classes included           E0701
+ *
+ *      C++ comparison: the same `check_access`; the owner of a global is the
+ *      class `<module>#__srt_global` there (checked with probes: a private
+ *      global read from a class of its own module is refused, from a global
+ *      function in another file of the module it is accepted).
+ */
+def check_access_to_global(context: analysis_context, declared: sharp_declaration, node: _int64) : _int64 {
+    same_module : _int64 = context.file.module == declared.module;
+    what := declaration_kind_name(declared.kind);
+    if(declared.kind == D_FIELD) { what = "global variable"; }
+
+    if(declared.has(FLAG_PRIVATE)) {
+        if(same_module == 1 && context.class_of == null) { return 1; }
+        d := problem_at(context, "E0700", "the " + what + " `" + declared.name + "` is private to the global code of module `"
+                        + declared.module.name + "`", node);
+        d.with_related_place(place_of_declaration(declared, "declared `private` here"));
+        if(same_module == 1) {
+            d.with_label("used inside class `" + context.class_of!!.written.name + "`");
+            d.with_note("`private` on something declared outside any class means: only the functions and variables of the module that are outside any class too");
+            d.with_help("declare `" + declared.name + "` `protected` to let the classes of module `" + declared.module.name + "` use it");
+        } else {
+            d.with_label("cannot be used from module `" + context.file.module.name + "`");
+            d.with_note("`private` on something declared outside any class means: only the global code of its own module");
+            d.with_help("remove `private` from the declaration of `" + declared.name + "` to use it from other modules");
+        }
+        report(context, d);
+        return 0;
+    }
+
+    if(declared.has(FLAG_PROTECTED) && same_module == 0) {
+        d := problem_at(context, "E0701", "the " + what + " `" + declared.name + "` is protected in module `"
+                        + declared.module.name + "`", node);
+        d.with_label("cannot be used from module `" + context.file.module.name + "`");
+        d.with_related_place(place_of_declaration(declared, "declared `protected` here"));
+        d.with_note("`protected` on something declared outside any class means: only code of module `" + declared.module.name + "`");
+        d.with_help("remove `protected` from the declaration of `" + declared.name + "` to use it from other modules");
+        report(context, d);
+        return 0;
+    }
+    return 1;
+}
+
+/** is `inner` declared inside `outer` (at any depth)? */
+def is_declared_inside(inner: sharp_class, outer: sharp_class) : _int64 {
+    current : sharp_class? = inner.owner;
+    while(current != null) {
+        if(current!!.written == outer.written) { return 1; }
+        current = current!!.owner;
+    }
+    return 0;
+}
+
+/**
+ * E0703: an instance field named where there is no object to read it from.
+ *
+ * @param through_type  1: written `point.x`; 0: written `x` in static code
+ */
+def report_instance_field_without_object(context: analysis_context, field: sharp_field, node: _int64, through_type: _int64) {
+    owner_name := field.owner!!.written.name;
+    d := problem_at(context, "E0703", "`" + field.name + "` is an instance field of `" + owner_name
+                    + "`: it needs an object", node);
+    d.with_related_place(place_of_declaration(field, "`" + field.name + "` is declared here, without `static`"));
+    if(through_type == 1) {
+        d.with_label("`" + owner_name + "` is the class, not one of its objects");
+        d.with_note("every `" + owner_name + "` object has its own `" + field.name + "`; the class itself has none");
+        d.with_help("read it from an object: `a_" + owner_name + "." + field.name + "`, or declare the field `static`");
+    } else {
+        d.with_label("there is no `self` here");
+        if(context.function != null) {
+            d.with_note("`" + static_owner_name(context) + "` is static: it is not called on an object, so it has no fields to read");
+            d.with_help("remove `static` from `" + static_owner_name(context) + "`, or declare `" + field.name
+                        + "` `static`, or read it from an object passed in");
+        } else {
+            d.with_note("the value of a static field is worked out before any object exists");
+            d.with_help("declare `" + field.name + "` `static` too, or read it from an object");
+        }
+    }
+    report(context, d);
+}

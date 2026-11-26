@@ -1,0 +1,36 @@
+mod main;
+
+// output:
+// 3
+// 2
+// 2
+// 3
+
+/*
+ * What is kept (doc/codegen.md 5.5, Q14): a field no kept code names is not
+ * in the executable, and its value is NOT run - even one with an effect, as
+ * in the C++-built program (`unused` below prints nothing). A field that is
+ * named gets its value when an object is made (`used`); a static field when
+ * the class's static part runs, at the start of the program in both builds -
+ * before the object's own fields, so both print 3 first.
+ */
+def say(n: _int64) : _int64 {
+    show(n);
+    return n;
+}
+
+class things {
+    unused : _int64 = say(1);
+    used : _int64 = say(2);
+    static counted : _int64 = say(3) - 3;
+
+    things() {
+        counted++;
+    }
+}
+
+def main() {
+    t := new things();
+    show(t.used);
+    show(things.counted + 2);
+}

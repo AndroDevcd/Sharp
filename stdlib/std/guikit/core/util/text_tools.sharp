@@ -1,0 +1,87 @@
+mod std.guikit.core.util;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * txt - small text helpers for the widgets that cut text up (label, text_field): txt.slice(words, from, to).
+ */
+
+stable class txt {
+
+    /**
+     * The part of `words` from byte `from` up to (not including) byte `to` - and
+     * simply "" when that part is empty.
+     *
+     * string.substring refuses a start at the very end of the text, even for an
+     * empty piece ("everything after the cursor" when the cursor is at the end).
+     * Text editing asks for exactly such pieces all the time, so this wraps it.
+     */
+    static def slice(words: string, from: _int64, to: _int64) : string {
+        if(to <= from) {
+            return "";
+        }
+        return words.substring(from, to);
+    }
+
+    /**
+     * Text is kept as UTF-8: a letter outside plain English takes two to four
+     * bytes. Positions in a text are bytes, so stepping "one letter" means
+     * skipping the bytes that only continue a letter (128..191).
+     */
+    static def continues_letter(byte: _int64) : _int64 {
+        if(byte >= 128 && byte < 192) { return 1; }
+        if(byte < 0 - 64) { return 1; }             // the same bytes when a byte is read as a signed number
+        return 0;
+    }
+
+    /** the position one letter before `at` */
+    static def before(words: string, at: _int64) : _int64 {
+        if(at <= 0) { return 0; }
+        to : _int64 = at - 1;
+        while(to > 0 && continues_letter(words.at(to).value) == 1) {
+            to = to - 1;
+        }
+        return to;
+    }
+
+    /** the position one letter after `at` */
+    static def after(words: string, at: _int64) : _int64 {
+        length : _int64 = words.size();
+        if(at >= length) { return length; }
+        to : _int64 = at + 1;
+        while(to < length && continues_letter(words.at(to).value) == 1) {
+            to = to + 1;
+        }
+        return to;
+    }
+
+    /** how many letters (not bytes) the first `upto` bytes of `words` hold */
+    static def letters(words: string, upto: _int64) : _int64 {
+        count : _int64 = 0;
+        for(i : _int64 = 0; i < upto; i++) {
+            if(continues_letter(words.at(i).value) == 0) { count = count + 1; }
+        }
+        return count;
+    }
+
+    /** is this byte part of a word: a letter, a digit, an underscore, or any letter beyond plain English? */
+    static def in_word(byte: _int64) : _int64 {
+        if(byte >= 48 && byte <= 57) { return 1; }      // 0-9
+        if(byte >= 65 && byte <= 90) { return 1; }      // A-Z
+        if(byte >= 97 && byte <= 122) { return 1; }     // a-z
+        if(byte == 95) { return 1; }                    // _
+        if(byte >= 128 || byte < 0) { return 1; }
+        return 0;
+    }
+
+    /** is there anything in `words` besides spaces, tabs and line ends? */
+    static def is_blank(words: string) : _int64 {
+        for(i : _int64 = 0; i < words.size(); i++) {
+            byte : _int64 = words.at(i).value;
+            if(byte != 32 && byte != 9 && byte != 10 && byte != 13) { return 0; }
+        }
+        return 1;
+    }
+}

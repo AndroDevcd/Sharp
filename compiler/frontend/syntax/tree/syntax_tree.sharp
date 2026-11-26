@@ -1,0 +1,173 @@
+mod frontend.syntax.tree;
+
+import (
+    std.io
+)
+
+/**
+ * THE SYNTAX TREE OF ONE SOURCE FILE
+ *
+ * What the parser builds: the structure of the program, without the
+ * punctuation that only helped to read it (an "abstract" syntax tree).
+ *
+ *      total = price * 2;
+ *
+ *      assignment
+ *        name            total
+ *        multiply
+ *          name          price
+ *          integer       2
+ *
+ * A NODE IS A NUMBER, NOT AN OBJECT
+ *
+ * A node is its position in a set of arrays that all have one entry per node:
+ *
+ *      kinds[n]            what the node is (a class, an `if`, a call, ...)
+ *      tokens[n]           the token the node is "at": the name of a
+ *                          declaration, the operator of an expression. It
+ *                          gives the node its place in the source (for error
+ *                          messages) and its text when it has one.
+ *      parents[n]          the node this one is a child of, or -1
+ *      first_child[n]      the node's first child, or -1
+ *      last_child[n]       its last child, or -1 (so adding one is one step)
+ *      next_sibling[n]     the next child of the same parent, or -1
+ *
+ * A node can have any number of children: a block has one per statement, a
+ * call one per argument. They hang together as a chain:
+ *
+ *      block ---first_child--> statement 1 --next_sibling--> statement 2 --> -1
+ *
+ * WHY NOT AN OBJECT PER NODE (which is what frontend/parser/ast.sharp does:
+ * an object with a list of tokens and a list of children, three allocations
+ * per node)
+ *
+ *   - a file is tens of thousands of nodes; six arrays that grow by doubling
+ *     are a handful of allocations for all of them
+ *   - walking the tree reads neighbouring array elements instead of following
+ *     pointers all over the heap
+ *   - the whole tree is five number arrays: it can be written to a cache file
+ *     and read back as it is, which is what the build cache and "watch the
+ *     project and recompile what changed" need
+ *
+ *      C++ comparison: std::vector<Node> where children are indexes into the
+ *      same vector, instead of std::vector<std::unique_ptr<Node>> in every node.
+ *
+ * Node kinds are the N_... numbers in syntax_kinds.sharp.
+ */
+class syntax_tree {
+    kinds        : _uint8[]?;
+    tokens       : _int32[]?;
+    parents      : _int32[]?;
+    first_child  : _int32[]?;
+    last_child   : _int32[]?;
+    next_sibling : _int32[]?;
+    count        : _int64 = 0;      // how many nodes there are
+    capacity     : _int64 = 0;      // how many the arrays have room for
+
+    /** @param expected_nodes  a guess; the arrays grow when it was too low */
+    syntax_tree(expected_nodes: _int64) {
+        size : _int64 = expected_nodes;
+        if(size < 16) { size = 16; }
+
+        kinds = new _uint8[size];
+        tokens = new _int32[size];
+        parents = new _int32[size];
+        first_child = new _int32[size];
+        last_child = new _int32[size];
+        next_sibling = new _int32[size];
+        capacity = size;
+    }
+
+    /**
+     * A new node with no parent and no children yet.
+     *
+     * @param kind   N_...
+     * @param token  index of the token the node is at
+     * @return the node
+     */
+    def add(kind: _int64, token: _int64) : _int64 {
+        if(count == capacity) { grow(); }
+
+        node : _int64 = count;
+        kinds!![node] = kind;
+        tokens!![node] = token;
+        parents!![node] = 0 - 1;
+        first_child!![node] = 0 - 1;
+        last_child!![node] = 0 - 1;
+        next_sibling!![node] = 0 - 1;
+        count++;
+        return node;
+    }
+
+    /** `child` becomes the last child of `parent` (a node has one parent, added once) */
+    def append(parent: _int64, child: _int64) {
+        last : _int64 = last_child!![parent];
+        if(last < 0) {
+            first_child!![parent] = child;
+        } else {
+            next_sibling!![last] = child;
+        }
+        last_child!![parent] = child;
+        parents!![child] = parent;
+    }
+
+    /** add(kind, token) and append it to `parent` */
+    def add_child(parent: _int64, kind: _int64, token: _int64) : _int64 {
+        node : _int64 = add(kind, token);
+        append(parent, node);
+        return node;
+    }
+
+    /** how many children `node` has (walks the chain) */
+    def child_count(node: _int64) : _int64 {
+        n : _int64 = 0;
+        child : _int64 = first_child!![node];
+        while(child >= 0) {
+            n++;
+            child = next_sibling!![child];
+        }
+        return n;
+    }
+
+    /** the first child of `node` that is of this kind, or -1 */
+    def child_of_kind(node: _int64, kind: _int64) : _int64 {
+        child : _int64 = first_child!![node];
+        while(child >= 0) {
+            if(kinds!![child] == kind) { return child; }
+            child = next_sibling!![child];
+        }
+        return 0 - 1;
+    }
+
+    /** child number `index` (0 based) of `node`, or -1 */
+    def child_at(node: _int64, index: _int64) : _int64 {
+        child : _int64 = first_child!![node];
+        while(child >= 0 && index > 0) {
+            index--;
+            child = next_sibling!![child];
+        }
+        return child;
+    }
+
+    /** every array twice as long */
+    private def grow() {
+        bigger : _int64 = capacity * 2;
+
+        more_kinds := new _uint8[bigger];
+        memcopy(kinds!!, more_kinds, 0, 0, count);
+        kinds = more_kinds;
+
+        tokens = longer(tokens!!, bigger);
+        parents = longer(parents!!, bigger);
+        first_child = longer(first_child!!, bigger);
+        last_child = longer(last_child!!, bigger);
+        next_sibling = longer(next_sibling!!, bigger);
+        capacity = bigger;
+    }
+
+    private def longer(old: _int32[], size: _int64) : _int32[] {
+        copy := new _int32[size];
+        memcopy(old, copy, 0, 0, count);
+        return copy;
+    }
+}

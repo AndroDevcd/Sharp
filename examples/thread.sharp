@@ -1,44 +1,48 @@
 mod main;
 
-import std.io;
+import (
+    std.io
+)
 
-// Here we create a class to be called if there was an exception thrown
-// that was not caught
-class err_handler : uncaught_exception_handler {
-    def uncaught_exception(err: throwable) {
-       println("exception: '${err.get_message()}' has been caught!");
+// called when a thread ends with an exception nobody caught
+class report_it : uncaught_exception_handler {
+    override def uncaught_exception(err: throwable) {
+        println("a thread failed: " + err.get_message());
     }
 }
 
-def err_thread(args: object[]) : var {
-   throw new error("test error");
+def greet(args: object[]) : decimal {
+    println("hello from a thread");
+    return 0;
 }
 
-def foo_thread(args: object[]) : var {
-   println("I'm foo thread!");
-   return 0;
+def fail(args: object[]) : decimal {
+    throw new error("something went wrong");
 }
 
-// This program show how to create a simple parallel program
-// that uses the standardized thread class
+/**
+ * Threads: a function run beside the rest of the program. join() waits for
+ * one to finish. (For most background work coroutines are lighter: see
+ * coroutines.sharp.)
+ */
 def main() {
-   thread1 := new thread("foo thread", foo_thread);
-   thread1.set_exception_handler(new err_handler()); // in case there is an exception
-   thread1.start();
+    first := new thread("greeter", greet);
+    first.start();
+    first.join();
 
-   thread.sleep(500); // sleep for half a second
-   non_thread := new thread("anonymous thread", { args -> (var)
-       println("I'm anonymous!");
-       return 0;
-   });
-   non_thread.start();
-   thread.sleep(500); // sleep for half a second
+    // a thread can be given a block instead of a named function
+    second := new thread("block", { args -> (decimal)
+        println("hello from a block");
+        return 0;
+    });
+    second.start();
+    second.join();
 
-   // the standard threading api allows you to add an exception handler to the thread to be called in the event
-   // an exception is thrown and bubbles out of the users code base
-   thread3 := new thread("error thread", err_thread);
-   thread3.set_exception_handler(new err_handler()); // this will be used as a callback if there is an uncaught exception
-   thread3.start();
+    // an exception that leaves a thread goes to its handler
+    third := new thread("failing", fail);
+    third.set_exception_handler(new report_it());
+    third.start();
+    third.join();
 
-   thread.sleep(1000); // give the threads some time to run
+    println("all three are done");
 }

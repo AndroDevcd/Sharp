@@ -1,0 +1,11 @@
+# Gradle and build output
+.gradle/
+build/
+.kotlin/
+.intellijPlatform/
+# IDE files
+.idea/
+*.iml
+out/
+# a crash report the Java runtime writes next to the build when the machine runs out of memory
+hs_err_pid*.log

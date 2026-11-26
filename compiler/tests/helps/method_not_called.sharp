@@ -1,0 +1,12 @@
+// expect: E0804
+// help: x.size()
+// replace: x.size
+mod tests.helps;
+import (std, std.io);
+
+class k { def size() : _int64 { return 1; } }
+
+def main() {
+    x := new k();
+    n : _int64 = x.size;
+}

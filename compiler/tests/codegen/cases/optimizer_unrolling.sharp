@@ -1,0 +1,180 @@
+mod main;
+
+// output:
+// 15
+// 82
+// 7
+// 245
+// 0
+// 3
+// 9
+// 18
+// 18
+// 102
+// 18
+// 512
+// 21
+// 42
+// 2103
+// 0.875
+// 378
+// 15
+// -10539
+// 1
+// 2
+// -1
+
+/*
+ * THE OPTIMIZER, LOOP UNROLLING (doc/codegen.md 7.2; backend/optimizer/passes/control/loop_unrolling.sharp)
+ *
+ * Built plain and with -O by codegen.sh; both must print the block the C++-built program
+ * prints. A loop that runs a small, known number of times becomes straight code:
+ *
+ *   - counting up and down, a loop that never runs, `break` and `continue` on known values,
+ *     calls and field stores in the body (they must happen as often, in the same order),
+ *     a loop in a loop, a known loop inside an unknown one;
+ *   - what must be LEFT alone: more than 16 rounds, a branch on an unknown value in the body,
+ *     a loop left by `return`;
+ *   - a do loop, a decimal counter, a narrow counter that wraps (`_int8` 125, 126, 127, -128),
+ *     bounds that are known variables, loops over an array (also one that runs out of range
+ *     in its third round: the rounds before it must have happened).
+ */
+
+class holder { v : _int64; }
+
+def id(a: _int64) : _int64 { return a; }
+
+def counted(step: _int64) : _int64 {
+    total : _int64 = 0;
+    for(k : _int64 = 0; k < 3; k++) { total = total + k * step; }
+    return total;
+}
+
+def down(step: _int64) : _int64 {
+    total : _int64 = 1;
+    for(k : _int64 = 5; k > 0; k = k - 2) { total = total * step + k; }
+    return total;
+}
+
+def never(step: _int64) : _int64 {
+    total : _int64 = 7;
+    for(k : _int64 = 5; k < 3; k++) { total = total + step; }
+    while(false) { total = total + 1000; }
+    return total;
+}
+
+def with_break(step: _int64) : _int64 {
+    total : _int64 = 0;
+    for(k : _int64 = 0; k < 10; k++) {
+        if(k == 4) { break; }
+        if(k == 1) { continue; }
+        total = total * 10 + k + step;
+    }
+    return total;
+}
+
+def with_calls(h: holder) : _int64 {
+    for(k : _int64 = 0; k < 4; k++) { h.v = h.v + id(k) * 3; show(h.v); }
+    return h.v;
+}
+
+def nested(step: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < 3; i++) {
+        for(j : _int64 = 0; j < 2; j++) { total = total * 2 + i + j + step; }
+    }
+    return total;
+}
+
+def inner_known(n: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < n; i++) {
+        for(j : _int64 = 0; j < 3; j++) { total = total + i * j; }
+        k : _int64 = 2;
+        while(k > 0) { total = total ^ k; k--; }
+    }
+    return total;
+}
+
+def too_many(step: _int64) : _int64 {
+    total : _int64 = 0;
+    for(k : _int64 = 0; k < 17; k++) { total = total + k * step; }
+    for(k : _int64 = 0; k < 16; k++) { total = total + k * step; }
+    return total;
+}
+
+def unknown_branch_inside(a: _int64) : _int64 {
+    total : _int64 = 0;
+    for(k : _int64 = 0; k < 3; k++) { if(a > k) { total = total + 1; } else { total = total + 10; } }
+    return total;
+}
+
+def leaves_by_return(step: _int64) : _int64 {
+    for(k : _int64 = 0; k < 5; k++) { if(k == 2) { return k + step; } }
+    return 0 - 1;
+}
+
+def do_loop(step: _int64) : _int64 {
+    total : _int64 = 0;
+    k : _int64 = 0;
+    do { total = total + step + k; k++; } while(k < 3);
+    return total * 100 + k;
+}
+
+def decimal_counter() : decimal {
+    total : decimal = 0;
+    for(x : decimal = 0; x < 1; x = x + 0.25) { total = total + x * x; }
+    return total;
+}
+
+def narrow_counter() : _int64 {
+    total : _int64 = 0;
+    for(k : _int8 = 125; k > 0; k++) { total = total + k; }
+    return total;
+}
+
+def known_before(step: _int64) : _int64 {
+    limit : _int64 = 3;
+    start : _int64 = 1;
+    total : _int64 = 0;
+    for(k : _int64 = start; k <= limit; k++) { total = total * step + k; }
+    return total + limit + start;
+}
+
+def array_fill() : _int64 {
+    a := new _int64[4];
+    for(k : _int64 = 0; k < 4; k++) { a[k] = k * k + 1; }
+    total : _int64 = 0;
+    for(k : _int64 = 3; k >= 0; k--) { total = total * 10 + a[k]; }
+    try {
+        for(k : _int64 = 0; k < 5; k++) { total = total + a[k]; }
+    } catch(e: exception) { total = 0 - total; }
+    return total;
+}
+
+def out_of_range() : _int64 {
+    a := new _int64[2];
+    total : _int64 = 0;
+    for(k : _int64 = 0; k < 3; k++) { a[k] = k; total = total + 1; show(total); }
+    return total;
+}
+
+def main() {
+    show(counted(5));
+    show(down(3));
+    show(never(9));
+    show(with_break(2));
+    h := new holder();
+    show(with_calls(h));
+    show(nested(1));
+    show(inner_known(4));
+    show(too_many(2));
+    show(unknown_branch_inside(1));
+    show(leaves_by_return(40));
+    show(do_loop(6));
+    show_decimal(decimal_counter());
+    show(narrow_counter());
+    show(known_before(2));
+    show(array_fill());
+    try { show(out_of_range()); } catch(e: exception) { show(0 - 1); }
+}

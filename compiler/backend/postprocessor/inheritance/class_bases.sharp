@@ -1,0 +1,291 @@
+mod backend.postprocessor.inheritance;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.generics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * THE REAL BASE CLASS AND INTERFACES OF A CLASS
+ *
+ *      class names base list<string> : comparable<names> { }
+ *
+ * Stage 4 (base_classes.sharp, interfaces.sharp) checked what is written
+ * after `base` and `:` and linked each class to the classes those names
+ * mean AS WRITTEN: the base of `names` was the blueprint `list<T>`, with a
+ * note beside it that T stands for string. That is as far as one can go
+ * before generic instances exist.
+ *
+ * Now they do. For every real class this step replaces the link by the real
+ * thing: the base class of `names` is the class `list<string>`, its interface
+ * the class `comparable<names>`. From here on a walk up `base_class` passes
+ * through real classes only, whose members have real types - which is what
+ * lets member lookup and the override check compare types exactly instead of
+ * guessing what a `T` further up might be.
+ *
+ * For an instance the same is done under its environment:
+ * `class stack<T> base list<T>` - the base of stack<int> is list<int>, made
+ * on the spot when it does not exist yet.
+ *
+ * A blueprint keeps the links stage 4 gave it (to other blueprints); nothing
+ * walks them for anything but messages.
+ *
+ * A TYPE PARAMETER AS BASE OR INTERFACE
+ *      class mixin<T> base T { }           mixin<shape> inherits from shape
+ *      class tagged<T> : T { }             tagged<printable> implements printable
+ * Stage 4 could not check these: what `T` is differs per instance. The
+ * checks of base_classes.sharp and interfaces.sharp are made here, for the
+ * instance, with the same codes:
+ *
+ *      E0320   the type argument is not a class        mixin<_int64>, mixin<shape[]>
+ *      E0321   it is an interface                      mixin<printable>
+ *      E0322   it is an enum                           mixin<color>
+ *      E0323   the instance would inherit from itself  class k base mixin<k>
+ *      E0324   listed after the `:` and not an interface
+ *      E0325   the same interface twice - in this instance only
+ *
+ *      C++ comparison: base_class_processor.cpp runs on every generic clone,
+ *      which is how it comes to accept `base T` at all.
+ *
+ * Done on demand and once per class (`bases_resolved`): whoever needs the
+ * base of a class calls resolve_bases first.
+ */
+def resolve_bases(prog: sharp_program, declared: sharp_class) {
+    if(declared.bases_resolved == 1) { return; }
+    declared.bases_resolved = 1;
+    if(declared.is_open()) { return; }
+
+    problems := prog.problems;
+    source : sharp_class = declared.written;    // the class stage 4 looked at
+
+    // ---- the base class
+    if(source.base_type == null || source.base_class == null) {
+        // none written (stage 4 gave it `_object_` / `_enum_`), or one that was refused
+        declared.base_class = source.base_class;
+    } else {
+        above := resolve_written_type(prog, source.base_type!!, declared.environment, problems);
+        found := above.class_or_null();
+        if(source.base_is_parameter == 1) { found = usable_as_base(prog, declared, source.base_type!!, above); }
+
+        if(found == null && above.is_error() && has_unknown_type_argument(declared)) {
+            found = stand_in_above(prog, declared, source.base_type!!);
+        }
+
+        if(found != null && !found!!.is_open() && found != declared) { declared.base_class = found; }
+        else { declared.base_class = prog.well_known!!.object_class; }
+    }
+
+    // ---- the interfaces: the ones stage 4 accepted, as real classes
+    real := new list<sharp_class>();
+    for(i : _int64 = 0; i < source.interface_types.size(); i++) {
+        written := source.interface_types.at(i);
+        is_parameter : _int64 = names_type_parameter(written);
+        if(is_parameter == 0 && !was_accepted_as_interface(source, written)) { continue; }
+
+        resolved := resolve_written_type(prog, written, declared.environment, problems);
+        found := resolved.class_or_null();
+        if(found == null && resolved.is_error() && has_unknown_type_argument(declared)) {
+            found = stand_in_above(prog, declared, written);
+        }
+        if(is_parameter == 1 && !resolved.is_error() && !resolved.is_open() && (found == null || !found!!.is_interface())) {
+            report_argument_is_no_interface(declared, written, resolved, problems);
+            continue;
+        }
+        if(found == null || !found!!.is_interface() || found!!.is_open()) { continue; }
+
+        if(contains_class(real, found!!)) {
+            report_same_interface_in_instance(declared, written, found!!, problems);
+            continue;
+        }
+        real.add(found!!);
+    }
+    declared.interfaces = real;
+}
+
+/**
+ * `class kid<T> base parent<T>` analysed as the stand-in `kid<?>`
+ * (compiler/driver/unused_blueprints.sharp): `parent<T>` with an unknown `T`
+ * is no type, yet the members `kid` inherits are those of `parent` whatever
+ * `T` is. So the class above a stand-in is the stand-in of the generic class
+ * that is written there, `parent<?>` - all its type arguments unknown.
+ *
+ * When what is written is no generic class that can be found (`base T`
+ * itself), nothing is known about what the stand-in inherits: it is marked
+ * `members_uncertain`, and no name is reported missing in it. Returns the
+ * class, or null.
+ */
+def stand_in_above(prog: sharp_program, declared: sharp_class, written: sharp_type) : sharp_class? {
+    named := look_through(written, null).type.declaration;
+    if(named == null || (named!!.kind != D_CLASS && named!!.kind != D_INTERFACE) || !(named as sharp_class).is_generic()) {
+        declared.members_uncertain = 1;
+        return null;
+    }
+    blueprint : sharp_class = named as sharp_class;
+
+    // "not known" is the type argument that makes `declared` a stand-in
+    unknown : resolved_type? = null;
+    for(i : _int64 = 0; i < declared.type_arguments!!.size() && unknown == null; i++) {
+        if(declared.type_arguments!!.at(i).is_error()) { unknown = declared.type_arguments!!.at(i); }
+    }
+    arguments := new list<resolved_type>();
+    for(i : _int64 = 0; i < blueprint.type_parameters.size(); i++) { arguments.add(unknown!!); }
+
+    found := instantiate(prog, blueprint, arguments, written, null, prog.problems);
+    if(found == null) { declared.members_uncertain = 1; }
+    return found;
+}
+
+/**
+ * E0325 that only an instance shows:
+ *
+ *      class both<A, B> : comparable<A>, comparable<B> { }
+ *      x : both<int, int>;         comparable<int> twice
+ *
+ * (Written twice with the same arguments, stage 4 has reported it already
+ * and this place is never reached with errors.) Once per instance.
+ */
+def report_same_interface_in_instance(declared: sharp_class, written: sharp_type, found: sharp_class,
+                                      problems: list<diagnostic>) {
+    d := error_at_node("E0325", "`" + declared.qualified_name() + "` lists the interface `" + found.qualified_name() + "` twice",
+                       written.unit, written.node)
+        .with_label("with these type arguments this is `" + found.qualified_name() + "`, which is listed already")
+        .with_note("an interface is implemented once; its functions would have to be defined twice with the same parameters");
+    add_instance_note(d, declared.environment);
+    d.with_help("use `" + declared.written.name + "` with type arguments that differ, or list the interface once");
+    problems.add(d);
+}
+
+/** did stage 4 take this written type as an interface of `source`? (it refuses classes, and a second mention) */
+def was_accepted_as_interface(source: sharp_class, written: sharp_type) : _int64 {
+    named := look_through(written, null).type.declaration;
+    if(named == null) { return 0; }
+    for(i : _int64 = 0; i < source.interfaces.size(); i++) {
+        if(source.interfaces.at(i) == named) { return 1; }
+    }
+    return 0;
+}
+
+/** is `wanted` one of these classes? (the lists are short: the interfaces of one class) */
+def contains_class(classes: list<sharp_class>, wanted: sharp_class) : _int64 {
+    for(i : _int64 = 0; i < classes.size(); i++) {
+        if(classes.at(i) == wanted) { return 1; }
+    }
+    return 0;
+}
+
+/** the class `declared` inherits from, as a real class; null at the top (`_object_`) */
+def real_base_of(prog: sharp_program, declared: sharp_class) : sharp_class? {
+    resolve_bases(prog, declared);
+    return declared.base_class;
+}
+
+/**
+ * Is `declared` the class `wanted`, or below it: does it inherit from it
+ * through base classes, or implement it through interfaces (its own, its
+ * base classes', and the interfaces those inherit from)?
+ */
+def inherits_from(prog: sharp_program, declared: sharp_class, wanted: sharp_class) : _int64 {
+    current : sharp_class? = declared;
+    for(depth : _int64 = 0; current != null && depth < 256; depth++) {
+        if(current == wanted) { return 1; }
+        resolve_bases(prog, current!!);
+        if(wanted.is_interface()) {
+            for(i : _int64 = 0; i < current!!.interfaces.size(); i++) {
+                if(inherits_from(prog, current!!.interfaces.at(i), wanted)) { return 1; }
+            }
+        }
+        // An interface is what it lists and the interfaces it extends - not
+        // `_object_`, the class every chain ends in. Climbing from an
+        // interface to `_object_` would walk _object_'s own interfaces, and
+        // from those to `_object_` again, without end.
+        if(current!!.is_interface() && (current!!.base_class == null || !current!!.base_class!!.is_interface())) { return 0; }
+        current = current!!.base_class;
+    }
+    return 0;
+}
+
+// ---------------------------------------------------------------------------
+// class mixin<T> base T: the checks of stage 4, for one instance
+// ---------------------------------------------------------------------------
+
+/**
+ * The class a type argument gives an instance as its base class - or null,
+ * with the reason reported, when it cannot be one.
+ *
+ * @param written  the `T` after `base`
+ * @param above    what it stands for in this instance
+ */
+def usable_as_base(prog: sharp_program, declared: sharp_class, written: sharp_type, above: resolved_type) : sharp_class? {
+    if(above.is_error() || above.is_open()) { return null; }
+    found := above.class_or_null();
+    name := declared.qualified_name();
+
+    if(found == null) {
+        report_base_in_instance(prog, declared, written, "E0320",
+            "`" + above.to_text() + "` cannot be the base class of `" + name + "`: it is not a class",
+            "`" + written.to_text() + "` is the base class here, so it must stand for a class",
+            "use `" + declared.written.name + "` with a class; to make that a rule, declare it as  class "
+            + declared.written.name + "<" + written.to_text() + " base _object_>");
+        return null;
+    }
+    parent : sharp_class = found!!;
+
+    if(parent.is_interface() && !declared.is_interface()) {
+        report_base_in_instance(prog, declared, written, "E0321",
+            "`" + parent.qualified_name() + "` is an interface; it cannot be the base class of `" + name + "`",
+            "`base` is for the one class a class inherits from",
+            "use `" + declared.written.name + "` with a class");
+        return null;
+    }
+    if(parent.is_enum()) {
+        report_base_in_instance(prog, declared, written, "E0322",
+            "`" + parent.qualified_name() + "` is an enum; nothing can inherit from an enum - `" + name + "` would",
+            "an enum is a fixed list of values",
+            "use `" + declared.written.name + "` with a class");
+        return null;
+    }
+
+    // class k base mixin<k>: mixin<k> inherits from k, which inherits from mixin<k>
+    up : sharp_class? = parent;
+    for(depth : _int64 = 0; up != null && depth < 256; depth++) {
+        if(up == declared) {
+            report_base_in_instance(prog, declared, written, "E0323",
+                "`" + name + "` inherits from itself",
+                "`" + written.to_text() + "` stands for `" + parent.qualified_name() + "`, which inherits from `" + name + "` in turn",
+                "do not give `" + declared.written.name + "` a class that inherits from that very instance");
+            return null;
+        }
+        up = real_base_of(prog, up!!);
+    }
+    return parent;
+}
+
+/**
+ * One of E0320 - E0323 for an instance whose base class is a type argument.
+ * Reported once per instance (its bases are resolved once), at the `T` after
+ * `base`, with the place that uses the instance shown beside it.
+ */
+def report_base_in_instance(prog: sharp_program, declared: sharp_class, written: sharp_type, code: string, message: string,
+                            label: string, help: string) {
+    d := error_at_node(code, message, written.unit, written.node).with_label(label);
+    add_instance_note(d, declared.environment);
+    d.with_help(help);
+    prog.problems.add(d);
+}
+
+/** E0324 for an instance: `class tagged<T> : T` used with something that is not an interface */
+def report_argument_is_no_interface(declared: sharp_class, written: sharp_type, given: resolved_type,
+                                    problems: list<diagnostic>) {
+    d := error_at_node("E0324", "`" + given.to_text() + "` is not an interface, so `" + declared.qualified_name()
+                       + "` cannot list it after the `:`", written.unit, written.node)
+        .with_label("only interfaces can be listed after the `:`");
+    add_instance_note(d, declared.environment);
+    d.with_help("use `" + declared.written.name + "` with an interface; to inherit from a class write  class "
+                + declared.written.name + "<" + written.to_text() + "> base " + written.to_text());
+    problems.add(d);
+}

@@ -1,0 +1,46 @@
+mod backend.ide.output;
+
+import (
+    std.io
+)
+
+/**
+ * WRITING A FILE SO THAT A READER NEVER SEES HALF OF IT
+ *
+ * The editor plugin reads these files while the compiler may still be
+ * writing the next ones. A file that is written in place can be read half
+ * done. So every file is written under another name first and then RENAMED:
+ *
+ *      diagnostics.json.tmp      written in full
+ *      diagnostics.json          renamed from the line above: the old file is
+ *                                replaced in one step (rename is atomic on
+ *                                Linux; a reader has the old file or the new)
+ *
+ *      C++ comparison: the usual "write to a temp file, rename over the target"
+ *      (std::filesystem::rename does the second half).
+ */
+
+/** make the folder (and the ones above it) when it is not there yet */
+def make_folder(path: string) {
+    folder := new file(path);
+    if(!folder.exists()) {
+        if(!folder.mkdirs()) { throw new io_exception("cannot create the folder " + path); }
+    }
+}
+
+/**
+ * `text` becomes the file `folder/name`. Throws io_exception when it cannot be written
+ * (the hooks catch it: a failed write must never fail the build).
+ */
+def write_file_atomically(folder: string, name: string, text: string) {
+    path : string = folder + "/" + name;
+    temporary : string = path + ".tmp";
+
+    if(file_natives.write(temporary, text) != 0) { throw new io_exception("cannot write " + temporary); }
+
+    if(file_natives.rename(temporary, path) != 0) {
+        // some file systems refuse to rename over an existing file: remove it and try once more
+        new file(path).remove();
+        if(file_natives.rename(temporary, path) != 0) { throw new io_exception("cannot rename " + temporary + " to " + path); }
+    }
+}

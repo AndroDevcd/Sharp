@@ -1,0 +1,229 @@
+mod std.guikit.core.model;
+
+import (
+    std.guikit.*,
+    std.io.coroutines
+)
+
+/**
+ * view_model - the LOGIC of a screen, kept apart from what the screen looks
+ * like.
+ *
+ *      class tasks_model base view_model {
+ *          tasks := state_list<task>();            // what the screen shows
+ *          busy  := gui.state(0);                  // (gui.state: the short `state(0)` belongs to a composable)
+ *
+ *          def add(title: string) { tasks.add(task(title)); }      // what the screen can ask for
+ *          def remove(t: task)    { tasks.remove(t); }
+ *      }
+ *
+ *      class tasks_screen base composable {
+ *          model := model_of<tasks_model>();
+ *
+ *          override def build() : element {
+ *              return column {
+ *                  for(i : _int64 = 0; i < model.tasks.size(); i++) { task_row(model.tasks.at(i)); }
+ *                  button("Add") { model.add("New task"); };
+ *              };
+ *          }
+ *      }
+ *
+ * THE RULE: the screen is dumb. It READS the model's states and CALLS the
+ * model's functions - it decides nothing. The model knows nothing about
+ * widgets: no text(...), no modifier, no colours. Then the logic can be read,
+ * changed and tested without a window, and the screen can be redesigned
+ * without touching the logic.
+ * (Android / Compose: ViewModel, with StateFlow for the states.)
+ *
+ * HOW LONG A MODEL LIVES
+ *
+ *   model_of<tasks_model>() gives the screen's model: made the first time it
+ *   is asked for, and THE SAME ONE every time after - a screen is built again
+ *   and again, and its composable objects are made anew, but the model stays.
+ *
+ *   The model belongs to the SCREEN it was asked for in (a screen of a
+ *   navigator: screens.sharp). Every composable of that screen that asks for
+ *   the same class gets the same model, so parts of a screen share one. When
+ *   the screen is popped off its back stack the model is dropped and its
+ *   cleared() runs. A tab's first screen is never popped, so its model lives
+ *   as long as the app.
+ *
+ *   Outside any screen (an app without a navigator) the model belongs to the
+ *   app and lives until the window closes.
+ *
+ * SLOW WORK
+ *
+ *   A model must not make the screen wait. Reading a file, asking a server,
+ *   crunching numbers: start it with launch(...) on a background dispatcher,
+ *   and bring the result back with on_main:
+ *
+ *      def load() {
+ *          busy.value = 1;
+ *          launch(dispatchers.io()) {
+ *              found := task_store.read_all();     // on an IO thread: the window stays alive
+ *              on_main {
+ *                  tasks.replace_all(found);       // back on the main thread: the screen follows
+ *                  busy.value = 0;
+ *              };
+ *          };
+ *      }
+ *
+ *   Work started with the model's launch is CANCELLED when the model is
+ *   dropped, and the model's on_main does nothing once the model is gone - so
+ *   a screen that was closed while it was loading cannot be written to by
+ *   the answer that arrives late. (Android: viewModelScope.launch.)
+ *
+ * WITHOUT A WINDOW
+ *
+ *   A model is plain logic, so it also works in a console program or a test:
+ *   make it with `new`, call its functions, read its states. Two things differ
+ *   and are worth knowing: nobody drops it (call drop() yourself to run
+ *   its when_cleared blocks), and nobody runs what on_main handed over - call
+ *   main_queue.run_waiting() where you want it run. model_of<...>() itself is
+ *   for screens: called with no window ever opening it still hands out a
+ *   model, but that model is never dropped.
+ *
+ * A model class must be makeable with no arguments: model_of makes it. What a
+ * model needs from outside it takes from the route (give it a function like
+ * `open(id)` that the screen calls once) or from an object the app shares.
+ */
+stable class view_model {
+    /** 1 from when the model was made until it is dropped: work that comes back late checks it */
+    alive : _int64 = 1;
+
+    // the work this model started and has not been told is finished: cancelled when the model is dropped
+    private work : list<job>?;
+
+    /**
+     * Start `block` on the threads of `where` (dispatchers.io() for anything
+     * that waits, dispatchers.default_pool() for computing) and return at
+     * once. The work belongs to the model: it is cancelled when the model is
+     * dropped. To change a state from inside it, use on_main.
+     */
+    def launch(where: coroutine_dispatcher, block: ()()) : job {
+        if(alive == 0) {
+            throw new illegal_state_exception("this view model has been dropped (its screen was closed): it cannot start new work");
+        }
+        started : job = launch_on(where, block);
+        if(work == null) {
+            work = new list<job>();
+        }
+        work!!.add(started);
+        return started;
+    }
+
+    /**
+     * Run `action` on the main thread - the one place where states may be
+     * changed. Does nothing if the model has been dropped by the time the
+     * main thread gets to it.
+     */
+    def on_main(action: ()()) {
+        main_queue.post({ ->
+            if(alive == 1) {
+                action();
+            }
+        });
+    }
+
+    /**
+     * Drop the model by hand: its work is cancelled and its when_cleared blocks run. The
+     * framework does this for a model made with model_of; call it yourself
+     * only for one you made with `new` (a console program, a test).
+     */
+    def drop() {
+        if(alive == 0) {
+            return;
+        }
+        alive = 0;
+        if(work != null) {
+            count : _int64 = work!!.size();
+            for(i : _int64 = 0; i < count; i++) {
+                work!!.at(i).cancel();
+            }
+            work!!.clear();
+        }
+        cleared();
+    }
+
+    // what to run when the model is dropped (when_cleared)
+    private endings : list<change_hook>?;
+
+    /**
+     * Run `action` when the model is dropped (its screen was popped, or the
+     * app closed): stop what it started, save what must be kept. Say it in
+     * the model's constructor:
+     *
+     *      tasks_model() {
+     *          when_cleared { connection.close(); };
+     *      }
+     *
+     * (Android: ViewModel.onCleared. It is a function you hand over rather
+     * than one you override, so a model with nothing to clean up writes
+     * nothing at all.)
+     */
+    def when_cleared(action: ()()) {
+        if(endings == null) {
+            endings = new list<change_hook>();
+        }
+        endings!!.add(new change_hook(action));
+    }
+
+    private def cleared() {
+        if(endings != null) {
+            count : _int64 = endings!!.size();
+            for(i : _int64 = 0; i < count; i++) {
+                endings!!.at(i).run();
+            }
+        }
+    }
+}
+
+/**
+ * model_store - the models of one screen (or of the app). FRAMEWORK USE:
+ * apps ask for models with model_of<...>().
+ *
+ * `current` is the store a model asked for right now goes into. A screen
+ * makes it its own while its content is built, and every composable remembers
+ * which store was current when it was made - so a part of a screen that is
+ * built again later, on its own, still finds the models of ITS screen
+ * (composable.sharp).
+ */
+stable class model_store {
+    /** the store of the screen being built right now (null: none - then the app's store is used) */
+    static current : model_store?;
+
+    /** the models that belong to no screen: they live until the window closes */
+    static app : model_store = new model_store();
+
+    private held : list<view_model> = new list<view_model>();
+
+    /** the store a model asked for right now belongs in */
+    static def here() : model_store {
+        if(current != null) {
+            return current!!;
+        }
+        return app;
+    }
+
+    /** the model of class t in this store: made the first time, the same one after that */
+    def of<t base view_model>() : t {
+        count : _int64 = held.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(held.at(i) is t) {
+                return held.at(i) as t;
+            }
+        }
+        made := new t();
+        held.add(made);
+        return made;
+    }
+
+    /** drop every model: each one's work is cancelled and its when_cleared blocks run */
+    def drop_all() {
+        count : _int64 = held.size();
+        for(i : _int64 = 0; i < count; i++) {
+            held.at(i).drop();                  // its work is cancelled, its when_cleared blocks run
+        }
+        held.clear();
+    }
+}

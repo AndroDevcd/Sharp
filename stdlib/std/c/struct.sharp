@@ -1,0 +1,61 @@
+mod std.c;
+
+/**
+ * A C STRUCT: a class whose fields are the struct's members
+ *
+ *      class SDL_Rect base c_struct {                  // typedef struct { int x, y, w, h; } SDL_Rect;
+ *          x : c_int;
+ *          y : c_int;
+ *          w : c_int;
+ *          h : c_int;
+ *      }
+ *
+ *      extern "sdl" {
+ *          def SDL_RenderFillRect(renderer: pointer, rect: SDL_Rect?) : c_int;     // const SDL_Rect *rect
+ *          def SDL_HasIntersection(a: SDL_Rect?, b: SDL_Rect?) : c_int;
+ *      }
+ *
+ *      r := new SDL_Rect();
+ *      r.x = 10;  r.w = 200;                           // ordinary fields
+ *      SDL_RenderFillRect(renderer, r);
+ *
+ * Write the fields in the order the C header has the members, each with its C
+ * type (std/c/types.sharp), and base the class on c_struct. A member that is
+ * itself a struct is a field of that struct's class; a member that is a
+ * pointer is a `pointer`. Static fields, and everything else a class may have
+ * (functions, constructors), do not count.
+ *
+ * AN ARRAY MEMBER is an array field whose value says how many items:
+ *
+ *      name : c_char[] = new c_char[32];               // char name[32];
+ *
+ * THE SIZE C HAS FOR THE STRUCT may be said, as a static field called
+ * c_bytes. It is checked when a function that uses the struct is linked, so
+ * a field that is missing or of another type shows before the first call:
+ *
+ *      static const c_bytes : _int64 = 16;             // sizeof(SDL_Rect)
+ *
+ * BY VALUE OR BY POINTER is how the parameter is written:
+ *
+ *      rect: SDL_Rect          the struct itself, by value         void f(SDL_Rect rect)
+ *      rect: SDL_Rect?         a pointer to it; null is NULL       void f(SDL_Rect *rect)
+ *
+ * and the same for what a function returns: `: SDL_Rect` is a struct by
+ * value, `: SDL_Rect?` a pointer to one (null when C returns NULL).
+ *
+ * WHAT HAPPENS AT A CALL. The object is Sharp's; C gets the struct as C lays
+ * it out, made from the object's fields for the length of the call. After a
+ * call that took a POINTER, what C wrote is read back into the object's
+ * fields - so a function that fills a struct fills your object. A struct that
+ * comes back is a new object; through a pointer it is a COPY of what C points
+ * to at that moment.
+ *
+ * So C never holds on to the object itself. For a struct C keeps the address
+ * of after the call returns (a callback's user data, a node C links into a
+ * list), use memory of C's own: `pointer` and c_memory (std/c/memory.sharp).
+ *
+ *      Java comparison: a MemoryLayout.structLayout(...) with VarHandles for
+ *      the members, written as a class; C#: a [StructLayout(Sequential)] struct.
+ */
+class c_struct {
+}

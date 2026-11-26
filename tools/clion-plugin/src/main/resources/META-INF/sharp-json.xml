@@ -1,0 +1,16 @@
+<!--
+  WHAT THE PLUGIN ADDS WHEN THE IDE'S JSON SUPPORT IS THERE
+
+  plugin.xml names this file in an OPTIONAL dependency on the JSON module: the lines below are
+  read only in an IDE that has it (CLion and IntelliJ IDEA do), and the plugin loads without
+  them in one that does not.
+
+  One thing: the shape of a Sharp project's settings.json, as a JSON Schema - so the editor
+  completes the setting names that are possible where the caret is, describes them on hover and
+  underlines a name nobody reads (sharp.ide.project.SharpSettingsSchema).
+-->
+<idea-plugin>
+    <extensions defaultExtensionNs="JavaScript">
+        <JsonSchema.ProviderFactory implementation="sharp.ide.project.SharpSettingsSchemaProviderFactory"/>
+    </extensions>
+</idea-plugin>

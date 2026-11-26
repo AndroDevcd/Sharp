@@ -1,0 +1,196 @@
+mod std.reflect;
+
+import ( std.io )
+
+/**
+ * A FIELD of a class (see reflect.sharp)
+ *
+ *      age := shape.field("age")!!;
+ *      age.name                    // "age"
+ *      age.type.name               // "_int64"
+ *      age.is_static               age.is_private              age.is_constant
+ *
+ *      age.read(someone)           // the value as an object: a number in its number class
+ *      age.number(someone)         // the number of a number field
+ *      name.text(someone)          // the text of a string field
+ *      age.write(someone, 32);     // a number for a number field
+ *      name.write(someone, "ann"); // an object for a field of a class
+ *
+ * `write` checks the value against the field's type and refuses a wrong one
+ * with a reflect_exception that names the field. A static field takes null
+ * for the object: `count.read(null)`, `count.write(null, 0)`.
+ *
+ * PROTECTIONS. A private or protected field is neither read nor written
+ * until it is opened, and a `const` field is never written:
+ *
+ *      secret := shape.field("secret")!!;
+ *      secret.read(someone)            // reflect_exception: `main#user.secret` is private ...
+ *      secret.open().read(someone)     // said on purpose: allowed
+ *
+ * open() gives another field_info and leaves this one closed, so opening a
+ * field in one place does not open it for the rest of the program.
+ * `shape.open()` opens a whole class (class_info).
+ */
+class field_info {
+    name : string;
+    type : type_info;
+    /** the class this field_info was asked from (the field may be declared in a class above it: declared_in()) */
+    owner : class_info;
+    is_static : decimal;
+    is_public : decimal;
+    is_private : decimal;
+    is_protected : decimal;
+    /** 1 for a `const` field */
+    is_constant : decimal;
+
+    private place : _int64;
+    private declared_id : _int64;
+    // what the protections go by (not the public fields above, which a program can change)
+    private guarded : decimal;
+    private constant : decimal;
+    private hidden_as : string = "private";
+
+    field_info(owner: class_info, place: _int64) {
+        self->owner = owner;
+        self->place = place;
+        said := reflect_vm.facts(2, owner.id, place);
+        flags : _int64 = said[0];
+        type = new type_info(said[1], said[2], said[3]);
+        is_static = said[4] != 0;
+        declared_id = said[5];
+        name = reflect_vm.text(2, owner.id, place);
+        is_public = (flags & 1) != 0;
+        is_private = (flags & 2) != 0;
+        is_protected = (flags & 4) != 0;
+        is_constant = (flags & 64) != 0;
+        constant = is_constant;
+        guarded = (is_private || is_protected) && !owner.is_open();
+        if(is_protected) { hidden_as = "protected"; }
+    }
+
+    /** this field with its protection off: a private or protected field that can be read and written. This one stays as it is. */
+    def open() : field_info {
+        if(!guarded) { return self; }
+        made := new field_info(owner, place);
+        made.guarded = 0;
+        return made;
+    }
+
+    /** true when read and write are allowed: a public field, or one that was opened */
+    def is_open() : bool {
+        return !guarded;
+    }
+
+    /** the class the field is written in: `owner`, or a class above it */
+    def declared_in() : class_info {
+        return reflect.by_number(declared_id);
+    }
+
+    /** the field's value in `target` (null for a static field): an object, an array or null; a number in its number class */
+    def read(target: object?) : object? {
+        allowed("reading");
+        return reflect_vm.read(owner.id, place, target);
+    }
+
+    /** the number in a number field of `target`; throws reflect_exception for a field that holds no number */
+    def number(target: object?) : decimal {
+        allowed("reading");
+        if(!type.is_number) { throw new reflect_exception("`" + owner.full_name + "." + name + "` holds a `" + type.name + "`, not a number"); }
+        box : object? = reflect_vm.read(owner.id, place, target);
+        if(box == null) { return 0; }
+        if(type.kind == type_info.INT8) { return (box as char).value; }
+        if(type.kind == type_info.INT16) { return (box as short).value; }
+        if(type.kind == type_info.INT32) { return (box as int).value; }
+        if(type.kind == type_info.UINT8) { return (box as uchar).value; }
+        if(type.kind == type_info.UINT16) { return (box as ushort).value; }
+        if(type.kind == type_info.UINT32) { return (box as uint).value; }
+        if(type.kind == type_info.UINT64) { return (box as ulong).value; }
+        if(type.kind == type_info.DECIMAL) { return (box as double).value; }
+        return (box as long).value;
+    }
+
+    /** the field's value as text: the string of a string field, the number of a number field, to_string() of anything else; null for null */
+    def text(target: object?) : string? {
+        if(type.is_number) {
+            found : decimal = number(target);
+            if(type.kind == type_info.DECIMAL) { return "" + found; }
+            whole : _int64 = found;
+            return "" + whole;
+        }
+        allowed("reading");
+        held : object? = reflect_vm.read(owner.id, place, target);
+        if(held == null) { return null; }
+        if(type.is_text) { return held as string; }
+        said := reflect.type_of(held);
+        if(said.is_array) {
+            if(said.kind == type_info.INT8) {
+                characters : _int8[] = held as _int8[];
+                return new string(characters, 0, sizeof(characters));
+            }
+            return said.name;
+        }
+        return (held as _object_).to_string();
+    }
+
+    /**
+     * The field's value in `target` (null for a static field) becomes `value`:
+     * an object of the field's class or of one below it, an array for an array
+     * field, an object of a number class for a number field, or null.
+     *
+     * @throws reflect_exception when the value is not what the field holds,
+     *         the field is private or protected and not opened, or it is a `const`
+     */
+    def write(target: object?, value: object?) {
+        writable();
+        given := reflect.type_of(value);
+        // a text in quotes, handed over as an object, is its characters: a string field gets a string of them
+        if(type.is_text && given.is_array && given.kind == type_info.INT8) {
+            characters : _int8[] = value as _int8[];
+            reflect_vm.write(owner.id, place, target, new string(characters, 0, sizeof(characters)));
+            return;
+        }
+        check(given);
+        reflect_vm.write(owner.id, place, target, value);
+    }
+
+    /** the number field's value in `target` becomes `value`, cut to the field's size (an _int8 field keeps 8 bits) */
+    def write(target: object?, value: decimal) {
+        writable();
+        if(!type.is_number) { throw new reflect_exception("`" + owner.full_name + "." + name + "` holds a `" + type.name + "` and was given a number"); }
+        cell := new decimal[1];
+        cell[0] = value;
+        reflect_vm.write(owner.id, place, target, cell);
+    }
+
+    /** "age : _int64" */
+    override def to_string() : string? {
+        return name + " : " + type.name;
+    }
+
+    /** refuse a private or protected field that was not opened */
+    private def allowed(doing: string) {
+        if(guarded) {
+            throw new reflect_exception("`" + owner.full_name + "." + name + "` is " + hidden_as + ": open() it (or its class_info) before " + doing + " it");
+        }
+    }
+
+    /** refuse what may not be written: a field that is not open, and a `const` whether it is open or not */
+    private def writable() {
+        allowed("writing");
+        if(constant) { throw new reflect_exception("`" + owner.full_name + "." + name + "` is a const: it is not written"); }
+    }
+
+    /** refuse a value the field cannot hold, saying what it holds and what it was given */
+    private def check(given: type_info) {
+        fits : decimal = 1;
+        if(type.is_number) {
+            fits = (given.is_class && function_info.is_number_class(given.full_name)) || (given.is_array && given.kind <= type_info.DECIMAL);
+        } else if(!given.is_nothing && type.kind != type_info.OBJECT && type.kind != type_info.FUNCTION) {
+            fits = type.takes(given);
+        }
+        if(!fits) {
+            throw new reflect_exception("`" + owner.full_name + "." + name + "` holds a `" + type.name + "` and was given "
+                + (given.is_nothing ? new string("null") : "a `" + given.name + "`"));
+        }
+    }
+}

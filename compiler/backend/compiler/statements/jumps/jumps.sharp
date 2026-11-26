@@ -1,0 +1,89 @@
+mod backend.compiler.statements.jumps;
+
+import (
+    std.io,
+    backend.types.program,
+    backend.types.typed_tree,
+    backend.compiler.context
+)
+
+/**
+ * JUMPS: `return`, `break`, `continue`
+ *
+ * Each leaves where it is for somewhere else: the end of the function, the
+ * end of the loop, the next round of the loop. On the way it may pass
+ *
+ *      a `lock`                    the object must be unlocked
+ *      a `try` with a `finally`    the finally block must run first
+ *      a `finally` block           not allowed: E0604
+ *
+ * What lies between the jump and where it goes is read off the stack of jump
+ * frames the statements around it left on the context
+ * (context/jump_frames.sharp), innermost first: `passed_on_the_way` here.
+ *
+ * WHY NOTHING MAY JUMP OUT OF A FINALLY BLOCK. The finally block runs
+ * BECAUSE its `try` is being left - normally, by a jump, or by an exception
+ * on its way to a handler. A `return` or `break` in it would have to drop
+ * whatever was going on (the exception would vanish). C# and the C++
+ * compiler refuse it ("control cannot leave body of finally clause"); a
+ * `throw` is allowed, as everywhere. A loop INSIDE the finally block may of
+ * course be left with `break`.
+ *
+ * The files of this package (module `backend.compiler.statements.jumps`):
+ *
+ *      jumps.sharp             this front door: what a jump passes on the way out (E0604)
+ *      return_statement.sharp  return, against what the function returns (E0606, E0607)
+ *      loop_jumps.sharp        break and continue (E0602, E0603)
+ *
+ *      C++ comparison: compiler/functions/statements/return_statement.cpp,
+ *      break_statement.cpp, continue_statement.cpp (`retrieve_loop_block`,
+ *      `retrieve_lock_expressions`, `retrieve_finally_labels`).
+ */
+
+/** what a jump found on its way out: where it goes, and what it passes */
+class jump_path {
+    target : bound_statement?;                  // the loop for break / continue; null for return, or when there is none
+    leaves : list<bound_statement>;             // locks and try statements with a finally, innermost first
+    finally_crossed : bound_statement?;         // the try whose finally block the jump would leave; null when none
+
+    jump_path() {
+        leaves = new list<bound_statement>();
+    }
+}
+
+/**
+ * Walk the jump frames from the innermost outward until a loop
+ * (`to_loop` = 1, for break and continue) or to the end (for return),
+ * collecting what is passed.
+ */
+def passed_on_the_way(context: analysis_context, to_loop: _int64) : jump_path {
+    path := new jump_path();
+    for(i : _int64 = context.jumps.size() - 1; i >= 0; i--) {
+        frame := context.jumps.at(i);
+        if(frame.kind == FRAME_LOOP) {
+            if(to_loop == 1) {
+                path.target = frame.statement;
+                return path;
+            }
+        } else if(frame.kind == FRAME_FINALLY) {
+            if(path.finally_crossed == null) { path.finally_crossed = frame.statement; }
+        } else {
+            path.leaves.add(frame.statement);
+        }
+    }
+    return path;
+}
+
+/** E0604: `return` / `break` / `continue` inside a finally block, leaving it */
+def report_leaving_finally(context: analysis_context, node: _int64, word: string, try_statement: bound_statement) {
+    d := problem_at(context, "E0604", "`" + word + "` cannot leave a `finally` block", node);
+    d.with_label("would jump out of the finally block");
+    d.with_related_place(place_of_node(context.unit, try_statement.node, "the `try` this finally block belongs to"));
+    d.with_note("a finally block runs BECAUSE its `try` is being left (normally, by a jump, or by an exception on its way out); it cannot leave for somewhere else itself, or an exception being passed on would be lost");
+    if(word == "return") {
+        d.with_help("set a variable in the finally block and `return` after the whole `try` statement");
+    } else {
+        d.with_help("set a variable in the finally block and act on it after the whole `try` statement");
+    }
+    report(context, d);
+}

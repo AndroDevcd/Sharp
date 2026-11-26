@@ -1,0 +1,10 @@
+// expect: E0501
+// help: s == "y"
+// replace: s.equals("y")
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    s : string = "x";
+    if(s.equals("y")) { println("same"); }
+}

@@ -1,0 +1,263 @@
+mod main;
+
+// output:
+// 403
+// 30704
+// 6765
+// 13531
+// 27065
+// -1
+// 23
+// 84
+// 63213
+// 3
+// 3
+// 102
+// 101
+// 101
+// -68
+// 4
+// -1
+// 360
+// 39
+// 13
+// 101102
+// 102
+// 3
+// 22033165
+// 0
+// 11
+// 21
+// 35
+// 35
+// 0
+// 9966596
+// 3
+
+/*
+ * THE OPTIMIZER, COPIES AND OBJECTS (doc/codegen.md 7.2: copy propagation, copy coalescing,
+ * box elimination)
+ *
+ * Built plain and with -O by codegen.sh; both must print the block the C++-built program
+ * prints. Written by the verifier of the optimizer stage:
+ *
+ *   - the classic traps of copy propagation: a swap through a third variable, a rotation of
+ *     three, values held over while the variable changes (`x++ + x++ * 2 + x`), copies that
+ *     meet at the top of a loop (`copies_in_loops`);
+ *   - an object that becomes plain slots inside a `try` (the handler reads its field), in a
+ *     loop (a new one each round), and one that is only made on one path (it stays an object:
+ *     reading it when it was not made raises);
+ *   - objects made by a function that is inlined (`pair.swapped`), a lambda that captures,
+ *     a chain of calls on one object, statics, strings and lists of the library, arrays of
+ *     every element kind, branches on known values.
+ */
+
+class plain {
+    a : _int64;
+    b : decimal;
+    c : plain?;
+    s : _int8;
+}
+
+class counter {
+    static made : _int64 = 100;
+    static names : _int64[] = new _int64[3];
+    count : _int64 = 5;
+
+    static def next() : _int64 { made = made + 1; return made; }
+    static def peek() : _int64 { return made; }
+    def step() : counter { count++; return self; }
+    def value_now() : _int64 { return count; }
+}
+
+class pair {
+    left : _int64;
+    right : _int64;
+    pair(l: _int64, r: _int64) { left = l; right = r; }
+    def swapped() : pair { return new pair(right, left); }
+    def total() : _int64 { return left + right; }
+}
+
+def raise_if(a: _int64) : _int64 {
+    if(a > 2) { throw new exception("too big"); }
+    return a;
+}
+
+def id(a: _int64) : _int64 { return a; }
+
+/** the classic traps of copy propagation */
+def swaps(a: _int64, b: _int64) {
+    t : _int64 = a;
+    a = b;
+    b = t;
+    show(a * 100 + b);
+    // a rotation of three
+    c : _int64 = 7;
+    t = a; a = b; b = c; c = t;
+    show(a * 10000 + b * 100 + c);
+    // fibonacci with a held-over value
+    x : _int64 = 0;
+    y : _int64 = 1;
+    for(i : _int64 = 0; i < 20; i++) {
+        z : _int64 = x + y;
+        x = y;
+        y = z;
+    }
+    show(x);
+    // the old value used after the variable changed
+    old : _int64 = x;
+    x = x + 1;
+    show(old + x);
+    show(x++ + x++ * 2 + x);
+    show(x-- - x--);
+    k : _int64 = 3;
+    k = k + (k = 10) + k;
+    show(k);
+    m : _int64 = 4;
+    n : _int64 = m;
+    m = n + m++;
+    show(m * 10 + n);
+}
+
+def copies_in_loops(n: _int64) : _int64 {
+    previous : _int64 = 0;
+    current : _int64 = 1;
+    result : _int64 = 0;
+    i : _int64 = 0;
+    while(i < n) {
+        saved : _int64 = current;
+        if(i % 3 == 0) { current = previous + i; } else { current = current + previous; }
+        previous = saved;
+        result = result ^ (current << (i % 5));
+        i++;
+    }
+    return result + previous;
+}
+
+def box_in_try(limit: _int64) : _int64 {
+    b := new plain();
+    try {
+        b.a = 1;
+        raise_if(limit);
+        b.a = 2;
+        raise_if(limit + 1);
+        b.a = 3;
+    } catch(e: exception) {
+        return b.a + 100;
+    }
+    return b.a;
+}
+
+def box_in_loop(n: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < n; i++) {
+        b := new plain();
+        if(i % 2 == 0) { b.a = i; b.s = (i * 100) as _int8; }
+        total = total + b.a + b.s;
+        b.b = b.b + 0.5;
+        if(b.b != 0.5) { total = total + 100000; }
+    }
+    return total;
+}
+
+def box_made_on_one_path(c: _int64) : _int64 {
+    p : plain? = null;
+    if(c > 0) { p = new plain(); p!!.a = c; }
+    try {
+        return p!!.a;
+    } catch(e: exception) {
+        return 0 - 1;
+    }
+}
+
+def pairs(n: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < n; i++) {
+        p := new pair(i, i * 2);
+        q := p.swapped();
+        total = total + q.left * 10 + q.right + p.total();
+    }
+    return total;
+}
+
+def lambdas(n: _int64) : _int64 {
+    total : _int64 = 0;
+    held : int = n;
+    add : (_int64)(_int64) = { x: _int64 -> (_int64) held += 1; return x + held.value; };
+    for(i : _int64 = 0; i < 3; i++) {
+        total = total + add(i);
+    }
+    return total;
+}
+
+def chain() : _int64 {
+    c := new counter();
+    return c.step().step().step().value_now() + c.value_now();
+}
+
+def string_work(n: _int64) : _int64 {
+    text : string = "";
+    for(i : _int64 = 0; i < n; i++) { text = text + "ab"; }
+    builder := new string_builder();
+    for(i : _int64 = 0; i < n; i++) { builder.append("xyz"); }
+    made := builder.build();
+    items := new list<int>();
+    for(i : _int64 = 0; i < n; i++) { items.add(i * 3); }
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < items.size(); i++) { total = total + (items.at(i).value as _int64); }
+    return sizeof(text.data) * 1000000 + sizeof(made.data) * 1000 + total;
+}
+
+def when_and_ifs(v: _int64) : _int64 {
+    r : _int64 = 0;
+    if(v == 1) { r = 10; }
+    else if(v == 2) { r = 20; }
+    else if(v == 3 || v == 4) { r = 34; }
+    else { r = 0 - 1; }
+    known : _int64 = 3;
+    if(known == 3) { r = r + 1; } else { r = r + 1000; }
+    if(known != 3) { r = r + 5000; }
+    while(known < 3) { r = r + 9000; }
+    dead : _int64 = 0;
+    for(i : _int64 = 0; i < v; i++) { dead = dead + i; }
+    return r;
+}
+
+def arrays(n: _int64) : _int64 {
+    a := new _int64[n];
+    for(i : _int64 = 0; i < n; i++) { a[i] = i * i; }
+    b := new _int8[n];
+    for(i : _int64 = 0; i < n; i++) { b[i] = (a[i] * 7) as _int8; }
+    d := new decimal[n];
+    for(i : _int64 = 0; i < n; i++) { d[i] = a[i] / 2.0; }
+    total : _int64 = 0;
+    i : _int64 = 0;
+    while(i < sizeof(a)) {
+        total = total + a[i] + b[i] + (d[i] as _int64);
+        a[i] = a[i] + 1;
+        a[i]++;
+        a[n - 1 - i] = a[n - 1 - i] + a[i];
+        i++;
+    }
+    for(j : _int64 = 0; j < n; j++) { total = total * 3 + a[j]; }
+    return total;
+}
+
+def main() {
+    swaps(3, 4);
+    show(copies_in_loops(25));
+    for(i : _int64 = 0; i < 5; i++) { show(box_in_try(i)); }
+    show(box_in_loop(7));
+    show(box_made_on_one_path(4));
+    show(box_made_on_one_path(0));
+    show(pairs(6));
+    show(lambdas(10));
+    show(chain());
+    show(counter.next() + counter.next() * 1000);
+    show(counter.peek());
+    show(sizeof(counter.names));
+    show(string_work(11));
+    for(i : _int64 = 0; i < 6; i++) { show(when_and_ifs(i)); }
+    show(arrays(9));
+    show(id(1) + id(2) * id(3) - id(id(id(4))));
+}

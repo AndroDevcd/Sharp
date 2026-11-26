@@ -1,0 +1,24 @@
+mod main;
+
+import ( std.c )
+
+/**
+ * A project whose settings.json says where its C libraries are ("c_libraries"):
+ * one with a place per system, one with the same place on every system. Both are
+ * the test library, in the project's own libs/ folder - found from wherever the
+ * program is started, because a place that is not absolute is looked for in the
+ * project's folder too.
+ */
+extern "tests" {
+    def add3(a: c_int, b: c_int, c: c_int) : c_int;
+}
+
+extern "everywhere" {
+    def ret_i64(x: _int64) : _int64;
+}
+
+def main(args: string[]) {
+    c_check_libraries();
+    if(add3(1, 2, 3) == 321 && ret_i64(7) == 21) { println("PROJECT: PASS (2 checks)"); }
+    else { println("PROJECT: FAIL"); }
+}

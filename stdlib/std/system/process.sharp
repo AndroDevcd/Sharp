@@ -1,0 +1,246 @@
+mod std.system;
+
+import ( std.c, std.io, platform )
+
+/**
+ * Runs a command of the operating system and tells what came out of it.
+ *
+ *     result := process.run("git status --short");
+ *     if(result.succeeded()) {
+ *         foreach(line in result.output_lines()) { println(line); }
+ *     } else {
+ *         println("git failed (" + result.exit_code() + "): " + result.error_output());
+ *     }
+ *
+ *     code := process.execute("make install");      // output goes straight to the console
+ *
+ * A process object is the finished result of one run: the command, its exit
+ * code, and everything it printed to standard output and to standard error.
+ *
+ * How it works: the runtime can hand a command line to the shell (sys())
+ * but cannot talk to the running program. So run() sends the output of the
+ * command into temporary files, waits for the command to end, reads the
+ * files and deletes them. Consequences: output is available only when the
+ * command has finished (no live progress), and a command that waits for
+ * keyboard input should get its input from run_with_input().
+ *
+ * The command is a command line for the shell (/bin/sh on unix, cmd.exe on
+ * windows), so pipes, && and wild cards work - and anything put into it
+ * from outside has to be quoted: use process.quote() for every argument
+ * that is not a constant.
+ *
+ * Exit codes: 0 means success by convention. On unix a command that was
+ * ended by a signal reports 128 + the number of the signal, like the shell
+ * does, and "command not found" is 127.
+ */
+class process {
+    extern "unix:c" {
+        static def getpid() : c_int;
+    }
+
+    extern "windows:kernel32" {
+        static def GetCurrentProcessId() : c_uint;
+    }
+
+    private command_line : string;
+    private code : decimal = 0;
+    private out_text : string = "";
+    private err_text : string = "";
+
+    private process(command_line: string) {
+        self->command_line = command_line;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* running                                                             */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Run `command`, wait for it, and return the result with its exit
+     * code, standard output and standard error.
+     * Throws io_exception when the temporary files for the output cannot
+     * be used (the command itself failing is not an exception: look at
+     * exit_code()).
+     */
+    static def run(command: string) : process {
+        return run_internal(command, "", 0, 0);
+    }
+
+    /**
+     * Like run(), with `input` as the standard input of the command (what
+     * it would otherwise read from the keyboard).
+     * Throws io_exception when the temporary files cannot be used.
+     */
+    static def run_with_input(command: string, input: string) : process {
+        return run_internal(command, input, 1, 0);
+    }
+
+    /**
+     * Like run(), but standard error is mixed into standard output in the
+     * order the command printed it; error_output() of the result is "".
+     * Throws io_exception when the temporary files cannot be used.
+     */
+    static def run_merged(command: string) : process {
+        return run_internal(command, "", 0, 1);
+    }
+
+    private static def run_internal(command: string, input: string, has_input: decimal, merged: decimal) : process {
+        result := new process(command);
+        out_file := new file(temp_files.new_path("sharp_proc_", ".out"));
+        err_file := new file(temp_files.new_path("sharp_proc_", ".err"));
+        in_file := new file(temp_files.new_path("sharp_proc_", ".in"));
+
+        line := new char_buffer(sizeof(command.data) + 160);
+        if(build.is_windows()) {
+            // A cmd.exe of its own for the command, so that the files take the output of all of it.
+            // Not ( command ): cmd prints the blank before the ")" after an echo, and a ")" in the
+            // command (echo %PATH% with "Program Files (x86)" in it) would end the group early.
+            // /s: the outer pair of quotes is taken off and what is between them is run as it is.
+            // (no blank between the closing quote and ">": it would reach the command as its last character)
+            line.append("cmd /s /c ").append_char('"').append(command).append_char('"').append("> ");
+        } else {
+            line.append("( ").append(command).append(" ) > ");
+        }
+        line.append(io_strings.shell_quote(out_file.path));
+        if(merged) {
+            line.append(" 2>&1");
+        } else {
+            line.append(" 2> ").append(io_strings.shell_quote(err_file.path));
+        }
+        try {
+            if(has_input) {
+                in_file.write_text(input);
+                line.append(" < ").append(io_strings.shell_quote(in_file.path));
+            }
+
+            status := sys(line.build());
+            result.code = decode_status(status.value);
+
+            if(!out_file.exists()) {
+                throw new io_exception("process: could not capture the output of: " + command);
+            }
+            result.out_text = out_file.read_text();
+            if(err_file.exists()) {
+                result.err_text = err_file.read_text();
+            }
+        } finally {
+            // (whatever happened: none of the three files stays behind)
+            if(out_file.exists()) { out_file.remove(); }
+            if(err_file.exists()) { err_file.remove(); }
+            if(in_file.exists()) { in_file.remove(); }
+        }
+        return result;
+    }
+
+    /**
+     * Run `command` with its output going straight to the console (and its
+     * input coming from the keyboard), wait for it, and return its exit
+     * code.
+     */
+    static def execute(command: string) : decimal {
+        status := sys(command);
+        return decode_status(status.value);
+    }
+
+    /** what sys() returns, turned into the exit code of the command */
+    private static def decode_status(status: decimal) : decimal {
+        if(build.is_windows()) {
+            return status; // cmd.exe hands the exit code through as it is
+        }
+        if(status < 0) {
+            return status; // the shell could not be started
+        }
+        // unix "wait status": the low 7 bits are the signal that ended the command, the next 8 the exit code
+        signal : decimal = status & 0x7f;
+        if(signal != 0) {
+            return 128 + signal;
+        }
+        return (status >> 8) & 0xff;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* the result                                                          */
+    /* ------------------------------------------------------------------ */
+
+    /** the command line that was run */
+    def command() : string {
+        return command_line;
+    }
+
+    /** the exit code of the command: 0 for success */
+    def exit_code() : decimal {
+        return code;
+    }
+
+    /** true when the exit code is 0 */
+    def succeeded() : bool {
+        return code == 0;
+    }
+
+    /** everything the command printed to standard output ("" when nothing) */
+    def output() : string {
+        return out_text;
+    }
+
+    /** the standard output without white space and line ends at its beginning and end - handy for commands that print one value */
+    def output_trimmed() : string {
+        return io_strings.trim(out_text);
+    }
+
+    /** the standard output cut into lines (see io_strings.split_lines) */
+    def output_lines() : list<string> {
+        return io_strings.split_lines(out_text);
+    }
+
+    /** everything the command printed to standard error ("" when nothing, and always "" after run_merged) */
+    def error_output() : string {
+        return err_text;
+    }
+
+    /**
+     * Returns this result when the command succeeded.
+     * Throws io_exception with the command, the exit code and the error
+     * output when it did not - for commands that simply have to work.
+     */
+    def check() : process {
+        if(code != 0) {
+            // (built with a buffer: `+` with an empty string on the right appends "null")
+            message := new char_buffer(128);
+            message.append("command failed with exit code ").append_int(code).append(": ").append(command_line);
+            message.append_char('\n').append(io_strings.trim(err_text));
+            throw new io_exception(message.build());
+        }
+        return self;
+    }
+
+    /* ------------------------------------------------------------------ */
+    /* helpers                                                             */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * `argument` written so that the shell takes it as one argument,
+     * whatever it contains (spaces, quotes, wild cards, dollar signs):
+     * process.run("grep " + process.quote(word) + " " + process.quote(path)).
+     * See io_strings.shell_quote.
+     */
+    static def quote(argument: string) : string {
+        return io_strings.shell_quote(argument);
+    }
+
+    /** the number the system knows THIS program by (what subprocess.id() is, seen from the program that started it) */
+    static def id() : _int64 {
+        if(build.is_windows()) { return GetCurrentProcessId(); }
+        return getpid();
+    }
+
+    /** true when the shell can find a program called `name` (looked up the way the shell does, in the PATH) */
+    static def command_exists(name: string) : bool {
+        command := new char_buffer(64);
+        if(build.is_windows()) {
+            command.append("where ").append(io_strings.shell_quote(name));
+        } else {
+            command.append("command -v ").append(io_strings.shell_quote(name));
+        }
+        return run(command.build()).code == 0;
+    }
+}

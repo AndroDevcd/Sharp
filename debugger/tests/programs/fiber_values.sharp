@@ -1,0 +1,23 @@
+mod app;
+
+import ( std.io, std.io.coroutines )
+
+/**
+ * A program for sdb's tests of `localized` variables: each fiber has its own
+ * `turn`, so what it holds depends on which fiber is looked at.
+ */
+localized turn : _int64 = 1;
+
+def show(label: string) {
+    println(label + " " + turn);
+}
+
+def main() {
+    turn = 5;
+    other := launch({ ->
+        turn = 9;
+        show("the coroutine has");
+    });
+    other.join();
+    show("main has");
+}

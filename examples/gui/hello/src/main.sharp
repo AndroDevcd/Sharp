@@ -1,0 +1,40 @@
+mod app;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * HELLO, WINDOW  -  the smallest Sharp GUI program.
+ *
+ * Open a real window, paint it, close it when you click the X. Notice what is
+ * NOT here: no `native` block, no load_library, no settings.json, no mention of
+ * SDL2. All of that lives once inside the gui library; a program just imports it
+ * and builds up from `gui.`. That is the whole point - this file is a USER of
+ * the GUI, not the definition of it.
+ *
+ * The first `gui.window(...)` quietly loads the native backend that ships beside
+ * the `sharp` runtime. A program that never imports gui carries none of it.
+ */
+def main(args: string[]) {
+    w := gui.window("Sharp GUI - hello", 640, 400);
+    if(!w.is_open()) {
+        println("the window would not open");
+        return;
+    }
+
+    // THE FRAME LOOP. Each turn: take in everything that happened since last
+    // time, then paint once. Keep going until the window is closed.
+    while(w.is_open()) {
+        e := w.next_event();
+        while(e.kind != EVENT_NONE) {              // drain this turn's events
+            if(e.kind == EVENT_QUIT) { w.close(); }
+            e = w.next_event();
+        }
+
+        w.clear(gui.rgb(24, 28, 40));              // a calm dark blue
+        w.show();                                  // waits for the screen's refresh (~60 fps)
+    }
+
+    println("window closed. bye.");
+}

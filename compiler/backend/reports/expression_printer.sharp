@@ -1,0 +1,377 @@
+mod backend.reports;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree
+)
+
+/**
+ * THE `-analysis` OPTION, SECOND PART: one expression of the typed tree
+ *
+ *      binary * (decimals) : decimal
+ *        field price : decimal
+ *          self (implied) : cart
+ *        local half : decimal
+ *
+ * analysis_printer.sharp walks the declarations of a file and prints their
+ * headings; this file prints the tree under each: one line per node - what
+ * it is, what it refers to, its type after the colon, its constant value in
+ * brackets when the compiler knows it - then its parts one level deeper.
+ * The words for the pieces (which body a call runs, how an operator works
+ * its operands out, what a lambda captured) are small functions at the end.
+ *
+ * statement_printer.sharp does the same for statements.
+ */
+
+/** "decimal", or "(not known)" for a type nothing has worked out */
+def type_text(type: resolved_type?) : string {
+    if(type == null) { return "(not known)"; }
+    if(type!!.kind == RT_ERROR) { return "(not known yet)"; }
+    return type!!.to_text();
+}
+
+/** two spaces per level of the tree */
+def indent(depth: _int64) : string {
+    text := new string_builder("");
+    for(i : _int64 = 0; i < depth; i++) { text.append("  "); }
+    return text.build();
+}
+
+// ---------------------------------------------------------------------------
+// expressions
+// ---------------------------------------------------------------------------
+
+/** one line for the node, then its parts one level deeper */
+def print_expression(expression: bound_expression, depth: _int64) {
+    kind : _int64 = expression.kind;
+    line := new string_builder(indent(depth));
+    line.append(described_node(expression));
+    if(kind != BX_PENDING && kind != BX_ERROR && kind != BX_FUNCTIONS) { line.append(" : " + type_text(expression.type)); }
+    if(expression.constant != null) { line.append("  [" + expression.constant!!.to_text() + "]"); }
+    println(line.build());
+
+    next : _int64 = depth + 1;
+    if(kind == BX_ERROR) {
+        failed := expression as bound_error;
+        if(failed.inner != null) { print_expression(failed.inner!!, next); }
+    } else if(kind == BX_PENDING) {
+        waiting := expression as bound_pending;
+        if(waiting.parts != null) {
+            for(i : _int64 = 0; i < waiting.parts!!.size(); i++) { print_expression(waiting.parts!!.at(i), next); }
+        }
+    } else if(kind == BX_FIELD) {
+        if((expression as bound_field).on != null) { print_expression((expression as bound_field).on!!, next); }
+    } else if(kind == BX_FUNCTIONS) {
+        if((expression as bound_functions).on != null) { print_expression((expression as bound_functions).on!!, next); }
+    } else if(kind == BX_CALL) {
+        call := expression as bound_call;
+        if(call.on != null) { print_expression(call.on!!, next); }
+        if(call.arguments != null) {
+            for(i : _int64 = 0; i < call.arguments!!.size(); i++) { print_expression(call.arguments!!.at(i), next); }
+        }
+    } else if(kind == BX_CONVERSION) {
+        print_expression((expression as bound_conversion).operand, next);
+    } else if(kind == BX_CAST) {
+        print_expression((expression as bound_cast).operand, next);
+    } else if(kind == BX_IS) {
+        print_expression((expression as bound_is).operand, next);
+    } else if(kind == BX_NOT_NULL) {
+        print_expression((expression as bound_not_null).operand, next);
+    } else if(kind == BX_SIZEOF) {
+        print_expression((expression as bound_sizeof).operand, next);
+    } else if(kind == BX_SAFE_NAVIGATION) {
+        navigation := expression as bound_safe_navigation;
+        print_expression(navigation.receiver, next);
+        if(navigation.rest != null) { print_expression(navigation.rest!!, next); }
+    } else if(kind == BX_ELVIS) {
+        print_expression((expression as bound_elvis).value, next);
+        print_expression((expression as bound_elvis).fallback, next);
+    } else if(kind == BX_WITH) {
+        print_expression((expression as bound_with).subject, next);
+    } else if(kind == BX_TERNARY) {
+        ternary := expression as bound_ternary;
+        print_expression(ternary.condition, next);
+        print_expression(ternary.when_true, next);
+        print_expression(ternary.when_false, next);
+    } else if(kind == BX_INDEX) {
+        print_expression((expression as bound_index).array, next);
+        print_expression((expression as bound_index).index, next);
+    } else if(kind == BX_NEW_ARRAY) {
+        made := expression as bound_new_array;
+        if(made.size != null) { print_expression(made.size!!, next); }
+        if(made.items != null) {
+            for(i : _int64 = 0; i < made.items!!.size(); i++) { print_expression(made.items!!.at(i), next); }
+        }
+    } else if(kind == BX_ARRAY_LITERAL) {
+        items := (expression as bound_array_literal).items;
+        for(i : _int64 = 0; i < items.size(); i++) { print_expression(items.at(i), next); }
+    } else if(kind == BX_STRING_TEMPLATE) {
+        template := expression as bound_string_template;
+        if(template.start != null) { print_expression(template.start!!, next); }
+        for(i : _int64 = 0; i < template.appends.size(); i++) { print_expression(template.appends.at(i), next); }
+    } else {
+        print_operator_parts(expression, next);
+    }
+}
+
+/** the words for one node: its kind and what it refers to */
+def described_node(expression: bound_expression) : string {
+    kind : _int64 = expression.kind;
+    if(kind == BX_ERROR) {
+        // a mistake of its own, or something that only follows from the part below it (shown one level deeper)
+        inner := (expression as bound_error).inner;
+        if(inner != null && inner!!.type.kind == RT_ERROR) { return "not known    <- follows from the part below"; }
+        return "error    <- reported as a mistake";
+    }
+    if(kind == BX_PENDING) { return "waiting " + node_kind_name((expression as bound_pending).what) + "    <- an argument of a call that failed"; }
+    if(kind == BX_LITERAL) { return "literal"; }
+    if(kind == BX_NULL) { return "null"; }
+    if(kind == BX_LOCAL) {
+        used := expression as bound_local;
+        if(used.depth > 0) { return "local " + used.variable.name + " (captured, depth " + used.depth + ")"; }
+        return "local " + used.variable.name;
+    }
+    if(kind == BX_FIELD) { return "field " + (expression as bound_field).field.name; }
+    if(kind == BX_ENUM_VALUE) { return "enum value " + (expression as bound_enum_value).value.name; }
+    if(kind == BX_SELF) {
+        used := expression as bound_self;
+        text := "self";
+        if(used.is_implied == 1) { text = "self (implied)"; }
+        if(used.depth > 0) { text = text + " (captured, depth " + used.depth + ")"; }
+        return text;
+    }
+    if(kind == BX_BASE) { return "base"; }
+    if(kind == BX_TYPE_NAME) { return "type"; }
+    if(kind == BX_FUNCTIONS) {
+        named := expression as bound_functions;
+        return "function name " + named.name + " (" + named.candidates.size() + " candidate(s))";
+    }
+    if(kind == BX_CALL) {
+        call := expression as bound_call;
+        if(call.written_as == AS_GETTER && call.function.field != null) { return "call getter of " + call.function.field!!.name; }
+        if(call.written_as == AS_SETTER && call.function.field != null) { return "call setter of " + call.function.field!!.name; }
+        return "call " + function_text(call.function) + " (" + dispatch_name(call.dispatch) + how_written(call.written_as) + ")";
+    }
+    if(kind == BX_CONVERSION) {
+        how : conversion = (expression as bound_conversion).how;
+        // a construction says what it runs: a constructor or an init(x) block
+        if(how.kind == CONV_CONSTRUCT && how.function != null) {
+            runs := "constructor";
+            if(how.function!!.kind == D_INIT) { runs = "init block"; }
+            return "conversion (construct, " + runs + " " + how.function!!.signature() + ")";
+        }
+        return "conversion (" + conversion_kind_name(how.kind) + ")";
+    }
+    if(kind == BX_CAST) {
+        how := (expression as bound_cast).how;
+        if(how.checked == 1) { return "cast (" + conversion_kind_name(how.kind) + ", tested at run time)"; }
+        return "cast (" + conversion_kind_name(how.kind) + ")";
+    }
+    if(kind == BX_IS) { return "is " + (expression as bound_is).tested.to_text(); }
+    if(kind == BX_NOT_NULL) { return "not null (!!)"; }
+    if(kind == BX_SAFE_NAVIGATION) { return "safe navigation (?.)"; }
+    if(kind == BX_RECEIVER) { return "receiver"; }
+    if(kind == BX_ELVIS) { return "elvis (?:)"; }
+    if(kind == BX_TERNARY) { return "ternary (? :)"; }
+    if(kind == BX_WITH) {
+        if((expression as bound_with).applies == 1) { return "apply (its blocks are statements of this function)"; }
+        return "with (its blocks are statements of this function)";
+    }
+    if(kind == BX_SIZEOF) { return "sizeof"; }
+    if(kind == BX_INDEX) { return "index"; }
+    if(kind == BX_NEW_ARRAY) { return "new array of " + type_text((expression as bound_new_array).element); }
+    if(kind == BX_ARRAY_LITERAL) { return "array literal of " + type_text((expression as bound_array_literal).element); }
+    if(kind == BX_STRING_TEMPLATE) { return "string template"; }
+    if(kind == BX_VALUE_CALL) { return "call of a function value"; }
+    if(kind == BX_NEW) { return "new " + function_text((expression as bound_new).constructor); }
+    if(kind == BX_BINARY) { return "binary " + operator_text((expression as bound_binary).operation) + operands_name((expression as bound_binary).operands); }
+    if(kind == BX_LOGICAL) {
+        if((expression as bound_logical).is_or == 1) { return "logical ||"; }
+        return "logical &&";
+    }
+    if(kind == BX_UNARY) { return "unary " + operator_text((expression as bound_unary).operation); }
+    if(kind == BX_INCREMENT) {
+        step := expression as bound_increment;
+        text := "++";
+        if(step.is_decrement == 1) { text = "--"; }
+        if(step.is_postfix == 1) { return "postfix " + text + property_text(step.getter, step.setter); }
+        return "prefix " + text + property_text(step.getter, step.setter);
+    }
+    if(kind == BX_ASSIGN) {
+        assigned := expression as bound_assign;
+        if(assigned.operation == 0) { return "assign =" + property_text(assigned.getter, assigned.setter); }
+        return "assign " + operator_text(assigned.operation) + "=" + operands_name(assigned.operands) + property_text(assigned.getter, assigned.setter);
+    }
+    if(kind == BX_DICTIONARY) { return "dictionary"; }
+    if(kind == BX_FUNCTION_REFERENCE) { return "function value " + function_text((expression as bound_function_reference).function); }
+    if(kind == BX_LAMBDA) { return lambda_text(expression as bound_lambda); }
+    if(kind == BX_GET_COMPONENT) {
+        definition := (expression as bound_get_component).definition;
+        return "get from " + definition.owner.described() + ": " + definition.written_as() + " (line " + line_of_node(definition.unit, definition.node) + ")";
+    }
+    return "?";
+}
+
+/** the parts of the operator, call and assignment nodes of the calls stage */
+def print_operator_parts(expression: bound_expression, next: _int64) {
+    kind : _int64 = expression.kind;
+    if(kind == BX_VALUE_CALL) {
+        called := expression as bound_value_call;
+        print_expression(called.callee, next);
+        for(i : _int64 = 0; i < called.arguments.size(); i++) { print_expression(called.arguments.at(i), next); }
+    } else if(kind == BX_NEW) {
+        made := expression as bound_new;
+        for(i : _int64 = 0; i < made.arguments.size(); i++) { print_expression(made.arguments.at(i), next); }
+    } else if(kind == BX_BINARY) {
+        print_expression((expression as bound_binary).left, next);
+        print_expression((expression as bound_binary).right, next);
+    } else if(kind == BX_LOGICAL) {
+        print_expression((expression as bound_logical).left, next);
+        print_expression((expression as bound_logical).right, next);
+    } else if(kind == BX_UNARY) {
+        print_expression((expression as bound_unary).operand, next);
+    } else if(kind == BX_INCREMENT) {
+        print_expression((expression as bound_increment).target, next);
+    } else if(kind == BX_ASSIGN) {
+        print_expression((expression as bound_assign).target, next);
+        print_expression((expression as bound_assign).value, next);
+    } else if(kind == BX_DICTIONARY) {
+        dictionary := expression as bound_dictionary;
+        for(i : _int64 = 0; i < dictionary.keys.size(); i++) {
+            print_expression(dictionary.keys.at(i), next);
+            print_expression(dictionary.values.at(i), next);
+        }
+    } else if(kind == BX_LAMBDA) {
+        print_lambda_body((expression as bound_lambda).function, next);
+    }
+}
+
+/** "dd(a: _int64)": the function a call chose */
+def function_text(function: sharp_function) : string {
+    text := new string_builder("");
+    if(function.kind == D_CONSTRUCTOR && function.owner != null) { text.append(function.owner!!.qualified_name()); }
+    else { text.append(function.name); }
+    text.append("(");
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        type := function.parameters.at(i).value_type;
+        if(type != null) { text.append(type!!.to_text()); } else { text.append("?"); }
+    }
+    text.append(")");
+    return text.build();
+}
+
+/** "static", "direct" ...: which body runs */
+def dispatch_name(dispatch: _int64) : string {
+    if(dispatch == CALL_STATIC) { return "static"; }
+    if(dispatch == CALL_DIRECT) { return "direct"; }
+    if(dispatch == CALL_VIRTUAL) { return "virtual"; }
+    if(dispatch == CALL_BASE) { return "base"; }
+    return "constructor";
+}
+
+/** how the call was written, when it was not a plain call */
+def how_written(written_as: _int64) : string {
+    if(written_as == AS_OPERATOR) { return ", an operator"; }
+    if(written_as == AS_INDEX) { return ", o[i]"; }
+    if(written_as == AS_INDEX_STORE) { return ", o[i] = v"; }
+    if(written_as == AS_ASSIGN_OPERATOR) { return ", an assignment operator"; }
+    if(written_as == AS_TEXT_APPEND) { return ", appends to the text"; }
+    if(written_as == AS_ITERATE) { return ", the items of a loopable object"; }
+    return "";
+}
+
+/** the text of an operator token kind */
+def operator_text(operation: _int64) : string {
+    if(operation == P_PLUS) { return "+"; }
+    if(operation == P_MINUS) { return "-"; }
+    if(operation == P_STAR) { return "*"; }
+    if(operation == P_SLASH) { return "/"; }
+    if(operation == P_PERCENT) { return "%"; }
+    if(operation == P_EXPONENT) { return "**"; }
+    if(operation == P_AND) { return "&"; }
+    if(operation == P_OR) { return "|"; }
+    if(operation == P_XOR) { return "^"; }
+    if(operation == P_SHL) { return "<<"; }
+    if(operation == P_SHR) { return ">>"; }
+    if(operation == P_EQEQ) { return "=="; }
+    if(operation == P_NOTEQ) { return "!="; }
+    if(operation == P_LESS) { return "<"; }
+    if(operation == P_GREATER) { return ">"; }
+    if(operation == P_LTE) { return "<="; }
+    if(operation == P_GTE) { return ">="; }
+    if(operation == P_NOT) { return "!"; }
+    return "?";
+}
+
+/** " (whole numbers)" ...: how a binary operation is worked out */
+def operands_name(operands: _int64) : string {
+    if(operands == OPERANDS_INTEGER) { return " (whole numbers)"; }
+    if(operands == OPERANDS_DECIMAL) { return " (decimals)"; }
+    if(operands == OPERANDS_REFERENCE) { return " (the same object?)"; }
+    if(operands == OPERANDS_NULL_TEST) { return " (a null test)"; }
+    return "";
+}
+
+/** " through getter and setter" for a property */
+def property_text(getter: sharp_function?, setter: sharp_function?) : string {
+    if(getter == null && setter == null) { return ""; }
+    if(getter != null && setter != null) { return " (through the getter and the setter)"; }
+    if(getter != null) { return " (through the getter, into the field)"; }
+    return " (through the setter)";
+}
+
+// ---------------------------------------------------------------------------
+// lambdas, closures and initialisation (stage 9)
+// ---------------------------------------------------------------------------
+
+/** "lambda@12:9 (decimal)(decimal), handed the record of `make_counter`" */
+def lambda_text(made: bound_lambda) : string {
+    text := new string_builder("lambda " + made.function.name);
+    if(made.record != null) {
+        owner := made.record!!.function;
+        if(owner != null) { text.append(", handed the closure record of " + owner!!.name); }
+        else if(made.record!!.field != null) { text.append(", handed the closure record of the field " + made.record!!.field!!.name); }
+    }
+    return text.build();
+}
+
+/** a lambda's parameters, the record it keeps, and its body, one level deeper */
+def print_lambda_body(function: sharp_function, depth: _int64) {
+    if(function.locals != null) {
+        for(i : _int64 = 0; i < function.locals!!.size(); i++) {
+            variable := function.locals!!.at(i);
+            if(variable.is_parameter == 1) {
+                println(indent(depth) + "parameter " + variable.name + " : " + variable.type.to_text() + captured_text(variable));
+            }
+        }
+    }
+    if(function.closure != null) { println(indent(depth) + "closure record: " + record_text(function.closure!!)); }
+    if(function.bound_body != null) { print_statement(function.bound_body!!, depth); }
+}
+
+/** ", captured" for a variable a lambda uses */
+def captured_text(variable: local_variable) : string {
+    if(variable.is_captured == 1) { return ", captured"; }
+    return "";
+}
+
+/** "count, total, self; parent: the record of outer" */
+def record_text(record: closure_record) : string {
+    text := new string_builder("");
+    for(i : _int64 = 0; i < record.variables.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        text.append(record.variables.at(i).name);
+    }
+    if(record.captures_self == 1) {
+        if(record.variables.size() > 0) { text.append(", "); }
+        text.append("self");
+    }
+    if(record.parent != null && record.parent!!.function != null) { text.append("; parent: the record of " + record.parent!!.function!!.name); }
+    return text.build();
+}

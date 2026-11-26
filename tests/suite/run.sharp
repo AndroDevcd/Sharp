@@ -1,0 +1,150 @@
+mod main;
+
+import ( std.io )
+
+/**
+ * Sharp test suite - the runner.
+ *
+ * Compiles every test in the `cases` folder (each together with testing.sharp),
+ * runs it, and reports PASS or FAIL per test and for the whole suite.
+ *
+ * BUILD IT ONCE
+ *     sharpc tests/suite/run.sharp -o run_tests
+ *
+ * RUN IT
+ *     sharp run_tests <sharpc> <sharp> <suite folder> <work folder> [compiler options...]
+ *
+ *     sharp run_tests sharpc sharp tests/suite /tmp/suite
+ *     sharp run_tests sharpc sharp tests/suite /tmp/suite -O
+ *     sharp run_tests sharpc "sharp -nojit" tests/suite /tmp/suite -O -nloop-rotation
+ *
+ *   <sharpc>          the compiler to test (a path, or a name on the PATH)
+ *   <sharp>           the runtime to test; put it in quotes to add options ("sharp -nojit")
+ *   <suite folder>    the folder this file is in (it contains testing.sharp and cases/)
+ *   <work folder>     where executables and logs are written; it must exist
+ *   compiler options  passed to every compile, e.g. -O, or -L <path of the standard library>
+ *
+ * WHAT COUNTS AS A PASS
+ *   The test compiled, ran, and printed "RESULT PASS". Anything else is a
+ *   failure: a compile error, a crash, a check that failed, or a test that ran
+ *   longer than TIME_LIMIT seconds.
+ *
+ * FOR EVERY TEST THE WORK FOLDER HOLDS
+ *   <test>              the executable
+ *   <test>.compile.txt  what the compiler printed
+ *   <test>.out.txt      what the test printed
+ *
+ * The runner exits with 0 if every test passed and 1 otherwise, so it can be
+ * used from a script.
+ */
+
+/* seconds one test may run before it is stopped and counted as failed */
+TIME_LIMIT : decimal = 120;
+
+QUOTE : string = "'";
+
+passed_tests : decimal = 0;
+failed_tests : decimal = 0;
+
+/** "some/folder/arithmetic.sharp" -> "arithmetic"   (file.list() may give names or whole paths) */
+def test_name(file_name: string): string {
+    length : decimal = file_name.size();
+    start : decimal = 0;
+    for(i : decimal = 0; i < length; i++) {
+        c : decimal = file_name.at(i).value;
+        if(c == '/' || c == 92) {       // 92 is the backslash
+            start = i + 1;
+        }
+    }
+
+    return file_name.substring(start, length - 6);      // without ".sharp"
+}
+
+/** a path as one word for the shell, whatever spaces it contains */
+def quoted(path: string): string {
+    return QUOTE + path + QUOTE;
+}
+
+def run_one(sharpc: string, sharp: string, suite: string, work: string, options: string, file_name: string) {
+    name := test_name(file_name);
+    executable := work + "/" + name;
+    compile_log := executable + ".compile.txt";
+    output := executable + ".out.txt";
+
+    // a leftover executable from an earlier run must not be mistaken for this one
+    sys("rm -f " + quoted(executable) + " " + quoted(output));
+
+    sys(sharpc + " " + quoted(suite + "/cases/" + name + ".sharp") + " " + quoted(suite + "/testing.sharp")
+        + " -o " + quoted(executable) + options + " > " + quoted(compile_log) + " 2>&1");
+
+    built := new file(executable);
+    if(!built.exists()) {
+        failed_tests++;
+        println("FAIL  $name   (did not compile, see $compile_log)");
+        sys("grep -i -m 5 error " + quoted(compile_log));
+        return;
+    }
+
+    limit : int = TIME_LIMIT;
+    sys("timeout $limit " + sharp + " " + quoted(executable) + " > " + quoted(output) + " 2>&1");
+
+    text : string? = file_natives.read(output);
+    // A case ends with one of two last lines: the suite's own helper (testing.sharp) prints
+    // `RESULT PASS ...`; a case written with the standard testing library (std.testing: the
+    // library cases, lib_* and std_*) prints `all <n> tests passed`.
+    if(text != null && (text!!.find("RESULT PASS") || text!!.find(" tests passed"))) {
+        passed_tests++;
+        println("PASS  $name");
+    } else {
+        failed_tests++;
+        if(text != null && (text!!.find("RESULT FAIL") || text!!.find(" failed, "))) {
+            println("FAIL  $name   (checks failed, see $output)");
+        } else {
+            println("FAIL  $name   (crashed or timed out before finishing, see $output)");
+        }
+        sys("grep -m 20 -e FAIL -e xception -e SIGSEGV " + quoted(output));
+    }
+}
+
+def main(args: string[]) {
+    if(sizeof(args) < 4) {
+        println("usage: sharp run_tests <sharpc> <sharp> <suite folder> <work folder> [compiler options...]");
+        exit(2);
+    }
+
+    sharpc := args[0];
+    sharp := args[1];
+    suite := args[2];
+    work := args[3];
+
+    options : string = "";
+    for(i : decimal = 4; i < sizeof(args); i++) {
+        options += " " + args[i];
+    }
+
+    println("Sharp test suite");
+    println("  compiler: $sharpc$options");
+    println("  runtime : $sharp");
+    println("");
+
+    cases := new file(suite + "/cases").list_names();
+    count : decimal = cases.size();
+    for(i : decimal = 0; i < count; i++) {
+        file_name := cases.at(i);
+        if(file_name.ends_with(".sharp")) {
+            run_one(sharpc, sharp, suite, work, options, file_name);
+        }
+    }
+
+    total : int = passed_tests + failed_tests;
+    good : int = passed_tests;
+    bad : int = failed_tests;
+    println("");
+    if(failed_tests == 0) {
+        println("ALL $total TESTS PASSED");
+        exit(0);
+    } else {
+        println("$bad OF $total TESTS FAILED   ($good passed)");
+        exit(1);
+    }
+}

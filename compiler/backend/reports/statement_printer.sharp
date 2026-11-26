@@ -1,0 +1,204 @@
+mod backend.reports;
+
+import (
+    std.io,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements
+)
+
+/**
+ * THE STATEMENTS OF THE `-analysis` OPTION
+ *
+ * One line per statement, what is inside it one level deeper. A statement
+ * after which execution cannot go on (the flow analysis) is marked
+ * "(does not complete)"; the jumps say where they go and what they pass.
+ *
+ *      foreach item : string (in a hidden array, by a hidden position)
+ *        call get_elements() (virtual, the items of a loopable object) : string[]?
+ *          local names : list<string>
+ *        block
+ *          if
+ *            binary == (whole numbers) : _int32
+ *            ...
+ *            continue (repeats: foreach)  (does not complete)
+ */
+def print_statement(statement: bound_statement, depth: _int64) {
+    kind : _int64 = statement.kind;
+    line := new string_builder(indent(depth) + statement_line(statement));
+    if(statement.completes == 0 && kind != BS_RETURN && kind != BS_THROW && kind != BS_BREAK && kind != BS_CONTINUE) {
+        line.append("  (does not complete)");
+    }
+    println(line.build());
+    print_statement_parts(statement, depth + 1);
+}
+
+/** the words for one statement */
+def statement_line(statement: bound_statement) : string {
+    kind : _int64 = statement.kind;
+    if(kind == BS_LOCAL_DECLARATION) {
+        declared := statement as bound_local_declaration;
+        text := "local " + declared.variable.name + " : " + type_text(declared.variable.type);
+        if(declared.default_constructor != null) { text = text + " (starts as a new " + type_text(declared.variable.type) + ")"; }
+        if(declared.is_injected == 1 && declared.injected_from == null) { text = text + " (injected: nothing provides it)"; }
+        if(declared.injected_from != null) {
+            text = text + " (injected from " + declared.injected_from!!.owner.described() + ": " + declared.injected_from!!.written_as() + ")";
+        }
+        return text;
+    }
+    if(kind == BS_RETURN) { return "return" + leaves_text((statement as bound_return).leaves); }
+    if(kind == BS_EXPRESSION_STATEMENT && (statement as bound_expression_statement).is_result == 1) { return "expression (the lambda's result)"; }
+    if(kind == BS_BREAK) {
+        jump := statement as bound_break;
+        if(jump.loop == null) { return "break (no loop)"; }
+        return "break (leaves: " + statement_kind_name(jump.loop!!.kind) + ")" + leaves_text(jump.leaves);
+    }
+    if(kind == BS_CONTINUE) {
+        jump := statement as bound_continue;
+        if(jump.loop == null) { return "continue (no loop)"; }
+        return "continue (repeats: " + statement_kind_name(jump.loop!!.kind) + ")" + leaves_text(jump.leaves);
+    }
+    if(kind == BS_WHILE || kind == BS_DO_WHILE || kind == BS_FOR) {
+        if((statement as bound_loop).is_endless == 1) { return statement_kind_name(kind) + " (endless)"; }
+    }
+    if(kind == BS_FOREACH) {
+        loop := statement as bound_foreach;
+        text := "foreach " + loop.variable.name + " : " + type_text(loop.variable.type);
+        if(loop.item_conversion.kind != CONV_IDENTITY) { text = text + " (each item: " + conversion_kind_name(loop.item_conversion.kind) + ")"; }
+        return text;
+    }
+    if(kind == BS_WHEN) {
+        if((statement as bound_when).subject != null) { return "when (the subject in a hidden local)"; }
+        return "when (no subject)";
+    }
+    if(kind == BS_LOCK) { return "lock (the object in a hidden local)"; }
+    if(kind == BS_ASM) {
+        block := statement as bound_asm;
+        count : _int64 = block.instructions.size();
+        return "asm (" + count + " line(s))";
+    }
+    return statement_kind_name(kind);
+}
+
+/** " (passes: lock, try)" - what a jump undoes on its way out */
+def leaves_text(leaves: list<bound_statement>) : string {
+    if(leaves.size() == 0) { return ""; }
+    text := new string_builder(" (passes:");
+    for(i : _int64 = 0; i < leaves.size(); i++) { text.append(" " + statement_kind_name(leaves.at(i).kind)); }
+    text.append(")");
+    return text.build();
+}
+
+/** what is inside a statement */
+def print_statement_parts(statement: bound_statement, next: _int64) {
+    kind : _int64 = statement.kind;
+    if(kind == BS_BLOCK) {
+        block := statement as bound_block;
+        for(i : _int64 = 0; i < block.statements.size(); i++) { print_statement(block.statements.at(i), next); }
+    } else if(kind == BS_LOCAL_DECLARATION) {
+        if((statement as bound_local_declaration).value != null) { print_expression((statement as bound_local_declaration).value!!, next); }
+    } else if(kind == BS_EXPRESSION_STATEMENT) {
+        print_expression((statement as bound_expression_statement).expression, next);
+    } else if(kind == BS_RETURN) {
+        if((statement as bound_return).value != null) { print_expression((statement as bound_return).value!!, next); }
+    } else if(kind == BS_THROW) {
+        print_expression((statement as bound_throw).value, next);
+    } else if(kind == BS_IF) {
+        branch := statement as bound_if;
+        print_expression(branch.condition, next);
+        print_statement(branch.then_part, next);
+        if(branch.else_part != null) {
+            println(indent(next) + "else");
+            print_statement(branch.else_part!!, next + 1);
+        }
+    } else if(kind == BS_WHILE) {
+        print_expression((statement as bound_while).condition, next);
+        print_statement((statement as bound_loop).body, next);
+    } else if(kind == BS_DO_WHILE) {
+        print_statement((statement as bound_loop).body, next);
+        if((statement as bound_do_while).condition != null) { print_expression((statement as bound_do_while).condition!!, next); }
+    } else if(kind == BS_FOR) {
+        loop := statement as bound_for;
+        for(i : _int64 = 0; i < loop.initializers.size(); i++) { print_statement(loop.initializers.at(i), next); }
+        if(loop.condition != null) { print_expression(loop.condition!!, next); }
+        if(loop.step != null) { print_expression(loop.step!!, next); }
+        print_statement(loop.body, next);
+    } else if(kind == BS_FOREACH) {
+        print_expression((statement as bound_foreach).collection, next);
+        print_statement((statement as bound_loop).body, next);
+    } else if(kind == BS_LOCK) {
+        print_expression((statement as bound_lock).locked, next);
+        print_statement((statement as bound_lock).body, next);
+    } else if(kind == BS_TRY) {
+        print_try_parts(statement as bound_try, next);
+    } else if(kind == BS_WHEN) {
+        print_when_parts(statement as bound_when, next);
+    } else if(kind == BS_ASM) {
+        print_asm_lines(statement as bound_asm, next);
+    }
+}
+
+/** body, each catch, finally */
+def print_try_parts(statement: bound_try, next: _int64) {
+    print_statement(statement.body, next);
+    for(i : _int64 = 0; i < statement.catches.size(); i++) {
+        clause := statement.catches.at(i);
+        text := "catch ";
+        if(clause.caught != null) { text = text + clause.caught!!.qualified_name(); } else { text = text + "?"; }
+        if(clause.variable != null) { text = text + " as local " + clause.variable!!.name; }
+        println(indent(next) + text);
+        print_statement(clause.body, next + 1);
+    }
+    if(statement.finally_part != null) {
+        println(indent(next) + "finally");
+        print_statement(statement.finally_part!!, next + 1);
+    }
+}
+
+/** the subject, each clause with its tests, the else */
+def print_when_parts(statement: bound_when, next: _int64) {
+    if(statement.subject != null) { print_expression(statement.subject!!, next); }
+    for(i : _int64 = 0; i < statement.clauses.size(); i++) {
+        clause := statement.clauses.at(i);
+        println(indent(next) + "clause");
+        for(j : _int64 = 0; j < clause.tests.size(); j++) { print_expression(clause.tests.at(j), next + 1); }
+        print_statement(clause.body, next + 1);
+    }
+    if(statement.else_part != null) {
+        println(indent(next) + "else");
+        print_statement(statement.else_part!!, next + 1);
+    }
+}
+
+/** one line per instruction, with what each operand names */
+def print_asm_lines(statement: bound_asm, next: _int64) {
+    for(i : _int64 = 0; i < statement.instructions.size(); i++) {
+        instruction := statement.instructions.at(i);
+        if(instruction.is_label == 1) {
+            println(indent(next) + "." + instruction.mnemonic + ":");
+            continue;
+        }
+        text := new string_builder(indent(next) + instruction.mnemonic);
+        for(j : _int64 = 0; j < instruction.operands.size(); j++) {
+            if(j > 0) { text.append(","); }
+            text.append(" " + asm_operand_text(statement, instruction.operands.at(j)));
+        }
+        println(text.build());
+    }
+}
+
+/** "ebx", "12", "local count", "@again" ... */
+def asm_operand_text(statement: bound_asm, operand: bound_asm_operand) : string {
+    kind : _int64 = operand.kind;
+    if(kind == ASM_REGISTER) { return operand.register; }
+    if(kind == ASM_NUMBER) { return "" + operand.number; }
+    if(kind == ASM_TEXT) { return "\"" + operand.text + "\""; }
+    if(kind == ASM_LABEL) {
+        if(operand.label < statement.labels.size()) { return "@" + statement.labels.at(operand.label); }
+        return "@?";
+    }
+    if(kind == ASM_LOCAL && operand.variable != null) { return "local " + operand.variable!!.name; }
+    if(kind == ASM_FIELD && operand.field != null) { return "field " + operand.field!!.name; }
+    if(kind == ASM_FUNCTION && operand.function != null) { return "function " + operand.function!!.name; }
+    if(kind == ASM_CLASS && operand.class_of != null) { return "class " + operand.class_of!!.qualified_name(); }
+    return "?";
+}

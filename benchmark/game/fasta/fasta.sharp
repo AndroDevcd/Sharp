@@ -1,0 +1,99 @@
+mod main;
+
+/**
+ * fasta - the Benchmarks Game.  Writes three DNA sequences in FASTA format,
+ * 60 letters a line: one by repeating a fixed text, two by drawing letters
+ * with given probabilities from a simple random number generator.
+ *
+ *      sharp fasta <n>  > sequences.txt
+ */
+
+line_width : _int64 = 60;
+last : _int64 = 42;
+
+/** the next random number, from 0 up to (not including) 1 */
+def next_random() : decimal {
+    last = (last * 3877 + 29573) % 139968;
+    return (last as decimal) / 139968;
+}
+
+/** `count` letters of `text`, over and over */
+def repeat(header: string, text: string, count: _int64) {
+    letters := text.data;
+    length : _int64 = sizeof(letters);
+    at : _int64 = 0;
+    line := new _int8[line_width + 1];
+
+    print(header);
+    while(count > 0) {
+        width : _int64 = count < line_width ? count : line_width;
+        if(width < line_width) { line = new _int8[width + 1]; }
+        for(i : _int64 = 0; i < width; i++) {
+            line[i] = letters[at];
+            at++;
+            if(at == length) { at = 0; }
+        }
+        line[width] = '\n';
+        print(line);
+        count -= width;
+    }
+}
+
+/** `count` letters, each drawn by its chance */
+def draw(header: string, text: string, chances: decimal[], count: _int64) {
+    letters := text.data;
+    kinds : _int64 = sizeof(chances);
+    line := new _int8[line_width + 1];
+
+    // each chance becomes the sum of the chances up to it
+    sum : decimal = 0;
+    for(i : _int64 = 0; i < kinds; i++) {
+        sum += chances[i];
+        chances[i] = sum;
+    }
+
+    print(header);
+    while(count > 0) {
+        width : _int64 = count < line_width ? count : line_width;
+        if(width < line_width) { line = new _int8[width + 1]; }
+        for(i : _int64 = 0; i < width; i++) {
+            r : decimal = next_random();
+            k : _int64 = 0;
+            while(k < kinds - 1 && chances[k] < r) { k++; }
+            line[i] = letters[k];
+        }
+        line[width] = '\n';
+        print(line);
+        count -= width;
+    }
+}
+
+def main(args: string[]) {
+    n : _int64 = 1000;
+    if(sizeof(args) > 0) { n = args[0].to_int(); }
+
+    alu := "GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG"
+         + "GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA"
+         + "CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT"
+         + "ACAAAAATTAGCCGGGCGTGGTGGCGCGCGCCTGTAATCCCA"
+         + "GCTACTCGGGAGGCTGAGGCAGGAGAATCGCTTGAACCCGGG"
+         + "AGGCGGAGGTTGCAGTGAGCCGAGATCGCGCCACTGCACTCC"
+         + "AGCCTGGGCGACAGAGCGAGACTCCGTCTCAAAAA";
+
+    iub := new decimal[15];
+    iub[0] = 0.27;
+    iub[1] = 0.12;
+    iub[2] = 0.12;
+    iub[3] = 0.27;
+    for(i : _int64 = 4; i < 15; i++) { iub[i] = 0.02; }
+
+    human := new decimal[4];
+    human[0] = 0.3029549426680;
+    human[1] = 0.1979883004921;
+    human[2] = 0.1975473066391;
+    human[3] = 0.3015094502008;
+
+    repeat(">ONE Homo sapiens alu\n", alu, n * 2);
+    draw(">TWO IUB ambiguity codes\n", "acgtBDHKMNRSVWY", iub, n * 3);
+    draw(">THREE Homo sapiens frequency\n", "acgt", human, n * 5);
+}

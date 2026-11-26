@@ -1,0 +1,1019 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * regex
+ *
+ * Regular expressions: patterns that describe text, for testing, searching,
+ * replacing and splitting.
+ *
+ *     r := new regex("(\\d+)-(\\d+)");
+ *     r.matches("10-20")                      1   (the WHOLE text fits)
+ *     r.contains("from 10-20 to 30-40")       1   (it occurs somewhere)
+ *     m := r.find("from 10-20 to 30-40");     the first occurrence, or null
+ *     m.value()   "10-20"     m.group(1)   "10"     m.start()   5
+ *     r.find_all(text)                        every occurrence, as regex_match[]
+ *     r.replace_all("10-20", "\\2-\\1")       "20-10"
+ *     new regex(",\\s*").split("a, b,c")      ["a", "b", "c"]
+ *
+ * (In Sharp source a backslash in a string literal is written twice: the
+ * pattern \d+ is the literal "\\d+".)
+ *
+ * Pattern syntax
+ *     abc          the characters themselves
+ *     .            any character except a line feed
+ *     [abc] [a-z]  one character of the set / range;  [^abc] one that is NOT in it
+ *     \d \w \s     a digit / a word character (letter, digit, _) / whitespace
+ *     \D \W \S     the opposites
+ *     \n \t \r \f \v \0    line feed, tab, carriage return, form feed, vertical tab, NUL
+ *     \xHH         the character with hexadecimal code HH
+ *     \. \* \\ ... a special character taken literally (any punctuation mark can be escaped)
+ *     ^  $         the start / the end of the text
+ *     \b \B        a word boundary / not a word boundary
+ *     x*  x+  x?   zero or more / one or more / zero or one x (as many as possible)
+ *     x{3} x{2,} x{2,5}    exactly 3 / at least 2 / between 2 and 5 times
+ *     x*? x+? x?? x{2,5}?  the same, but as FEW as possible ("lazy")
+ *     (x)          a group: keeps what it matched, numbered from 1 by its '('
+ *     (?:x)        a group that only groups and keeps nothing
+ *     a|b          a or b (the first alternative that leads to a match wins)
+ *
+ * Not supported: back-references inside a pattern (\1), look-ahead and
+ * look-behind, named groups, Unicode classes. ^ and $ do not match at line
+ * breaks inside the text. Characters are single bytes (ASCII).
+ *
+ * How it works, and what it costs
+ * The pattern is translated once, in the constructor, into a small program;
+ * matching runs that program with an explicit stack (no recursion, so long
+ * texts cannot overflow the call stack). Every (program step, text position)
+ * pair is tried at most once per search, so there is no "catastrophic
+ * backtracking": the time is at most proportional to pattern size x text
+ * length, and a search uses about (pattern size x text length) / 30 numbers
+ * of working memory, which the regex object keeps for the next search.
+ * Because of that working memory one regex object must not be used by two
+ * threads at the same time; make one object per thread.
+ *
+ * Keep the regex object when a pattern is used more than once: translating
+ * the pattern is the expensive part for short texts.
+ */
+class regex {
+    // ---- the program: one instruction is ops[i] with the arguments arg_a[i], arg_b[i]
+    private static const op_char : decimal = 0;     // the character arg_a must be next
+    private static const op_any : decimal = 1;      // any character but '\n'
+    private static const op_set : decimal = 2;      // a character of the set number arg_a
+    private static const op_split : decimal = 3;    // try from arg_a first; if that fails, from arg_b
+    private static const op_jump : decimal = 4;     // continue at arg_a
+    private static const op_save : decimal = 5;     // store the text position in capture slot arg_a
+    private static const op_bol : decimal = 6;      // must be at the start of the text
+    private static const op_eol : decimal = 7;      // must be at the end of the text
+    private static const op_wordb : decimal = 8;    // must be at a word boundary
+    private static const op_nwordb : decimal = 9;   // must not be at a word boundary
+    private static const op_match : decimal = 10;   // success
+
+    // ---- the pattern as a tree, built by the parser and then turned into the program
+    private static const n_char : decimal = 0;      // a = the character
+    private static const n_any : decimal = 1;
+    private static const n_set : decimal = 2;       // a = set number
+    private static const n_bol : decimal = 3;
+    private static const n_eol : decimal = 4;
+    private static const n_wordb : decimal = 5;
+    private static const n_nwordb : decimal = 6;
+    private static const n_cat : decimal = 7;       // a = first child; children are chained by node_next
+    private static const n_alt : decimal = 8;       // a = first alternative; chained by node_next
+    private static const n_group : decimal = 9;     // a = child, b = group number or -1 (not capturing)
+    private static const n_repeat : decimal = 10;   // a = child, b = min, c = max (-1 = no limit), d = 1 greedy / 0 lazy
+    private static const n_empty : decimal = 11;    // matches the empty text
+
+    /* limits that keep a hostile or mistyped pattern from using unbounded time and memory */
+    private static const max_nesting : decimal = 30;
+    private static const max_repeat : decimal = 1000;
+    private static const max_program : decimal = 50000;
+
+    private source : string = "";
+    private ignore_case : decimal = 0;
+
+    /* parser state */
+    private pat : _int8[]? = null;      // the pattern characters
+    private pat_len : decimal = 0;
+    private pos : decimal = 0;              // next pattern character to read
+    private nesting : decimal = 0;          // how many groups are open
+
+    /* the tree */
+    private node_kind : decimal[]? = null;
+    private node_a : decimal[]? = null;
+    private node_b : decimal[]? = null;
+    private node_c : decimal[]? = null;
+    private node_d : decimal[]? = null;
+    private node_next : decimal[]? = null;
+    private nodes : decimal = 0;
+
+    /* the sets: set number s owns sets[s * 256 .. s * 256 + 255]; entry [character code + 128] is 1 for a member */
+    private sets : decimal[]? = null;
+    private set_count : decimal = 0;
+
+    /* the program */
+    private ops : decimal[]? = null;
+    private arg_a : decimal[]? = null;
+    private arg_b : decimal[]? = null;
+    private prog_len : decimal = 0;
+
+    /* number of groups including group 0 (the whole match) */
+    private group_total : decimal = 1;
+
+    /* capture slots of the search that is running / has just succeeded: 2 per group */
+    private caps : decimal[]? = null;
+
+    /* the backtrack stack: entry i is (stack_kind[i], stack_a[i], stack_b[i]) */
+    private stack_kind : decimal[]? = null;     // 0 = continue at pc stack_a, text position stack_b; 1 = put stack_b back into capture slot stack_a
+    private stack_a : decimal[]? = null;
+    private stack_b : decimal[]? = null;
+    private stack_top : decimal = 0;
+
+    /*
+     * Which (text position, program step) pairs the current search has
+     * already tried, 30 of them per number, as bits. Pair number =
+     * position * prog_len + step. touched_low / touched_high remember which
+     * numbers were written so that only those are cleared for the next search.
+     */
+    private visited : decimal[]? = null;
+    private touched_low : decimal = 0;
+    private touched_high : decimal = -1;
+
+    /**
+     * Translates `pattern`. Capital and small letters are different.
+     * Throws parse_exception, saying what is wrong and at which position, if
+     * the pattern is not valid (unbalanced parentheses or brackets, a
+     * quantifier with nothing to repeat, an unknown escape ...).
+     */
+    regex(pattern: string) {
+        source = pattern;
+        compile();
+    }
+
+    /**
+     * Translates `pattern`; if `ignore_case` is true, ASCII capital and small
+     * letters are treated as equal ("abc" also matches "ABC", "[a-c]" also 'B').
+     * Throws parse_exception if the pattern is not valid.
+     */
+    regex(pattern: string, ignore_case: bool) {
+        source = pattern;
+        self->ignore_case = ignore_case;
+        compile();
+    }
+
+    // ================================================================== translating the pattern
+
+    /** The exception for a mistake at pattern position `at`. */
+    private def bad_pattern(problem: string, at: decimal): parse_exception {
+        return new parse_exception("regex \"" + source + "\": " + problem + " at position " + number_format.integer(at));
+    }
+
+    private def compile() {
+        pat = source.data;
+        pat_len = sizeof(pat);
+
+        room : decimal = pat_len * 2 + 8;
+        node_kind = new decimal[room];
+        node_a = new decimal[room];
+        node_b = new decimal[room];
+        node_c = new decimal[room];
+        node_d = new decimal[room];
+        node_next = new decimal[room];
+        ops = new decimal[room];
+        arg_a = new decimal[room];
+        arg_b = new decimal[room];
+
+        root : decimal = parse_alternatives();
+        if(pos < pat_len) throw bad_pattern("')' without a matching '('", pos);
+
+        // the whole match is group 0
+        emit(op_save, 0, 0);
+        emit_node(root);
+        emit(op_save, 1, 0);
+        emit(op_match, 0, 0);
+
+        caps = new decimal[group_total * 2];
+        stack_kind = new decimal[64];
+        stack_a = new decimal[64];
+        stack_b = new decimal[64];
+
+        // the tree and the parser state are not needed any more
+        node_kind = null;
+        node_a = null;
+        node_b = null;
+        node_c = null;
+        node_d = null;
+        node_next = null;
+        pat = null;
+    }
+
+    /** Adds a tree node and returns its number. */
+    private def new_node(kind: decimal, a: decimal, b: decimal, c: decimal, d: decimal): decimal {
+        if(nodes >= sizeof(node_kind)) {
+            bigger : decimal = sizeof(node_kind) * 2;
+            realloc(node_kind!!, bigger);
+            realloc(node_a!!, bigger);
+            realloc(node_b!!, bigger);
+            realloc(node_c!!, bigger);
+            realloc(node_d!!, bigger);
+            realloc(node_next!!, bigger);
+        }
+        node_kind[nodes] = kind;
+        node_a[nodes] = a;
+        node_b[nodes] = b;
+        node_c[nodes] = c;
+        node_d[nodes] = d;
+        node_next[nodes] = -1;
+        nodes++;
+        return nodes - 1;
+    }
+
+    /** alternatives := sequence { '|' sequence } */
+    private def parse_alternatives(): decimal {
+        first : decimal = parse_sequence();
+        if(pos >= pat_len || pat[pos] != '|') return first;
+
+        alt : decimal = new_node(n_alt, first, 0, 0, 0);
+        last : decimal = first;
+        while(pos < pat_len && pat[pos] == '|') {
+            pos++;
+            another : decimal = parse_sequence();
+            node_next[last] = another;
+            last = another;
+        }
+        return alt;
+    }
+
+    /** sequence := { repeated } - everything up to a '|', a ')' or the end */
+    private def parse_sequence(): decimal {
+        first : decimal = -1;
+        last : decimal = -1;
+        count : decimal = 0;
+        while(pos < pat_len && pat[pos] != '|' && pat[pos] != ')') {
+            item : decimal = parse_repeated();
+            if(first < 0) first = item;
+            else node_next[last] = item;
+            last = item;
+            count++;
+        }
+        if(count == 0) return new_node(n_empty, 0, 0, 0, 0);
+        if(count == 1) return first;
+        return new_node(n_cat, first, 0, 0, 0);
+    }
+
+    /** repeated := atom { quantifier } */
+    private def parse_repeated(): decimal {
+        atom_at : decimal = pos;
+        item : decimal = parse_atom();
+
+        while(pos < pat_len) {
+            c : decimal = pat[pos];
+            low : decimal = 0;
+            high : decimal = 0;
+            if(c == '*') { low = 0; high = -1; pos++; }
+            else if(c == '+') { low = 1; high = -1; pos++; }
+            else if(c == '?') { low = 0; high = 1; pos++; }
+            else if(c == '{') {
+                // {m}  {m,}  {m,n} - anything else is an ordinary '{'
+                i : decimal = pos + 1;
+                digits : decimal = 0;
+                low = 0;
+                while(i < pat_len && pat[i] >= '0' && pat[i] <= '9' && digits < 6) {
+                    low = low * 10 + (pat[i] - '0');
+                    i++;
+                    digits++;
+                }
+                if(digits == 0) break;
+                high = low;
+                if(i < pat_len && pat[i] == ',') {
+                    i++;
+                    high = -1;
+                    more : decimal = 0;
+                    upper : decimal = 0;
+                    while(i < pat_len && pat[i] >= '0' && pat[i] <= '9' && more < 6) {
+                        upper = upper * 10 + (pat[i] - '0');
+                        i++;
+                        more++;
+                    }
+                    if(more > 0) high = upper;
+                }
+                if(i >= pat_len || pat[i] != '}') break;
+                if(low > max_repeat || high > max_repeat)
+                    throw bad_pattern("a repeat count above 1000", pos);
+                if(high >= 0 && high < low)
+                    throw bad_pattern("a repeat range whose maximum is below its minimum", pos);
+                pos = i + 1;
+            } else {
+                break;
+            }
+
+            greedy : decimal = 1;
+            if(pos < pat_len && pat[pos] == '?') {
+                greedy = 0;
+                pos++;
+            }
+            item = new_node(n_repeat, item, low, high, greedy);
+        }
+        return item;
+    }
+
+    /** atom := a single character, a set, an escape, an anchor or a group */
+    private def parse_atom(): decimal {
+        at : decimal = pos;
+        c : decimal = pat[pos];
+
+        if(c == '(') {
+            pos++;
+            number : decimal = -1;
+            if(pos + 1 < pat_len && pat[pos] == '?' && pat[pos + 1] == ':') {
+                pos += 2;
+            } else if(pos < pat_len && pat[pos] == '?') {
+                throw bad_pattern("an unsupported group type \"(?\" (only \"(?:\" is known)", at);
+            } else {
+                number = group_total;
+                group_total++;
+            }
+
+            nesting++;
+            if(nesting > max_nesting) throw bad_pattern("groups nested more than 30 deep", at);
+            inner : decimal = parse_alternatives();
+            nesting--;
+
+            if(pos >= pat_len || pat[pos] != ')') throw bad_pattern("'(' without a matching ')'", at);
+            pos++;
+            return new_node(n_group, inner, number, 0, 0);
+        }
+        if(c == '[') return parse_set();
+        if(c == '.') { pos++; return new_node(n_any, 0, 0, 0, 0); }
+        if(c == '^') { pos++; return new_node(n_bol, 0, 0, 0, 0); }
+        if(c == '$') { pos++; return new_node(n_eol, 0, 0, 0, 0); }
+        if(c == '*' || c == '+' || c == '?') throw bad_pattern("a quantifier with nothing to repeat", at);
+        if(c == '\\') return parse_escape();
+
+        pos++;
+        return new_node(n_char, fold(c), 0, 0, 0);
+    }
+
+    /** `c` in lower case if case is ignored and it is a capital letter, otherwise `c`. */
+    private def fold(c: decimal): decimal {
+        if(ignore_case && c >= 'A' && c <= 'Z') return c + 32;
+        return c;
+    }
+
+    /**
+     * Reads the escape at `pos` (which is at the backslash) as a single
+     * character and returns it, moving past it; returns -1000 without moving
+     * if the escape is not a single character (\d, \b ...).
+     */
+    private def escape_char(): decimal {
+        if(pos + 1 >= pat_len) throw bad_pattern("'\\' at the end with nothing to escape", pos);
+        e : decimal = pat[pos + 1];
+        result : decimal = -1000;
+        if(e == 'n') result = '\n';
+        else if(e == 't') result = '\t';
+        else if(e == 'r') result = '\r';
+        else if(e == 'f') result = 12;
+        else if(e == 'v') result = 11;
+        else if(e == '0') result = 0;
+        else if(e == 'x') {
+            if(pos + 3 >= pat_len || character.digit_value(pat[pos + 2], 16) < 0 || character.digit_value(pat[pos + 3], 16) < 0)
+                throw bad_pattern("\\x must be followed by two hexadecimal digits", pos);
+            code : decimal = character.digit_value(pat[pos + 2], 16) * 16 + character.digit_value(pat[pos + 3], 16);
+            if(code > 127) code = code - 256;       // characters are signed bytes
+            pos += 4;
+            return code;
+        }
+        else if(!((e >= 'a' && e <= 'z') || (e >= 'A' && e <= 'Z') || (e >= '0' && e <= '9'))) result = e;
+
+        if(result != -1000) pos += 2;
+        return result;
+    }
+
+    /** Reads an escape outside of a set. */
+    private def parse_escape(): decimal {
+        at : decimal = pos;
+        literal : decimal = escape_char();
+        if(literal != -1000) return new_node(n_char, fold(literal), 0, 0, 0);
+
+        e : decimal = pat[pos + 1];
+        if(e == 'b') { pos += 2; return new_node(n_wordb, 0, 0, 0, 0); }
+        if(e == 'B') { pos += 2; return new_node(n_nwordb, 0, 0, 0, 0); }
+        if(e == 'd' || e == 'D' || e == 'w' || e == 'W' || e == 's' || e == 'S') {
+            pos += 2;
+            s : decimal = new_set();
+            add_class(s, e);
+            return new_node(n_set, s, 0, 0, 0);
+        }
+        if(e >= '1' && e <= '9') throw bad_pattern("back-references (\\1 ...) are not supported", at);
+        throw bad_pattern("unknown escape '\\" + new string(e as _int8) + "'", at);
+    }
+
+    /** Makes a new, empty set and returns its number. */
+    private def new_set(): decimal {
+        needed : decimal = (set_count + 1) * 256;
+        if(sets == null) {
+            sets = new decimal[needed];
+        } else {
+            realloc(sets!!, needed);           // (new entries are 0)
+        }
+        set_count++;
+        return set_count - 1;
+    }
+
+    /** Adds the characters low..high to set `s`. */
+    private def add_range(s: decimal, low: decimal, high: decimal) {
+        base_at : decimal = s * 256 + 128;
+        for(c : decimal = low; c <= high; c++) {
+            sets[base_at + c] = 1;
+        }
+    }
+
+    /** Adds the class of the escape letter `e` (d D w W s S) to set `s`. */
+    private def add_class(s: decimal, e: decimal) {
+        base_at : decimal = s * 256 + 128;
+        negated : decimal = e == 'D' || e == 'W' || e == 'S';
+        for(c : decimal = -128; c <= 127; c++) {
+            member : decimal = 0;
+            if(e == 'd' || e == 'D') member = c >= '0' && c <= '9';
+            else if(e == 'w' || e == 'W') member = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+            else member = c == ' ' || (c >= 9 && c <= 13);
+
+            if(negated) member = !member;
+            if(member) sets[base_at + c] = 1;
+        }
+    }
+
+    /** Reads a set "[...]"; `pos` is at the '['. */
+    private def parse_set(): decimal {
+        open : decimal = pos;
+        pos++;
+        negated : decimal = 0;
+        if(pos < pat_len && pat[pos] == '^') {
+            negated = 1;
+            pos++;
+        }
+
+        s : decimal = new_set();
+        first_member : decimal = pos;           // a ']' here is a member, not the end
+        closed : decimal = 0;
+        while(pos < pat_len) {
+            c : decimal = pat[pos];
+            if(c == ']' && pos > first_member) {
+                closed = 1;
+                pos++;
+                break;
+            }
+
+            low : decimal = c;
+            if(c == '\\') {
+                literal : decimal = escape_char();
+                if(literal == -1000) {
+                    e : decimal = pat[pos + 1];
+                    if(e == 'd' || e == 'D' || e == 'w' || e == 'W' || e == 's' || e == 'S') {
+                        add_class(s, e);
+                        pos += 2;
+                        continue;
+                    }
+                    if(e == 'b') {          // inside a set \b is the backspace character
+                        literal = 8;
+                        pos += 2;
+                    } else {
+                        throw bad_pattern("unknown escape '\\" + new string(e as _int8) + "' in a set", pos);
+                    }
+                }
+                low = literal;
+            } else {
+                pos++;
+            }
+
+            // "a-z": a range, unless the '-' is the last member ("[a-]")
+            high : decimal = low;
+            if(pos + 1 < pat_len && pat[pos] == '-' && pat[pos + 1] != ']') {
+                pos++;
+                high = pat[pos];
+                if(high == '\\') {
+                    high = escape_char();
+                    if(high == -1000) throw bad_pattern("a class such as \\d cannot end a range", pos);
+                } else {
+                    pos++;
+                }
+                if(high < low) throw bad_pattern("a range whose end is before its start", pos - 1);
+            }
+            add_range(s, low, high);
+        }
+        if(!closed) throw bad_pattern("'[' without a matching ']'", open);
+
+        base_at : decimal = s * 256 + 128;
+        if(ignore_case) {
+            // a letter in the set brings its other case along
+            for(c : decimal = 'a'; c <= 'z'; c++) {
+                if(sets[base_at + c] || sets[base_at + c - 32]) {
+                    sets[base_at + c] = 1;
+                    sets[base_at + c - 32] = 1;
+                }
+            }
+        }
+        if(negated) {
+            for(c : decimal = -128; c <= 127; c++) {
+                sets[base_at + c] = !sets[base_at + c];
+            }
+        }
+        return new_node(n_set, s, 0, 0, 0);
+    }
+
+    // ================================================================== tree -> program
+
+    /** Appends an instruction and returns its position. */
+    private def emit(op: decimal, a: decimal, b: decimal): decimal {
+        if(prog_len >= max_program)
+            throw new parse_exception("regex \"" + source + "\": the pattern is too large (repeat counts multiply)");
+        if(prog_len >= sizeof(ops)) {
+            bigger : decimal = sizeof(ops) * 2;
+            realloc(ops!!, bigger);
+            realloc(arg_a!!, bigger);
+            realloc(arg_b!!, bigger);
+        }
+        ops[prog_len] = op;
+        arg_a[prog_len] = a;
+        arg_b[prog_len] = b;
+        prog_len++;
+        return prog_len - 1;
+    }
+
+    /**
+     * Appends the instructions for tree node `node`. Recursion here is only
+     * as deep as groups are nested in the pattern (at most max_nesting).
+     */
+    private def emit_node(node: decimal) {
+        kind : decimal = node_kind[node];
+
+        if(kind == n_char) { emit(op_char, node_a[node], 0); }
+        else if(kind == n_any) { emit(op_any, 0, 0); }
+        else if(kind == n_set) { emit(op_set, node_a[node], 0); }
+        else if(kind == n_bol) { emit(op_bol, 0, 0); }
+        else if(kind == n_eol) { emit(op_eol, 0, 0); }
+        else if(kind == n_wordb) { emit(op_wordb, 0, 0); }
+        else if(kind == n_nwordb) { emit(op_nwordb, 0, 0); }
+        else if(kind == n_cat) {
+            child : decimal = node_a[node];
+            while(child >= 0) {
+                emit_node(child);
+                child = node_next[child];
+            }
+        }
+        else if(kind == n_alt) {
+            //      split L1, L2
+            //  L1: first alternative ; jump END
+            //  L2: split L3, L4 ...
+            //      last alternative
+            // END:
+            count : decimal = 0;
+            child : decimal = node_a[node];
+            while(child >= 0) {
+                count++;
+                child = node_next[child];
+            }
+            jumps := new decimal[count];
+            used : decimal = 0;
+            child = node_a[node];
+            while(child >= 0) {
+                following : decimal = node_next[child];
+                if(following >= 0) {
+                    split : decimal = emit(op_split, 0, 0);
+                    arg_a[split] = prog_len;
+                    emit_node(child);
+                    jumps[used++] = emit(op_jump, 0, 0);
+                    arg_b[split] = prog_len;
+                } else {
+                    emit_node(child);
+                }
+                child = following;
+            }
+            for(i : decimal = 0; i < used; i++) {
+                arg_a[jumps[i]] = prog_len;
+            }
+        }
+        else if(kind == n_group) {
+            number : decimal = node_b[node];
+            if(number >= 0) emit(op_save, number * 2, 0);
+            emit_node(node_a[node]);
+            if(number >= 0) emit(op_save, number * 2 + 1, 0);
+        }
+        else if(kind == n_repeat) {
+            child : decimal = node_a[node];
+            low : decimal = node_b[node];
+            high : decimal = node_c[node];
+            greedy : decimal = node_d[node];
+
+            // the required copies
+            for(i : decimal = 0; i < low; i++) {
+                emit_node(child);
+            }
+            if(high < 0) {
+                //  L: split BODY, OUT      (lazy: split OUT, BODY)
+                //  BODY: child ; jump L
+                //  OUT:
+                loop_at : decimal = emit(op_split, 0, 0);
+                emit_node(child);
+                emit(op_jump, loop_at, 0);
+                if(greedy) { arg_a[loop_at] = loop_at + 1; arg_b[loop_at] = prog_len; }
+                else { arg_a[loop_at] = prog_len; arg_b[loop_at] = loop_at + 1; }
+            } else if(high > low) {
+                // each optional copy: split BODY, END ; BODY: child
+                optional : decimal = high - low;
+                splits := new decimal[optional];
+                for(i : decimal = 0; i < optional; i++) {
+                    splits[i] = emit(op_split, 0, 0);
+                    emit_node(child);
+                }
+                for(i : decimal = 0; i < optional; i++) {
+                    at : decimal = splits[i];
+                    if(greedy) { arg_a[at] = at + 1; arg_b[at] = prog_len; }
+                    else { arg_a[at] = prog_len; arg_b[at] = at + 1; }
+                }
+            }
+        }
+        // n_empty: nothing to emit
+    }
+
+    // ================================================================== running the program
+
+    /** true if `c` is a word character: a letter, a digit or '_'. */
+    private static def is_word(c: decimal): bool {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
+    }
+
+    /** true if there is a word boundary between text positions at - 1 and at. */
+    private static def at_boundary(t: _int8[]?, n: decimal, at: decimal): bool {
+        before : decimal = 0;
+        after : decimal = 0;
+        if(at > 0) before = is_word(t[at - 1]);
+        if(at < n) after = is_word(t[at]);
+        return before != after;
+    }
+
+    /** Pushes an entry on the backtrack stack, growing it if needed. */
+    private def push(kind: decimal, a: decimal, b: decimal) {
+        if(stack_top >= sizeof(stack_kind)) {
+            bigger : decimal = sizeof(stack_kind) * 2;
+            realloc(stack_kind!!, bigger);
+            realloc(stack_a!!, bigger);
+            realloc(stack_b!!, bigger);
+        }
+        stack_kind[stack_top] = kind;
+        stack_a[stack_top] = a;
+        stack_b[stack_top] = b;
+        stack_top++;
+    }
+
+    /** Gets the "already tried" memory ready for a search in a text of `n` characters. */
+    private def prepare(n: decimal) {
+        pairs : decimal = (n + 1) * prog_len;
+        needed : decimal = (pairs - pairs % 30) / 30 + 1;
+        if(visited == null || sizeof(visited) < needed) {
+            visited = new decimal[needed];                  // (starts as all zeros)
+        } else {
+            for(i : decimal = touched_low; i <= touched_high; i++) {
+                visited[i] = 0;
+            }
+        }
+        touched_low = needed;
+        touched_high = -1;
+    }
+
+    /**
+     * Runs the program from text position `start`. Returns 1 and leaves the
+     * group positions in `caps` if the pattern matches there (and, with
+     * `whole` set, reaches exactly the end of the text);.
+     * prepare() must have been called for this text; several starts of one
+     * search share the "already tried" memory, which is what makes a search
+     * over all start positions cost no more than one pass.
+     */
+    private def run(t: _int8[]?, n: decimal, start: decimal, whole: decimal): bool {
+        slots : decimal = group_total * 2;
+        for(i : decimal = 0; i < slots; i++) {
+            caps[i] = -1;
+        }
+        stack_top = 0;
+        pc : decimal = 0;
+        sp : decimal = start;
+
+        while(true) {
+            failed : decimal = 0;
+
+            // has this step been tried at this text position before? Then it failed there.
+            pair : decimal = sp * prog_len + pc;
+            bit : decimal = pair % 30;
+            word : decimal = (pair - bit) / 30;
+            mask : decimal = 1 << bit;
+            seen : decimal = visited[word];
+            if((seen & mask) != 0) {
+                failed = 1;
+            } else {
+                visited[word] = seen | mask;
+                if(word < touched_low) touched_low = word;
+                if(word > touched_high) touched_high = word;
+
+                op : decimal = ops[pc];
+                if(op == op_char) {
+                    if(sp < n && fold(t[sp]) == arg_a[pc]) { pc++; sp++; }
+                    else failed = 1;
+                } else if(op == op_any) {
+                    if(sp < n && t[sp] != '\n') { pc++; sp++; }
+                    else failed = 1;
+                } else if(op == op_set) {
+                    if(sp < n && sets[arg_a[pc] * 256 + 128 + t[sp]]) { pc++; sp++; }
+                    else failed = 1;
+                } else if(op == op_split) {
+                    push(0, arg_b[pc], sp);
+                    pc = arg_a[pc];
+                } else if(op == op_jump) {
+                    pc = arg_a[pc];
+                } else if(op == op_save) {
+                    slot : decimal = arg_a[pc];
+                    push(1, slot, caps[slot]);
+                    caps[slot] = sp;
+                    pc++;
+                } else if(op == op_bol) {
+                    if(sp == 0) pc++;
+                    else failed = 1;
+                } else if(op == op_eol) {
+                    if(sp == n) pc++;
+                    else failed = 1;
+                } else if(op == op_wordb) {
+                    if(at_boundary(t, n, sp)) pc++;
+                    else failed = 1;
+                } else if(op == op_nwordb) {
+                    if(!at_boundary(t, n, sp)) pc++;
+                    else failed = 1;
+                } else {
+                    // op_match
+                    if(!whole || sp == n) return true;
+                    failed = 1;
+                }
+            }
+
+            if(failed) {
+                // go back to the most recent untried alternative, undoing captures on the way
+                resumed : decimal = 0;
+                while(stack_top > 0 && !resumed) {
+                    stack_top--;
+                    if(stack_kind[stack_top] == 1) {
+                        caps[stack_a[stack_top]] = stack_b[stack_top];
+                    } else {
+                        pc = stack_a[stack_top];
+                        sp = stack_b[stack_top];
+                        resumed = 1;
+                    }
+                }
+                if(!resumed) return false;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Looks for the leftmost match that starts at `from` or later. Returns 1
+     * with the positions in `caps`, or 0.
+     */
+    private def search(t: _int8[]?, n: decimal, from: decimal): bool {
+        prepare(n);
+        for(start : decimal = from; start <= n; start++) {
+            if(run(t, n, start, 0)) return true;
+        }
+        return false;
+    }
+
+    // ================================================================== the public functions
+
+    /** The pattern text this object was made from. */
+    def pattern(): string {
+        return source;
+    }
+
+    /** How many capturing groups "( ... )" the pattern has (group 0, the whole match, is not counted). */
+    def group_count(): decimal {
+        return group_total - 1;
+    }
+
+    /**
+     * true if the WHOLE text fits the pattern
+     * (new regex("\\d+").matches("123") is 1, matches("123a") is 0).
+     */
+    def matches(text: string): bool {
+        n : decimal = sizeof(text.data);
+        prepare(n);
+        return run(text.data, n, 0, 1);
+    }
+
+    /** true if the pattern matches somewhere in the text. */
+    def contains(text: string): bool {
+        return search(text.data, sizeof(text.data), 0);
+    }
+
+    /** Position of the first match in the text, or -1 if there is none. */
+    def index_of(text: string): decimal {
+        if(!search(text.data, sizeof(text.data), 0)) return -1;
+        return caps[0];
+    }
+
+    /** The first (leftmost) match in the text, or null if there is none. */
+    def find(text: string): regex_match? {
+        return find(text, 0);
+    }
+
+    /**
+     * The first match that starts at position `start` or later, or null.
+     * (^ still means the start of the whole text, not `start`.)
+     * Throws out_of_bounds_exception if start is negative or beyond the end of the text.
+     */
+    def find(text: string, start: int): regex_match? {
+        n : decimal = sizeof(text.data);
+        if(start.value < 0 || start.value > n)
+            throw new out_of_bounds_exception("find: start $start is outside of a text of " + number_format.integer(n) + " characters");
+        if(!search(text.data, n, start.value)) return null;
+        return new regex_match(text, caps!!, group_total);
+    }
+
+    /**
+     * Every match in the text, left to right, not overlapping, as an array
+     * (length 0 if there is none). After an empty match the search moves on
+     * by one character, so a pattern that can match "" terminates.
+     */
+    def find_all(text: string): regex_match[] {
+        n : decimal = sizeof(text.data);
+        found := new list<regex_match>();
+        from : decimal = 0;
+        while(from <= n && search(text.data, n, from)) {
+            found.add(new regex_match(text, caps!!, group_total));
+            if(caps[1] > caps[0]) from = caps[1];
+            else from = caps[1] + 1;
+        }
+        if(found.is_empty()) return new regex_match[0];
+        return found.get_elements()!!;
+    }
+
+    /** How many (non-overlapping) matches the text has. */
+    def count(text: string): decimal {
+        n : decimal = sizeof(text.data);
+        total : decimal = 0;
+        from : decimal = 0;
+        while(from <= n && search(text.data, n, from)) {
+            total++;
+            if(caps[1] > caps[0]) from = caps[1];
+            else from = caps[1] + 1;
+        }
+        return total;
+    }
+
+    /**
+     * Appends `replacement` to `out`, with its group references filled in
+     * from the current match: \0 .. \9 (or $0 .. $9) give the text of that
+     * group, \\ a backslash and \$ a dollar sign.
+     */
+    private def append_replacement(out: char_buffer, t: _int8[]?, replacement: string) {
+        r := replacement.data;
+        m : decimal = sizeof(r);
+        i : decimal = 0;
+        while(i < m) {
+            c : decimal = r[i];
+            if((c == '\\' || c == '$') && i + 1 < m && r[i + 1] >= '0' && r[i + 1] <= '9') {
+                group : decimal = r[i + 1] - '0';
+                if(group >= group_total)
+                    throw new illegal_argument_exception("replacement refers to group " + number_format.integer(group)
+                        + " but the pattern has " + number_format.integer(group_total - 1) + " groups");
+                from : decimal = caps[group * 2];
+                to : decimal = caps[group * 2 + 1];
+                for(k : decimal = from; k < to; k++) {
+                    if(from >= 0) out.append_char(t[k]);
+                }
+                i += 2;
+            } else if(c == '\\' && i + 1 < m && (r[i + 1] == '\\' || r[i + 1] == '$')) {
+                out.append_char(r[i + 1]);
+                i += 2;
+            } else {
+                out.append_char(c);
+                i++;
+            }
+        }
+    }
+
+    /** The work behind replace_all and replace_first: at most `limit` replacements (0 = all). */
+    private def replace(text: string, replacement: string, limit: decimal): string {
+        t := text.data;
+        n : decimal = sizeof(t);
+        out := new char_buffer();
+        copied : decimal = 0;               // the text before this position is already in `out`
+        from : decimal = 0;
+        done : decimal = 0;
+        while(from <= n && (limit == 0 || done < limit) && search(t, n, from)) {
+            match_start : decimal = caps[0];
+            match_end : decimal = caps[1];
+            for(k : decimal = copied; k < match_start; k++) {
+                out.append_char(t[k]);
+            }
+            append_replacement(out, t, replacement);
+            copied = match_end;
+            done++;
+            if(match_end > match_start) from = match_end;
+            else from = match_end + 1;
+        }
+        for(k : decimal = copied; k < n; k++) {
+            out.append_char(t[k]);
+        }
+        return out.build();
+    }
+
+    /**
+     * The text with every match replaced by `replacement`. In the replacement
+     * \1 .. \9 stand for what the groups matched and \0 for the whole match
+     * (written "\\1" in Sharp source; $1 is accepted as well); \\ gives a
+     * backslash. new regex("(\\w+)=(\\w+)").replace_all("a=1", "\\2=\\1") is "1=a".
+     * A text without a match is returned as an unchanged copy.
+     * Throws illegal_argument_exception if the replacement refers to a group
+     * the pattern does not have.
+     */
+    def replace_all(text: string, replacement: string): string {
+        return replace(text, replacement, 0);
+    }
+
+    /** Like replace_all, but only the first (leftmost) match is replaced. */
+    def replace_first(text: string, replacement: string): string {
+        return replace(text, replacement, 1);
+    }
+
+    /**
+     * The parts of the text between matches: new regex("\\s*,\\s*").split("a , b,c")
+     * is ["a", "b", "c"]. As with string.split, empty parts are kept
+     * (",a,".split gives ["", "a", ""]) and a text without a match gives an
+     * array holding the whole text. An EMPTY match never produces an empty
+     * part at the very start or end, so new regex("").split("abc") is ["a", "b", "c"].
+     */
+    def split(text: string): string[] {
+        return split(text, 0);
+    }
+
+    /**
+     * Like split(text), but returns at most `limit` parts: the last part
+     * holds the rest of the text. A limit of 0 means no limit.
+     * Throws illegal_argument_exception if limit is negative.
+     */
+    def split(text: string, limit: int): string[] {
+        if(limit.value < 0) throw new illegal_argument_exception("split: the limit cannot be negative: $limit");
+        t := text.data;
+        n : decimal = sizeof(t);
+        parts := new list<string>();
+        piece_start : decimal = 0;
+        from : decimal = 0;
+        while(from <= n && (limit.value == 0 || parts.size() < limit.value - 1) && search(t, n, from)) {
+            match_start : decimal = caps[0];
+            match_end : decimal = caps[1];
+            if(match_end == match_start) {
+                // an empty match: it only separates when it is strictly inside the text
+                if(match_start > 0 && match_start < n && match_start > piece_start) {
+                    parts.add(new string(t!!, piece_start, match_start));
+                    piece_start = match_start;
+                }
+                from = match_end + 1;
+            } else {
+                if(match_start > piece_start) parts.add(new string(t!!, piece_start, match_start));
+                else parts.add("");
+                piece_start = match_end;
+                from = match_end;
+            }
+        }
+        if(piece_start < n) parts.add(new string(t!!, piece_start, n));
+        else parts.add("");
+        return parts.get_elements()!!;
+    }
+
+    /** One-off test: true if `pattern` matches somewhere in `text`. Throws parse_exception for a bad pattern. */
+    static def is_match(pattern: string, text: string): bool {
+        return new regex(pattern).contains(text);
+    }
+
+    /** One-off test: true if the WHOLE `text` fits `pattern`. Throws parse_exception for a bad pattern. */
+    static def matches(pattern: string, text: string): bool {
+        return new regex(pattern).matches(text);
+    }
+
+    /**
+     * `text` with a backslash in front of every character that is special in
+     * a pattern, so the result matches exactly that text:
+     * regex.escape("1+1=2?") is the pattern 1\+1=2\?
+     */
+    static def escape(text: string): string {
+        d := text.data;
+        n : decimal = sizeof(d);
+        out := new char_buffer();
+        for(i : decimal = 0; i < n; i++) {
+            c : decimal = d[i];
+            if(c == '\\' || c == '.' || c == '*' || c == '+' || c == '?' || c == '(' || c == ')' || c == '['
+                || c == ']' || c == '{' || c == '}' || c == '|' || c == '^' || c == '$') {
+                out.append_char('\\');
+            }
+            out.append_char(c);
+        }
+        return out.build();
+    }
+}

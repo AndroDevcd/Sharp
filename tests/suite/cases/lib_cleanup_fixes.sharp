@@ -1,0 +1,146 @@
+mod main;
+
+import ( std.testing, std.io, std.util, std.math, std.collections, platform )
+
+/**
+ * What the library clean-up of November 2026 fixed and added, one test each:
+ * the mistakes the audit of 21 November 2026 found, and the functions that came
+ * with the merges (hash_map like the other maps, the locked collections as
+ * wrappers, char_buffer with what text_buffer had).
+ */
+
+def work(args: object[]) : int { return 0; }
+
+def test_strings() {
+    test("substring(3, 3) of \"abc\" is the empty text") { expect("abc".substring(3, 3)).should_be(""); };
+    test("substring(1, 2)") { expect("abc".substring(1, 2)).should_be("b"); };
+    try { "abc".substring(2, 5); test("substring past the end") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("substring past the end") { }; }
+    try { "abc".substring(4, 4); test("substring that starts past the end") { fail_test("did not throw"); }; } catch(e: out_of_bounds_exception) { test("substring that starts past the end") { }; }
+
+    builder := new string_builder("a");
+    test("builder + \"\" adds nothing") { expect((builder + "").to_string()!!).should_be("a"); };
+    test("builder + text") { expect((builder + "b").to_string()!!).should_be("ab"); };
+
+    buffer := new char_buffer();
+    test("last of an empty buffer") { expect(buffer.last()).should_be(0 - 1); };
+    buffer.append("abc").append_repeated('.', 2);
+    test("build") { expect(buffer.build()).should_be("abc.."); };
+    test("last") { expect(buffer.last()).should_be('.'); };
+    test("drop_last") { expect(buffer.drop_last().build()).should_be("abc."); };
+    test("clear gives the buffer back") { expect(buffer.clear().append("x").build()).should_be("x"); };
+
+    if(build.is_windows()) {
+        test("shell_quote: a back slash at the end is written twice") { expect(io_strings.shell_quote("C:\\dir\\")).should_be("\"C:\\dir\\\\\""); };
+    } else {
+        test("shell_quote: single quotes") { expect(io_strings.shell_quote("a b")).should_be("'a b'"); };
+    }
+}
+
+def test_numbers() {
+    test("a number as text: whole") { expect(number_to_string(3)).should_be("3"); };
+    test("a number as text: a fraction") { expect(number_to_string(2.5)).should_be("2.5"); };
+    test("a number as text: every digit that is needed") { expect(number_to_string(1.0 / 3)).should_be("0.3333333333333333"); };
+    test("a number as text: very small") { expect(number_to_string(1e-20)).should_be("1e-20"); };
+    test("io_strings and std.math agree") { expect(io_strings.number_to_string(1.5e300)).should_be(number_to_string(1.5e300)); };
+    small : decimal = 0.1;
+    test("...and so does a number added to a text") { expect("" + small).should_be(number_to_string(small)); };
+    test("NaN") { expect("" + NaN).should_be("NaN"); };
+    test("Infinity") { expect("" + POSITIVE_INFINITY).should_be("Infinity"); };
+    test("-Infinity") { expect(number_to_string(NEGATIVE_INFINITY)).should_be("-Infinity"); };
+
+    test("sqrt takes and gives a plain number") { expect(sqrt(16) + 1).should_be(5); };
+    test("floor") { expect(floor(0 - 2.5)).should_be(0 - 3); };
+    test("pow") { expect(pow(2, 10)).should_be(1024); };
+    test("atan2") { expect(atan2(0, 1)).should_be(0); };
+    test("is_nan") { expect_true(is_nan(NaN) && !is_nan(1)); };
+    test("is_infinite") { expect_true(is_infinite(POSITIVE_INFINITY) && is_infinite(NEGATIVE_INFINITY) && !is_infinite(1e300)); };
+
+    test("character: a question is answered with a bool") { expect_true(character.is_digit('7') && !character.is_digit('x')); };
+    test("character.digit_value in base 16") { expect(character.digit_value('f', 16)).should_be(15); };
+    test("character.to_upper") { expect(character.to_upper('q')).should_be('Q'); };
+    letter : char = 'g';
+    test("the same questions of a char object") { expect_true(letter.is_lower() && letter.is_letter() && !letter.is_digit()); };
+    test("to_upper of a char object") { expect(letter.to_upper().value).should_be('G'); };
+
+    test("crc32") { expect(hashing.crc32("123456789")).should_be(3421780262); };
+    test("crc32 of nothing") { expect(hashing.crc32("")).should_be(0); };
+    test("adler32") { expect(hashing.adler32("Wikipedia")).should_be(300286872); };
+    test("adler32 of nothing") { expect(hashing.adler32("")).should_be(1); };
+}
+
+def test_maps() {
+    tiny := new hash_map<string, int>(0);
+    tiny.put("one", 1);
+    tiny.put("two", 2);
+    test("a map made with 0 buckets works") { expect(tiny.at("two")!!.value).should_be(2); };
+    test("size()") { expect(tiny.size()).should_be(2); };
+    tiny.set_threshold(0.5);
+    for(i : _int64 = 0; i < 100; i++) { tiny.put("k" + i, new int(i)); }
+    test("set_threshold: the map still grows and finds") { expect(tiny.at("k77")!!.value).should_be(77); };
+    try { tiny.set_threshold(0); test("a threshold of 0") { fail_test("did not throw"); }; } catch(e: illegal_argument_exception) { test("a threshold of 0") { }; }
+
+    ages := new hash_map<string, int>();
+    ages.put("ann", 31);
+    test("at_or_default: there") { expect(ages.at_or_default("ann", 0).value).should_be(31); };
+    test("at_or_default: missing") { expect(ages.at_or_default("bob", 7).value).should_be(7); };
+    test("put_if_absent: new") { expect_true(ages.put_if_absent("bob", 45)); };
+    test("put_if_absent: there already") { expect_false(ages.put_if_absent("bob", 99)); };
+    test("...and nothing changed") { expect(ages.at("bob")!!.value).should_be(45); };
+    test("contains_value") { expect_true(ages.contains_value(45) && !ages.contains_value(99)); };
+    test("take gives the value") { expect(ages.take("bob")!!.value).should_be(45); };
+    test("...and removes the key") { expect_false(ages.contains_key("bob")); };
+    test("take of a missing key") { expect_null(ages.take("bob")); };
+    more := new hash_map<string, int>();
+    more.put("cid", 5);
+    more.put("ann", 32);
+    ages.put_all(more);
+    test("put_all") { expect(ages.size() * 100 + ages.at("ann")!!.value).should_be(232); };
+    text := "";
+    foreach(entry in ages.entries().sorted_by_text { it.key }) { text = text + entry.key + "=" + entry.value + ";"; }
+    test("entries have key and value") { expect(text).should_be("ann=32;cid=5;"); };
+
+    table := new hash_table<string, int>();
+    test("hash_table: put_if_absent") { expect_true(table.put_if_absent("a", 1) && !table.put_if_absent("a", 2)); };
+    test("hash_table: size and at") { expect(table.size() * 10 + table.at("a")!!.value).should_be(11); };
+    test("hash_table: entries") { expect(table.entries().at(0).key).should_be("a"); };
+
+    shared := new synced_list<int>();
+    shared.add(3); shared.add(1); shared.add(2);
+    shared.sort({ a: int, b: int -> (decimal) return a.value - b.value; });
+    test("synced_list: sort") { expect(shared.to_list().join_to_string(",")).should_be("1,2,3"); };
+    test("synced_list: index_of and contains") { expect_true(shared.index_of(2) == 1 && shared.contains(3) && !shared.is_empty()); };
+    test("synced_list: to_string") { expect(shared.to_string()!!).should_be("[ 1, 2, 3 ]"); };
+
+    numbers := list_of<int>(new int[] { 5, 3, 9, 1 });
+    numbers.sort({ a: int, b: int -> (decimal) return a.value - b.value; });
+    test("list.sort") { expect(numbers.join_to_string(",")).should_be("1,3,5,9"); };
+    test("index_of gives a plain number") { expect(numbers.index_of(5) + 1).should_be(3); };
+    test("is_empty and contains give a bool") { expect_true(!numbers.is_empty() && numbers.contains(9)); };
+    keys := new decimal[] { 30, 10, 20, 10 };
+    order := var_arrays.order_of(keys);
+    test("var_arrays.order_of: equal numbers keep their order") { expect("" + order[0] + order[1] + order[2] + order[3]).should_be("1320"); };
+}
+
+def test_threads() {
+    first := new thread("cleanup first", work);
+    second := new thread("cleanup second", work);
+    group := thread_group.main_group;
+    test("two threads that have not started are not the same thread") { expect_false(first == second); };
+    test("each is found in its group") { expect_true(group.find(first.get_id()) == first && group.find(second.get_id()) == second); };
+    before : _int64 = group.size();
+    test("remove takes one out") { expect_true(group.remove(first.get_id())); };
+    test("...once") { expect_false(group.remove(first.get_id())); };
+    test("the other is still there") { expect_true(group.find(second.get_id()) == second && group.size() == before - 1); };
+    group.remove(second.get_id());
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_cleanup_fixes") {
+        test_strings();
+        test_numbers();
+        test_maps();
+        test_threads();
+    };
+    finish_tests("lib_cleanup_fixes");
+}

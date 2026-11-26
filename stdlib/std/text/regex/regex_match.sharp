@@ -1,0 +1,131 @@
+mod std.text;
+
+/**
+ * regex_match
+ *
+ * One place where a std.text#regex matched: where it starts and ends, the
+ * matched text, and what each group "( ... )" of the pattern matched.
+ *
+ *     m := new regex("(\\w+)@(\\w+)").find("mail ada@example now");
+ *     m.value()       "ada@example"
+ *     m.start()       5          (index of the first matched character)
+ *     m.end()         16         (index just after the last one)
+ *     m.group(1)      "ada"
+ *     m.group(2)      "example"
+ *
+ * Group 0 is the whole match; groups are numbered from 1 by the position of
+ * their opening parenthesis. A group that took no part in the match - for
+ * example the "(b)" in "a|(b)" when "a" matched - has start and end -1 and
+ * the text ""; has_group(n) tells it apart from a group that matched "".
+ *
+ * Objects of this class are made by regex (find, find_all); a match keeps a
+ * reference to the text it was found in and does not change afterwards.
+ */
+class regex_match {
+    private text : string = "";
+
+    /* positions[2 * g] / positions[2 * g + 1] = start / end of group g, -1 if it did not take part */
+    private positions : decimal[]? = null;
+    private groups : decimal = 0;
+
+    /**
+     * Used by regex: a match in `text` with the group positions copied from
+     * `positions` (two numbers per group, group 0 first).
+     */
+    regex_match(text: string, positions: decimal[], group_total: decimal) {
+        self->text = text;
+        self->groups = group_total;
+        self->positions = new decimal[group_total * 2];
+        for(i : decimal = 0; i < group_total * 2; i++) {
+            self->positions[i] = positions[i];
+        }
+    }
+
+    /** Throws out_of_bounds_exception unless 0 <= group <= group_count(). */
+    private def check_group(index: decimal) {
+        if(index < 0 || index >= groups)
+            throw new out_of_bounds_exception("there is no group " + number_format.integer(index)
+                + "; the pattern has " + number_format.integer(groups - 1) + " groups");
+    }
+
+    /** Index of the first character of the match in the searched text. */
+    def start(): decimal {
+        return positions[0];
+    }
+
+    /** Index just after the last character of the match (start() == end() for an empty match). */
+    def end(): decimal {
+        return positions[1];
+    }
+
+    /** The number of characters matched (0 for an empty match). */
+    def length(): decimal {
+        return positions[1] - positions[0];
+    }
+
+    /** The matched text ("" for an empty match). */
+    def value(): string {
+        return group(0);
+    }
+
+    /** How many groups the pattern has, not counting group 0 (the whole match). */
+    def group_count(): decimal {
+        return groups - 1;
+    }
+
+    /**
+     * true if group `index` took part in the match (even if it matched "").
+     * Throws out_of_bounds_exception if the pattern has no such group.
+     */
+    def has_group(index: int): bool {
+        check_group(index.value);
+        return positions[index.value * 2] >= 0;
+    }
+
+    /**
+     * The text matched by group `index` (0 = the whole match); "" if the group
+     * matched nothing or took no part in the match.
+     * Throws out_of_bounds_exception if the pattern has no such group.
+     */
+    def group(index: int): string {
+        check_group(index.value);
+        from : decimal = positions[index.value * 2];
+        to : decimal = positions[index.value * 2 + 1];
+        if(from < 0 || to <= from) return new string();
+        return new string(text.data!!, from, to);
+    }
+
+    /**
+     * Index of the first character matched by group `index`, or -1 if the
+     * group took no part in the match.
+     * Throws out_of_bounds_exception if the pattern has no such group.
+     */
+    def group_start(index: int): decimal {
+        check_group(index.value);
+        return positions[index.value * 2];
+    }
+
+    /**
+     * Index just after the last character matched by group `index`, or -1 if
+     * the group took no part in the match.
+     * Throws out_of_bounds_exception if the pattern has no such group.
+     */
+    def group_end(index: int): decimal {
+        check_group(index.value);
+        return positions[index.value * 2 + 1];
+    }
+
+    /** All groups as an array: element 0 is the whole match, element n is group(n). */
+    def groups_array(): string[] {
+        result := new string[groups];
+        for(g : decimal = 0; g < groups; g++) {
+            result[g] = group(g);
+        }
+        return result;
+    }
+
+    /** The matched text, so a match can be printed directly. */
+    override def to_string() : string? {
+        return group(0);
+    }
+}

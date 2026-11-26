@@ -1,0 +1,38 @@
+// expect: E0341 E0342 E0402 E0506 E0301 E0605 E0302 E0301 E0350
+mod after_declaration_errors;
+
+import ( std, std.io )
+
+/**
+ * A MISTAKE IN A DECLARATION DOES NOT HIDE THE MISTAKES IN THE BODIES
+ *
+ * A misspelt type name (stage 3) and a class that lacks an interface function
+ * (stage 4) used to stop every body stage: one compile showed these two and
+ * nothing else. Now the bodies are analysed too; the broken name is the
+ * error type there, which sets off nothing, and what the bodies report is
+ * added - except a repeat of a message already given (same code, same place).
+ *
+ * What a broken declaration makes uncertain stays quiet: a class declared
+ * twice, or one whose base class was not found, is not told "you have no
+ * member named ...".
+ */
+
+interface priced { def price() : decimal; }
+class freebie : priced { name : string = "free"; }                      // E0341: price() is not defined
+class account { balance : decimal = 0; account(b: decimal) { balance = b; } }
+class measurer : sized { override def size_of(item: _int64) : _int64 { return 1; } }    // E0342 only (not also E0341)
+interface sized { def size_of(item: string) : _int64; }
+
+def misspelt_field() { a := new account(1.0); a.balanse = 2.0; }      // E0402
+def wrong_argument() { a := new account("ten"); }                       // E0506
+def wrong_type() { counts := new hash_mapp<string, int>(); }            // E0301 (and nothing more for this line)
+def no_return() : _int64 { }                                            // E0605
+
+class twin { }
+class twin { def only() { } }                                           // E0302
+class orphan base no_such_base { def q() { base->r(); self.w = 1; from_above(); } }   // E0301; its members are uncertain: quiet
+class crate<T> { v : T; }
+def uses_twin() { t := new twin(); t.only(); }                          // (which `twin`? nothing more is said)
+def uses_orphan() { o := new orphan(); o.inherited(); }                 // (may come from the base that was not found)
+def too_many() { c := new crate<int, int>(); }                          // E0350: a mistake in a body, still reported
+def main() { misspelt_field(); }

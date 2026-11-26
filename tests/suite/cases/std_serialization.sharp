@@ -1,0 +1,333 @@
+mod main;
+
+import ( std.testing, std.export )
+
+/**
+ * std.export: serialize(object) turns an object, and everything it refers to,
+ * into bytes (a char_array); deserialize(text) builds the objects again.
+ *
+ *     bytes := serialize(original);
+ *     copy  := deserialize(bytes.to_string()) as my_class;
+ *
+ * The copy is a NEW object that equals the original field by field: numbers,
+ * strings, number boxes, arrays, nested objects, null fields, and objects that
+ * refer to each other.
+ */
+
+class address {
+    street : string = "";
+    number : decimal = 0;
+
+    address(s: string, n: decimal) {
+        street = s;
+        number = n;
+    }
+}
+
+class person {
+    name : string = "";
+    age : decimal = 0;
+    height : decimal = 0;
+    home : address;                 // a nested object
+    work : address?;                // stays null in most tests
+    lucky : int = 0;                // a number box
+    scores : decimal[];                 // an array of numbers
+}
+
+class team {
+    title : string = "";
+    members : person[];             // an array of objects
+    lead : person;                  // the same object as one of the members
+}
+
+/** a list node: objects that point at each other */
+class node {
+    id : decimal = 0;
+    next : node?;
+
+    node(n: decimal) { id = n; }
+}
+
+class empty_thing {
+}
+
+class numbers_only {
+    whole : decimal = 0;
+    negative : decimal = 0;
+    fraction : decimal = 0;
+    large : decimal = 0;
+    tiny : decimal = 0;
+}
+
+def round_trip(original: object): object {
+    return deserialize(serialize(original).to_string());
+}
+
+def make_person(name: string, age: decimal): person {
+    p := new person();
+    p.name = name;
+    p.age = age;
+    p.height = 1.75;
+    p.home = new address("Main Street", 12);
+    p.lucky = 7;
+    p.scores = new decimal[3];
+    p.scores[0] = 90;
+    p.scores[1] = 85.5;
+    p.scores[2] = 0 - 4;
+    return p;
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("std_serialization") {
+        // ================= number fields
+        numbers := new numbers_only();
+        numbers.whole = 42;
+        numbers.negative = 0 - 17;
+        numbers.fraction = 0.125;
+        numbers.large = 123456789012;
+        numbers.tiny = 0.000001;
+        numbers_copy := round_trip(numbers) as numbers_only;
+        test("deserialize gives an object") { expect_not_null(numbers_copy); };
+        test("a whole number") { expect(numbers_copy.whole).should_be(42); };
+        test("a negative number") { expect(numbers_copy.negative).should_be(0 - 17); };
+        test("a fraction") { expect(numbers_copy.fraction).should_be(0.125); };
+        test("a large number") { expect(numbers_copy.large).should_be(123456789012); };
+        test("a small fraction") { expect(numbers_copy.tiny).should_be_near(0.000001, 0.000000000001); };
+        test("the copy is another object") { expect_false(numbers_copy == numbers); };
+
+        // ---- fields left at their default
+        defaults := round_trip(new numbers_only()) as numbers_only;
+        test("a field that was never set stays 0") { expect(defaults.whole + defaults.negative + defaults.fraction).should_be(0); };
+
+        // ================= string fields and a nested object
+        home := new address("Elm Road", 221);
+        home_copy := round_trip(home) as address;
+        test("a string field") { expect(home_copy.street).should_be("Elm Road"); };
+        test("a number next to it") { expect(home_copy.number).should_be(221); };
+
+        // ---- changing the copy does not change the original, and the other way round
+        home_copy.street = "changed";
+        home_copy.number = 1;
+        test("the original keeps its string") { expect(home.street).should_be("Elm Road"); };
+        test("the original keeps its number") { expect(home.number).should_be(221); };
+        home.number = 500;
+        test("the copy keeps its number") { expect(home_copy.number).should_be(1); };
+
+        // ---- special strings
+        odd := round_trip(new address("", 0)) as address;
+        test("an empty string field: the number next to it") { expect(odd.number).should_be(0); };
+        spaced := round_trip(new address("two words, and: punctuation!", 3)) as address;
+        test("spaces and punctuation") { expect(spaced.street).should_be("two words, and: punctuation!"); };
+        lines := round_trip(new address("first\nsecond\tend", 3)) as address;
+        test("line break and tab") { expect(lines.street).should_be("first\nsecond\tend"); };
+        long_name : string = "";
+        for(i : decimal = 0; i < 100; i++) {
+            long_name = long_name + "0123456789";
+        }
+        long_copy := round_trip(new address(long_name, 9)) as address;
+        test("a 1000 character string: length") { expect(long_copy.street.size()).should_be(1000); };
+        test("a 1000 character string: content") { expect_true((long_copy.street == long_name)); };
+
+        // ================= an object with every kind of field
+        ann := make_person("Ann", 34);
+        ann_copy := round_trip(ann) as person;
+        test("person: string") { expect(ann_copy.name).should_be("Ann"); };
+        test("person: number") { expect(ann_copy.age).should_be(34); };
+        test("person: fraction") { expect(ann_copy.height).should_be(1.75); };
+        test("person: number box") { expect(ann_copy.lucky.value).should_be(7); };
+        test("person: nested object") { expect_not_null(ann_copy.home); };
+        test("person: string of the nested object") { expect(ann_copy.home.street).should_be("Main Street"); };
+        test("person: number of the nested object") { expect(ann_copy.home.number).should_be(12); };
+        test("person: a null field stays null") { expect_null(ann_copy.work); };
+        test("person: number array, size") { expect(sizeof(ann_copy.scores)).should_be(3); };
+        test("person: number array, element 0") { expect(ann_copy.scores[0]).should_be(90); };
+        test("person: number array, element 1") { expect(ann_copy.scores[1]).should_be(85.5); };
+        test("person: number array, element 2") { expect(ann_copy.scores[2]).should_be(0 - 4); };
+        test("the nested object is a copy too") { expect_false(ann_copy.home == ann.home); };
+        ann_copy.home.number = 99;
+        test("changing the nested copy leaves the original") { expect(ann.home.number).should_be(12); };
+        ann_copy.scores[0] = 1;
+        test("changing the copied array leaves the original") { expect(ann.scores[0]).should_be(90); };
+
+        // ---- the field that was null, now set
+        ann.work = new address("Office Park", 3);
+        ann_copy = round_trip(ann) as person;
+        test("a nullable field that is set") { expect_not_null(ann_copy.work); };
+        test("...and its content") { expect(ann_copy.work!!.street).should_be("Office Park"); };
+        test("the other nested object is still right") { expect(ann_copy.home.street).should_be("Main Street"); };
+
+        // ---- an object with no fields
+        nothing_in_it := round_trip(new empty_thing()) as empty_thing;
+        test("an object without fields") { expect_not_null(nothing_in_it); };
+
+        // ================= arrays of objects, and one object referred to twice
+        crew := new team();
+        crew.title = "crew";
+        crew.members = new person[3];
+        crew.members[0] = make_person("Bo", 20);
+        crew.members[1] = make_person("Cy", 30);
+        // members[2] stays null
+        crew.lead = crew.members[1];
+        crew_copy := round_trip(crew) as team;
+        test("team: string") { expect(crew_copy.title).should_be("crew"); };
+        test("team: object array, size") { expect(sizeof(crew_copy.members)).should_be(3); };
+        test("team: first member") { expect(crew_copy.members[0].name).should_be("Bo"); };
+        test("team: first member's age") { expect(crew_copy.members[0].age).should_be(20); };
+        test("team: second member") { expect(crew_copy.members[1].name).should_be("Cy"); };
+        test("team: three levels deep") { expect(crew_copy.members[1].home.street).should_be("Main Street"); };
+        test("team: a null array element stays null") { expect_null(crew_copy.members[2]); };
+        test("team: the lead") { expect(crew_copy.lead.name).should_be("Cy"); };
+        test("an object referred to twice is ONE object in the copy too") { expect_true(crew_copy.lead == crew_copy.members[1]); };
+        crew_copy.lead.age = 31;
+        test("...so a change through one reference shows through the other") { expect(crew_copy.members[1].age).should_be(31); };
+        test("...and the original is untouched") { expect(crew.members[1].age).should_be(30); };
+
+        // ================= objects that point at each other
+        // ---- a chain: 1 -> 2 -> 3
+        first := new node(1);
+        second := new node(2);
+        third := new node(3);
+        first.next = second;
+        second.next = third;
+        chain := round_trip(first) as node;
+        test("chain: first") { expect(chain.id).should_be(1); };
+        test("chain: second") { expect(chain.next!!.id).should_be(2); };
+        test("chain: third") { expect(chain.next!!.next!!.id).should_be(3); };
+        test("chain: the end is null") { expect_null(chain.next!!.next!!.next); };
+
+        // ---- a ring: 1 -> 2 -> 3 -> 1
+        third.next = first;
+        ring := round_trip(first) as node;
+        test("ring: first") { expect(ring.id).should_be(1); };
+        test("ring: third") { expect(ring.next!!.next!!.id).should_be(3); };
+        test("ring: the third one points back at the first COPY") { expect_true(ring.next!!.next!!.next == ring); };
+        test("ring: not at the original") { expect_false(ring.next!!.next!!.next == first); };
+
+        // ---- an object that points at itself
+        loner := new node(9);
+        loner.next = loner;
+        loner_copy := round_trip(loner) as node;
+        test("self reference: the number") { expect(loner_copy.id).should_be(9); };
+        test("self reference: points at itself") { expect_true(loner_copy.next == loner_copy); };
+
+        // ---- a long chain: 200 nodes
+        head := new node(0);
+        tail := head;
+        for(i : decimal = 1; i < 200; i++) {
+            fresh := new node(i);
+            tail.next = fresh;
+            tail = fresh;
+        }
+        long_chain := round_trip(head) as node;
+        length : decimal = 0;
+        id_sum : decimal = 0;
+        walker : node? = long_chain;
+        while(walker != null) {
+            length++;
+            id_sum += walker!!.id;
+            walker = walker!!.next;
+        }
+        test("200 nodes: length") { expect(length).should_be(200); };
+        test("200 nodes: the ids 0..199 added up") { expect(id_sum).should_be(19900); };
+
+        // ================= a string on its own
+        text : string = "just a string";
+        text_copy := round_trip(text) as string;
+        test("a string as the whole object") { expect(text_copy).should_be("just a string"); };
+
+        // ================= the bytes
+        ann_bytes := serialize(ann);
+        test("serialize gives bytes") { expect_true(sizeof(ann_bytes.data) > 0); };
+        again := serialize(ann);
+        test("the same object serializes to the same bytes") { expect_true((ann_bytes.to_string() == again.to_string())); };
+        ann.age = 35;
+        changed := serialize(ann);
+        test("a changed object serializes to other bytes") { expect_false((ann_bytes.to_string() == changed.to_string())); };
+        ann.age = 34;
+
+        // ---- the bytes can be kept and used later, and more than once
+        kept := ann_bytes.to_string();
+        one := deserialize(kept) as person;
+        two := deserialize(kept) as person;
+        test("deserialize twice from the same bytes: first") { expect(one.name).should_be("Ann"); };
+        test("deserialize twice from the same bytes: second") { expect(two.name).should_be("Ann"); };
+        test("...gives two separate objects") { expect_false(one == two); };
+
+        // ---- a round trip of a round trip
+        twice := round_trip(round_trip(ann)) as person;
+        test("round trip twice: string") { expect(twice.name).should_be("Ann"); };
+        test("round trip twice: nested number") { expect(twice.home.number).should_be(12); };
+        test("round trip twice: array element") { expect(twice.scores[1]).should_be(85.5); };
+
+        // ---- text that is not serialized data is refused
+        threw : decimal = 0;
+        try {
+            deserialize("this was never serialized");
+        } catch(e: exception) {
+            threw = 1;
+        }
+        test("deserialize of other text throws") { expect(threw).should_be(1); };
+
+        // ---- bytes that end too soon are refused, wherever they are cut
+        refused : decimal = 0;
+        cuts : decimal = 0;
+        for(cut : _int64 = 1; cut < kept.size(); cut = cut + 7) {
+            cuts++;
+            try {
+                deserialize(kept.substring(0, cut));
+            } catch(e: exception) {
+                refused++;
+            }
+        }
+        test("bytes cut off at any place throw") { expect(refused).should_be(cuts); };
+        test("...and the whole bytes still read afterwards") { expect((deserialize(kept) as person).name).should_be("Ann"); };
+
+        // ---- a chain of 300 000 objects, each referring to the next: it is as deep as it is long
+        chain_first := new node(0);
+        chain_last := chain_first;
+        for(i : _int64 = 1; i < 300000; i++) {
+            link := new node(i);
+            chain_last.next = link;
+            chain_last = link;
+        }
+        chain_copy := round_trip(chain_first) as node;
+        links : _int64 = 0;
+        in_order : bool = true;
+        at : node? = chain_copy;
+        while(at != null) {
+            if(at!!.id != links) { in_order = false; }
+            links++;
+            at = at!!.next;
+        }
+        test("a chain of 300 000 objects: all of them come back") { expect(links).should_be(300000); };
+        test("a chain of 300 000 objects: in order") { expect_true(in_order); };
+
+        // ---- a large array of numbers, and many small objects in one array
+        many_scores := make_person("scores", 1);
+        many_scores.scores = new decimal[200000];
+        for(i : _int64 = 0; i < 200000; i++) { many_scores.scores[i] = i * 0.5; }
+        scores_copy := round_trip(many_scores) as person;
+        test("an array of 200 000 numbers: its length") { expect(sizeof(scores_copy.scores)).should_be(200000); };
+        test("an array of 200 000 numbers: the last one") { expect(scores_copy.scores[199999]).should_be(99999.5); };
+        crowd := new team();
+        crowd.title = "crowd";
+        crowd.members = new person[20000];
+        for(i : _int64 = 0; i < 20000; i++) { crowd.members[i] = make_person("member " + i, i); }
+        crowd.lead = crowd.members[19999];
+        crowd_copy := round_trip(crowd) as team;
+        test("20 000 objects in an array: the last one") { expect(crowd_copy.members[19999].name).should_be("member 19999"); };
+        test("20 000 objects in an array: one in the middle") { expect(crowd_copy.members[7777].age).should_be(7777); };
+        test("...and the one two fields share is one object") { expect_true(crowd_copy.lead == crowd_copy.members[19999]); };
+
+        // ---- many round trips
+        good : decimal = 0;
+        for(i : decimal = 0; i < 200; i++) {
+            p := make_person("loop", i);
+            back := round_trip(p) as person;
+            if(back.age == i && back.home.number == 12) good++;
+        }
+        test("200 round trips in a loop") { expect(good).should_be(200); };
+    };
+    finish_tests("std_serialization");
+}

@@ -1,0 +1,26 @@
+mod main;
+
+/**
+ * The first program: it uses a little of the standard library (a list, text,
+ * numbers), so when it runs, the compiler, the library and the VM all work.
+ *
+ *      sharpc hello.sharp -o hello        compile
+ *      sharp hello                        run
+ */
+def main(args: string[]) {
+    words := new list<string>();
+    words.add("Hello");
+    words.add("from");
+    words.add("Sharp");
+
+    line := "";
+    for(i : _int64 = 0; i < words.size(); i++) {
+        if(i > 0) { line = line + " "; }
+        line = line + words.at(i);
+    }
+
+    total : _int64 = 0;
+    for(n : _int64 = 1; n <= 10; n++) { total += n; }
+
+    println(line + "! 1 + 2 + ... + 10 = " + total);
+}

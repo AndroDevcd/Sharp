@@ -1,0 +1,293 @@
+mod std.text;
+
+/**
+ * scanner
+ *
+ * Reads words, numbers and lines out of a text, one after the other (like
+ * Java's Scanner, but over a string):
+ *
+ *     input := new scanner("width 42 3.5\nsecond line");
+ *     name  := input.next();             // "width"
+ *     count := input.next_int();         // 42
+ *     ratio := input.next_double();      // 3.5
+ *     input.next_line();                 // "" (the rest of the first line)
+ *     rest  := input.next_line();        // "second line"
+ *
+ * Tokens are separated by whitespace (space, tab, \n, \r, vertical tab, form
+ * feed), or by the characters given to the two-argument constructor. Any
+ * number of separators may sit between two tokens.
+ *
+ * The has_next... functions look ahead without reading anything, so the usual
+ * pattern is `while(input.has_next_int()) { total += input.next_int(); }`.
+ * A next_int / next_double / next_bool that finds a token of the wrong kind
+ * throws number_format_exception and does NOT read the token, so it can still
+ * be read with next(). Every next... throws no_such_element_exception when
+ * the text is used up.
+ *
+ * To read user input, read a line with read_line() and scan that.
+ */
+class scanner {
+    private text : string = "";
+
+    /* number of characters in text */
+    private size : decimal = 0;
+
+    /* index of the next character that has not been read */
+    private cursor : decimal = 0;
+
+    /* the separator characters; empty = whitespace */
+    private separators : string = "";
+
+    /** A scanner over `text` with tokens separated by whitespace. */
+    scanner(text: string) {
+        self->text = text;
+        size = sizeof(text.data);
+    }
+
+    /**
+     * A scanner over `text` with tokens separated by any character of
+     * `separators` (for example ",;"). Whitespace is then part of the tokens
+     * unless it is listed too. An empty string means whitespace.
+     */
+    scanner(text: string, separators: string) {
+        self->text = text;
+        self->separators = separators;
+        size = sizeof(text.data);
+    }
+
+    /** true if the character `c` separates tokens. */
+    private def is_separator(c: decimal): bool {
+        m : decimal = sizeof(separators.data);
+        if(m == 0) return c == ' ' || (c >= 9 && c <= 13);
+
+        for(j : decimal = 0; j < m; j++) {
+            if(separators.data[j] == c) return true;
+        }
+        return false;
+    }
+
+    /** Position of the first character of the next token (size if there is none). Reads nothing. */
+    private def token_start(): decimal {
+        at : decimal = cursor;
+        while(at < size && is_separator(text.data[at])) {
+            at++;
+        }
+        return at;
+    }
+
+    /** Position just after the token that starts at `start`. */
+    private def token_end(start: decimal): decimal {
+        at : decimal = start;
+        while(at < size && !is_separator(text.data[at])) {
+            at++;
+        }
+        return at;
+    }
+
+    /** The next token without reading it, or null if there is none. */
+    private def peek_token(): string? {
+        start : decimal = token_start();
+        if(start >= size) return null;
+        return new string(text.data!!, start, token_end(start));
+    }
+
+    /** The next token without reading it; throws no_such_element_exception (naming `what`) if there is none. */
+    private def required_token(what: string): string {
+        token := peek_token();
+        if((token as object) == null)
+            throw new no_such_element_exception("$what: there is no more input");
+        return token!!;
+    }
+
+    /** Moves past the next token (which must exist). */
+    private def consume_token() {
+        cursor = token_end(token_start());
+    }
+
+    // ------------------------------------------------------------------ words
+
+    /** true if there is another token. Reads nothing. */
+    def has_next(): bool {
+        return token_start() < size;
+    }
+
+    /**
+     * Reads the next token and returns it.
+     * Throws no_such_element_exception if there is none.
+     */
+    def next(): string {
+        token := required_token("next");
+        consume_token();
+        return token;
+    }
+
+    /** Reads the next token and returns it, or returns `fallback` (reading nothing) if there is none. */
+    def next_or(fallback: string): string {
+        if(!has_next()) return fallback;
+        return next();
+    }
+
+    /** The next token without reading it, or "" if there is none. */
+    def peek(): string {
+        token := peek_token();
+        if((token as object) == null) return new string();
+        return token!!;
+    }
+
+    // ------------------------------------------------------------------ numbers and bools
+
+    /** true if the next token is a whole number that next_int() would accept. Reads nothing. */
+    def has_next_int(): bool {
+        token := peek_token();
+        if((token as object) == null) return false;
+        return number_parser.is_long(token!!);
+    }
+
+    /**
+     * Reads the next token as a whole number (range -9007199254740991 ..
+     * 9007199254740991) and returns it.
+     * Throws number_format_exception if the token is not a whole number (it is
+     * then not read), no_such_element_exception if there is no token.
+     */
+    def next_int(): decimal {
+        token := required_token("next_int");
+        value : decimal = number_parser.parse_long(token);     // throws before anything is consumed
+        consume_token();
+        return value;
+    }
+
+    /**
+     * Reads the next token as a whole number; if there is no token or it is
+     * not a whole number, returns `fallback` and reads nothing.
+     */
+    def next_int_or(fallback: long): decimal {
+        if(!has_next_int()) return fallback.value;
+        return next_int();
+    }
+
+    /** true if the next token is a number that next_double() would accept ("12", "-1.5", "1e3"). Reads nothing. */
+    def has_next_double(): bool {
+        token := peek_token();
+        if((token as object) == null) return false;
+        return number_parser.is_double(token!!);
+    }
+
+    /**
+     * Reads the next token as a decimal number and returns it.
+     * Throws number_format_exception if the token is not a number (it is then
+     * not read), no_such_element_exception if there is no token.
+     */
+    def next_double(): decimal {
+        token := required_token("next_double");
+        value : decimal = number_parser.parse_double(token);
+        consume_token();
+        return value;
+    }
+
+    /**
+     * Reads the next token as a decimal number; if there is no token or it is
+     * not a number, returns `fallback` and reads nothing.
+     */
+    def next_double_or(fallback: double): decimal {
+        if(!has_next_double()) return fallback.value;
+        return next_double();
+    }
+
+    /** true if the next token is "true" or "false" (capital / small letters do not matter). Reads nothing. */
+    def has_next_bool(): bool {
+        token := peek_token();
+        if((token as object) == null) return false;
+        return number_parser.parse_bool_or(token!!, false) || token!!.equals_ignore_case("false");
+    }
+
+    /**
+     * Reads the next token as a bool and returns 1 for "true", 0 for "false".
+     * Throws number_format_exception if the token is something else (it is
+     * then not read), no_such_element_exception if there is no token.
+     */
+    def next_bool(): decimal {
+        token := required_token("next_bool");
+        value : decimal = number_parser.parse_bool(token);
+        consume_token();
+        return value;
+    }
+
+    // ------------------------------------------------------------------ lines and raw text
+
+    /** true if there is anything left to read as a line (even an empty last line needs at least one unread character). */
+    def has_next_line(): bool {
+        return cursor < size;
+    }
+
+    /**
+     * Reads the rest of the current line and returns it WITHOUT the line end
+     * ("\n", "\r\n" or "\r"), which is read too. Separators are not skipped:
+     * after reading the last token of a line, next_line() returns what is
+     * left of that line (often ""), exactly as in Java.
+     * Throws no_such_element_exception if everything has been read.
+     */
+    def next_line(): string {
+        if(cursor >= size)
+            throw new no_such_element_exception("next_line: there is no more input");
+
+        start : decimal = cursor;
+        while(cursor < size && text.data[cursor] != '\n' && text.data[cursor] != '\r') {
+            cursor++;
+        }
+        line : string = "";
+        if(cursor > start) line = new string(text.data!!, start, cursor);
+
+        if(cursor < size) {
+            if(text.data[cursor] == '\r' && cursor + 1 < size && text.data[cursor + 1] == '\n') cursor += 2;
+            else cursor++;
+        }
+        return line;
+    }
+
+    /**
+     * If the next token is exactly `expected`, reads it and returns 1;
+     * otherwise reads nothing and returns 0.
+     */
+    def skip(expected: string): bool {
+        token := peek_token();
+        if((token as object) == null) return false;
+        if(token!! != expected) return false;
+        consume_token();
+        return true;
+    }
+
+    /** Everything that has not been read yet, exactly as it is in the text. Reads nothing. */
+    def remaining(): string {
+        if(cursor >= size) return new string();
+        return new string(text.data!!, cursor, size);
+    }
+
+    /** Index of the next unread character: 0 at the start, the length of the text at the end. */
+    def position(): decimal {
+        return cursor;
+    }
+
+    /** All remaining tokens as an array; the scanner is at the end afterwards. No tokens gives an array of length 0. */
+    def to_array(): string[] {
+        // count first, so the array can be made at its final size
+        saved : decimal = cursor;
+        total : decimal = 0;
+        while(has_next()) {
+            consume_token();
+            total++;
+        }
+        cursor = saved;
+
+        result := new string[total];
+        for(i : decimal = 0; i < total; i++) {
+            result[i] = next();
+        }
+        return result;
+    }
+
+    /** Starts again from the beginning of the text. */
+    def reset(): scanner {
+        cursor = 0;
+        return self;
+    }
+}

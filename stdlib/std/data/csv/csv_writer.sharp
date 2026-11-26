@@ -1,0 +1,226 @@
+mod std.data;
+
+import ( std.io )
+
+/**
+ * Writes CSV (comma separated values) text: rows of fields, quoted where
+ * needed so that a csv_reader with the same settings reads back exactly the
+ * same fields.
+ *
+ *     out := new csv_writer();
+ *     out.write_field("name").write_field("age").end_row();
+ *     out.write_field("Smith, John").write_number(41).end_row();
+ *     out.to_string()        // name,age\n"Smith, John",41\n
+ *     out.save(new file("people.csv"));
+ *
+ *     text := csv_writer.format(rows);      // rows: list<csv_row>
+ *
+ * A field is put in quotes when it contains the separator, a quote, a line
+ * end, or starts or ends with a space or tab (so that readers which trim do
+ * not change it); a quote inside is written twice. set_always_quote(true)
+ * quotes every field.
+ *
+ * Rows end with "\n" unless set_line_end() says otherwise ("\r\n" is what
+ * the CSV standard and Excel use).
+ *
+ * The text is collected in memory. Not thread safe.
+ */
+class csv_writer {
+    private buf : char_buffer;
+    private separator : decimal = ',';
+    private quote : decimal = '"';
+    private line_end : string = "\n";
+    private always_quote : decimal = 0;
+
+    /** fields written in the row that is being written */
+    private fields_in_row : decimal = 0;
+    /** the length of the text when the current row began */
+    private row_start : decimal = 0;
+    private rows_written : decimal = 0;
+
+    /** a writer with the default settings: comma, double quote, "\n" */
+    csv_writer() {
+        buf = new char_buffer(256);
+    }
+
+    /** the CSV text for `rows` with the default settings */
+    static def format(rows: list<csv_row>) : string {
+        out := new csv_writer();
+        out.write_rows(rows);
+        return out.to_string()!!;
+    }
+
+    /** the CSV text for `rows` with the fields separated by `separator`. Throws csv_exception for an impossible separator. */
+    static def format(rows: list<csv_row>, separator: decimal) : string {
+        out := new csv_writer();
+        out.set_separator(separator);
+        out.write_rows(rows);
+        return out.to_string()!!;
+    }
+
+    /**
+     * Separate fields with the character `ch` instead of the comma. Returns
+     * this writer.
+     * Throws csv_exception when `ch` is the quote character or a line end.
+     */
+    def set_separator(ch: decimal) : csv_writer {
+        if(ch == quote || ch == '\n' || ch == '\r') {
+            throw new csv_exception("the separator cannot be the quote character or a line end");
+        }
+        separator = ch;
+        return self;
+    }
+
+    /**
+     * Enclose fields with the character `ch` instead of the double quote.
+     * Returns this writer.
+     * Throws csv_exception when `ch` is the separator or a line end.
+     */
+    def set_quote(ch: decimal) : csv_writer {
+        if(ch == separator || ch == '\n' || ch == '\r') {
+            throw new csv_exception("the quote character cannot be the separator or a line end");
+        }
+        quote = ch;
+        return self;
+    }
+
+    /** end rows with `ending` ("\n" by default; "\r\n" for the standard form). Returns this writer. */
+    def set_line_end(ending: string) : csv_writer {
+        line_end = ending;
+        return self;
+    }
+
+    /** put every field in quotes (true) or only those that need it (false, the default). Returns this writer. */
+    def set_always_quote(enabled: bool) : csv_writer {
+        if(enabled) { always_quote = 1; } else { always_quote = 0; }
+        return self;
+    }
+
+    /** true when the field has to be quoted to be read back unchanged */
+    private def needs_quote(field: string) : bool {
+        n : decimal = sizeof(field.data);
+        if(n == 0) {
+            return false;
+        }
+        first : decimal = field.data[0];
+        last : decimal = field.data[n - 1];
+        if(first == ' ' || first == '\t' || last == ' ' || last == '\t') {
+            return true;
+        }
+        for(i : decimal = 0; i < n; i++) {
+            ch : decimal = field.data[i];
+            if(ch == separator || ch == quote || ch == '\n' || ch == '\r') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Add a field to the current row, with a separator in front when it is
+     * not the first, quoted when needed. Returns this writer so calls can
+     * be chained.
+     */
+    def write_field(field: string) : csv_writer {
+        if(fields_in_row > 0) {
+            buf.append_char(separator);
+        }
+        fields_in_row++;
+
+        if(always_quote || needs_quote(field)) {
+            buf.append_char(quote);
+            n : decimal = sizeof(field.data);
+            for(i : decimal = 0; i < n; i++) {
+                ch : decimal = field.data[i];
+                if(ch == quote) {
+                    buf.append_char(quote);
+                }
+                buf.append_char(ch);
+            }
+            buf.append_char(quote);
+        } else {
+            buf.append(field);
+        }
+        return self;
+    }
+
+    /** add a number as a field, written the short way ("3", "0.5"). Returns this writer. */
+    def write_number(value: decimal) : csv_writer {
+        return write_field(io_strings.number_to_string(value));
+    }
+
+    /**
+     * Finish the current row: write the line end. A row without fields is
+     * written as an empty line (which a reader skips by default). Returns
+     * this writer.
+     */
+    def end_row() : csv_writer {
+        if(fields_in_row == 1 && buf.length() == row_start) {
+            // a row of one empty field would be an empty line, which readers skip: write it as ""
+            buf.append_char(quote);
+            buf.append_char(quote);
+        }
+        buf.append(line_end);
+        row_start = buf.length();
+        fields_in_row = 0;
+        rows_written++;
+        return self;
+    }
+
+    /**
+     * Write a whole row: all strings of `fields`, then the line end. A row
+     * that was started with write_field() is finished first. Returns this
+     * writer.
+     */
+    def write_row(fields: list<string>) : csv_writer {
+        if(fields_in_row > 0) {
+            end_row();
+        }
+        total : decimal = fields.size();
+        for(i : decimal = 0; i < total; i++) {
+            write_field(fields.at(i));
+        }
+        return end_row();
+    }
+
+    /** write a whole row: all fields of `row`, then the line end. Returns this writer. */
+    def write_row(row: csv_row) : csv_writer {
+        return write_row(row.fields());
+    }
+
+    /** write every row of `rows` with write_row(). Returns this writer. */
+    def write_rows(rows: list<csv_row>) : csv_writer {
+        total : decimal = rows.size();
+        for(i : decimal = 0; i < total; i++) {
+            write_row(rows.at(i));
+        }
+        return self;
+    }
+
+    /** how many rows have been finished so far */
+    def get_rows_written() : decimal {
+        return rows_written;
+    }
+
+    /** everything written so far (a row that was started but not ended is included as far as it got) */
+    override def to_string() : string? {
+        return buf.to_string();
+    }
+
+    /**
+     * Replace the content of the file `target` with everything written so
+     * far.
+     * Throws io_exception when the file cannot be written.
+     */
+    def save(target: file) {
+        target.write_text(buf.build());
+    }
+
+    /** forget everything written; the settings stay */
+    def clear() {
+        buf.clear();
+        row_start = 0;
+        fields_in_row = 0;
+        rows_written = 0;
+    }
+}

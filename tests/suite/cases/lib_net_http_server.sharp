@@ -1,0 +1,213 @@
+mod main;
+
+import ( std.testing, std.io, std.net, std.data )
+
+/**
+ * std.net: http_server and web_socket - a server inside this program on
+ * this machine's own address (any free port), asked by the HTTP client of
+ * the same library, and websockets between the two.
+ */
+
+class user {
+    id : _int64 = 0;
+    name : string = "";
+}
+
+class new_user {
+    name : string = "";
+    age : _int64 = 0;
+}
+
+class store {
+    static users : list<user> = new list<user>();
+    static before_seen : decimal = 0;
+    static socket_said : string = "";
+}
+
+def add_user(name: string) : user {
+    made := new user();
+    made.id = store.users.size() + 1;
+    made.name = name;
+    store.users.add(made);
+    return made;
+}
+
+def find_user(id: _int64) : user? {
+    for(i : _int64 = 0; i < store.users.size(); i++) {
+        if(store.users.at(i).id == id) { return store.users.at(i); }
+    }
+    return null;
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_net_http_server") {
+        add_user("ann");
+        add_user("bob");
+
+        // a folder of files to serve
+        folder := new file("http_server_case_files");
+        folder.mkdir();
+        new file("http_server_case_files/hello.txt").write_text("a file");
+        new file("http_server_case_files/index.html").write_text("<h1>index</h1>");
+
+        server := new http_server();
+        server.show_errors = false;
+        server.workers = 4;
+        server.before {
+            store.before_seen++;
+            if(it.path() == "/secret" && it.header("Authorization") == null) { it.status(401).text("who are you?"); }
+        };
+        server.after { it.header("X-Server", "suite"); };
+        server.GET("/hello") { it.text("hello"); };
+        server.GET("/page") { it.html("<p>hi</p>"); };
+        server.GET("/users") { it.json(store.users); };
+        server.GET("/users/{id}") {
+            found := find_user(it.number("id"));
+            if(found == null) { throw new http_error(404, "no such user"); }
+            it.json(found!!);
+        };
+        server.POST("/users") {
+            wanted := it.body<new_user>();
+            if(sizeof(wanted.name.data) == 0) { throw new http_error(422, "a user needs a name"); }
+            it.status(201).json(add_user(wanted.name));
+        };
+        server.DELETE("/users/{id}") { it.status(204); };
+        server.PUT("/echo/{first}/{second}") {
+            it.text(it.method() + "|" + it.path("first") + "|" + it.path("second") + "|" + it.query_or("q", "-") + "|" + it.body_text() + "|" + it.header("X-Mine")!!);
+        };
+        server.GET("/secret") { it.text("the secret"); };
+        server.GET("/broken") { numbers := new _int64[1]; index : _int64 = 5; numbers[index] = 1; it.text("never"); };
+        server.GET("/away") { it.redirect("/hello"); };
+        server.GET("/nothing") { };
+        server.GET("/bytes") { raw := new _int8[3]; raw[0] = 1; raw[1] = 2; raw[2] = 3; it.bytes(raw, "application/octet-stream"); };
+        server.files("/static", "http_server_case_files");
+        server.socket("/echo-socket/{room}") {
+            store.socket_said = "open";
+            while(true) {
+                message := it.receive();
+                if(message == null) { break; }
+                if(message!!.is_text()) { it.send("you said: " + message!!.text()); }
+                else { it.send_bytes(message!!.bytes()); }
+            }
+            store.socket_said = "closed";
+        };
+
+        port : _int64 = server.start(0, true);
+        root : string = "http://127.0.0.1:" + port;
+        test("the server has a port") { expect_true(port > 0); };
+        test("... and says so") { expect(server.port()).should_be(port); };
+        test("it is running") { expect_true(server.is_running()); };
+
+        // ---------------------------------------------------------------- routes
+        hello := http.GET(root + "/hello");
+        test("text: status") { expect(hello.status).should_be(200); };
+        test("text: the body") { expect(hello.text()).should_be("hello"); };
+        test("text: its type") { expect(hello.header("Content-Type")!!).should_be("text/plain; charset=utf-8"); };
+        test("the after hook's header") { expect(hello.header("X-Server")!!).should_be("suite"); };
+        test("html") { expect(http.GET(root + "/page").header("Content-Type")!!).should_be("text/html; charset=utf-8"); };
+        everyone := http.GET(root + "/users");
+        test("a list as json") { expect(everyone.text()).should_be("[{\"id\":1,\"name\":\"ann\"},{\"id\":2,\"name\":\"bob\"}]"); };
+        test("... its type") { expect(everyone.header("Content-Type")!!).should_be("application/json"); };
+        test("a part in braces") { expect(http.GET(root + "/users/2").json().string_or("name", "")).should_be("bob"); };
+        missing := http.GET(root + "/users/9");
+        test("http_error: the status") { expect(missing.status).should_be(404); };
+        test("http_error: the message") { expect(missing.json().string_or("error", "")).should_be("no such user"); };
+        test("a part that is not a number") { expect(http.GET(root + "/users/abc").status).should_be(400); };
+        made := http.POST(root + "/users") { it.json("name", "cy"); it.json("age", 30); };
+        test("POST: the status the handler set") { expect(made.status).should_be(201); };
+        test("POST: the body as an object, and an object back") { expect(made.text()).should_be("{\"id\":3,\"name\":\"cy\"}"); };
+        test("POST: it was stored") { expect(store.users.size()).should_be(3); };
+        test("a body that does not fit: 422 from the handler") { expect(http.POST(root + "/users") { it.json("age", 1); }.status).should_be(422); };
+        test("a body that is not json: 400") { expect(http.POST(root + "/users") { it.body("not json"); }.status).should_be(400); };
+        test("a body of the wrong kind: 400") { expect(http.POST(root + "/users") { it.body("{\"age\":\"old\"}", "application/json"); }.status).should_be(400); };
+        test("204") { expect(http.DELETE(root + "/users/1").status).should_be(204); };
+        test("a handler that answers nothing: 204") { expect(http.GET(root + "/nothing").status).should_be(204); };
+        echoed := http.PUT(root + "/echo/one/two%20words?q=a%26b") { it.header("X-Mine", "mine"); it.body("the body"); };
+        test("everything of a request") { expect(echoed.text()).should_be("PUT|one|two words|a&b|the body|mine"); };
+        test("bytes") { expect(sizeof(http.GET(root + "/bytes").bytes())).should_be(3); };
+        test("HEAD: no body") { expect(sizeof(http.HEAD(root + "/hello").bytes())).should_be(0); };
+        test("HEAD: the length the body would have") { expect(http.HEAD(root + "/hello").header("Content-Length")!!).should_be("5"); };
+
+        // ---------------------------------------------------------------- what does not fit
+        test("no route: 404") { expect(http.GET(root + "/nowhere").status).should_be(404); };
+        test("another method: 405") { expect(http.POST(root + "/hello").status).should_be(405); };
+        broken := http.GET(root + "/broken");
+        test("a handler that throws: 500") { expect(broken.status).should_be(500); };
+        test("... and says nothing of the inside") { expect(broken.json().string_or("error", "")).should_be("the server failed to answer"); };
+        test("the server goes on after it") { expect(http.GET(root + "/hello").text()).should_be("hello"); };
+
+        // ---------------------------------------------------------------- hooks
+        test("before: answers in the handler's place") { expect(http.GET(root + "/secret").status).should_be(401); };
+        test("before: lets the request through") { expect(http.GET(root + "/secret") { it.bearer("t"); }.text()).should_be("the secret"); };
+        test("before: saw every request") { expect_true(store.before_seen > 20); };
+        test("redirect") { expect(http.GET(root + "/away").text()).should_be("hello"); };
+        test("redirect: the status") { expect(http.GET(root + "/away") { it.follow_redirects(false); }.status).should_be(302); };
+
+        // ---------------------------------------------------------------- files
+        file_answer := http.GET(root + "/static/hello.txt");
+        test("a file") { expect(file_answer.text()).should_be("a file"); };
+        test("a file: its type") { expect(file_answer.header("Content-Type")!!).should_be("text/plain; charset=utf-8"); };
+        test("a folder gives its index.html") { expect(http.GET(root + "/static").text()).should_be("<h1>index</h1>"); };
+        test("a file that is not there") { expect(http.GET(root + "/static/none.txt").status).should_be(404); };
+        test("climbing out of the folder") { expect(http.GET(root + "/static/%2E%2E/lib_net_http_server").status).should_be(404); };
+
+        // ---------------------------------------------------------------- many at once, on one connection after another
+        right : decimal = 0;
+        for(i : _int64 = 0; i < 50; i++) {
+            if(http.GET(root + "/users/2").json().number_or("id", 0) == 2) { right++; }
+        }
+        test("fifty requests") { expect(right).should_be(50); };
+
+        // ---------------------------------------------------------------- a websocket
+        live := web_socket.connect("ws://127.0.0.1:" + port + "/echo-socket/7");
+        test("websocket: open") { expect_true(live.is_open()); };
+        live.send("hello");
+        test("websocket: a text message") { expect(live.receive_text()!!).should_be("you said: hello"); };
+        live.send("");
+        test("websocket: an empty message") { expect(live.receive_text()!!).should_be("you said: "); };
+        large := new char_buffer();
+        for(i : _int64 = 0; i < 70000; i++) { large.append_char('a' + (i % 26)); }
+        live.send(large.build());
+        back := live.receive()!!;
+        test("websocket: a message of 70000 characters") { expect(back.size()).should_be(70000 + 10); };
+        test("... whole") { expect_true(io_strings.ends_with(back.text(), io_strings.slice(large.build(), 69990, 70000))); };
+        middle := new char_buffer();
+        for(i : _int64 = 0; i < 300; i++) { middle.append_char('m'); }
+        live.send(middle.build());
+        test("websocket: a message of 300") { expect(live.receive()!!.size()).should_be(310); };
+        raw := new _int8[4];
+        raw[0] = 0; raw[1] = 255; raw[2] = 7; raw[3] = 0;
+        live.send_bytes(raw);
+        bytes_back := live.receive()!!;
+        test("websocket: bytes are bytes") { expect_false(bytes_back.is_text()); };
+        test("... the same ones") { expect_true(bytes_back.size() == 4 && (bytes_back.bytes()[1] & 0xFF) == 255 && bytes_back.bytes()[2] == 7); };
+        live.ping();
+        live.send("after a ping");
+        test("websocket: a ping is answered out of sight") { expect(live.receive_text()!!).should_be("you said: after a ping"); };
+        live.close();
+        test("websocket: closed") { expect_false(live.is_open()); };
+        waited : _int64 = 0;
+        while(store.socket_said != "closed" && waited < 200) { thread.sleep(10); waited++; }
+        test("websocket: the server's block saw the close") { expect(store.socket_said).should_be("closed"); };
+        refused : decimal = 0;
+        try { web_socket.connect("ws://127.0.0.1:" + port + "/hello"); } catch(wrong: web_socket_exception) { refused = 1; }
+        test("websocket: a path that is not one") { expect_true(refused); };
+        not_an_address : decimal = 0;
+        try { web_socket.connect("http://127.0.0.1/"); } catch(wrong: illegal_argument_exception) { not_an_address = 1; }
+        test("websocket: an address that is not ws://") { expect_true(not_an_address); };
+
+        // ---------------------------------------------------------------- stop
+        server.stop();
+        test("stopped") { expect_false(server.is_running()); };
+        gone : decimal = 0;
+        http.use(new http_client());                    // (no kept connection to the server that stopped)
+        try { http.GET(root + "/hello") { it.timeout(1000); }; } catch(nobody: http_exception) { gone = 1; }
+        test("nobody answers after stop") { expect_true(gone); };
+
+        new file("http_server_case_files/hello.txt").remove();
+        new file("http_server_case_files/index.html").remove();
+        folder.remove();
+    };
+    finish_tests("lib_net_http_server");
+}

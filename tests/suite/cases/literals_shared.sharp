@@ -1,0 +1,203 @@
+mod main;
+
+import ( std.testing, std.io )
+
+/**
+ * A text literal gives a NEW string every time its line runs - as far as a
+ * program can tell. With -O the compiler makes a literal that is only read
+ * once and shares it (backend/optimizer, shared_literals.sharp); these checks
+ * are the cases where it must NOT: the literal is changed, kept, handed to
+ * something that changes or keeps it, or compared by identity. Each one runs
+ * the same line more than once and looks at what the second run got.
+ */
+
+saved : string = "";
+
+def read_length(s: string) : _int64 {
+    return sizeof(s.data);
+}
+
+def read_first(s: string) : _int64 {
+    return s.data[0];
+}
+
+def add_mark(s: string) : string {
+    s.append("!");
+    return s;
+}
+
+def give_back(s: string) : string {
+    return s;
+}
+
+def change_letter(s: string) {
+    s.data[0] = 'X';
+}
+
+def pass_on(s: string) {
+    change_letter(s);
+}
+
+def is_same(a: string, b: string) : bool {
+    return (a as object) == (b as object);
+}
+
+def fresh() : string {
+    return "fresh";
+}
+
+def save(s: string) {
+    saved = s;
+}
+
+def in_a_try(n: _int64) : _int64 {
+    try {
+        if(n < 0) {
+            throw new illegal_argument_exception("negative");
+        }
+        s := "abc";
+        s.append("d");
+        return sizeof(s.data);
+    } catch(e: illegal_argument_exception) {
+    }
+    return 0 - 1;
+}
+
+class holder {
+    kept : string = "";
+
+    def keep(s: string) {
+        kept = s;
+    }
+}
+
+def test_changed() {
+    lengths : _int64 = 0;
+    for(i : _int64 = 0; i < 3; i++) {
+        name := "brian";
+        name.append("!");
+        lengths += sizeof(name.data);
+    }
+    test("assigned and appended to: new each time") { expect(lengths).should_be(18); };
+
+    lengths = 0;
+    for(i : _int64 = 0; i < 3; i++) {
+        lengths += sizeof(add_mark("abc").data);
+    }
+    test("appended to by the function it is handed to") { expect(lengths).should_be(12); };
+
+    lengths = 0;
+    for(i : _int64 = 0; i < 3; i++) {
+        s := give_back("abc");
+        s.append("d");
+        lengths += sizeof(s.data);
+    }
+    test("returned by a function, then appended to") { expect(lengths).should_be(12); };
+
+    firsts : _int64 = 0;
+    for(i : _int64 = 0; i < 2; i++) {
+        s := "abc";
+        firsts += read_first(s);
+        change_letter(s);
+        firsts += s.data[0];
+    }
+    test("a character written through the string's array") { expect(firsts).should_be(97 + 88 + 97 + 88); };
+
+    change_letter("abc");
+    test("... does not reach another literal of the same text") { expect(read_first("abc")).should_be(97); };
+    pass_on("abc");
+    test("changed two calls down") { expect(read_first("abc")).should_be(97); };
+
+    lengths = 0;
+    for(i : _int64 = 0; i < 2; i++) {
+        lengths += in_a_try(i);
+    }
+    test("changed inside a try") { expect(lengths).should_be(8); };
+    test("the other way out of that try") { expect(in_a_try(0 - 1)).should_be(0 - 1); };
+
+    lengths = 0;
+    for(i : _int64 = 0; i < 2; i++) {
+        e := "";
+        e.append("x");
+        lengths += sizeof(e.data);
+    }
+    test("the empty literal appended to") { expect(lengths).should_be(2); };
+}
+
+def test_kept() {
+    h := new holder();
+    for(i : _int64 = 0; i < 2; i++) {
+        h.keep("kept");
+        h.kept.append("+");
+    }
+    test("kept in a field, then appended to") { expect(h.kept).should_be("kept+"); };
+
+    for(i : _int64 = 0; i < 2; i++) {
+        save("global");
+        saved.append("+");
+    }
+    test("kept in a global, then appended to") { expect(saved).should_be("global+"); };
+
+    items := new list<string>();
+    for(i : _int64 = 0; i < 2; i++) {
+        items.add("item");
+    }
+    items.at(0).append("0");
+    test("kept in a list: the first changed") { expect(items.at(0)).should_be("item0"); };
+    test("kept in a list: the second as written") { expect(items.at(1)).should_be("item"); };
+}
+
+def test_identity() {
+    a := fresh();
+    b := fresh();
+    test("two runs of one line are two objects") { expect_false(is_same(a, b)); };
+    test("two literals of the same text are two objects") { expect_false(is_same("twin", "twin")); };
+
+    same : _int64 = 0;
+    previous : string = "";
+    for(i : _int64 = 0; i < 3; i++) {
+        current := "loop";
+        if(is_same(previous, current)) {
+            same++;
+        }
+        previous = current;
+    }
+    test("a literal in a loop is a new object each round") { expect(same).should_be(0); };
+}
+
+def test_only_read() {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < 1000; i++) {
+        total += read_length("hello");
+        total += read_first("hello");
+    }
+    test("read a thousand times") { expect(total).should_be(1000 * (5 + 104)); };
+    test("the empty literal read") { expect(read_length("")).should_be(0); };
+
+    who : string = "bri";
+    who.append("an");
+    equal : _int64 = 0;
+    different : _int64 = 0;
+    by_function : _int64 = 0;
+    for(i : _int64 = 0; i < 100; i++) {
+        if(who == "brian") { equal++; }
+        if(who != "brian") { different++; }
+        if(who != "brain") { different++; }
+        if(io_strings.equals(who, "brian")) { by_function++; }
+        if(io_strings.equals(who, "brianna")) { by_function++; }
+    }
+    test("== with a literal") { expect(equal).should_be(100); };
+    test("!= with a literal") { expect(different).should_be(100); };
+    test("io_strings.equals with a literal") { expect(by_function).should_be(100); };
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("literals_shared") {
+        test_changed();
+        test_kept();
+        test_identity();
+        test_only_read();
+    };
+    finish_tests("literals_shared");
+}

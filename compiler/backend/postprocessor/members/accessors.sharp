@@ -1,0 +1,128 @@
+mod backend.postprocessor.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.postprocessor.checks,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * GETTERS, SETTERS AND INJECTED FIELDS AS DECLARED
+ * (the C++ compiler: process_getter, process_setter and process_field in
+ * postprocessor/field_processor.cpp)
+ *
+ *      width : decimal;
+ *          get { return width * scale; }
+ *          set value -> { width = value / scale; }
+ *
+ * A getter is a function without parameters that returns the field's type;
+ * a setter a function with one parameter of the field's type that returns
+ * nothing. The preprocessor made them (sharp_field.getter / setter); their
+ * types are filled in with the field's (member_types.sharp). What is checked
+ * here is where they may stand:
+ *
+ *      E0375   a setter on a `const` field         a const is given its value once
+ *      E0376   a getter or setter on a `localized` field
+ *      E0377   a getter whose modifiers differ from its field's
+ *              (reading the field IS calling the getter: it cannot be more
+ *              or less visible than the field. A setter may differ - a
+ *              public field with a private setter is the usual read-only
+ *              property.)
+ *      E0378   an injected field that is also given a value
+ *              (`inject db : database = ...;` - the component provides the value)
+ *      E0369   a second getter, or a second setter, on one field
+ *              (the C++ parser: "unexpected get declaration")
+ */
+def check_accessors(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        check_accessors_of(prog.module_list.at(i).fields, problems);
+    }
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        check_accessors_of(prog.all_classes.at(i).fields, problems);
+    }
+}
+
+/** the checks of this file for the fields of one module or one class */
+def check_accessors_of(fields: list<sharp_field>, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < fields.size(); i++) {
+        field := fields.at(i);
+        report_second_accessor(field, N_GETTER, "getter", "get", problems);
+        report_second_accessor(field, N_SETTER, "setter", "set", problems);
+
+        if(field.inject_node >= 0 && field.has_initializer()) {
+            problems.add(error_at_node("E0378", "`" + field.name + "` is injected and cannot also be given a value",
+                                       field.unit, field.initializer)
+                .with_label("this value would be thrown away")
+                .with_related_place(place_of_node(field.unit, field.inject_node, "`inject` asks a component for the value"))
+                .with_help("remove the value, or remove `inject` and keep the value"));
+        }
+
+        if(field.setter != null) {
+            setter : sharp_function = field.setter!!;
+            if(field.has(FLAG_CONST)) {
+                problems.add(error_at_node("E0375", "the constant `" + field.name + "` cannot have a setter", setter.unit, setter.node)
+                    .with_label("a setter is for assigning, and a `const` is not assigned again")
+                    .with_related_place(place_of_node(field.unit, field.node, "declared `const` here"))
+                    .with_help("remove the setter, or remove `const` from `" + field.name + "`"));
+            } else if(field.has(FLAG_LOCALIZED)) {
+                report_accessor_on_localized(field, setter, "setter", problems);
+            }
+        }
+
+        if(field.getter != null) {
+            getter : sharp_function = field.getter!!;
+            mine : _int64 = field.flags - (field.flags & FLAG_MUTATED);
+            if(field.has(FLAG_LOCALIZED)) {
+                report_accessor_on_localized(field, getter, "getter", problems);
+            } else if(getter.flags != mine) {
+                problems.add(error_at_node("E0377", "the getter of `" + field.name + "` cannot have other modifiers than the field",
+                                           getter.unit, getter.node)
+                    .with_label("the getter is `" + flag_words(getter.flags) + "`, the field is `" + flag_words(mine) + "`")
+                    .with_related_place(place_of_node(field.unit, field.node, "the field is declared here"))
+                    .with_note("reading `" + field.name + "` calls the getter, so the two are one thing to whoever uses the field. (A setter may have its own modifiers: `private set` makes a field that everybody reads and only the class changes.)")
+                    .with_help("remove the modifiers from `get`, or put them on the field itself"));
+            }
+        }
+    }
+}
+
+/** E0376 */
+def report_accessor_on_localized(field: sharp_field, accessor: sharp_function, what: string, problems: list<diagnostic>) {
+    problems.add(error_at_node("E0376", "the localized variable `" + field.name + "` cannot have a " + what,
+                               accessor.unit, accessor.node)
+        .with_label("not available on a `localized` variable")
+        .with_note("a `localized` variable has one value per thread; it is read and written directly")
+        .with_help("remove the " + what + ", or wrap the variable in functions of your own"));
+}
+
+/**
+ * E0369: `get { } get { }` on one field. The field object keeps one getter
+ * and one setter, so a second one is found in the tree: the field's node has
+ * two children of that kind.
+ */
+def report_second_accessor(field: sharp_field, node_kind: _int64, what: string, keyword: string, problems: list<diagnostic>) {
+    tree : syntax_tree = field.unit.parsed!!.tree;
+    first : _int64 = 0 - 1;
+
+    child : _int64 = tree.first_child!![field.node];
+    while(child >= 0) {
+        if(tree.kinds!![child] == node_kind) {
+            if(first < 0) {
+                first = child;
+            } else {
+                problems.add(error_at_node("E0369", "`" + field.name + "` has two " + what + "s", field.unit, child)
+                    .with_label("a second `" + keyword + "`")
+                    .with_related_place(place_of_node(field.unit, first, "the first one is here"))
+                    .with_note("a field has at most one getter and one setter: reading or assigning `" + field.name + "` must mean one thing")
+                    .with_help("remove one of them, or put the code of both into one `" + keyword + "`"));
+                return;
+            }
+        }
+        child = tree.next_sibling!![child];
+    }
+}

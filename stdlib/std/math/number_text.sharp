@@ -1,0 +1,38 @@
+mod std.math;
+
+/**
+ * Native numbers as readable text.
+ */
+
+/**
+ * The shortest text that reads back as exactly v - what `"" + v` gives:
+ *
+ *     3        -> "3"            -0.5   -> "-0.5"
+ *     2.50     -> "2.5"          0.1    -> "0.1"
+ *     1e21     -> "1e+21"        1e-20  -> "1e-20"
+ *     NaN      -> "NaN"          1 / 0  -> "Infinity"   -1 / 0 -> "-Infinity"
+ *
+ * The VM makes this text (the fewest digits that give the same number
+ * again), so a number printed here, added to a string, or written by json
+ * always looks the same.
+ */
+def number_to_string(v: decimal): string {
+    return "" + v;
+}
+
+/**
+ * v with exactly `decimals` digits after the decimal point, rounded:
+ * number_to_fixed(3.14159, 2) is "3.14", number_to_fixed(2, 3) is "2.000",
+ * number_to_fixed(2.5, 0) is "3".
+ *
+ * Throws illegal_argument_exception when decimals is negative or above 100.
+ */
+def number_to_fixed(v: decimal, decimals: decimal): string {
+    if(decimals < 0 || decimals > 100)
+        throw new illegal_argument_exception("number_to_fixed: decimals must be in 0 .. 100");
+
+    if(decimals == 0) {
+        return snprintf('l', round_half_away(v), 0);
+    }
+    return snprintf('f', v, decimals);
+}

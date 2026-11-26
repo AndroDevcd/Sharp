@@ -1,0 +1,111 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * checkbox - a box you tick, with words next to it. Made with checkbox(...).
+ *
+ *      agreed := state(0);                                     // 0 = off, 1 = on
+ *      checkbox("I agree to the terms", agreed)
+ *      button("Continue", modifier().enable(agreed.value)) { go(); }
+ *
+ * WITH A BLOCK, THE CAPTION IS WIDGETS instead of words:
+ *
+ *      checkbox(agreed) { text("I agree to the"); text("terms").color(blue); }
+ *
+ * The checkbox is BOUND to the state: it shows the state's value, and a click
+ * flips it (0 <-> 1). Because the state changed, everything built from it is
+ * rebuilt - the button above enables itself. You never ask the checkbox
+ * whether it is ticked; you read the state. (This is "single source of truth":
+ * the value lives in ONE place, your state, and the widget is only a view of
+ * it. Compose: Checkbox(checked, onCheckedChange).)
+ */
+stable class checkbox base widget : behavior, shows_words, on_or_off {
+    private words : string = "";
+    private caption : view?;                // the caption built from widgets (the block form); null: the words are painted
+    private bound : state<_int64>;
+
+    private static const BOX : decimal = 20;
+
+    checkbox(caption: string, value: state<_int64>) {
+        attach(self);
+        words = caption;
+        bound = value;
+        me.on_click = { -> flip(); };
+    }
+
+    private def flip() {
+        if(bound.value == 0) { bound.value = 1; }
+        else { bound.value = 0; }
+    }
+
+    /** the caption built from the widgets `caption_of` makes, instead of words */
+    checkbox(value: state<_int64>, caption_of: ()()) {
+        attach(self);
+        bound = value;
+        me.on_click = { -> flip(); };
+        caption = scope.lone_row(6, caption_of);
+        me.add_kid(caption!!);
+    }
+
+    override def kind() : string { return "checkbox"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
+    /** is it ticked? */
+    override def is_on() : bool { return bound.value != 0; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        host := ui_host.current!!;
+        if(caption != null) {
+            box : view = caption!!;
+            box.measure(0, num.larger(0, max_w - BOX - host.look.space), 0, max_h);
+            me.content_w = BOX + host.look.space + box.want_w;
+            me.content_h = num.larger(BOX, box.want_h);
+            return;
+        }
+        f : font = host.font_of(host.look.text_size);
+        me.content_w = BOX + host.look.space + f.width_of(words);
+        me.content_h = num.larger(BOX, f.line_height);
+    }
+
+    override def arrange() {
+        if(caption != null && ui_host.current != null) {
+            box : view = caption!!;
+            box.arrange(me.inner_x() + BOX + ui_host.current!!.look.space, me.inner_y() + (me.inner_h() - box.want_h) / 2, box.want_w, box.want_h);
+        }
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        f : font = host.font_of(t.text_size);
+
+        left : decimal = me.inner_x();
+        top : decimal = me.inner_y() + (me.inner_h() - BOX) / 2;
+
+        if(bound.value != 0) {
+            fill : color = t.primary;
+            if(me.enabled == 0) { fill = t.surface_high; }
+            else if(me.hovered == 1) { fill = t.primary_high; }
+            p.rect(left, top, BOX, BOX, 5, fill);
+            // the tick: two strokes
+            p.line(left + 5, top + 10.5, left + 8.5, top + 14, 2, t.on_primary);
+            p.line(left + 8.5, top + 14, left + 15, top + 6.5, 2, t.on_primary);
+        } else {
+            edge : color = t.border;
+            if(me.hovered == 1 && me.enabled == 1) { edge = t.primary; }
+            p.rect(left, top, BOX, BOX, 5, t.surface);
+            p.outline(left, top, BOX, BOX, 5, 1.5, edge);
+        }
+
+        if(caption != null) {
+            return;                             // the caption is widgets: they paint themselves
+        }
+        ink : color = t.text;
+        if(me.enabled == 0) { ink = t.text_dim; }
+        p.text(words, left + BOX + t.space, me.inner_y() + (me.inner_h() - f.line_height) / 2, f, ink);
+    }
+}

@@ -1,0 +1,32 @@
+// expect: W1024 E0940 W1030 E0940 W1031 W1031
+mod app;
+
+/*
+ * Constructors, field values and enum values. The C++ compiler accepts the
+ * W1024, W1030 and W1031 lines (the program then reads a start value, or two
+ * values compare equal) and rejects the E0940 lines.
+ */
+
+class animal {
+    legs : _int64 = 0;
+    animal(n: _int64) { legs = n; }
+}
+
+class dog base animal {
+    extra : _int64 = 4;
+    dog(n: _int64) -> base(n + extra) { }                       // W1024 `extra` is still 0 here
+    dog() { }                                                   // fine: runs animal() first
+}
+
+enum code { a = "text" }                                        // E0940
+enum shade { light = 1, dark = 1 }                              // W1030
+enum other { b = shade.light }                                  // E0940 (help: `.ordinal`)
+
+class tangle {
+    x : _int64 = y + 1;                                         // W1031 x and y read each other
+    y : _int64 = x + 1;
+}
+
+class selfish {
+    z : _int64 = z + 1;                                         // W1031 reads itself: the start value
+}

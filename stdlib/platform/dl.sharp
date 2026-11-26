@@ -1,0 +1,80 @@
+mod platform;
+
+import (
+    platform.kernel
+)
+
+/**
+ * NATIVE LIBRARIES (the Sharp Native Interface)
+ *
+ *      load_library(program_folder() + "/sensors");
+ *
+ * A program's native functions are C++ in a library the program loads itself,
+ * before the first call. `load_library` takes the path of the library file;
+ * the ending (.dll, .so) may be left off, so one line works on every system.
+ * A path that is not absolute starts at the folder `sharp` is run in - which
+ * changes with where the user happens to be. `program_folder()` is the folder
+ * the PROGRAM is in, wherever it is started from: a library that is shipped
+ * beside the program is loaded as above.
+ */
+
+/** the whole path of the file of the running program */
+def program_path() : string {
+    return vm.program_path();
+}
+
+/**
+ * What the program was started with - the same texts main(args) gets - for
+ * code that is not main and was not handed them (`sharp app --port 8080`
+ * -> "--port", "8080").
+ */
+def program_arguments() : string[] {
+    return vm.arguments;
+}
+
+/** the folder the running program's file is in (no `/` at the end) */
+def program_folder() : string {
+    path := vm.program_path();
+    size : _int64 = sizeof(path.data);
+    for(i : _int64 = size - 1; i >= 0; i--) {
+        ch : _int64 = path.data!![i];
+        if(ch == '/' || ch == '\\') {
+            return new string(path.data!!, 0, i);
+        }
+    }
+    return ".";
+}
+
+/** the whole path of the `sharp` runtime binary itself (not the program) */
+def runtime_path() : string {
+    return vm.runtime_path();
+}
+
+/**
+ * The folder the `sharp` runtime binary is in (no `/` at the end). Libraries
+ * that ship WITH the install live here, so std.gui loads its native backend
+ * from `runtime_folder() + "/sharpgui"` - found wherever the program runs from.
+ */
+def runtime_folder() : string {
+    path := vm.runtime_path();
+    size : _int64 = sizeof(path.data);
+    for(i : _int64 = size - 1; i >= 0; i--) {
+        ch : _int64 = path.data!![i];
+        if(ch == '/' || ch == '\\') {
+            return new string(path.data!!, 0, i);
+        }
+    }
+    return ".";
+}
+
+def load_library(name: string) {
+    vm.load_library(name);
+}
+
+def free_library(name: string): int {
+    return vm.free_library(name);
+}
+
+def link(name: string, library: string): int {
+    return vm.link_func(name, library);
+}

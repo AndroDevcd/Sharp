@@ -1,0 +1,122 @@
+mod main;
+
+import ( std.testing, std.io )
+
+/**
+ * std.io path: pure path arithmetic. Results are compared after
+ * path.to_unix() so that the expected values are the same on every
+ * operating system.
+ */
+
+def u(p: string): string {
+    return path.to_unix(p);
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_io_path") {
+        // ---- separators and roots
+        test("is_separator slash") { expect_true(path.is_separator('/')); };
+        test("is_separator back slash") { expect_true(path.is_separator(92)); };
+        test("is_separator letter") { expect_false(path.is_separator('a')); };
+        test("root of absolute") { expect(u(path.root("/usr/lib"))).should_be("/"); };
+        test("root of relative") { expect(path.root("usr/lib")).should_be(""); };
+        test("root of empty") { expect(path.root("")).should_be(""); };
+        test("root of drive") { expect(u(path.root("C:/dir"))).should_be("C:/"); };
+        test("root of drive relative") { expect(path.root("C:dir")).should_be("C:"); };
+        test("is_absolute") { expect_true(path.is_absolute("/a")); };
+        test("is_absolute back slash") { expect_true(path.is_absolute("\\a")); };
+        test("is_absolute drive") { expect_true(path.is_absolute("C:\\a")); };
+        test("is_absolute relative") { expect_false(path.is_absolute("a/b")); };
+        test("is_absolute drive relative") { expect_false(path.is_absolute("C:a")); };
+        test("is_absolute empty") { expect_false(path.is_absolute("")); };
+
+        // ---- split
+        parts := path.split("/usr//lib/x.so");
+        test("split count") { expect(parts.size()).should_be(3); };
+        test("split 0") { expect(parts.at(0)).should_be("usr"); };
+        test("split 1") { expect(parts.at(1)).should_be("lib"); };
+        test("split 2") { expect(parts.at(2)).should_be("x.so"); };
+        test("split root only") { expect(path.split("/").size()).should_be(0); };
+        test("split empty") { expect(path.split("").size()).should_be(0); };
+        test("split mixed separators") { expect(path.split("a\\b/c").size()).should_be(3); };
+        test("split keeps dots") { expect(path.split("a/./../b").size()).should_be(4); };
+
+        // ---- join
+        test("join") { expect(u(path.join("src", "main.sharp"))).should_be("src/main.sharp"); };
+        test("join trailing separator") { expect(u(path.join("src/", "main.sharp"))).should_be("src/main.sharp"); };
+        test("join absolute first") { expect(u(path.join("/usr", "lib"))).should_be("/usr/lib"); };
+        test("join absolute second replaces") { expect(u(path.join("/usr", "/etc"))).should_be("/etc"); };
+        test("join empty first") { expect(u(path.join("", "a/b"))).should_be("a/b"); };
+        test("join empty second") { expect(u(path.join("a/b", ""))).should_be("a/b"); };
+        test("join root") { expect(u(path.join("/", "a"))).should_be("/a"); };
+        test("join three") { expect(u(path.join("a", "b", "c.txt"))).should_be("a/b/c.txt"); };
+        test("join keeps dots") { expect(u(path.join("a/..", "b"))).should_be("a/../b"); };
+        many := new list<string>();
+        many.add("/home"); many.add("joe"); many.add(""); many.add("docs/a.txt");
+        test("join_all") { expect(u(path.join_all(many))).should_be("/home/joe/docs/a.txt"); };
+        test("join_all empty") { expect(path.join_all(new list<string>())).should_be(""); };
+
+        // ---- clean and normalize
+        test("clean") { expect(u(path.clean("a//b\\c/"))).should_be("a/b/c"); };
+        test("clean root") { expect(u(path.clean("///"))).should_be("/"); };
+        test("normalize dots") { expect(u(path.normalize("a/./b/../c//d/"))).should_be("a/c/d"); };
+        test("normalize leading dotdot kept") { expect(u(path.normalize("../x"))).should_be("../x"); };
+        test("normalize climbs out") { expect(u(path.normalize("a/../../x"))).should_be("../x"); };
+        test("normalize above root dropped") { expect(u(path.normalize("/../x"))).should_be("/x"); };
+        test("normalize to nothing") { expect(path.normalize("a/..")).should_be("."); };
+        test("normalize dot") { expect(path.normalize(".")).should_be("."); };
+        test("normalize empty") { expect(path.normalize("")).should_be("."); };
+        test("normalize root") { expect(u(path.normalize("/a/.."))).should_be("/"); };
+        test("normalize plain") { expect(u(path.normalize("/usr/lib"))).should_be("/usr/lib"); };
+        test("normalize two dotdots") { expect(u(path.normalize("a/b/c/../../d"))).should_be("a/d"); };
+
+        // ---- parent, file_name, extension, stem
+        test("parent") { expect(u(path.parent("/home/joe/a.txt"))).should_be("/home/joe"); };
+        test("parent trailing separator") { expect(u(path.parent("a/b/"))).should_be("a"); };
+        test("parent of top level") { expect(u(path.parent("/a"))).should_be("/"); };
+        test("parent of single part") { expect(path.parent("a.txt")).should_be(""); };
+        test("parent of root") { expect(path.parent("/")).should_be(""); };
+        test("file_name") { expect(path.file_name("/home/joe/a.txt")).should_be("a.txt"); };
+        test("file_name trailing separator") { expect(path.file_name("a/b/")).should_be("b"); };
+        test("file_name single") { expect(path.file_name("a.txt")).should_be("a.txt"); };
+        test("file_name of root") { expect(path.file_name("/")).should_be(""); };
+        test("file_name back slash") { expect(path.file_name("dir\\file.bin")).should_be("file.bin"); };
+        test("extension") { expect(path.extension("archive.tar.gz")).should_be("gz"); };
+        test("extension none") { expect(path.extension("notes")).should_be(""); };
+        test("extension hidden file") { expect(path.extension(".profile")).should_be(""); };
+        test("extension trailing dot") { expect(path.extension("a.")).should_be(""); };
+        test("extension in directory with dot") { expect(path.extension("a.b/notes")).should_be(""); };
+        test("stem") { expect(path.stem("/x/archive.tar.gz")).should_be("archive.tar"); };
+        test("stem none") { expect(path.stem("notes")).should_be("notes"); };
+        test("stem hidden") { expect(path.stem(".profile")).should_be(".profile"); };
+        test("with_extension") { expect(u(path.with_extension("a/b.txt", "md"))).should_be("a/b.md"); };
+        test("with_extension adds") { expect(u(path.with_extension("a/b", "md"))).should_be("a/b.md"); };
+        test("with_extension removes") { expect(u(path.with_extension("a/b.txt", ""))).should_be("a/b"); };
+        test("with_extension no directory") { expect(path.with_extension("b.txt", "md")).should_be("b.md"); };
+        try { path.with_extension("/", "md"); test("with_extension root") { fail_test("no exception"); }; }
+        catch(e: illegal_argument_exception) { test("with_extension root") { }; }
+
+        // ---- starts_with and relative_to
+        test("starts_with") { expect_true(path.starts_with("/a/b/c", "/a/b")); };
+        test("starts_with itself") { expect_true(path.starts_with("/a/b", "/a/b/")); };
+        test("starts_with partial name") { expect_false(path.starts_with("/a/bc", "/a/b")); };
+        test("starts_with other root") { expect_false(path.starts_with("a/b", "/a")); };
+        test("starts_with after normalize") { expect_true(path.starts_with("a/x/../b/c", "a/b")); };
+        test("starts_with dot") { expect_true(path.starts_with("a/b", ".")); };
+        test("relative_to below") { expect(u(path.relative_to("/a/b/c", "/a"))).should_be("b/c"); };
+        test("relative_to sideways") { expect(u(path.relative_to("/a/b", "/a/x/y"))).should_be("../../b"); };
+        test("relative_to same") { expect(path.relative_to("/a/b", "/a/b/")).should_be("."); };
+        test("relative_to relative paths") { expect(u(path.relative_to("src/lib/x.sharp", "src/bin"))).should_be("../lib/x.sharp"); };
+        test("relative_to from dot") { expect(u(path.relative_to("a/b", "."))).should_be("a/b"); };
+        try { path.relative_to("/a", "b"); test("relative_to mixed roots") { fail_test("no exception"); }; }
+        catch(e: illegal_argument_exception) { test("relative_to mixed roots") { }; }
+        try { path.relative_to("a", "../b"); test("relative_to unknown way back") { fail_test("no exception"); }; }
+        catch(e: illegal_argument_exception) { test("relative_to unknown way back") { }; }
+
+        // ---- conversions
+        test("to_unix") { expect(path.to_unix("a\\b\\c")).should_be("a/b/c"); };
+        test("to_native then to_unix") { expect(path.to_unix(path.to_native("a\\b/c"))).should_be("a/b/c"); };
+    };
+    finish_tests("lib_io_path");
+}

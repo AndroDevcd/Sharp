@@ -1,0 +1,276 @@
+mod cache;
+
+import (
+    frontend.syntax.tree,
+    configuration,
+    std.io,
+    std.export
+)
+
+/**
+ * THE BUILD CACHE
+ *
+ * Compiling a project a second time should only pay for the files that
+ * changed. The cache keeps, inside the project,
+ *
+ *      build/cache/files/cache_info.data       which files there are and what they
+ *                                              looked like when they were last compiled
+ *      build/cache/files/file_<id>_a.data      stage A of a file: its syntax tree
+ *      build/cache/files/file_<id>_b.data      stage B of a file: its compiled code
+ *
+ *      open_cache()            1. before parsing: load the index of the last build
+ *      load_or_parse(path)     2. per file, on any thread: parse it, note whether it changed
+ *      update_cache(units)     3. after parsing: bring the index up to date and write it
+ *      flush_cache()           throw the whole cache away (a clean build)
+ *
+ * WHAT IT DOES TODAY, AND WHY NOT MORE
+ *
+ * It knows, for every file, whether the file changed since the last build
+ * (source_unit.unchanged, and the "N unchanged, M changed" line of the build
+ * summary). That costs one look at each file's size and date and reading and
+ * writing the index: about 45 ms on the 263 files of the standard library
+ * (305 ms with the cache, 260 ms without). Until stage B exists that is a
+ * cost with nothing to show for it; "cache_files": false in settings.json
+ * switches it off.
+ *
+ * It does NOT load syntax trees from disk, although it can (stage A below,
+ * switched by cache_syntax_trees). Measured on the whole standard library,
+ * 263 files, 2.6 MB of source, 2026-11-12:
+ *
+ *      parse every file                        about 260 ms
+ *      read every syntax tree from the cache   about 360 ms   (the cache is 11 MB)
+ *
+ * The parser is faster than reading its own result back: a syntax tree is
+ * four times the size of the text it came from. A cache that is slower than
+ * the work it saves is not a cache, so stage A stays off.
+ *
+ * The time of a compiler goes into what comes AFTER parsing - working out
+ * names and types, generating code. That is stage B, and that is where this
+ * cache will pay: a file that is unchanged, and whose imports are unchanged,
+ * keeps its compiled code and skips those stages completely. The index, the
+ * change test and the per-file cache files are all here for it.
+ *
+ *      Textbook: this is what incremental compilers do (and make / ninja one
+ *      level up): cache the expensive results per file, keyed by what the
+ *      file looked like, and re-parse freely because parsing is cheap.
+ *
+ * WHEN IT IS USED
+ * In project mode with caching switched on (options.file_caching; `-cacheoff`
+ * or "cache_files": false in settings.json switch it off): a project has a
+ * directory to keep the cache in, a single file given on the command line
+ * does not - unless `-cache <folder>` names one, which also moves the cache
+ * of a project there.
+ *
+ * ALWAYS SAFE
+ * Every cache failure - a missing or damaged cache file, one written by
+ * another version, a directory that cannot be created - ends in "do the work
+ * normally". The cache can make a build faster; it can never make it wrong
+ * or make it fail.
+ *
+ * NO LOCKS
+ * Several files are parsed at the same time, one coroutine each. They only
+ * READ the index (open_cache() loads it before they start), which any number
+ * of threads can do at once. Everything that CHANGES the index happens
+ * afterwards, on the one thread that collected the results (update_cache).
+ * (With a lock around the index, taken by every file, a build of the
+ * standard library took about 330 ms; without it about 305 ms.)
+ */
+
+/**
+ * Stage A: store and load syntax trees. Off, because it is slower than
+ * parsing (the numbers are above). Kept working and tested so that the
+ * question can be asked again when the parser or the file format changes:
+ * set it to true and compare the two build times.
+ */
+const cache_syntax_trees : decimal = false;
+
+project_cache_directory : string = "/build/cache";       // inside the project
+cache_files_directory : string = "/files";                  // inside the cache directory
+cache_index_path : string = "/files/cache_info.data";
+
+/**
+ * The folder the cache lives in: the one `-cache <folder>` named, else
+ * build/cache inside the project.
+ *
+ *      C++ comparison: parse_cache.cpp, cache_folder(): options.parse_cache_folder,
+ *      else <home>/.sharpc/cache. The C++ cache holds syntax trees for every
+ *      compile on the machine; this one belongs to a project.
+ */
+def cache_directory() : string {
+    if(options.cache_folder != "") { return options.cache_folder; }
+    return options.project_dir + project_cache_directory;
+}
+
+index : file_lookup? = null;        // open_cache() loads it
+
+// what the cache found in this build, for the summary main prints
+unchanged_files : decimal = 0;      // the same as in the last build
+changed_files : decimal = 0;        // new, or different from the last build
+
+/** is the cache in use for this build? */
+def cache_enabled() : decimal {
+    // (`-cacheoff` and "cache_files": false switch it off; a project has a folder to keep it
+    // in, and so has a compile that was given one with `-cache <folder>`)
+    if(!options.file_caching) { return false; }
+    return options.compile_mode == compilation_mode.project_mode || options.cache_folder != "";
+}
+
+/**
+ * Step 1, before any file is parsed: load the index of the last build.
+ * A new empty one when there is none that can be used.
+ */
+def open_cache() {
+    if(!cache_enabled() || index != null) {
+        return;
+    }
+    index = new file_lookup(read_index());
+}
+
+def read_index() : cache_info {
+    try {
+        new file(cache_directory() + cache_files_directory).mkdirs();
+
+        stored := new file(cache_directory() + cache_index_path);
+        if(stored.exists()) {
+            loaded := read_object(cache_directory() + cache_index_path) as cache_info;
+            if(loaded.format_version == cache_format_version) {
+                return loaded;
+            }
+            // written by another version of the cache: none of its files can be trusted
+            delete_cache_files();
+            new file(cache_directory() + cache_files_directory).mkdirs();
+        }
+    } catch(e: throwable) {
+        // an index that cannot be read is the same as no index
+    }
+    return new cache_info();
+}
+
+/**
+ * Step 2, once per file, on any thread: the file parsed, and marked with
+ * whether it changed since the last build. Never throws; a file that cannot
+ * be read comes back as a unit with a problem. Only reads the index.
+ */
+def load_or_parse(path: string) : source_unit {
+    if(!cache_enabled() || index == null) {
+        return parse_file_unit(path);
+    }
+
+    // what the file looks like now, taken BEFORE it is read: if it is saved
+    // again while we parse, the next build sees a different date and redoes it
+    size : decimal = 0 - 1;
+    modified : decimal = 0 - 1;
+    try {
+        source := new file(path);
+        size = source.size();
+        modified = source.last_modified();
+    } catch(e: throwable) {
+        // parse_file_unit reports what is wrong with the file
+    }
+
+    entry := index!!.find(path);
+    unchanged : decimal = entry != null && entry!!.size == size && entry!!.last_update == modified;
+
+    unit : source_unit? = null;
+    if(unchanged && cache_syntax_trees) {
+        unit = load_cached_unit(entry!!, path);
+    }
+    if(unit == null) {
+        unit = parse_file_unit(path);
+    }
+
+    unit!!.unchanged = unchanged;
+    unit!!.size = size;
+    unit!!.modified = modified;
+    return unit!!;
+}
+
+/** stage A: the cached syntax tree of a file, or null when there is none that can be read */
+def load_cached_unit(entry: file_data, path: string) : source_unit? {
+    try {
+        parsed := read_object(cache_directory() + entry.parser_cache) as parse_state;
+        unit := new source_unit(path);
+        unit.parsed = parsed;
+        unit.text = new string(parsed.source);
+        unit.from_cache = 1;
+        return unit;
+    } catch(e: throwable) {
+        return null;        // missing or damaged: parse the file instead
+    }
+}
+
+/**
+ * Step 3, after every file is parsed, on one thread: bring the index up to
+ * date and write it.
+ *
+ *      a file that parsed          is remembered as it looked when it was read
+ *      a file with mistakes        is forgotten: it must be looked at again
+ *                                  next time, whatever its date says
+ */
+def update_cache(units: list<source_unit>) {
+    if(!cache_enabled() || index == null) {
+        return;
+    }
+
+    unchanged_files = 0;
+    changed_files = 0;
+    foreach(unit in units) {
+        if(unit.unchanged) { unchanged_files++; }
+        else { changed_files++; }
+
+        try {
+            if(unit.is_good() && unit.size >= 0) {
+                entry := index!!.remember(unit.file, unit.size, unit.modified);
+                if(cache_syntax_trees && !unit.from_cache) {
+                    write_object(unit.parsed!!, cache_directory() + entry.parser_cache);
+                }
+            } else {
+                index!!.forget(unit.file);
+            }
+        } catch(e: throwable) {
+            index!!.forget(unit.file);      // not remembered: it counts as changed next time
+        }
+    }
+
+    try {
+        write_object(index!!.info, cache_directory() + cache_index_path);
+    } catch(e: throwable) {
+        println("cache: the index could not be written (" + e.get_message() + "); the next build starts without it");
+    }
+}
+
+/** a clean build: forget everything */
+def flush_cache() {
+    if(options.compile_mode != compilation_mode.project_mode && options.cache_folder == "") {
+        return;
+    }
+
+    delete_cache_files();
+    index = null;
+}
+
+def delete_cache_files() {
+    try {
+        // only what the cache itself wrote: the folder `-cache` named may hold other things
+        folder := new file(cache_directory() + cache_files_directory);
+        if(folder.exists()) {
+            folder.delete_recursively();
+        }
+    } catch(e: throwable) {
+        // whatever is left is overwritten or ignored
+    }
+}
+
+/** an object and everything it refers to, written to one file */
+def write_object(what: object, path: string) {
+    new file(path).write_bytes(serialize(what).data);
+}
+
+/** the object write_object() wrote; throws when the file is missing or is not one */
+def read_object(path: string) : object {
+    bytes : _int8[]? = new file(path).read_bytes();
+    if(bytes == null) {
+        throw new io_exception("could not read cache file: " + path);
+    }
+    return deserialize(new string(bytes!!));
+}

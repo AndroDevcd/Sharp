@@ -1,0 +1,325 @@
+mod std.text;
+
+/**
+ * string_similarity
+ *
+ * Measures of how alike two strings are. All functions are static.
+ *
+ *     levenshtein(a, b)          edits (insert / delete / replace one character) to turn a into b
+ *     damerau_levenshtein(a, b)  the same, but swapping two neighbouring characters is one edit
+ *     hamming(a, b)              positions at which two strings of equal length differ
+ *     similarity(a, b)           0.0 .. 1.0 from the Levenshtein distance (1 = equal)
+ *     jaro / jaro_winkler        0.0 .. 1.0, good for short strings such as names
+ *     common_prefix / common_suffix (+ _length)
+ *     longest_common_substring   the longest piece both strings contain
+ *     lcs_length                 length of the longest common SUBSEQUENCE (need not be adjacent)
+ *
+ * Comparisons are exact: capital and small letters are different. Call
+ * to_lower() on both strings first for a comparison that ignores case.
+ *
+ * Cost: the distance and common-part functions take time proportional to
+ * length(a) * length(b) and memory proportional to the shorter length or
+ * length(b); they are meant for words and lines, not for whole files.
+ */
+class string_similarity {
+
+    private static def min3(a: decimal, b: decimal, c: decimal): decimal {
+        m : decimal = a;
+        if(b < m) m = b;
+        if(c < m) m = c;
+        return m;
+    }
+
+    /**
+     * The Levenshtein (edit) distance: the smallest number of single-character
+     * insertions, deletions and replacements that turn `a` into `b`.
+     * levenshtein("kitten", "sitting") is 3. Equal strings give 0; the
+     * distance to "" is the length of the other string.
+     */
+    static def levenshtein(a: string, b: string): decimal {
+        x := a.data;
+        y := b.data;
+        n : decimal = sizeof(x);
+        m : decimal = sizeof(y);
+        if(n == 0) return m;
+        if(m == 0) return n;
+
+        // previous[j] = distance between the first i-1 characters of a and the first j of b
+        previous := new decimal[m + 1];
+        current := new decimal[m + 1];
+        for(j : decimal = 0; j <= m; j++) {
+            previous[j] = j;
+        }
+
+        for(i : decimal = 1; i <= n; i++) {
+            current[0] = i;
+            ca : decimal = x[i - 1];
+            for(j : decimal = 1; j <= m; j++) {
+                cost : decimal = ca == y[j - 1] ? 0 : 1;
+                current[j] = min3(previous[j] + 1,          // delete from a
+                                  current[j - 1] + 1,       // insert into a
+                                  previous[j - 1] + cost);  // replace (or keep)
+            }
+            swap := previous;
+            previous = current;
+            current = swap;
+        }
+        return previous[m];
+    }
+
+    /**
+     * Like levenshtein, but swapping two neighbouring characters counts as ONE
+     * edit instead of two (the "optimal string alignment" distance): the
+     * typical typing mistake. damerau_levenshtein("form", "from") is 1.
+     */
+    static def damerau_levenshtein(a: string, b: string): decimal {
+        x := a.data;
+        y := b.data;
+        n : decimal = sizeof(x);
+        m : decimal = sizeof(y);
+        if(n == 0) return m;
+        if(m == 0) return n;
+
+        // three rows: two back (for the swap), previous and current
+        older := new decimal[m + 1];
+        previous := new decimal[m + 1];
+        current := new decimal[m + 1];
+        for(j : decimal = 0; j <= m; j++) {
+            previous[j] = j;
+        }
+
+        for(i : decimal = 1; i <= n; i++) {
+            current[0] = i;
+            for(j : decimal = 1; j <= m; j++) {
+                cost : decimal = x[i - 1] == y[j - 1] ? 0 : 1;
+                best : decimal = min3(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost);
+                if(i > 1 && j > 1 && x[i - 1] == y[j - 2] && x[i - 2] == y[j - 1]) {
+                    swapped : decimal = older[j - 2] + 1;
+                    if(swapped < best) best = swapped;
+                }
+                current[j] = best;
+            }
+            rotate := older;
+            older = previous;
+            previous = current;
+            current = rotate;
+        }
+        return previous[m];
+    }
+
+    /**
+     * The Hamming distance: at how many positions the two strings have a
+     * different character. hamming("karolin", "kathrin") is 3.
+     * Throws illegal_argument_exception if the strings do not have the same length.
+     */
+    static def hamming(a: string, b: string): decimal {
+        n : decimal = sizeof(a.data);
+        if(n != sizeof(b.data))
+            throw new illegal_argument_exception("hamming: the strings must have the same length ("
+                + number_format.integer(n) + " and " + number_format.integer(sizeof(b.data)) + ")");
+
+        different : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            if(a.data[i] != b.data[i]) different++;
+        }
+        return different;
+    }
+
+    /**
+     * How alike the strings are on a scale from 0 (nothing in common) to 1
+     * (equal): 1 - levenshtein / length of the longer string.
+     * similarity("kitten", "sitting") is about 0.571. Two empty strings give 1.
+     */
+    static def similarity(a: string, b: string): decimal {
+        n : decimal = sizeof(a.data);
+        m : decimal = sizeof(b.data);
+        longest : decimal = n > m ? n : m;
+        if(longest == 0) return 1;
+        return 1 - levenshtein(a, b) / longest;
+    }
+
+    /** The number of characters both strings start with: common_prefix_length("interstellar", "internet") is 5. */
+    static def common_prefix_length(a: string, b: string): decimal {
+        n : decimal = sizeof(a.data);
+        m : decimal = sizeof(b.data);
+        shared : decimal = n < m ? n : m;
+        i : decimal = 0;
+        while(i < shared && a.data[i] == b.data[i]) {
+            i++;
+        }
+        return i;
+    }
+
+    /** The number of characters both strings end with: common_suffix_length("walking", "talking") is 6. */
+    static def common_suffix_length(a: string, b: string): decimal {
+        n : decimal = sizeof(a.data);
+        m : decimal = sizeof(b.data);
+        shared : decimal = n < m ? n : m;
+        i : decimal = 0;
+        while(i < shared && a.data[n - 1 - i] == b.data[m - 1 - i]) {
+            i++;
+        }
+        return i;
+    }
+
+    /** The start both strings share ("" if they start differently): common_prefix("interstellar", "internet") is "inter". */
+    static def common_prefix(a: string, b: string): string {
+        return a.take(common_prefix_length(a, b));
+    }
+
+    /** The end both strings share ("" if they end differently): common_suffix("walking", "talking") is "alking". */
+    static def common_suffix(a: string, b: string): string {
+        return a.take_last(common_suffix_length(a, b));
+    }
+
+    /**
+     * The start shared by ALL strings of `items`: for ["flower", "flow",
+     * "flight"] it is "fl". An empty array gives ""; one string gives that string.
+     */
+    static def common_prefix_of(items: string[]): string {
+        count : decimal = sizeof(items);
+        if(count == 0) return new string();
+
+        first := items[0];
+        length : decimal = sizeof(first.data);
+        for(i : decimal = 1; i < count; i++) {
+            shared : decimal = common_prefix_length(first, items[i]);
+            if(shared < length) length = shared;
+        }
+        return first.take(length);
+    }
+
+    /**
+     * The longest piece of text that occurs in both strings without gaps:
+     * longest_common_substring("xabcdy", "zabcdw") is "abcd". If several are
+     * equally long the one that comes first in `a` is returned; "" if the
+     * strings share no character.
+     */
+    static def longest_common_substring(a: string, b: string): string {
+        x := a.data;
+        y := b.data;
+        n : decimal = sizeof(x);
+        m : decimal = sizeof(y);
+        if(n == 0 || m == 0) return new string();
+
+        // previous[j] = length of the common run that ends at a[i-2] and b[j-1]
+        previous := new decimal[m + 1];
+        current := new decimal[m + 1];
+        best : decimal = 0;
+        best_end : decimal = 0;             // position in a just after the best run
+        for(i : decimal = 1; i <= n; i++) {
+            for(j : decimal = 1; j <= m; j++) {
+                if(x[i - 1] == y[j - 1]) {
+                    run : decimal = previous[j - 1] + 1;
+                    current[j] = run;
+                    if(run > best) {
+                        best = run;
+                        best_end = i;
+                    }
+                } else {
+                    current[j] = 0;
+                }
+            }
+            swap := previous;
+            previous = current;
+            current = swap;
+        }
+        if(best == 0) return new string();
+        return new string(x!!, best_end - best, best_end);
+    }
+
+    /**
+     * The length of the longest common SUBSEQUENCE: the most characters that
+     * appear in both strings in the same order, not necessarily next to each
+     * other. lcs_length("AGGTAB", "GXTXAYB") is 4 ("GTAB").
+     */
+    static def lcs_length(a: string, b: string): decimal {
+        x := a.data;
+        y := b.data;
+        n : decimal = sizeof(x);
+        m : decimal = sizeof(y);
+        if(n == 0 || m == 0) return 0;
+
+        previous := new decimal[m + 1];
+        current := new decimal[m + 1];
+        for(i : decimal = 1; i <= n; i++) {
+            for(j : decimal = 1; j <= m; j++) {
+                if(x[i - 1] == y[j - 1]) {
+                    current[j] = previous[j - 1] + 1;
+                } else {
+                    current[j] = previous[j] > current[j - 1] ? previous[j] : current[j - 1];
+                }
+            }
+            swap := previous;
+            previous = current;
+            current = swap;
+        }
+        return previous[m];
+    }
+
+    /**
+     * The Jaro similarity, 0 (nothing alike) to 1 (equal). It counts
+     * characters that match within a window around the same position, and
+     * how many of those are out of order. jaro("MARTHA", "MARHTA") is about
+     * 0.944. Two empty strings give 1; one empty string gives 0.
+     */
+    static def jaro(a: string, b: string): decimal {
+        x := a.data;
+        y := b.data;
+        n : decimal = sizeof(x);
+        m : decimal = sizeof(y);
+        if(n == 0 && m == 0) return 1;
+        if(n == 0 || m == 0) return 0;
+
+        // characters count as matching only if they are at most `window` positions apart
+        longest : decimal = n > m ? n : m;
+        window : decimal = (longest - longest % 2) / 2 - 1;
+        if(window < 0) window = 0;
+
+        matched_a := new decimal[n];
+        matched_b := new decimal[m];
+        matches : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            low : decimal = i - window;
+            if(low < 0) low = 0;
+            high : decimal = i + window + 1;
+            if(high > m) high = m;
+            for(j : decimal = low; j < high; j++) {
+                if(!matched_b[j] && x[i] == y[j]) {
+                    matched_a[i] = 1;
+                    matched_b[j] = 1;
+                    matches++;
+                    break;
+                }
+            }
+        }
+        if(matches == 0) return 0;
+
+        // matched characters that are not in the same order count as half a transposition each
+        out_of_order : decimal = 0;
+        k : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            if(matched_a[i]) {
+                while(!matched_b[k]) {
+                    k++;
+                }
+                if(x[i] != y[k]) out_of_order++;
+                k++;
+            }
+        }
+        transpositions : decimal = out_of_order / 2;
+        return (matches / n + matches / m + (matches - transpositions) / matches) / 3;
+    }
+
+    /**
+     * The Jaro-Winkler similarity: jaro, raised for strings that start the
+     * same (up to 4 characters), which suits names and words.
+     * jaro_winkler("MARTHA", "MARHTA") is about 0.961.
+     */
+    static def jaro_winkler(a: string, b: string): decimal {
+        base_score : decimal = jaro(a, b);
+        prefix : decimal = common_prefix_length(a, b);
+        if(prefix > 4) prefix = 4;
+        return base_score + prefix * 0.1 * (1 - base_score);
+    }
+}

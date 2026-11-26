@@ -1,0 +1,67 @@
+mod main;
+
+/**
+ * fannkuch-redux - the Benchmarks Game.  Every permutation of 1..n: flip the
+ * first k numbers, where k is the first number, until the first is 1. Prints
+ * a checksum of the flip counts and the most flips any permutation needed.
+ *
+ *      sharp fannkuchredux <n>
+ */
+
+def main(args: string[]) {
+    n : _int64 = 7;
+    if(sizeof(args) > 0) { n = args[0].to_int(); }
+
+    perm := new _int64[32];
+    perm1 := new _int64[32];
+    count := new _int64[32];
+    max_flips : _int64 = 0;
+    checksum : _int64 = 0;
+    permutations : _int64 = 0;
+    r : _int64 = n;
+
+    for(i : _int64 = 0; i < n; i++) { perm1[i] = i; }
+
+    while(true) {
+        while(r != 1) {
+            count[r - 1] = r;
+            r--;
+        }
+
+        for(i : _int64 = 0; i < n; i++) { perm[i] = perm1[i]; }
+        flips : _int64 = 0;
+        k : _int64 = perm[0];
+        while(k != 0) {
+            i : _int64 = 0;
+            j : _int64 = k;
+            while(i < j) {
+                t : _int64 = perm[i];
+                perm[i] = perm[j];
+                perm[j] = t;
+                i++;
+                j--;
+            }
+            flips++;
+            k = perm[0];
+        }
+        if(flips > max_flips) { max_flips = flips; }
+        if(permutations % 2 == 0) { checksum += flips; }
+        else { checksum -= flips; }
+
+        // the next permutation
+        while(true) {
+            if(r == n) {
+                println("" + checksum);
+                println("Pfannkuchen(" + n + ") = " + max_flips);
+                return;
+            }
+            first : _int64 = perm1[0];
+            for(i : _int64 = 0; i < r; i++) { perm1[i] = perm1[i + 1]; }
+            perm1[r] = first;
+            count[r]--;
+            if(count[r] > 0) { break; }
+            r++;
+        }
+        permutations++;
+    }
+}

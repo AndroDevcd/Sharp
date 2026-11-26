@@ -1,0 +1,12 @@
+// expect: E0100
+// help: ok = ok && other
+// replace: ok &&= other
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    ok : _int64 = 1;
+    other : _int64 = 0;
+    ok &&= other;
+    println("" + ok);
+}

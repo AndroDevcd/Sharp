@@ -1,0 +1,31 @@
+mod std.export;
+
+import (
+    std.io
+)
+
+def serialize(obj: object) : char_array {
+    result : _int8[];
+    asm {
+       pushl [obj]
+       int 0x4d
+       movl [result]
+       popObj
+    }
+
+    return new char_array(result);
+}
+
+def deserialize(bytes: string) : object {
+    result : object;
+    data := bytes.data;
+
+    asm {
+       pushl [data]
+       int 0x4e
+       movl [result]
+       popObj
+    }
+
+    return result;
+}

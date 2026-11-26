@@ -1,0 +1,105 @@
+mod backend.finalizer.generation.null_safety;
+
+import (
+    std.io,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.generation,
+    backend.finalizer.generation.calls
+)
+
+/**
+ * SAFE NAVIGATION: `user?.address.city` (doc/codegen.md 6.5)
+ *
+ * Analysis says the receiver once and the rest of the chain once
+ * (`bound_safe_navigation`); inside the rest, the receiver appears as a
+ * `bound_receiver` - "the receiver, already evaluated and known not to be
+ * null". So the code is "evaluate, test, jump over the rest":
+ *
+ *      %recv = receiver
+ *      n = is_null %recv
+ *      jump_if n, is_null_label
+ *      %d = rest                   (every bound_receiver of this navigation is %recv)
+ *      jump end
+ *      is_null_label:  %d = null
+ *      end:
+ *
+ * A chain `a?.b?.c` is two navigations, the inner one the `rest` of the outer
+ * one; each tests its own receiver and jumps to its own "is null" label, and
+ * both give null. Which slot holds a navigation's receiver is kept on the
+ * generator while its rest is generated (`navigations`, `receiver_slots`).
+ *
+ * A chain that ends in a plain NUMBER field (`next?.value` with `value :
+ * _int64`, W1027) cannot give null: the C++-built program reads the field as
+ * if `!!.` were written, and a null receiver raises nullptr_exception at the
+ * read. The same here: no test, the rest is read directly.
+ *
+ * A chain whose value is not used (`listener?.notify();`) generates its rest
+ * as a statement: the result of the call, if any, is dropped.
+ */
+def safe_navigation_value(g: generator, e: bound_safe_navigation, used: _int64) : _int64 {
+    if(e.rest == null) { g.stop("a `?.` without the rest of its chain", e.unit, e.node); }
+    rest : bound_expression = e.rest!!;
+    receiver : _int64 = value_of(g, e.receiver);
+    receiver = held_over(g, receiver, rest);
+    if(g.b.kind_of(receiver) != SLOT_REF) { g.stop("`?.` on a value that is not a reference", e.unit, e.node); }
+
+    if(e.type.is_number()) {
+        // W1027: read as if `!!.` were written (above)
+        result : _int64 = rest_value(g, e, receiver, rest, used);
+        g.b.release(receiver);
+        return result;
+    }
+
+    target : _int64 = 0 - 1;
+    if(used == 1 && !e.type.is_nil()) { target = g.b.temp(SLOT_REF); }
+    when_null : _int64 = g.b.new_label();
+    finish : _int64 = g.b.new_label();
+    missing : _int64 = g.b.temp(SLOT_INT);
+    test := g.b.emit(IR_IS_NULL);
+    test.target = missing;
+    test.first = receiver;
+    g.b.jump_if(missing, when_null);
+    g.b.release(missing);
+
+    result : _int64 = rest_value(g, e, receiver, rest, target >= 0);
+    g.b.release(receiver);
+    if(target >= 0) {
+        g.b.copy(target, result, NARROW_NONE);
+        g.b.release(result);
+    }
+    g.b.jump(finish);
+    g.b.place(when_null);
+    if(target >= 0) { g.b.null_constant(target); }
+    g.b.place(finish);
+    return target;
+}
+
+/** the rest of a navigation, with its receiver in `receiver`; -1 when its value is not used */
+def rest_value(g: generator, e: bound_safe_navigation, receiver: _int64, rest: bound_expression, used: _int64) : _int64 {
+    g.navigations.add(e);
+    g.receiver_slots.add(receiver);
+    result : _int64 = 0 - 1;
+    if(rest.kind == BX_CALL) { result = call_value(g, rest as bound_call, used); }
+    else if(rest.kind == BX_SAFE_NAVIGATION) { result = safe_navigation_value(g, rest as bound_safe_navigation, used); }
+    else {
+        result = value_of(g, rest);
+        if(used == 0) {
+            g.b.release(result);
+            result = 0 - 1;
+        }
+    }
+    g.navigations.pop_last();
+    g.receiver_slots.pop_last();
+    return result;
+}
+
+/** a `bound_receiver`: the slot its navigation put the receiver in */
+def receiver_value(g: generator, e: bound_receiver) : _int64 {
+    for(i : _int64 = g.navigations.size() - 1; i >= 0; i--) {
+        if(g.navigations.at(i) == e.of) { return g.receiver_slots.at(i); }
+    }
+    g.stop("the receiver of a `?.` outside its chain", e.unit, e.node);
+    return 0 - 1;
+}

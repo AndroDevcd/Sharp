@@ -1,0 +1,305 @@
+mod std.crypto;
+
+import ( std.io, std.data )
+
+/**
+ * HASHES: a fingerprint of any amount of data
+ *
+ *      sha256.hex("hello")                 "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+ *      sha256.bytes("hello")               the same 32 bytes, not written out
+ *      sha256.hex_of(bytes)                of bytes instead of a text
+ *      sha256.hex_of_file(new file("a.zip"))
+ *
+ *      // data that comes in pieces
+ *      running := new sha256();
+ *      running.add("first part");
+ *      running.add_bytes(more);
+ *      print(running.hex());
+ *
+ * The same data always gives the same fingerprint; any change to it gives a
+ * completely different one; and nobody can make data to fit a fingerprint.
+ * That is what downloads are checked with, what signatures and tokens are
+ * built from (hmac, in hmac.sharp), and how a file is named by its content.
+ *
+ *      sha256      32 bytes. The one to use.
+ *      sha1        20 bytes. Broken for security (two different files with one fingerprint
+ *                  have been made); still what git, WebSocket handshakes and old APIs ask for.
+ *      md5         16 bytes. Broken the same way, long ago; for old checksums and ETags only.
+ *
+ * NOT FOR PASSWORDS as they are: a fingerprint is fast to compute, so every
+ * password can be tried. Passwords go through pbkdf2 (hmac.sharp).
+ *
+ * All three are written in Sharp (no library is called); a megabyte takes a
+ * moment, not an instant.
+ *
+ *      Java comparison: MessageDigest.getInstance("SHA-256"); Python: hashlib.sha256(data).hexdigest().
+ */
+class sha256 {
+    private work : hash_work = new hash_work(hash_work.SHA256);
+
+    def add(text: string) : sha256 { work.add(text.data); return self; }
+    def add_bytes(data: _int8[]?) : sha256 { work.add(data); return self; }
+    /** the fingerprint of everything added. The object is used up: make a new one for other data. */
+    def bytes() : _int8[] { return work.finish(); }
+    def hex() : string { return hex.encode_bytes(work.finish()); }
+
+    static def bytes(text: string) : _int8[] { return bytes_of(text.data); }
+    static def hex(text: string) : string { return hex.encode_bytes(bytes_of(text.data)); }
+    static def hex_of(data: _int8[]?) : string { return hex.encode_bytes(bytes_of(data)); }
+    static def hex_of_file(source: file) : string { return hex.encode_bytes(bytes_of(source.read_bytes())); }
+    static def bytes_of(data: _int8[]?) : _int8[] {
+        work := new hash_work(hash_work.SHA256);
+        work.add(data);
+        return work.finish();
+    }
+}
+
+class sha1 {
+    private work : hash_work = new hash_work(hash_work.SHA1);
+
+    def add(text: string) : sha1 { work.add(text.data); return self; }
+    def add_bytes(data: _int8[]?) : sha1 { work.add(data); return self; }
+    def bytes() : _int8[] { return work.finish(); }
+    def hex() : string { return hex.encode_bytes(work.finish()); }
+
+    static def bytes(text: string) : _int8[] { return bytes_of(text.data); }
+    static def hex(text: string) : string { return hex.encode_bytes(bytes_of(text.data)); }
+    static def hex_of(data: _int8[]?) : string { return hex.encode_bytes(bytes_of(data)); }
+    static def hex_of_file(source: file) : string { return hex.encode_bytes(bytes_of(source.read_bytes())); }
+    static def bytes_of(data: _int8[]?) : _int8[] {
+        work := new hash_work(hash_work.SHA1);
+        work.add(data);
+        return work.finish();
+    }
+}
+
+class md5 {
+    private work : hash_work = new hash_work(hash_work.MD5);
+
+    def add(text: string) : md5 { work.add(text.data); return self; }
+    def add_bytes(data: _int8[]?) : md5 { work.add(data); return self; }
+    def bytes() : _int8[] { return work.finish(); }
+    def hex() : string { return hex.encode_bytes(work.finish()); }
+
+    static def bytes(text: string) : _int8[] { return bytes_of(text.data); }
+    static def hex(text: string) : string { return hex.encode_bytes(bytes_of(text.data)); }
+    static def hex_of(data: _int8[]?) : string { return hex.encode_bytes(bytes_of(data)); }
+    static def hex_of_file(source: file) : string { return hex.encode_bytes(bytes_of(source.read_bytes())); }
+    static def bytes_of(data: _int8[]?) : _int8[] {
+        work := new hash_work(hash_work.MD5);
+        work.add(data);
+        return work.finish();
+    }
+}
+
+/**
+ * HOW THE THREE WORK. They are built the same way (it has a name: the
+ * Merkle-Damgard construction):
+ *
+ *      the data is cut into blocks of 64 bytes;
+ *      a small state (4, 5 or 8 numbers of 32 bits) starts at fixed values;
+ *      each block is stirred into the state by a fixed recipe of adds, rotations and bit operations;
+ *      the last block is padded: a 1 bit, zeros, and the length of the data in bits;
+ *      the state at the end, written out, is the fingerprint.
+ *
+ * Only the recipe - and whether numbers are written big end or little end
+ * first - differs. A 32-bit number lives in an _int64 here and is cut back
+ * to 32 bits (`& M`) after every add.
+ */
+class hash_work {
+    static const MD5 : _int64 = 1;
+    static const SHA1 : _int64 = 2;
+    static const SHA256 : _int64 = 3;
+    private static const M : _int64 = 0xFFFFFFFF;
+
+    private static sha256_constants : _int64[]?;
+    private static md5_constants : _int64[]?;
+    private static md5_turns : _int64[]?;
+
+    private kind : _int64;
+    private state : _int64[];
+    private block := new _int8[64];
+    private filled : _int64 = 0;
+    private total : _int64 = 0;
+    private w := new _int64[80];
+    private done : bool = false;
+
+    hash_work(kind: _int64) {
+        self->kind = kind;
+        if(kind == SHA256) {
+            state = new _int64[] { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 };
+        } else if(kind == SHA1) {
+            state = new _int64[] { 0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476, 0xC3D2E1F0 };
+        } else {
+            state = new _int64[] { 0x67452301, 0xEFCDAB89, 0x98BADCFE, 0x10325476 };
+        }
+    }
+
+    /** how many bytes the fingerprint of this kind has */
+    static def size_of(kind: _int64) : _int64 {
+        if(kind == SHA256) { return 32; }
+        if(kind == SHA1) { return 20; }
+        return 16;
+    }
+
+    def add(data: _int8[]?) {
+        if(done) { throw new illegal_state_exception("the hash was finished already: make a new one"); }
+        count : _int64 = sizeof(data);
+        if(count == 0) { return; }
+        bytes : _int8[] = data!!;
+        total = total + count;
+        for(i : _int64 = 0; i < count; i++) {
+            block[filled] = bytes[i];
+            filled++;
+            if(filled == 64) { stir(); filled = 0; }
+        }
+    }
+
+    def finish() : _int8[] {
+        if(done) { throw new illegal_state_exception("the hash was finished already: make a new one"); }
+        done = true;
+        bits : _int64 = total * 8;
+        // a 1 bit, then zeros until 8 bytes are left in a block, then the length
+        block[filled] = 0x80;
+        filled++;
+        if(filled > 56) {
+            while(filled < 64) { block[filled] = 0; filled++; }
+            stir();
+            filled = 0;
+        }
+        while(filled < 56) { block[filled] = 0; filled++; }
+        for(i : _int64 = 0; i < 8; i++) {
+            if(kind == MD5) { block[56 + i] = (bits >> (8 * i)) & 0xFF; }
+            else { block[63 - i] = (bits >> (8 * i)) & 0xFF; }
+        }
+        stir();
+
+        words : _int64 = size_of(kind) / 4;
+        made := new _int8[words * 4];
+        for(i : _int64 = 0; i < words; i++) {
+            value : _int64 = state[i];
+            for(j : _int64 = 0; j < 4; j++) {
+                if(kind == MD5) { made[i * 4 + j] = (value >> (8 * j)) & 0xFF; }
+                else { made[i * 4 + 3 - j] = (value >> (8 * j)) & 0xFF; }
+            }
+        }
+        return made;
+    }
+
+    private def stir() {
+        if(kind == SHA256) { stir_sha256(); }
+        else if(kind == SHA1) { stir_sha1(); }
+        else { stir_md5(); }
+    }
+
+    /** the block as 16 numbers, the first byte of each the highest */
+    private def load_big_end() {
+        for(i : _int64 = 0; i < 16; i++) {
+            at : _int64 = i * 4;
+            w[i] = ((block[at] & 0xFF) << 24) | ((block[at + 1] & 0xFF) << 16) | ((block[at + 2] & 0xFF) << 8) | (block[at + 3] & 0xFF);
+        }
+    }
+
+    private def stir_sha256() {
+        if(sha256_constants == null) {
+            sha256_constants = new _int64[] {
+                0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+                0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+                0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+                0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+                0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+                0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+                0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2 };
+        }
+        k : _int64[] = sha256_constants!!;
+        load_big_end();
+        for(i : _int64 = 16; i < 64; i++) {
+            x : _int64 = w[i - 15];
+            y : _int64 = w[i - 2];
+            s0 : _int64 = (((x >> 7) | (x << 25)) ^ ((x >> 18) | (x << 14)) ^ (x >> 3)) & M;
+            s1 : _int64 = (((y >> 17) | (y << 15)) ^ ((y >> 19) | (y << 13)) ^ (y >> 10)) & M;
+            w[i] = (w[i - 16] + s0 + w[i - 7] + s1) & M;
+        }
+        a : _int64 = state[0]; b : _int64 = state[1]; c : _int64 = state[2]; d : _int64 = state[3];
+        e : _int64 = state[4]; f : _int64 = state[5]; g : _int64 = state[6]; h : _int64 = state[7];
+        for(i : _int64 = 0; i < 64; i++) {
+            big1 : _int64 = (((e >> 6) | (e << 26)) ^ ((e >> 11) | (e << 21)) ^ ((e >> 25) | (e << 7))) & M;
+            choose : _int64 = (e & f) ^ ((e ^ M) & g);
+            t1 : _int64 = (h + big1 + choose + k[i] + w[i]) & M;
+            big0 : _int64 = (((a >> 2) | (a << 30)) ^ ((a >> 13) | (a << 19)) ^ ((a >> 22) | (a << 10))) & M;
+            most : _int64 = (a & b) ^ (a & c) ^ (b & c);
+            t2 : _int64 = (big0 + most) & M;
+            h = g; g = f; f = e;
+            e = (d + t1) & M;
+            d = c; c = b; b = a;
+            a = (t1 + t2) & M;
+        }
+        state[0] = (state[0] + a) & M; state[1] = (state[1] + b) & M; state[2] = (state[2] + c) & M; state[3] = (state[3] + d) & M;
+        state[4] = (state[4] + e) & M; state[5] = (state[5] + f) & M; state[6] = (state[6] + g) & M; state[7] = (state[7] + h) & M;
+    }
+
+    private def stir_sha1() {
+        load_big_end();
+        for(i : _int64 = 16; i < 80; i++) {
+            x : _int64 = w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16];
+            w[i] = ((x << 1) | (x >> 31)) & M;
+        }
+        a : _int64 = state[0]; b : _int64 = state[1]; c : _int64 = state[2]; d : _int64 = state[3]; e : _int64 = state[4];
+        for(i : _int64 = 0; i < 80; i++) {
+            f : _int64 = 0;
+            k : _int64 = 0;
+            if(i < 20) { f = (b & c) | ((b ^ M) & d); k = 0x5A827999; }
+            else if(i < 40) { f = b ^ c ^ d; k = 0x6ED9EBA1; }
+            else if(i < 60) { f = (b & c) | (b & d) | (c & d); k = 0x8F1BBCDC; }
+            else { f = b ^ c ^ d; k = 0xCA62C1D6; }
+            next : _int64 = ((((a << 5) | (a >> 27)) & M) + f + e + k + w[i]) & M;
+            e = d;
+            d = c;
+            c = ((b << 30) | (b >> 2)) & M;
+            b = a;
+            a = next;
+        }
+        state[0] = (state[0] + a) & M; state[1] = (state[1] + b) & M; state[2] = (state[2] + c) & M;
+        state[3] = (state[3] + d) & M; state[4] = (state[4] + e) & M;
+    }
+
+    private def stir_md5() {
+        if(md5_constants == null) {
+            md5_constants = new _int64[] {
+                0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
+                0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be, 0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
+                0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa, 0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
+                0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed, 0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
+                0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c, 0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
+                0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05, 0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
+                0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039, 0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
+                0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1, 0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391 };
+            md5_turns = new _int64[] { 7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21 };
+        }
+        k : _int64[] = md5_constants!!;
+        turns : _int64[] = md5_turns!!;
+        for(i : _int64 = 0; i < 16; i++) {
+            at : _int64 = i * 4;
+            w[i] = (block[at] & 0xFF) | ((block[at + 1] & 0xFF) << 8) | ((block[at + 2] & 0xFF) << 16) | ((block[at + 3] & 0xFF) << 24);
+        }
+        a : _int64 = state[0]; b : _int64 = state[1]; c : _int64 = state[2]; d : _int64 = state[3];
+        for(i : _int64 = 0; i < 64; i++) {
+            f : _int64 = 0;
+            g : _int64 = 0;
+            round : _int64 = i / 16;
+            if(round == 0) { f = (b & c) | ((b ^ M) & d); g = i; }
+            else if(round == 1) { f = (d & b) | ((d ^ M) & c); g = (5 * i + 1) % 16; }
+            else if(round == 2) { f = b ^ c ^ d; g = (3 * i + 5) % 16; }
+            else { f = c ^ (b | (d ^ M)); g = (7 * i) % 16; }
+            sum : _int64 = (a + f + k[i] + w[g]) & M;
+            turn : _int64 = turns[round * 4 + (i % 4)];
+            a = d;
+            d = c;
+            c = b;
+            b = (b + (((sum << turn) | (sum >> (32 - turn))) & M)) & M;
+        }
+        state[0] = (state[0] + a) & M; state[1] = (state[1] + b) & M; state[2] = (state[2] + c) & M; state[3] = (state[3] + d) & M;
+    }
+
+}

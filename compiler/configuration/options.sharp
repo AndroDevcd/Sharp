@@ -1,0 +1,395 @@
+mod configuration;
+
+/*
+ * THE OPTIONS: every switch of the compiler, with its default
+ *
+ * One class with static fields only - there is one compile per run, so there
+ * is one set of options. The command line (command_line.sharp) and a
+ * project's settings.json (settings_processor.sharp) write them, most through
+ * the setters of settings.sharp; the driver (main.sharp) and the build cache
+ * read them. doc/codegen.md 8.2 has the table of every option.
+ *
+ *      C++ comparison: `options` in lib/grammar/settings/settings.h.
+ *
+ * Created by bknun on 6/12/2018
+ */
+class options {
+    /*
+     * Activate aggressive error reporting for the compiler.
+     */
+    static aggressive_errors : decimal = false;
+
+    /*
+     * Only compile all the files
+     */
+    static compile : decimal = false;
+
+    /*
+     * Output file to write to
+     */
+    static out : string = "out";
+    static out_given : decimal = false;             // -o was on the command line (settings.json's "output" then says so when it differs)
+
+    /*
+     * --new-project <folder>: the project to create ("" when not asked for)
+     */
+    static new_project_dir : string = "";
+
+    /*
+     * Location of the project you want to compile
+     */
+    static project_dir : string = "";
+
+    /*
+     * Mapping file to write to
+     */
+    static map_file : string = "mapping.txt";
+
+    /*
+     * Directory to which c++ code will be generated
+     */
+    static sni_folder : string = "";
+
+    /*
+     * Application version
+     */
+    static version : string = "1.0";
+
+    /*
+     * Disable warnings
+     */
+    static warnings : decimal = true;
+
+    /*
+     * Enable file caching
+     */
+    static file_caching : decimal = true;
+
+    /** -timings: print how long every stage of the compiler took */
+    static show_timings : decimal = false;
+    static show_declarations : decimal = false;
+    static show_analysis : decimal = false;         // -analysis: print the typed tree of the last file given
+    // the file -analysis and -ir show: the last source file of the PROGRAM (named on the command
+    // line, or of the project) - set before the library files are added, which come after it
+    static inspected_file : string = "";
+    static show_analysis_stats : decimal = false;   // -analysis-stats: what was analysed, what is still pending
+
+    /** -ide <folder>: where to write the files an editor plugin reads (backend/ide); "" when not asked for */
+    static ide_folder : string = "";
+
+    /*
+     * Execute source code after successful compilation
+     */
+    static run_source : decimal = false;
+
+    /*
+     * -watch: build, then build again whenever a file of the program changes (watch.sharp)
+     */
+    static watch : decimal = false;
+
+    /*
+     * Optimize code
+     */
+    static optimize_level := optimization_level.none;
+
+    /*
+     * Set the compilation mode
+     */
+    static compile_mode := compilation_mode.file_mode;
+
+    /*
+     * Set code to be debuggable (flag only used in manifest creation)
+     */
+    static debug : decimal = true;
+
+    /*
+     * Strip debugging info (if-applicable)
+     */
+    static strip : decimal = false;
+
+    /*
+     * Flush compiler cache and start from scratch (only used in project mode)
+     */
+    static clean_build : decimal = false;
+
+    /*
+     * Enable warnings as errors
+     */
+    static werrors : decimal = false;
+
+    /*
+     * Also report the warnings that are off by default (-wextra): unused locals and
+     * private members, fields nothing gives a value
+     */
+    static extra_warnings : decimal = false;
+
+    /*
+     * Also show the warnings located in the standard library (-wlib); without it they
+     * are counted in one line
+     */
+    static library_warnings : decimal = false;
+
+    /*
+     * Enable green mode for less overall power consumption
+     * When compiling source code
+     */
+    static green_mode : decimal = false;
+
+    /*
+     * Easter egg to enable magic mode
+     */
+    static magic : decimal = false;
+
+    /*
+     * Easter egg to enable debug mode
+     *
+     * Allows you to see a little information
+     * on what the compiler is doing
+     */
+    static debug_mode : decimal = false;
+
+    /*
+     * Maximum errors the compiler will allow
+     */
+    static max_errors : decimal = 1000;
+
+    /*
+     * Machine platform target to run on
+     */
+    static target := configuration#platform.alpha_cr4;
+
+    // ---- what the command line names (command_line.sharp reads it into these)
+
+    /** the source files, in the order they were given */
+    static source_files := new list<string>();
+    static lexer_stats_only : decimal = false;    // -lexstats: tokenize, print what was found, stop
+    static parser_stats_only : decimal = false;   // -parsestats: parse, print what was found, stop
+    static parser_tree_only : decimal = false;    // -parsetree: print the syntax tree of each file, stop
+
+    // ---- what code generation is asked for (backend/finalizer, doc/codegen.md 8.2)
+
+    /** -target <n> was given; else the manifest says 2 (`alpha`), as the C++ compiler writes */
+    static target_given : decimal = false;
+    /**
+     * -dbg / -debug: the executable carries its source text (stack traces print
+     * the lines); -R / -release takes it out again. Off unless asked for.
+     */
+    static debug_file : decimal = false;
+    static keep_everything : decimal = false;     // -eager: keep every analysed function and class, reached or not
+    static write_listing_file : decimal = false;  // -listing, -d: write <output>.listing, the file as text
+    static show_ir : decimal = false;             // -ir: print the IR of the functions of the last file given
+    static obfuscate_names : decimal = false;     // -obf: rename what the `obfuscate` blocks do not keep
+
+    // ---- the optimizer (backend/optimizer): as in the C++ compiler ONE switch. -O (or -O1,
+    // -O2, -O3, which mean the same) turns every optimization on, -O0 off again.
+    static optimize : decimal = false;                      // -O
+    static optimizer_report_wanted : decimal = false;       // -Oreport
+    static left_out_optimizations := new list<string>();    // -n<name>
+    static optimizer_trace : string = "";                   // -Otrace <function>
+
+    /**
+     * -sni <folder> was given: the C++ files of the program's `native` functions
+     * (the Sharp Native Interface) are written there with every compile.
+     */
+    static sni_folder_given : decimal = false;
+
+    /**
+     * THE C++ OF A PROJECT (native_build.sharp). `-cxx <compiler>` names the C++ compiler for
+     * this one build; the rest is the "native" setting of settings.json:
+     *
+     *      "native": {
+     *        "sources": [ "src/cpp" ],                     C++ files, or folders of them
+     *        "toolchain": {
+     *          "compiler": "C:/msys64/ucrt64/bin/g++.exe", a path, or a name on the PATH
+     *          "flags": [ "-O2" ],                         added after the flags Sharp needs
+     *          "include": [ "third_party/include" ],       folders of headers only (another library's);
+     *                                                      the "sources" folders are searched already
+     *          "libraries": [ "ws2_32" ],                  more libraries to link (-l)
+     *          "windows": { ... }, "linux": { ... }        the same four and "sources", for one system only
+     *          "processor": {                              for one kind of processor only (arm or x86):
+     *            "arm": { "sources", "flags", "include", "libraries" }
+     *          }                                           at the top, or inside a system's block
+     *        }
+     *      }
+     */
+    /**
+     * settings.json, "c_libraries": which file each C library of the program's `extern` blocks is
+     *
+     *      "c_libraries": {
+     *        "sqlite": "sqlite3",                                  one name for every system
+     *        "sdl": { "windows": "SDL2.dll",                       a name the system finds, or a path:
+     *                 "linux": [ "libSDL2-2.0.so.0", "libs/libSDL2.so" ] }     absolute, or from the project's folder
+     *      }
+     *
+     * Kept as triples - library, system ("" for every system), place - in the order written:
+     * the places of a library are tried in that order when the program runs (runtime/cffi/c_bind.cpp).
+     */
+    static c_library_places := new list<string>();
+    static cxx : string = "";
+    static native_configured : decimal = false;            // settings.json has "native"
+    static native_sources := new list<string>();
+    static native_compiler : string = "";
+    static native_flags := new list<string>();
+    static native_includes := new list<string>();
+    static native_libraries := new list<string>();
+    // the "processor" blocks that may apply: which one does is the C++ compiler's answer
+    // (what it builds for), so they are kept here and added by native_build.sharp
+    static native_processors := new list<processor_settings>();
+
+    /**
+     * -cache <folder>: where the build cache is kept; "" = inside the project
+     * (<project>/build/cache). With a folder given the cache is also used when
+     * files are named one by one (no project).
+     */
+    static cache_folder : string = "";
+
+    /**
+     * The version of the standard library the program is built with: the
+     * installed one of that number is added to the sources when it is there
+     * ("target_api" in settings.json; main.sharp, add_library_files).
+     */
+    static library_version : string = "0.5.14";
+
+    /*
+     * List of user defined library paths
+     */
+    static libraries := new list<string>();
+
+    /*
+     * List of ignored directories (only used in project mode)
+     */
+    static ignored_directories := new list<string>();
+
+    /*
+     * List of ignored files
+     */
+    static ignored_files := new list<string>();
+
+    /*
+     * THE TESTS OF A PROJECT (project.sharp, apply_tests_folder)
+     *
+     * tests              -tests: build the project's tests, not the program
+     * tests_folder_name  the folder of the project that holds them ("tests_folder" of settings.json)
+     * tests_dir          the folder whose `main` is where the build starts, absolute ("": the
+     *                    program's own main). Set by -tests, or named with -testdir.
+     */
+    static tests : decimal = false;
+    static tests_folder_name : string = "tests";
+    static tests_dir : string = "";
+    // -test-only <which>: with -tests -run, the part of the tests to run (a group, or "group > test")
+    static tests_only := new list<string>();
+}
+
+/**
+ * What a "processor" block of the native toolchain adds, for one kind of processor:
+ *
+ *      "processor": { "arm": { "libraries": [ "wiringPi" ] } }
+ *
+ *      arm     every ARM processor, 32 and 64 bit (a Raspberry Pi)
+ *      x86     every Intel / AMD processor, 32 and 64 bit (a PC)
+ */
+class processor_settings {
+    name : string;                              // arm or x86
+    sources := new list<string>();              // C++ for this processor only: compiled, and searched for headers
+    flags := new list<string>();
+    includes := new list<string>();
+    libraries := new list<string>();
+
+    processor_settings(name: string) {
+        self->name = name;
+    }
+}
+
+supported_versions := new string[] {
+    "0.2.9",
+    "0.3.0",
+    "0.4.0",
+    "0.4.1",
+    "0.4.2",
+    "0.4.3",
+    "0.4.4",
+    "0.4.5",
+    "0.4.6",
+    "0.4.7",
+    "0.4.8",
+    "0.5.0",
+    "0.6.0",
+    "0.7.0",
+    "0.4.9",
+    "0.5.1",
+    "0.5.2",
+    "0.5.3",
+    "0.5.4",
+    "0.5.5",
+    "0.5.6",
+    "0.5.7",
+    "0.5.8",
+    "0.5.9",
+    "0.5.10",
+    "0.5.11",
+    "0.5.12",
+    "0.5.13",
+    "0.5.14"
+};
+
+// WARNING SWITCHES
+const __w_general := 0;
+const __w_access := 1;
+const __w_ambig := 2;
+const __w_decl := 3;
+const __w_main := 4;
+const __w_cast := 5;
+const __w_init := 6;
+const __w_null := 7;
+const __w_dep := 8;
+
+warning_options := new decimal[]
+{
+    true,    // general warnings
+    true,    // waccess
+    true,   // wambig
+    true,   // wdecl
+    true,   // wmain
+    true,   // wcast
+    true,    // winit
+    true,   // wnull
+    true    // wdep
+};
+
+enum optimization_level {
+    none = 0,
+
+    /*
+    * This optimization consists of the most basic level of optimization where
+    * no code is changed at the "user" level. Meaning all code written at the language
+    * level remain in place and code at the virtual machine level is replaced with more high performance
+    * instructions
+    *
+    */
+    basic = 1,
+
+    /*
+    * This optimization consists of the highest level of optimization available for your code
+    * Code under this optimization will be changed at both the "user" level and vm level. Meaning that code written at the language
+    * level may not exist at the lower level/ may be heavily modified and code at the virtual machine level is replaced with more high performance
+    * instructions
+    *
+    */
+    high_performance = 2
+};
+
+enum compilation_mode {
+    /*
+    * This mode specifies that you must explicitly pass in
+    * any files that you want compiled
+    */
+    file_mode,
+
+    /*
+    * This mode specifies that you want to run the compiler in project mode,
+    * signifying that you do not have to explicitly provide any files to be compiled.
+    * Any additional files and or directories added to the options will also be added
+    * to the compilation list as well.
+    */
+    project_mode
+};

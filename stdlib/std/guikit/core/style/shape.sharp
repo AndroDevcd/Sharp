@@ -1,0 +1,187 @@
+mod std.guikit.core.style;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * shape - the outline of a box: what its background is filled as, and what
+ * its content is cut to.
+ *
+ *      modifier().background(t.surface, shape.rounded(12))
+ *      modifier().background(t.primary, shape.pill())
+ *      modifier().background(t.success, shape.circle())
+ *      modifier().background(gold, shape.star())
+ *      modifier().clip(shape.circle())                     // a round picture
+ *
+ * A shape has no size of its own: it is stretched over whatever box it is
+ * given. So the same shape.pill() is right for a small chip and a wide bar.
+ *
+ * YOUR OWN SHAPE is a list of corners, each given as a fraction of the box
+ * (0, 0 is the top left; 1, 1 the bottom right), in order around the shape:
+ *
+ *      arrow := shape.corners { p: shape_path ->
+ *          p.to(0, 0.3); p.to(0.6, 0.3); p.to(0.6, 0); p.to(1, 0.5);
+ *          p.to(0.6, 1); p.to(0.6, 0.7); p.to(0, 0.7);
+ *      };
+ *
+ * Make a shape once and keep it (a field, a global): it is the same object
+ * every time it is used.
+ *
+ * What works with what, today:
+ *      background      every shape
+ *      border          rounded, pill, circle
+ *      clip            rounded, pill, circle (a shape with corners clips to its box)
+ *
+ * (Compose: Shape - RoundedCornerShape, CircleShape, GenericShape.
+ * Android: ShapeDrawable, MaterialShapeDrawable.)
+ */
+stable class shape {
+    private static const ROUNDED : _int64 = 0;
+    private static const PILL    : _int64 = 1;
+    private static const CIRCLE  : _int64 = 2;
+    private static const CORNERS : _int64 = 3;
+
+    private form : _int64 = ROUNDED;
+    private radius : decimal = 0;
+    private points : list<shape_point> = new list<shape_point>();
+
+    private shape(which: _int64, round: decimal) {
+        form = which;
+        radius = round;
+    }
+
+    // ------------------------------------------------------------ the ready-made ones
+
+    /** a rectangle whose corners are rounded by `radius` */
+    static def rounded(radius: decimal) : shape {
+        return new shape(ROUNDED, radius);
+    }
+
+    /** a rectangle with fully round ends: a capsule, however wide the box is */
+    static def pill() : shape {
+        return new shape(PILL, 0);
+    }
+
+    /** a circle in the middle of the box, as big as fits */
+    static def circle() : shape {
+        return new shape(CIRCLE, 0);
+    }
+
+    /** a shape of your own: the block names its corners in order, as fractions of the box */
+    static def corners(build: (shape_path)()) : shape {
+        made := new shape(CORNERS, 0);
+        build(new shape_path(made.points));
+        return made;
+    }
+
+    static def triangle() : shape {
+        return corners({ p: shape_path -> p.to(0.5, 0); p.to(1, 1); p.to(0, 1); });
+    }
+
+    static def diamond() : shape {
+        return corners({ p: shape_path -> p.to(0.5, 0); p.to(1, 0.5); p.to(0.5, 1); p.to(0, 0.5); });
+    }
+
+    static def hexagon() : shape {
+        return corners({ p: shape_path ->
+            p.to(0.25, 0.04); p.to(0.75, 0.04); p.to(1, 0.5); p.to(0.75, 0.96); p.to(0.25, 0.96); p.to(0, 0.5);
+        });
+    }
+
+    /** a five-pointed star */
+    static def star() : shape {
+        return corners({ p: shape_path ->
+            p.to(0.5, 0);        p.to(0.618, 0.338);
+            p.to(0.976, 0.345);  p.to(0.690, 0.562);
+            p.to(0.794, 0.905);  p.to(0.5, 0.7);
+            p.to(0.206, 0.905);  p.to(0.310, 0.562);
+            p.to(0.024, 0.345);  p.to(0.382, 0.338);
+        });
+    }
+
+    // ------------------------------------------------------------ FRAMEWORK USE: what the view asks while painting
+
+    /** the corner radius this shape has on a box of this size (0 for a shape with corners of its own) */
+    def radius_on(w: decimal, h: decimal) : decimal {
+        if(form == ROUNDED) { return radius; }
+        if(form == PILL) { return h / 2; }
+        if(form == CIRCLE) { return num.smaller(w, h) / 2; }
+        return 0;
+    }
+
+    /** can this shape be drawn as a rounded box (and so have a border and be clipped to)? */
+    def is_boxy() : _int64 {
+        if(form == CORNERS) { return 0; }
+        return 1;
+    }
+
+    /** the box a circle sits in: the middle square of the box it was given (other shapes: the box itself) */
+    def left_on(x: decimal, w: decimal, h: decimal) : decimal {
+        if(form == CIRCLE && w > h) { return x + (w - h) / 2; }
+        return x;
+    }
+    def top_on(y: decimal, w: decimal, h: decimal) : decimal {
+        if(form == CIRCLE && h > w) { return y + (h - w) / 2; }
+        return y;
+    }
+    def wide_on(w: decimal, h: decimal) : decimal {
+        if(form == CIRCLE) { return num.smaller(w, h); }
+        return w;
+    }
+    def tall_on(w: decimal, h: decimal) : decimal {
+        if(form == CIRCLE) { return num.smaller(w, h); }
+        return h;
+    }
+
+    /** fill the shape, stretched over the box (x, y, w, h) */
+    def fill(p: painter, x: decimal, y: decimal, w: decimal, h: decimal, c: color) {
+        if(form != CORNERS) {
+            p.rect(left_on(x, w, h), top_on(y, w, h), wide_on(w, h), tall_on(w, h), radius_on(w, h), c);
+            return;
+        }
+        // the corners, from fractions of the box to places in the painter
+        count : _int64 = points.size();
+        xs := new decimal[count];
+        ys := new decimal[count];
+        for(i : _int64 = 0; i < count; i++) {
+            corner : shape_point = points.at(i);
+            xs[i] = x + corner.x * w;
+            ys[i] = y + corner.y * h;
+        }
+        p.polygon(xs, ys, c);
+    }
+
+    /** the border of the shape (shapes with corners of their own have none yet) */
+    def stroke(p: painter, x: decimal, y: decimal, w: decimal, h: decimal, thickness: decimal, c: color) {
+        if(form != CORNERS) {
+            p.outline(left_on(x, w, h), top_on(y, w, h), wide_on(w, h), tall_on(w, h), radius_on(w, h), thickness, c);
+        }
+    }
+}
+
+/** what the block of shape.corners { } is given: name the corners in order with to(x, y) */
+stable class shape_path {
+    private into : list<shape_point>;
+
+    shape_path(target: list<shape_point>) {
+        into = target;
+    }
+
+    /** the next corner, as a fraction of the box: (0, 0) top left, (1, 1) bottom right */
+    def to(x: decimal, y: decimal) : shape_path {
+        into.add(new shape_point(x, y));
+        return self;
+    }
+}
+
+/** one corner of a shape, as fractions of the box */
+local stable class shape_point {
+    x : decimal;
+    y : decimal;
+
+    shape_point(across: decimal, down: decimal) {
+        x = across;
+        y = down;
+    }
+}

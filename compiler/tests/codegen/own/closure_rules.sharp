@@ -1,0 +1,236 @@
+mod main;
+
+// output:
+// 4
+// 6
+// 2.5
+// 5
+// 44
+// 16
+// 21
+// 30
+// 7
+// 303
+// caught: bad thing
+// animal
+// 12
+// 13
+// 3
+// 6
+// 1
+// 2
+// 3
+// 99
+// 53
+// 8
+// 8
+// 43
+
+/*
+ * Closures the C++ compiler cannot build, or builds wrongly (doc/codegen.md
+ * 6.12, section 10). The output was worked out by hand from the rules:
+ *
+ *  - NUMBERS captured (the C++ compiler captures only objects: "Only types of
+ *    (arrays, classes, & objects) are allowed"; backend.md D10): a counter,
+ *    a decimal, an `_int8` cut to its width when the lambda stores 300 into
+ *    it (300 - 256 = 44), a captured parameter, a lambda's own parameter
+ *    captured by a lambda inside it (its own record, whose `@parent` is the
+ *    record it was handed: 1 + 5 + 10 = 16, then 21)
+ *  - a lambda in the value of an instance FIELD using `self` (the record
+ *    belongs to the field and is made by init<C>; the C++ compiler refuses
+ *    `self` there): 10 + 20 = 30
+ *  - a lambda in a `static init { }` block capturing a local of the block
+ *  - a lambda in a constructor capturing a number parameter that the
+ *    constructor's `-> base(...)` already used (3 + 3 * 100 = 303; the base
+ *    call runs after the record is made)
+ *  - a `catch` variable captured (the VM stores the caught object into a frame
+ *    slot; the handler moves it into the record): the C++-built program
+ *    crashes there with nullptr_exception (G34)
+ *  - `base->f()` inside a lambda runs the BASE class's own body, as it does
+ *    outside one; the C++-built program runs the object's (G33)
+ *  - `try` / `catch` and `lock` inside a lambda that captures: 12, then 13
+ *  - lambdas kept in a list and called after the function that made them
+ *    returned; the three made in one loop share the loop's one `step` (a
+ *    variable per CALL, not per round: after the loop it is 2), so each adds
+ *    3 to the same total (3, then 6)
+ *  - recursion: each call has its own record (1 2 3)
+ *  - a lambda that captures nothing still carries no record: 99
+ *  - two variables of ONE NAME in one function, both captured (two blocks
+ *    each with its own `x`): each has its own field of the record (`x`,
+ *    `x@2`), so 1 + 50 + 2 = 53
+ *  - a local both captured and `localized`: it lives in its fiber (one value
+ *    per fiber wins over the record), the lambda reads and writes it there,
+ *    and it gets its value again each time the declaration runs: 3 + 4 + 1 = 8,
+ *    twice
+ *  - a lambda in a getter and one in an operator function, each using `self`
+ *    and its function's own parameter or local: 40 + 1 + 2 = 43
+ */
+class animal {
+    def sound() : string { return "animal"; }
+}
+
+class dog base animal {
+    def sound() : string { return "dog"; }
+    def through_base() : string {
+        f : ()(string) = { -> (string) return base->sound(); };
+        return f();
+    }
+}
+
+class tally {
+    start : _int64 = 10;
+    adder : (_int64)(_int64) = { n: _int64 -> (_int64) return start + n; };
+}
+
+class holder {
+    static made : ()(_int64);
+    static init {
+        seed : _int64 = 6;
+        made = { -> (_int64) return seed + 1; };
+    }
+}
+
+class parent_box {
+    first : _int64;
+    parent_box(first: _int64) { self->first = first; }
+}
+
+class child_box base parent_box {
+    times : ()(_int64);
+    child_box(n: _int64) -> base(n) {
+        times = { -> (_int64) return first + n * 100; };
+    }
+}
+
+def counter() : ()(_int64) {
+    count : _int64 = 0;
+    return { -> (_int64) count += 2; return count; };
+}
+
+def scaled(by: decimal) : (decimal)(decimal) {
+    return { x: decimal -> (decimal) return x * by; };
+}
+
+def narrow() : _int64 {
+    small : _int8 = 0;
+    store := { -> small = 300 as _int8; };
+    store();
+    return small;
+}
+
+def keep_param(n: _int64) : ()(_int64) {
+    return { -> (_int64) return n; };
+}
+
+def nested_params() : (_int64)(_int64) {
+    base_value : _int64 = 1;
+    return { x: _int64 -> (_int64)
+        inner : ()(_int64) = { -> (_int64) base_value += x; return base_value + 10; };
+        return inner();
+    };
+}
+
+def caught() : ()(string) {
+    holder_value : ()(string) = { -> (string) return "none"; };
+    try {
+        throw new illegal_argument_exception("bad thing");
+    } catch(e: illegal_argument_exception) {
+        holder_value = { -> (string) return "caught: " + e.get_message(); };
+    }
+    return holder_value;
+}
+
+def guarded() : ()(_int64) {
+    count : _int64 = 11;
+    gate := new int(0);
+    return { -> (_int64)
+        try {
+            count++;
+            if(count > 12) { throw new illegal_state_exception("twice"); }
+        } catch(e: illegal_state_exception) {
+            lock(gate) { count = 13; }
+        }
+        return count;
+    };
+}
+
+def shared_round() : list<()()> {
+    made := new list<()()>();
+    total := new int(0);
+    for(i : _int64 = 0; i < 3; i++) {
+        step : _int64 = i;
+        made.add({ -> total += step + 1; show(total.value); });
+    }
+    return made;
+}
+
+def run_it(block: ()()) { block(); }
+
+def two_of_one_name() : _int64 {
+    total : _int64 = 0;
+    { x : _int64 = 1; run_it({ -> total += x; x = 50; }); total += x; }
+    { x : _int64 = 2; run_it({ -> total += x; }); }
+    return total;
+}
+
+def captured_and_localized() : _int64 {
+    localized mine : _int64 = 3;
+    run_it({ -> mine += 4; });
+    mine++;
+    return mine;
+}
+
+class purse {
+    coins : _int64 = 40;
+    worth : _int64 = 0;
+        get {
+            extra : _int64 = 1;
+            read : ()(_int64) = { -> (_int64) return coins + extra; };
+            return read();
+        }
+    def operator+(more: _int64) : _int64 {
+        sum : ()(_int64) = { -> (_int64) return worth + more; };
+        return sum();
+    }
+}
+
+def recursive(n: _int64, sink: list<()(_int64)>) {
+    if(n > 3) { return; }
+    mine : _int64 = n;
+    sink.add({ -> (_int64) return mine; });
+    recursive(n + 1, sink);
+}
+
+def main() {
+    c := counter();
+    c();
+    show(c());
+    show(c());
+    show_decimal(scaled(2.5)(1));
+    show(keep_param(5)());
+    show(narrow());
+    deep := nested_params();
+    show(deep(5));
+    show(deep(5));
+    t := new tally();
+    show(t.adder(20));
+    show(holder.made());
+    show(new child_box(3).times());
+    println(caught()());
+    println(new dog().through_base());
+    g := guarded();
+    show(g());
+    show(g());
+    rounds := shared_round();
+    rounds.at(0)();
+    rounds.at(2)();
+    sink := new list<()(_int64)>();
+    recursive(1, sink);
+    foreach(f in sink) { show(f()); }
+    plain := { -> (_int64) return 99; };
+    show(plain());
+    show(two_of_one_name());
+    show(captured_and_localized());
+    show(captured_and_localized());
+    show(new purse() + 2);
+}

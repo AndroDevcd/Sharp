@@ -1,0 +1,269 @@
+mod backend.optimizer.analysis;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir
+)
+
+/**
+ * WHAT AN IR INSTRUCTION READS, WRITES AND DOES
+ *
+ * Every pass asks the same four questions of an instruction, and this file
+ * is the one place that answers them, kind by kind (ir.sharp says what each
+ * field of each kind means):
+ *
+ *      the slots it READS          int_binary add %3, %1, %2   reads %1 and %2
+ *      the slot it WRITES          ...                         writes %3
+ *      may it RAISE an exception?  get_field %4, %0.count      yes: %0 may be null
+ *      does it DO something besides writing its slot?   set_field, call, jump ... yes
+ *
+ * The textbook calls the first two the "use" and "def" sets of the
+ * instruction (the dragon book, 8.4 / 9.2). They are given without making a
+ * list: `slot_read(made, k)` is the k-th slot read (k = 0, 1, ...) or -1 after
+ * the last, so a pass walks them with a plain loop and nothing is allocated
+ * on this path, which runs for every instruction of every pass.
+ *
+ * An `asm` instruction names slots, registers and labels in ways only its
+ * own table knows; a function that has one is not optimized at all
+ * (`can_be_optimized`), so the answers below never need to cover it.
+ *
+ *      C++ comparison: instruction_set.cpp of the C++ optimizer describes each
+ *      VM opcode the same way (reads, writes, side effects), one level lower.
+ */
+
+/**
+ * What is known about a FUNCTION, for the instructions that call it
+ * (`sharp_declaration.optimizer_facts`; worked out for the whole program by
+ * passes/calls/pure_functions.sharp, which explains each). 0: nothing known.
+ */
+const FACT_WRITES_NOTHING   : _int64 = 1;      // changes nothing that existed before the call
+const FACT_ONLY_INITIALIZES : _int64 = 2;      // ... except that it may run the once-only static part of a class
+const FACT_WRITES_ONLY_SELF : _int64 = 4;      // ... or changes only fields of its own object
+const FACT_READS_NOTHING    : _int64 = 8;      // its result depends on the values of its arguments alone
+const FACT_NEVER_RAISES     : _int64 = 16;     // no exception can leave it
+const FACT_ALWAYS_ENDS      : _int64 = 32;     // no loop, no recursion: it comes back
+const FACT_SAFE_WITH_SELF   : _int64 = 64;     // no exception can leave it as long as its own object is not null
+const FACT_NO_STATIC_PART   : _int64 = 128;    // it never runs the static part of a class (so it may be left out
+                                               // without a class being set up later than the program says)
+/** a call of such a function whose result nobody reads does nothing at all */
+const FACTS_REMOVABLE       : _int64 = 49;     // FACT_WRITES_NOTHING | FACT_NEVER_RAISES | FACT_ALWAYS_ENDS
+
+/** the facts known about the function a direct call goes to; 0 for every other call */
+def facts_of_call(made: ir_instruction) : _int64 {
+    if(made.kind != IR_CALL || made.number != CALL_HOW_DIRECT || made.declaration == null) { return 0; }
+    return made.declaration!!.optimizer_facts;
+}
+
+/** the k-th slot the instruction reads (k = 0, 1, ...), or -1 when it reads fewer */
+def slot_read(made: ir_instruction, k: _int64) : _int64 {
+    kind : _int64 = made.kind;
+    if(kind == IR_CALL) {
+        if(made.arguments == null || k >= made.arguments!!.count) { return 0 - 1; }
+        return made.arguments!!.at(k);
+    }
+    if(kind == IR_CALL_VALUE) {
+        if(k == 0) { return made.first; }
+        if(made.arguments == null || k - 1 >= made.arguments!!.count) { return 0 - 1; }
+        return made.arguments!!.at(k - 1);
+    }
+    if(kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY || kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE
+       || kind == IR_SAME_OBJECT || kind == IR_GET_ELEMENT || kind == IR_MATH) {
+        // (math of one number: its second is -1, which ends the list)
+        if(k == 0) { return made.first; }
+        if(k == 1) { return made.second; }
+        return 0 - 1;
+    }
+    if(kind == IR_SET_ELEMENT) {
+        if(k == 0) { return made.first; }
+        if(k == 1) { return made.second; }
+        if(k == 2) { return made.detail; }
+        return 0 - 1;
+    }
+    if(kind == IR_SET_FIELD) {
+        // a `localized` field has no object (first is -1): only the value is read
+        if(made.first < 0) {
+            if(k == 0) { return made.second; }
+            return 0 - 1;
+        }
+        if(k == 0) { return made.first; }
+        if(k == 1) { return made.second; }
+        return 0 - 1;
+    }
+    if(kind == IR_SET_STATIC) {
+        if(k == 0) { return made.second; }
+        return 0 - 1;
+    }
+    if(kind == IR_COPY || kind == IR_CONVERT || kind == IR_NEGATE || kind == IR_NOT || kind == IR_IS_NULL
+       || kind == IR_LENGTH || kind == IR_IS || kind == IR_CAST || kind == IR_THROW || kind == IR_LOCK
+       || kind == IR_UNLOCK || kind == IR_JUMP_IF || kind == IR_JUMP_UNLESS || kind == IR_RETURN_VALUE
+       || kind == IR_GET_FIELD || kind == IR_NEW_ARRAY || kind == IR_INT_IMMEDIATE) {
+        if(k == 0) { return made.first; }
+        return 0 - 1;
+    }
+    return 0 - 1;
+}
+
+/** the k-th slot read becomes `slot` (the same numbering as `slot_read`) */
+def replace_slot_read(made: ir_instruction, k: _int64, slot: _int64) {
+    kind : _int64 = made.kind;
+    if(kind == IR_CALL) { made.arguments!!.replace(k, slot); return; }
+    if(kind == IR_CALL_VALUE) {
+        if(k == 0) { made.first = slot; } else { made.arguments!!.replace(k - 1, slot); }
+        return;
+    }
+    if(kind == IR_SET_FIELD && made.first < 0) { made.second = slot; return; }
+    if(kind == IR_SET_STATIC) { made.second = slot; return; }
+    if(k == 0) { made.first = slot; }
+    else if(k == 1) { made.second = slot; }
+    else if(k == 2) { made.detail = slot; }      // set_element: the value stored
+}
+
+/** how many times the instruction reads `slot` */
+def times_read(made: ir_instruction, slot: _int64) : _int64 {
+    // the slots read come one after the other from k = 0; the first -1 is the end
+    count : _int64 = 0;
+    k : _int64 = 0;
+    read : _int64 = slot_read(made, 0);
+    while(read >= 0) {
+        if(read == slot) { count++; }
+        k++;
+        read = slot_read(made, k);
+    }
+    return count;
+}
+
+/** does the instruction read `slot` at all? */
+def reads_slot(made: ir_instruction, slot: _int64) : _int64 {
+    return times_read(made, slot) > 0;
+}
+
+/** the slot the instruction writes, or -1 when it writes none */
+def slot_written(made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    if(kind == IR_INT_CONSTANT || kind == IR_DECIMAL_CONSTANT || kind == IR_NULL || kind == IR_TEXT || kind == IR_COPY
+       || kind == IR_CONVERT || kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY || kind == IR_INT_COMPARE
+       || kind == IR_DECIMAL_COMPARE || kind == IR_NEGATE || kind == IR_NOT || kind == IR_SAME_OBJECT
+       || kind == IR_IS_NULL || kind == IR_GET_FIELD || kind == IR_GET_STATIC || kind == IR_NEW_OBJECT
+       || kind == IR_NEW_ARRAY || kind == IR_GET_ELEMENT || kind == IR_LENGTH || kind == IR_CALL || kind == IR_IS
+       || kind == IR_CALL_VALUE || kind == IR_INT_IMMEDIATE || kind == IR_MATH) {
+        return made.target;
+    }
+    return 0 - 1;
+}
+
+/**
+ * May the instruction raise an exception? Then a `catch` or `finally` that
+ * covers it can be entered right there, and sees every slot as it was just
+ * BEFORE the instruction (the VM writes the target last: 4.7 of codegen.md).
+ * The answer leans to yes: a field of an object that may be null, an
+ * element (null, or out of range), a call (whatever the callee raises), a
+ * cast, `%` and `/` on whole numbers (by zero), anything that makes an object (memory), a lock.
+ */
+def may_raise(made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    if(kind == IR_GET_FIELD || kind == IR_SET_FIELD) {
+        // a `localized` field lives in the fiber, not in an object: nothing can be null
+        return made.first >= 0;
+    }
+    if(kind == IR_INT_BINARY) { return made.number == ARITH_REM || made.number == ARITH_DIV; }
+    // an element the optimizer proved to be there (bounds_checks.sharp): no null array, no position outside it
+    if((kind == IR_GET_ELEMENT || kind == IR_SET_ELEMENT) && made.in_range == 1) { return 0; }
+    return kind == IR_GET_ELEMENT || kind == IR_SET_ELEMENT || kind == IR_CALL || kind == IR_CALL_VALUE
+           || kind == IR_CAST || kind == IR_THROW || kind == IR_LOCK || kind == IR_UNLOCK || kind == IR_NEW_ARRAY
+           || kind == IR_NEW_OBJECT || kind == IR_TEXT || kind == IR_ASM;
+}
+
+/**
+ * Does the instruction matter even when nobody reads what it writes? A store
+ * into a field or an element, a call, a jump, a return, a lock, a raised
+ * exception - and every instruction that MAY raise one, since raising it is
+ * something the program can see. Only an instruction for which this is 0
+ * may be removed when its slot is dead (passes/removal).
+ *
+ * (`may_raise` stays 1 for every call, also of a function that never raises:
+ * entering ANY function can run out of stack, and a `try` around the call
+ * may be there to catch exactly that.)
+ */
+def has_effect(made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    // a call of a function known to change nothing, raise nothing and come back is only its result
+    if(kind == IR_CALL && (facts_of_call(made) & FACTS_REMOVABLE) == FACTS_REMOVABLE) { return 0; }
+    if(may_raise(made) && kind != IR_NEW_OBJECT && kind != IR_TEXT) { return 1; }
+    // (a new object or text nobody reads: running out of memory for it is not part of the program's meaning)
+    return kind == IR_SET_FIELD || kind == IR_SET_STATIC || kind == IR_SET_ELEMENT || kind == IR_CALL
+           || kind == IR_CALL_VALUE || kind == IR_LABEL || kind == IR_JUMP || kind == IR_JUMP_IF
+           || kind == IR_JUMP_UNLESS || kind == IR_RETURN || kind == IR_RETURN_VALUE || kind == IR_LINE
+           || kind == IR_ASM || kind == IR_NOP || kind == IR_THROW || kind == IR_LOCK || kind == IR_UNLOCK
+           || kind == IR_CAST;
+}
+
+/** does control never go on to the next instruction (it jumps, returns or raises)? */
+def ends_the_way(made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    return kind == IR_JUMP || kind == IR_RETURN || kind == IR_RETURN_VALUE || kind == IR_THROW;
+}
+
+/** is it a jump (to `made.number`), with or without a condition? */
+def is_jump(made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    return kind == IR_JUMP || kind == IR_JUMP_IF || kind == IR_JUMP_UNLESS;
+}
+
+/**
+ * Can the optimizer change this function at all? Not when it has an `asm`
+ * block: its instructions name slots and labels by hand (`[x]`, labels), and
+ * the optimizer cannot see which.
+ */
+def can_be_optimized(code: ir_function) : _int64 {
+    total : _int64 = code.instructions.size();
+    for(i : _int64 = 0; i < total; i++) {
+        if(code.instructions.at(i).kind == IR_ASM) { return 0; }
+    }
+    return 1;
+}
+
+/** a copy of an instruction, with lists of its own (the inliner changes its copies) */
+def copy_of_instruction(made: ir_instruction) : ir_instruction {
+    copied := new ir_instruction(made.kind);
+    copied.target = made.target;
+    copied.first = made.first;
+    copied.second = made.second;
+    copied.number = made.number;
+    copied.detail = made.detail;
+    copied.real = made.real;
+    copied.text = made.text;
+    copied.declaration = made.declaration;
+    copied.in_range = made.in_range;
+    if(made.arguments != null) {
+        arguments := new number_list();
+        arguments.add_all(made.arguments!!);
+        copied.arguments = arguments;
+    }
+    if(made.label_operands != null) {
+        operands := new number_list();
+        operands.add_all(made.label_operands!!);
+        copied.label_operands = operands;
+    }
+    return copied;
+}
+
+/**
+ * The instructions at these indexes (in increasing order) taken out of the
+ * function, in one pass: every pass that removes instructions first notes
+ * them and removes them at the end, so the indexes it worked with stay right.
+ */
+def remove_instructions(code: ir_function, indexes: number_list) {
+    if(indexes.count == 0) { return; }
+    kept := new list<ir_instruction>();
+    next : _int64 = 0;
+    total : _int64 = code.instructions.size();
+    for(i : _int64 = 0; i < total; i++) {
+        if(next < indexes.count && indexes.at(next) == i) {
+            next++;
+            continue;
+        }
+        kept.add(code.instructions.at(i));
+    }
+    code.instructions = kept;
+}

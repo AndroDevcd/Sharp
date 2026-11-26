@@ -1,0 +1,12 @@
+// expect: E0324
+// help: class c { value : num; }
+// replace: class c : num { }
+mod tests.helps;
+import (std, std.io);
+
+alias _int64 as num;
+class c : num { }
+
+def main() {
+    x := new c();
+}

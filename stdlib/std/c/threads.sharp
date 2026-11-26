@@ -1,0 +1,57 @@
+mod std.c;
+
+import ( std.io )
+
+/**
+ * FUNCTIONS C CALLS FROM THREADS OF ITS OWN
+ *
+ *      c_serve_other_threads();            // once, before C can call from another thread
+ *      c_keep(on_audio);
+ *      start_audio(on_audio);              // the C library calls on_audio from its audio thread
+ *
+ * A function handed to C normally runs on the thread that made the C call.
+ * Some C libraries call back from a thread they started themselves - an audio
+ * thread, a pool of workers. That thread is not a Sharp thread: Sharp code
+ * cannot run on it. After c_serve_other_threads() such a call is handed to a
+ * Sharp thread that waits for them: C's thread waits, the Sharp thread runs
+ * the function, C's thread gets the answer.
+ *
+ * What follows from that:
+ *   - the function runs on the SERVING thread, one call at a time: calls from
+ *     several C threads take turns;
+ *   - C's thread waits for as long as the function runs, so keep it short
+ *     where C is in a hurry (audio);
+ *   - an exception thrown inside it cannot reach C: it is printed, and C gets 0.
+ *
+ * Without this call, a callback from a thread C started is reported on the
+ * console and answers 0.
+ */
+private serving_started : bool = false;
+
+def c_serve_other_threads() {
+    if(serving_started) { return; }
+    serving_started = true;
+    asm {
+        int 0x5b
+    };
+    server := new thread("c callbacks", true, { args: object[] -> (decimal)
+        while(c_serve_one_call()) { }
+        return 0;
+    });
+    server.start();
+}
+
+/** the serving thread's step: wait for one call and run it; false when the program is ending */
+private def c_serve_one_call() : bool {
+    more : _int8[];
+    try {
+        asm {
+            int 0x5a
+            popl [more]
+        };
+    } catch(problem: throwable) {
+        println("sharp: an exception in a function C called from a thread of its own: " + problem.get_message());
+        return true;
+    }
+    return sizeof(more) > 0;
+}

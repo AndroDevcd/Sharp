@@ -1,0 +1,16 @@
+mod backend.compiler.expressions.literals;
+
+/**
+ * LITERALS: values written out in the source
+ *
+ * The files of this package (module `backend.compiler.expressions.literals`):
+ *
+ *      literals.sharp              this front door
+ *      literal_expression.sharp    12  0xff  1.5  'a'  "text"  true  false: type and constant value
+ *      string_template.sharp       "total: ${a + b} for $name": the pieces of a string with values in it
+ *
+ * (`null` needs no file: it is one line in the dispatcher,
+ * expressions/expressions.sharp.)
+ *
+ * This file is the package's front door: it only says what is where.
+ */

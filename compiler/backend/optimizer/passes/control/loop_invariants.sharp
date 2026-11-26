@@ -1,0 +1,245 @@
+mod backend.optimizer.passes.control;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * LOOP-INVARIANT CODE MOTION: what is the same in every round is computed once, before the loop
+ *
+ *          int_constant %2, 0                          int_constant %2, 0
+ *      L0:                                             get_field   %9, %0.count        <- moved out
+ *          get_field   %4, %0.count                L0:
+ *          int_compare lt %5, %2, %4           ->      copy        %4, %9
+ *          jump_unless %5, L2                          int_compare lt %5, %2, %4
+ *          ...   (nothing writes %0, .count)           jump_unless %5, L2
+ *          jump L0                                     ...
+ *      L2:                                             jump L0
+ *                                                  L2:
+ *
+ * An expression (analysis/expressions.sharp) is INVARIANT in a loop when no
+ * instruction of the loop writes a slot it reads or may change the memory
+ * it reads: then it gives the same value in every round. It is computed
+ * into a slot of its own just before the loop is entered - the loop's
+ * PREHEADER - and the instruction in the loop becomes a copy of that slot,
+ * which copy propagation and dead stores then take away.
+ *
+ * WHEN IT MAY MOVE. Before the loop it runs even when the loop's body never
+ * does, and it runs before everything in the loop. So:
+ *
+ *   - an expression that cannot raise and always ends (arithmetic, a
+ *     comparison, an array's length, a static read, a call of a function
+ *     known to do neither) may always move: computed for nothing at worst;
+ *   - one that MAY raise (a field of an object that may be null, an element,
+ *     `%`, a call that may raise) moves only when the loop begins with it:
+ *     it is in the loop's first block (the HEADER, which runs whenever the
+ *     loop is entered) and nothing before it there does anything but
+ *     compute. Then it raises at the same moment as before, or not at all.
+ *     This is the `i < items.count` of nearly every loop;
+ *   - a field read through an object that is known not to be null there
+ *     (analysis/not_null.sharp) cannot raise, and moves like the first kind.
+ *
+ * WHERE "BEFORE THE LOOP" IS. The IR has no blocks of its own, only labels
+ * and jumps: the moved instructions are put in front of the header's first
+ * instruction. The jumps back from inside the loop go to the header's label
+ * and so pass them by; a jump from OUTSIDE the loop to that label is sent to
+ * a new label in front of them. (Should a block of the loop itself fall into
+ * the header from above, it runs them again each round - still right, the
+ * value is the same - so that case is merely not faster.)
+ *
+ * One run moves each instruction out of the innermost loop it is in; the
+ * optimizer runs the pass a few times with the value passes in between, so
+ * that what has moved out of an inner loop can move out of the outer one,
+ * and an expression made of moved ones follows them.
+ *
+ * Not for a function with a `try` (the loops of such a function are not
+ * looked for: analysis/loops.sharp).
+ *
+ *      C++ comparison: the C++ optimizer has no such pass (its "loop
+ *      registers" keeps a loop's locals in registers, a different thing).
+ *      The method is the textbook's (the dragon book 9.5; Muchnick 13.2);
+ *      LLVM's LICM does it on SSA form with the same two questions:
+ *      "is it invariant" and "is it safe to run before the loop".
+ */
+def move_loop_invariants(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    if(code.tries.size() > 0) { return 0; }
+    graph := analyses.graph();
+    forest := find_loops(graph);
+    if(forest.valid == 0 || forest.count == 0) { return 0; }
+    total : _int64 = code.instructions.size();
+    blocks : _int64 = graph.blocks;
+
+    // ---- the innermost loop of every block: the smallest loop that has it
+    innermost := new _int64[blocks + 1];
+    for(b : _int64 = 0; b < blocks; b++) { innermost[b] = 0 - 1; }
+    for(l : _int64 = 0; l < forest.count; l++) {
+        for(m : _int64 = forest.first_member.at(l); m < forest.first_member.at(l + 1); m++) {
+            b : _int64 = forest.members.at(m);
+            if(innermost[b] < 0 || forest.size(l) < forest.size(innermost[b])) { innermost[b] = l; }
+        }
+    }
+
+    // ---- per loop: is each of its instructions invariant, and may it move?
+    moved_to := new _int64[total + 1];              // per instruction: the loop it moves out of, -1 stays
+    for(i : _int64 = 0; i < total; i++) { moved_to[i] = 0 - 1; }
+    not_null : not_null_facts? = null;             // made when the first field read asks
+    written := new slot_set(code.slot_count());
+    in_loop := new _int64[blocks + 1];
+    writers := new number_list();                   // the instructions of the loop that may change memory
+    found : _int64 = 0;
+    for(l : _int64 = 0; l < forest.count; l++) {
+        header : _int64 = forest.headers.at(l);
+        written.clear();
+        writers.count = 0;
+        for(b : _int64 = 0; b < blocks; b++) { in_loop[b] = 0; }
+        for(m : _int64 = forest.first_member.at(l); m < forest.first_member.at(l + 1); m++) {
+            b : _int64 = forest.members.at(m);
+            in_loop[b] = 1;
+            for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+                made := code.instructions.at(i);
+                target : _int64 = slot_written(made);
+                if(target >= 0) { written.add(target); }
+                if(memory_written_by(made) != WRITES_NO_MEMORY) { writers.add(i); }
+            }
+        }
+        for(m : _int64 = forest.first_member.at(l); m < forest.first_member.at(l + 1); m++) {
+            b : _int64 = forest.members.at(m);
+            if(innermost[b] != l) { continue; }             // (an inner loop's own instructions: that loop's)
+            // in the header: is everything so far only computing? (then one that may raise can still move)
+            begins_the_loop : _int64 = b == header;
+            for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+                made := code.instructions.at(i);
+                if(is_expression(code, made) && made.in_range == 0 && is_invariant(code, made, written, writers)) {
+                    safe : _int64 = never_raises_and_ends(made);
+                    if(safe == 0 && made.kind == IR_GET_FIELD && made.first >= 0) {
+                        // the object cannot be null where the loop is entered
+                        if(not_null == null) { not_null = find_not_null(graph); }
+                        safe = not_null!!.before_block(header, made.first);
+                    }
+                    if(safe == 1 || begins_the_loop == 1) {
+                        moved_to[i] = l;
+                        found++;
+                        continue;
+                    }
+                }
+                if(begins_the_loop == 1 && !only_computes(made)) { begins_the_loop = 0; }
+            }
+        }
+    }
+    if(found == 0) { return 0; }
+
+    // ---- the code again: in front of each header what moves out of its loop; where it was, a copy
+    own_slot := new _int64[total + 1];
+    for(i : _int64 = 0; i < total; i++) {
+        if(moved_to[i] < 0) { continue; }
+        own_slot[i] = code.slot_kinds.count;
+        code.slot_kinds.add(code.slot_kinds.at(code.instructions.at(i).target));
+    }
+    loop_of_header := new _int64[blocks + 1];
+    for(b : _int64 = 0; b < blocks; b++) { loop_of_header[b] = 0 - 1; }
+    for(l : _int64 = 0; l < forest.count; l++) { loop_of_header[forest.headers.at(l)] = l; }
+    // a jump from outside a loop to its header's label goes to the new label in front of the moved code
+    new_label := new _int64[forest.count + 1];
+    for(l : _int64 = 0; l < forest.count; l++) { new_label[l] = 0 - 1; }
+    made_list := new list<ir_instruction>();
+    for(b : _int64 = 0; b < blocks; b++) {
+        l : _int64 = loop_of_header[b];
+        if(l >= 0 && moves_something(moved_to, total, l)) {
+            top := code.instructions.at(graph.starts[b]);
+            if(top.kind == IR_LABEL) {
+                new_label[l] = code.label_count;
+                code.label_count = code.label_count + 1;
+                entry := new ir_instruction(IR_LABEL);
+                entry.number = new_label[l];
+                made_list.add(entry);
+            }
+            for(i : _int64 = 0; i < total; i++) {
+                if(moved_to[i] != l) { continue; }
+                out := copy_of_instruction(code.instructions.at(i));
+                out.target = own_slot[i];
+                made_list.add(out);
+            }
+        }
+        for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+            made := code.instructions.at(i);
+            if(moved_to[i] >= 0) {
+                copy := new ir_instruction(IR_COPY);
+                copy.target = made.target;
+                copy.first = own_slot[i];
+                copy.number = NARROW_NONE;
+                made_list.add(copy);
+            } else {
+                made_list.add(made);
+            }
+        }
+    }
+    // (the jumps are sent on after the list is made: `new_label` is only complete now)
+    for(b : _int64 = 0; b < blocks; b++) {
+        if(graph.ends[b] == graph.starts[b]) { continue; }
+        last := code.instructions.at(graph.ends[b] - 1);
+        if(!is_jump(last) || last.number < 0 || last.number >= sizeof(graph.block_of_label)) { continue; }
+        to : _int64 = graph.block_of_label[last.number];
+        if(to < 0 || loop_of_header[to] < 0) { continue; }
+        l : _int64 = loop_of_header[to];
+        if(new_label[l] < 0 || forest.has(l, b)) { continue; }
+        // only a jump to the label the header BEGINS with is an entry in front of the moved code
+        top := code.instructions.at(graph.starts[to]);
+        if(top.kind == IR_LABEL && top.number == last.number) { last.number = new_label[l]; }
+    }
+    code.instructions = made_list;
+    analyses.changed();
+    return found;
+}
+
+/** does anything move out of loop `l`? */
+def moves_something(moved_to: _int64[], total: _int64, l: _int64) : _int64 {
+    for(i : _int64 = 0; i < total; i++) {
+        if(moved_to[i] == l) { return 1; }
+    }
+    return 0;
+}
+
+/**
+ * Is the expression the same in every round of the loop: no instruction of
+ * the loop writes a slot it reads (`written`), and none may change the
+ * memory it reads (`writers`: the loop's instructions that write memory)?
+ */
+def is_invariant(code: ir_function, made: ir_instruction, written: slot_set, writers: number_list) : _int64 {
+    k : _int64 = 0;
+    read : _int64 = slot_read(made, 0);
+    while(read >= 0) {
+        if(written.has(read)) { return 0; }
+        k++;
+        read = slot_read(made, k);
+    }
+    reads : _int64 = memory_read_by(made);
+    if(reads == READS_NO_MEMORY) { return 1; }
+    for(w : _int64 = 0; w < writers.count; w++) {
+        writer := code.instructions.at(writers.at(w));
+        if(write_ends_read(memory_written_by(writer), writer, reads, made)) { return 0; }
+    }
+    return 1;
+}
+
+/** can the expression be computed at any time without anything being seen of it: no exception, and it comes back? */
+def never_raises_and_ends(made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    if(kind == IR_CALL) {
+        // (also "changes nothing": a call that may run the static part of a class is not made before
+        //  the program would have made it - a static read in between would see the class set up early)
+        return (facts_of_call(made) & FACTS_REMOVABLE) == FACTS_REMOVABLE;
+    }
+    return !may_raise(made);
+}
+
+/** does the instruction only compute a value (or mark a place): no store, no call that may change something, no jump? */
+def only_computes(made: ir_instruction) : _int64 {
+    kind : _int64 = made.kind;
+    if(kind == IR_LABEL || kind == IR_LINE || kind == IR_NOP) { return 1; }
+    if(kind == IR_CALL) { return (facts_of_call(made) & FACTS_REMOVABLE) == FACTS_REMOVABLE; }
+    return !has_effect(made);
+}

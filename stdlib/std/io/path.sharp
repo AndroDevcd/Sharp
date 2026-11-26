@@ -1,0 +1,396 @@
+mod std.io;
+
+import ( platform )
+
+/**
+ * Path arithmetic: taking paths apart and putting them together as text.
+ * Nothing here looks at the disk - the files do not have to exist - so the
+ * results depend only on the arguments (and, for the separator that is
+ * written, on the operating system).
+ *
+ *     path.join("src", "main.sharp")          "src/main.sharp"
+ *     path.normalize("a/./b/../c//d/")        "a/c/d"
+ *     path.parent("/home/joe/a.txt")          "/home/joe"
+ *     path.file_name("/home/joe/a.txt")       "a.txt"
+ *     path.extension("archive.tar.gz")        "gz"
+ *     path.relative_to("/a/b/c", "/a/x")      "../b/c"
+ *
+ * Everything is static.
+ *
+ * Reading paths: both '/' and '\' separate the parts of a path, on every
+ * operating system, so a path written on one system can be taken apart on
+ * another. Writing paths: results use separator() - '/' on unix, '\' on
+ * windows - also for the separators that were in the arguments.
+ *
+ * Roots: a path is absolute when it starts with a separator ("/usr") or with
+ * a drive ("C:\dir"; also "C:dir", which windows reads as relative to the
+ * current directory of that drive - here its root is just "C:"). Server
+ * shares ("\\server\share") are not treated specially: the root is one
+ * separator.
+ */
+class path {
+
+    /** the character this operating system puts between the parts of a path: '/' or '\' (as a character code) */
+    static def separator() : decimal {
+        if(build.is_windows()) {
+            return 92; // back slash
+        }
+        return '/';
+    }
+
+    /** true for the two characters that separate the parts of a path: '/' and '\' */
+    static def is_separator(ch: decimal) : bool {
+        return ch == '/' || ch == 92;
+    }
+
+    /**
+     * The root a path starts with, written with separator(): "/" for
+     * "/usr/lib", "C:\" for "C:/dir" (on windows), "C:" for "C:dir", and ""
+     * for a relative path.
+     */
+    static def root(p: string) : string {
+        n : decimal = sizeof(p.data);
+        buf := new char_buffer(4);
+        if(n >= 2 && p.data[1] == ':' && character.is_letter(p.data[0])) {
+            buf.append_char(p.data[0]);
+            buf.append_char(':');
+            if(n >= 3 && is_separator(p.data[2])) {
+                buf.append_char(separator());
+            }
+        } else if(n >= 1 && is_separator(p.data[0])) {
+            buf.append_char(separator());
+        }
+        return buf.build();
+    }
+
+    /** the number of characters at the start of `p` that belong to its root (0 for a relative path) */
+    private static def root_length(p: string) : decimal {
+        n : decimal = sizeof(p.data);
+        if(n >= 2 && p.data[1] == ':' && character.is_letter(p.data[0])) {
+            if(n >= 3 && is_separator(p.data[2])) {
+                return 3;
+            }
+            return 2;
+        }
+        if(n >= 1 && is_separator(p.data[0])) {
+            return 1;
+        }
+        return 0;
+    }
+
+    /** true when the path starts at a root: with a separator or a drive ("/a", "\a", "C:\a") */
+    static def is_absolute(p: string) : bool {
+        n : decimal = sizeof(p.data);
+        if(n >= 1 && is_separator(p.data[0])) {
+            return true;
+        }
+        return n >= 3 && p.data[1] == ':' && character.is_letter(p.data[0]) && is_separator(p.data[2]);
+    }
+
+    /**
+     * The parts of a path between the separators, without the root and
+     * without empty parts: "/usr//lib/x.so" gives "usr", "lib", "x.so".
+     * "." and ".." are parts like any other here (normalize() resolves
+     * them). A path that is only a root, and "", give an empty list.
+     */
+    static def split(p: string) : list<string> {
+        parts := new list<string>();
+        n : decimal = sizeof(p.data);
+        start : decimal = root_length(p);
+        for(i : decimal = start; i <= n; i++) {
+            if(i == n || is_separator(p.data[i])) {
+                if(i > start) {
+                    parts.add(io_strings.slice(p, start, i));
+                }
+                start = i + 1;
+            }
+        }
+        return parts;
+    }
+
+    /** put a root and parts together with separator() between the parts */
+    private static def build(root_text: string, parts: list<string>) : string {
+        buf := new char_buffer(64);
+        buf.append(root_text);
+        count : decimal = parts.size();
+        for(i : decimal = 0; i < count; i++) {
+            if(i > 0) {
+                buf.append_char(separator());
+            }
+            buf.append(parts.at(i));
+        }
+        return buf.build();
+    }
+
+    /**
+     * `first` and `second` as one path, with exactly one separator between
+     * them. When `second` is absolute it replaces `first` (as when changing
+     * directory to an absolute path); when one of them is empty the other
+     * is returned. Separators are rewritten to separator(), repeated ones
+     * removed; "." and ".." are kept (see normalize()).
+     */
+    static def join(first: string, second: string) : string {
+        if(sizeof(second.data) == 0) {
+            return clean(first);
+        }
+        if(sizeof(first.data) == 0 || is_absolute(second)) {
+            return clean(second);
+        }
+
+        parts := split(first);
+        more := split(second);
+        count : decimal = more.size();
+        for(i : decimal = 0; i < count; i++) {
+            parts.add(more.at(i));
+        }
+        return build(root(first), parts);
+    }
+
+    /** join() for three parts: join(join(first, second), third) */
+    static def join(first: string, second: string, third: string) : string {
+        return join(join(first, second), third);
+    }
+
+    /**
+     * All strings of `parts` joined into one path, left to right, by the
+     * rules of join(): an absolute part starts over, empty parts are
+     * skipped. An empty list gives "".
+     */
+    static def join_all(parts: list<string>) : string {
+        result : string = "";
+        count : decimal = parts.size();
+        for(i : decimal = 0; i < count; i++) {
+            result = join(result, parts.at(i));
+        }
+        return result;
+    }
+
+    /**
+     * The path with separator() as its separators, repeated separators
+     * collapsed and a separator at the end removed: "a//b\c/" gives
+     * "a/b/c" on unix. "." and ".." are kept. A root stays a root; ""
+     * stays "".
+     */
+    static def clean(p: string) : string {
+        return build(root(p), split(p));
+    }
+
+    /**
+     * The shortest path that means the same: separators cleaned up as in
+     * clean(), every "." removed, and every ".." removed together with the
+     * part in front of it ("a/b/../c" gives "a/c").
+     *
+     * A ".." that would go above the start of a relative path is kept
+     * ("../x" stays, "a/../../x" gives "../x"); above a root there is
+     * nothing, so there it is dropped ("/../x" gives "/x"). When nothing is
+     * left the result is "." for a relative path, or the root.
+     *
+     * This is text only: when "b" in "a/b/../c" is a link to another
+     * directory the real file may be somewhere else.
+     */
+    static def normalize(p: string) : string {
+        root_text := root(p);
+        rooted : decimal = sizeof(root_text.data) > 0;
+        parts := split(p);
+        kept := new list<string>();
+        count : decimal = parts.size();
+
+        for(i : decimal = 0; i < count; i++) {
+            part := parts.at(i);
+            if(part == ".") {
+                continue;
+            }
+            if(part == "..") {
+                if(kept.size() > 0 && kept.last() != "..") {
+                    kept.pop_back();
+                } else if(!rooted) {
+                    kept.add(part);
+                }
+                continue;
+            }
+            kept.add(part);
+        }
+
+        if(kept.size() == 0 && !rooted) {
+            return ".";
+        }
+        return build(root_text, kept);
+    }
+
+    /**
+     * The path without its last part: "/home/joe/a.txt" gives "/home/joe",
+     * "a/b/" gives "a", "/a" gives "/". A path with a single part ("a.txt")
+     * and a root ("/") have no parent: "" is returned.
+     */
+    static def parent(p: string) : string {
+        parts := split(p);
+        if(parts.size() == 0) {
+            return "";
+        }
+        parts.pop_back();
+        return build(root(p), parts);
+    }
+
+    /**
+     * The last part of the path: "/home/joe/a.txt" gives "a.txt", "a/b/"
+     * gives "b". "" for a root and for "".
+     */
+    static def file_name(p: string) : string {
+        // only the end of the path matters: find the last part without splitting everything
+        end : decimal = sizeof(p.data);
+        low : decimal = root_length(p);
+        while(end > low && is_separator(p.data[end - 1])) {
+            end--;
+        }
+        start : decimal = end;
+        while(start > low && !is_separator(p.data[start - 1])) {
+            start--;
+        }
+        return io_strings.slice(p, start, end);
+    }
+
+    /**
+     * The extension of the file name: the text behind its last period,
+     * without the period. "archive.tar.gz" gives "gz". "" when the name has
+     * no period, ends with a period, or has its only period as the first
+     * character (".profile").
+     */
+    static def extension(p: string) : string {
+        name := file_name(p);
+        dot : decimal = io_strings.last_index_of(name, '.');
+        if(dot <= 0) {
+            return "";
+        }
+        return io_strings.slice_from(name, dot + 1);
+    }
+
+    /**
+     * The file name without its extension: "/x/archive.tar.gz" gives
+     * "archive.tar", ".profile" gives ".profile", "notes" gives "notes".
+     */
+    static def stem(p: string) : string {
+        name := file_name(p);
+        dot : decimal = io_strings.last_index_of(name, '.');
+        if(dot <= 0) {
+            return name;
+        }
+        return io_strings.slice(name, 0, dot);
+    }
+
+    /**
+     * The path with the extension of its file name replaced by `new_ext`
+     * (given without the period): with_extension("a/b.txt", "md") gives
+     * "a/b.md". A name without an extension gets one; an empty `new_ext`
+     * removes the extension and its period.
+     *
+     * Throws illegal_argument_exception when the path has no file name
+     * ("" or a root).
+     */
+    static def with_extension(p: string, new_ext: string) : string {
+        name := file_name(p);
+        if(sizeof(name.data) == 0) {
+            throw new illegal_argument_exception("with_extension: the path has no file name: \"" + p + "\"");
+        }
+
+        new_name : string = stem(p);
+        if(sizeof(new_ext.data) > 0) {
+            new_name = new_name + "." + new_ext;
+        }
+        return join(parent(p), new_name);
+    }
+
+    /**
+     * True when `p` is `ancestor` or lies below it, comparing whole parts
+     * after normalize(): "/a/b/c" starts with "/a/b" but "/a/bc" does not.
+     * A relative path never starts with an absolute one and the other way
+     * round.
+     */
+    static def starts_with(p: string, ancestor: string) : bool {
+        if(root(p) != root(ancestor)) {
+            return false;
+        }
+        mine := split(normalize(p));
+        theirs := split(normalize(ancestor));
+        if(theirs.size() == 1 && theirs.at(0) == ".") {
+            theirs.clear();
+        }
+        if(mine.size() == 1 && mine.at(0) == ".") {
+            mine.clear();
+        }
+        if(theirs.size() > mine.size()) {
+            return false;
+        }
+        count : decimal = theirs.size();
+        for(i : decimal = 0; i < count; i++) {
+            if(mine.at(i) != theirs.at(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The path that leads from the directory `start` to `p`:
+     * relative_to("/a/b/c", "/a") gives "b/c", relative_to("/a/b", "/a/x/y")
+     * gives "../../b", and two equal paths give ".". Both paths are
+     * normalized first.
+     *
+     * Throws illegal_argument_exception when the two paths do not have the
+     * same root (one is relative and the other absolute, or they are on
+     * different drives), and when `start` goes above its own beginning with
+     * ".." so that the way back is unknown.
+     */
+    static def relative_to(p: string, start: string) : string {
+        if(root(p) != root(start)) {
+            throw new illegal_argument_exception("relative_to: \"" + p + "\" and \"" + start
+                + "\" do not start at the same root");
+        }
+
+        mine := split(normalize(p));
+        theirs := split(normalize(start));
+        if(theirs.size() == 1 && theirs.at(0) == ".") {
+            theirs.clear();
+        }
+        if(mine.size() == 1 && mine.at(0) == ".") {
+            mine.clear();
+        }
+
+        // how many parts at the beginning are the same?
+        common : decimal = 0;
+        while(common < mine.size() && common < theirs.size()
+            && mine.at(common) == theirs.at(common)) {
+            common++;
+        }
+
+        result := new list<string>();
+        their_count : decimal = theirs.size();
+        for(i : decimal = common; i < their_count; i++) {
+            if(theirs.at(i) == "..") {
+                throw new illegal_argument_exception("relative_to: cannot find the way back from \"" + start + "\"");
+            }
+            result.add("..");
+        }
+        my_count : decimal = mine.size();
+        for(i : decimal = common; i < my_count; i++) {
+            result.add(mine.at(i));
+        }
+
+        if(result.size() == 0) {
+            return ".";
+        }
+        return build("", result);
+    }
+
+    /** the path with every separator written as '/' (handy for output that must look the same on every system) */
+    static def to_unix(p: string) : string {
+        return io_strings.replace_char(p, 92, '/');
+    }
+
+    /** the path with every separator written as separator() */
+    static def to_native(p: string) : string {
+        if(separator() == '/') {
+            return io_strings.replace_char(p, 92, '/');
+        }
+        return io_strings.replace_char(p, '/', 92);
+    }
+}

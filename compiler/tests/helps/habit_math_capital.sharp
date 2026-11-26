@@ -1,0 +1,11 @@
+// expect: E0400
+// help: std.math#sqrt(x)
+// replace: Math.sqrt(x)
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    x : decimal = 4;
+    y := Math.sqrt(x);
+    println("" + y);
+}

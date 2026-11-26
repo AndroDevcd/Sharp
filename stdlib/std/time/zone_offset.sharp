@@ -1,0 +1,272 @@
+mod std.time;
+
+/**
+ * A fixed difference from UTC, such as +02:00 or -05:30.
+ *
+ * The offset is how far a local clock is AHEAD of UTC: at offset +02:00 a
+ * local clock shows 14:00 when it is 12:00 UTC. Offsets from -18:00 to
+ * +18:00 are accepted (the same limit java.time uses), with a resolution of
+ * one second.
+ *
+ * LIMITATION: the runtime has no time-zone database, so there are no named
+ * zones ("Europe/Berlin") and no daylight saving rules. An offset is just a
+ * constant number of seconds. `zone_offset.system_default()` gives the offset
+ * the operating system uses right now, which is correct for the current
+ * moment but not necessarily for dates in another season.
+ *
+ * Offsets are immutable.
+ *
+ *     plus2 := zone_offset.of_hours(2);
+ *     plus2.to_string()                      // "+02:00"
+ *     zone_offset.parse("-05:30").total_seconds()   // -19800
+ *     zone_offset.utc.to_string()            // "Z"
+ */
+class zone_offset {
+    /** the largest offset in either direction: 18 hours */
+    static const max_seconds : decimal = 64800;
+
+    /** UTC itself: an offset of zero, written "Z" */
+    static const utc : zone_offset = new zone_offset(0);
+
+    /** seconds ahead of UTC (negative: behind) */
+    private total : decimal = 0;
+
+    private zone_offset(total_seconds: decimal) {
+        total = total_seconds;
+    }
+
+    // ------------------------------------------------------------------
+    //  creating
+    // ------------------------------------------------------------------
+
+    /**
+     * The offset that is `total_seconds` seconds ahead of UTC (behind when negative).
+     * @throws date_time_exception when it is not a whole number in -64,800 .. 64,800 (18 hours)
+     */
+    static def of_total_seconds(total_seconds: decimal): zone_offset {
+        time_math.check_range("offset seconds", total_seconds, 0 - max_seconds, max_seconds);
+        if(total_seconds == 0) {
+            return utc;
+        }
+        return new zone_offset(total_seconds);
+    }
+
+    /**
+     * An offset of whole hours: of_hours(2) is +02:00, of_hours(-5) is -05:00.
+     * @throws date_time_exception when `hours` is not -18 .. 18
+     */
+    static def of_hours(hours: decimal): zone_offset {
+        time_math.check_range("offset hours", hours, 0 - 18, 18);
+        return of_total_seconds(hours * 3600);
+    }
+
+    /**
+     * An offset of hours and minutes. Both must have the same sign (or be
+     * zero): of_hours_minutes(5, 30) is +05:30, of_hours_minutes(-5, -30) is
+     * -05:30, of_hours_minutes(0, -30) is -00:30.
+     *
+     * @throws date_time_exception when hours is not -18 .. 18, minutes not
+     *         -59 .. 59, the signs differ, or the total is beyond 18 hours
+     */
+    static def of_hours_minutes(hours: decimal, minutes: decimal): zone_offset {
+        time_math.check_range("offset hours", hours, 0 - 18, 18);
+        time_math.check_range("offset minutes", minutes, 0 - 59, 59);
+        if((hours > 0 && minutes < 0) || (hours < 0 && minutes > 0)) {
+            throw new date_time_exception("offset hours and minutes must have the same sign");
+        }
+        return of_total_seconds(hours * 3600 + minutes * 60);
+    }
+
+    /**
+     * The offset the operating system currently applies to local time.
+     *
+     * The runtime can report the local calendar fields (system_clock.local_field)
+     * and the UTC clock, but not the offset itself, so it is measured: the
+     * local date and time are rebuilt from the calendar fields and compared
+     * with the UTC date and time read from the nanosecond clock. The fields
+     * are read one call at a time, so the reading is repeated until the
+     * local "seconds" field is the same before and after (no second ticked
+     * over in between), and the difference is rounded to the nearest minute.
+     *
+     * It reflects the offset in force NOW (including daylight saving when
+     * it is active); there is no way to ask for the offset of another date.
+     */
+    static def system_default(): zone_offset {
+        local_seconds : decimal = 0;
+        utc_seconds : decimal = 0;
+        for(attempt : decimal = 0; attempt < 10; attempt++) {
+            before : decimal = system_clock.local_field(system_clock.local_second);
+            utc_seconds = system_clock.instance.now().epoch_second();
+            // tm_year counts from 1900 and tm_mon from 0 (the C library's struct tm)
+            local_dt : date_time = date_time.of(
+                system_clock.local_field(system_clock.local_year) + 1900,
+                system_clock.local_field(system_clock.local_month) + 1,
+                system_clock.local_field(system_clock.local_day),
+                system_clock.local_field(system_clock.local_hour),
+                system_clock.local_field(system_clock.local_minute),
+                before % 60);
+            local_seconds = local_dt.to_epoch_second(utc);
+            after : decimal = system_clock.local_field(system_clock.local_second);
+            if(before == after) {
+                break;
+            }
+        }
+        // round to the nearest whole minute (floor of x + 30 s)
+        minutes : decimal = time_math.floor_div(local_seconds - utc_seconds + 30, 60);
+        seconds : decimal = minutes * 60;
+        if(seconds > max_seconds) { seconds = max_seconds; }
+        if(seconds < (0 - max_seconds)) { seconds = 0 - max_seconds; }
+        return of_total_seconds(seconds);
+    }
+
+    // ------------------------------------------------------------------
+    //  reading
+    // ------------------------------------------------------------------
+
+    /** seconds ahead of UTC: +02:00 is 7200, -05:30 is -19800 */
+    def total_seconds(): decimal {
+        return total;
+    }
+
+    /** the hours part with the sign of the offset: -5 for -05:30 */
+    def hours(): decimal {
+        return time_math.trunc(total / 3600);
+    }
+
+    /** the minutes part with the sign of the offset: -30 for -05:30 */
+    def minutes(): decimal {
+        return time_math.trunc(total / 60) % 60;
+    }
+
+    /** the seconds part with the sign of the offset (0 for all offsets in real use) */
+    def seconds(): decimal {
+        return total % 60;
+    }
+
+    /** true when this is UTC (offset zero) */
+    def is_utc(): bool {
+        return total == 0;
+    }
+
+    // ------------------------------------------------------------------
+    //  comparing
+    // ------------------------------------------------------------------
+
+    def operator==(other: zone_offset): bool { return total == other.total; }
+    def operator!=(other: zone_offset): bool { return total != other.total; }
+
+    /**
+     * Orders offsets by their size: -1 when this offset is further west
+     * (smaller) than `other`, 0 when equal, 1 when further east.
+     */
+    def compare_to(other: zone_offset): decimal {
+        return time_math.compare(total, other.total);
+    }
+
+    /** a hash that is the same for equal offsets */
+    override def hash(): int {
+        return total;
+    }
+
+    // ------------------------------------------------------------------
+    //  text
+    // ------------------------------------------------------------------
+
+    /**
+     * The ISO-8601 identifier: "Z" for UTC, otherwise `+HH:MM` or `-HH:MM`,
+     * with `:SS` added only when the seconds are not zero:
+     * "+02:00", "-05:30", "+01:00:30".
+     */
+    override def to_string(): string? {
+        if(total == 0) {
+            return "Z";
+        }
+        w := new time_text_writer();
+        write_to(w, 1, 0);
+        return w.text();
+    }
+
+    /**
+     * Appends the offset to `w` as sign, two-digit hours and two-digit
+     * minutes (and seconds when not zero). `with_colon` 1 gives "+02:00",
+     * 0 gives "+0200"; with `z_for_utc` 1 a zero offset is written as "Z",
+     * otherwise as "+00:00" / "+0000". Used by to_string and the formatter.
+     */
+    def write_to(w: time_text_writer, with_colon: decimal, z_for_utc: decimal) {
+        if(total == 0 && z_for_utc) {
+            w.put('Z');
+            return;
+        }
+        size : decimal = total;
+        if(total < 0) {
+            w.put('-');
+            size = 0 - total;
+        } else {
+            w.put('+');
+        }
+        w.put_padded(time_math.trunc_div(size, 3600), 2);
+        if(with_colon) { w.put(':'); }
+        w.put_padded(time_math.trunc_div(size, 60) % 60, 2);
+        if(size % 60 != 0) {
+            if(with_colon) { w.put(':'); }
+            w.put_padded(size % 60, 2);
+        }
+    }
+
+    /**
+     * Reads an offset. Accepted: "Z" or "z" (UTC), and a '+' or '-' followed
+     * by `H`, `HH`, `HH:MM`, `HHMM`, `HH:MM:SS` or `HHMMSS`:
+     * "+2", "+02", "+02:00", "-0530", "+01:00:30".
+     *
+     * @throws date_time_exception when the text has another shape, minutes or
+     *         seconds are above 59, or the offset is beyond 18 hours
+     */
+    static def parse(text: string): zone_offset {
+        r := new time_text_reader(text, "offset");
+        result : zone_offset = read_from(r);
+        r.expect_end();
+        return result;
+    }
+
+    /** reads an offset at the cursor of `r` and leaves the cursor after it (shared with offset_date_time) */
+    static def read_from(r: time_text_reader): zone_offset {
+        if(r.accept_ignore_case('Z')) {
+            return utc;
+        }
+        sign : decimal = 1;
+        if(r.accept('-')) {
+            sign = 0 - 1;
+        } else if(!r.accept('+')) {
+            throw r.failure("expected 'Z', '+' or '-'");
+        }
+
+        hours : decimal = 0;
+        minutes : decimal = 0;
+        seconds : decimal = 0;
+        digits : decimal = r.count_digits();
+        if(digits == 1) {
+            hours = r.read_digits(1, 1);                 // +H
+        } else {
+            hours = r.read_digits(2, 2);                 // +HH...
+            if(r.accept(':')) {
+                minutes = r.read_digits(2, 2);           // +HH:MM
+                if(r.accept(':')) {
+                    seconds = r.read_digits(2, 2);       // +HH:MM:SS
+                }
+            } else if(r.at_digit()) {
+                minutes = r.read_digits(2, 2);           // +HHMM
+                if(r.at_digit()) {
+                    seconds = r.read_digits(2, 2);       // +HHMMSS
+                }
+            }
+        }
+        if(hours > 18 || minutes > 59 || seconds > 59) {
+            throw r.failure("offset field out of range");
+        }
+        total_seconds : decimal = hours * 3600 + minutes * 60 + seconds;
+        if(total_seconds > max_seconds) {
+            throw r.failure("offset is beyond 18 hours");
+        }
+        return of_total_seconds(sign * total_seconds);
+    }
+}

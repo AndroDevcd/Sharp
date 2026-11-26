@@ -1,0 +1,62 @@
+mod main;
+
+// output:
+// 11
+// 9
+// 21
+// 45
+// 89
+// 177
+// -128
+// 10
+// 2
+// 29
+
+/*
+ * Properties (doc/codegen.md 6.4, "storage places"): a read runs the getter,
+ * `=` runs the setter, `+=` and `++` / `--` run the getter and then the
+ * setter, on the object evaluated once; a property with only a setter; the
+ * value cut to an `_int8` property's type before its setter gets it.
+ *
+ * (Not here, because the C++ compiler fails on them - see codegen.md 13.2:
+ * `x++` / `++x` of a property used as a VALUE, `++` of a static property, and
+ * `+=` on a static property, which the C++-built program gets wrong, and
+ * `made().width += 3`, where the C++-built program calls made() twice.)
+ */
+class box {
+    width : _int64 = 10;
+        get { return width + 1; }
+        set v -> { width = v * 2; }
+    small : _int8 = 1;
+        set v -> { small = v; }
+    reads : _int64 = 0;
+    counted : _int64 = 5;
+        get {
+            reads++;
+            return counted;
+        }
+}
+
+the_box : box = new box();
+
+def main() {
+    b := new box();
+    show(b.width);
+    b.width = 4;
+    show(b.width);
+    b.width += 1;
+    show(b.width);
+    b.width++;
+    show(b.width);
+    b.width--;
+    show(b.width);
+    --b.width;
+    show(b.width);
+    b.small = 127;
+    b.small += 1;
+    show(b.small);
+    show(b.counted + b.counted);
+    show(b.reads);
+    the_box.width += 3;
+    show(the_box.width);
+}

@@ -1,0 +1,94 @@
+mod backend.finalizer.generation.closures;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation
+)
+
+/**
+ * FINDING A CLOSURE RECORD (doc/codegen.md 6.12)
+ *
+ * The records the code of one function can reach form a chain, the
+ * textbook's "access links" of nested procedures:
+ *
+ *      def outer() {                       outer's record              (outer's own slot)
+ *          n := 0;                           ^ @parent
+ *          run { ->                        the middle lambda's record  (its own slot; its parameter
+ *              run { -> n++; };              ^                          is outer's record)
+ *          };                              the inner lambda: its parameter is the middle record,
+ *      }                                   n is at depth 2: parameter, then @parent once
+ *
+ * So a record is found either among the ones the frame made itself
+ * (`generator.records`), or by starting at the record parameter and
+ * following `@parent`. Each step of the walk is one field read into a new
+ * slot, given back by whoever uses it.
+ */
+
+/** the slot holding a record this frame made itself; -1 when it made no such record */
+def own_record_slot(g: generator, record: closure_record) : _int64 {
+    for(i : _int64 = 0; i < g.records.size(); i++) {
+        if(g.records.at(i) == record) { return g.record_slots.at(i); }
+    }
+    return 0 - 1;
+}
+
+/** where a walk along the chain of records stands: the slot holding the record, and which record it is */
+class record_place {
+    slot : _int64;
+    record : closure_record;
+
+    record_place(slot: _int64, record: closure_record) {
+        self->slot = slot;
+        self->record = record;
+    }
+}
+
+/**
+ * The record `depth` function boundaries out from the code being generated
+ * (depth >= 1): the record parameter, then `@parent` depth - 1 times.
+ */
+def record_at_depth(g: generator, depth: _int64, at: bound_expression) : record_place {
+    if(g.record_parameter < 0 || g.handed == null) {
+        g.stop("a captured name in a function that was handed no closure record", at.unit, at.node);
+    }
+    place := new record_place(g.record_parameter, g.handed!!);
+    for(step : _int64 = 1; step < depth; step++) { place = parent_of(g, place, at); }
+    return place;
+}
+
+/** one step out: the `@parent` of the record at `place`, into a new slot */
+def parent_of(g: generator, place: record_place, at: bound_expression) : record_place {
+    record := place.record;
+    if(record.parent == null || record.parent_field == null) {
+        g.stop("a captured name further out than the chain of closure records reaches", at.unit, at.node);
+    }
+    next : _int64 = g.b.temp(SLOT_REF);
+    g.b.get_field(next, place.slot, record.parent_field!!);
+    g.b.release(place.slot);
+    return new record_place(next, record.parent!!);
+}
+
+/**
+ * The slot holding the very record `wanted` - the record a new lambda value
+ * carries (6.12). Nearly always one the frame made itself (the lambda is
+ * written in this function); otherwise one further out along the chain.
+ */
+def record_holding(g: generator, wanted: closure_record, at: bound_expression) : _int64 {
+    own : _int64 = own_record_slot(g, wanted);
+    if(own >= 0) { return own; }
+    if(g.record_parameter < 0 || g.handed == null) {
+        g.stop("a lambda whose closure record this function cannot reach", at.unit, at.node);
+    }
+    place := new record_place(g.record_parameter, g.handed!!);
+    for(depth : _int64 = 0; depth < 1000; depth++) {
+        if(place.record == wanted) { return place.slot; }
+        place = parent_of(g, place, at);
+    }
+    g.stop("a lambda whose closure record this function cannot reach", at.unit, at.node);
+    return 0 - 1;
+}

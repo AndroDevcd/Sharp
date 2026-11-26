@@ -1,0 +1,141 @@
+mod main;
+
+import ( std.c, std.io, platform )
+
+/**
+ * Calls to C from Sharp: numbers of every width, decimals and floats, strings
+ * both ways, arrays in place, addresses - against C's own library ("c") and
+ * the test library tests/cffi/c_test_functions.c ("c_test").
+ *
+ *      sharp calls <folder of the test library>
+ *
+ * Prints one line per check that fails and, last, CALLS: PASS (n checks).
+ */
+
+extern "c" {
+    def strlen(text: string) : c_size;
+    def abs(value: c_int) : c_int;
+    def atoi(text: string) : c_int;
+    def getenv(name: string) : string;
+    def malloc(bytes: c_size) : pointer;
+    def free(block: pointer);
+    def memset(block: pointer, value: c_int, bytes: c_size) : pointer;
+}
+
+extern "c_test" {
+    def add3(a: c_int, b: c_int, c: c_int) : c_int;
+    def sum10(a: _int64, b: _int64, c: _int64, d: _int64, e: _int64, f: _int64, g: _int64, h: _int64, i: _int64, j: _int64) : _int64;
+    def mix12(a: c_int, b: c_double, c: c_int, d: c_double, e: _int64, f: c_float, g: c_int, h: c_double, i: c_char, j: c_float, k: _int64, l: c_double) : c_double;
+    def fsum10(a: c_float, b: c_float, c: c_float, d: c_float, e: c_float, f: c_float, g: c_float, h: c_float, i: c_float, j: c_float) : c_double;
+    def narrow(a: c_char, b: c_uchar, c: c_short, d: c_ushort, e: c_int, f: c_uint) : _int64;
+    def ret_i8(x: c_int) : c_char;
+    def ret_u8(x: c_int) : c_uchar;
+    def ret_i16(x: c_int) : c_short;
+    def ret_u16(x: c_int) : c_ushort;
+    def ret_u32(x: _int64) : c_uint;
+    def ret_i64(x: _int64) : _int64;
+    def ret_f32(x: c_float) : c_float;
+    def ret_f64(x: c_double) : c_double;
+    def ret_ptr(p: pointer, add: c_int) : pointer;
+    def text_length(text: string) : _int64;
+    def sum_array(values: _int32[], count: c_int) : _int64;
+    def no_result(into: _int32[], value: c_int);
+    def fill_rect(into: _int32[], first: c_int);
+    // variable arguments: one declaration per shape that is called
+    def va_ints(count: c_int, ...) : _int64;
+    def va_ints(count: c_int, ..., a: c_int, b: c_int, c: c_int) : _int64;
+    def va_doubles(count: c_int, ..., a: c_double, b: c_float, c: c_double) : c_double;
+    def va_mixed(kinds: string, ..., a: c_int, b: c_double, c: _int64, d: string, e: c_float) : c_double;
+}
+
+extern "c" {
+    def sprintf(into: _int8[], format: string, ..., count: c_int, ratio: c_double, name: string) : c_int;
+}
+
+checks : _int64 = 0;
+failures : _int64 = 0;
+
+def same(name: string, got: decimal, want: decimal) {
+    checks++;
+    if(got != want) {
+        failures++;
+        println("FAIL  " + name + ": got " + got + ", expected " + want);
+    }
+}
+
+def same_text(name: string, got: string, want: string) {
+    checks++;
+    if(got != want) {
+        failures++;
+        println("FAIL  " + name + ": got \"" + got + "\", expected \"" + want + "\"");
+    }
+}
+
+def main(args: string[]) {
+    folder : string = ".";
+    if(sizeof(args) > 0) { folder = args[0]; }
+    c_library("c_test", folder + "/c_test");
+    c_check_libraries();
+
+    // ---- C's own library
+    same("strlen", strlen("hello, C"), 8);
+    same("strlen of nothing", strlen(""), 0);
+    same("abs", abs(0 - 42), 42);
+    same("atoi", atoi("  1234xyz"), 1234);
+    checks++;
+    if(getenv("PATH") == null) { failures++; println("FAIL  getenv(PATH) is null"); }
+    checks++;
+    if(getenv("SHARP_NO_SUCH_VARIABLE_12345") != null) { failures++; println("FAIL  getenv of a variable that is not set is not null"); }
+
+    // ---- numbers
+    same("add3", add3(1, 2, 3), 321);
+    same("add3 negative", add3(0 - 1, 0 - 2, 0 - 3), 0 - 321);
+    same("sum10", sum10(1, 0 - 2, 3000000000, 4, 0 - 5000000000, 6, 7, 0 - 8, 9, 10000000000), 1 - 4 + 9000000000 + 16 - 25000000000 + 36 + 49 - 64 + 81 + 100000000000);
+    same("mix12", mix12(1, 2.5, 0 - 3, 4.25, 5000000000, 6.5, 7, 0 - 8.125, 0 - 9, 10.75, 0 - 11, 12.0625),
+         1 + 5 - 9 + 17 + 25000000000 + 39 + 49 - 65 - 81 + 107.5 - 121 + 144.75);
+    same("fsum10", fsum10(1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5), 1.5 + 5 + 10.5 + 18 + 27.5 + 39 + 52.5 + 68 + 85.5 + 105);
+    same("narrow", narrow(0 - 5, 250, 0 - 30000, 65000, 0 - 2000000000, 4000000000), 0 - 5 + 750 - 150000 + 455000 - 22000000000 + 52000000000);
+
+    // ---- every width of result
+    same("ret_i8", ret_i8(0x1F0), 0 - 16);
+    same("ret_u8", ret_u8(0x1F0), 240);
+    same("ret_i16", ret_i16(0x1F000), 0 - 4096);
+    same("ret_u16", ret_u16(0x1F000), 61440);
+    same("ret_u32", ret_u32(0x1F0000000), 4026531840);
+    same("ret_i64", ret_i64(0 - 7000000000), 0 - 21000000000);
+    same("ret_f32", ret_f32(2.75), 4.125);
+    same("ret_f64", ret_f64(2.75), 4.125);
+
+    // ---- strings, arrays, addresses
+    same("text_length", text_length("twelve chars"), 12);
+    nothing : string? = null;
+    same("text_length(null)", text_length(nothing!!), 0 - 1);
+    values : _int32[] = { 10, 0 - 20, 30, 40, 50 };
+    same("sum_array", sum_array(values, 5), 110);
+    one := new _int32[1];
+    no_result(one, 21);
+    same("C wrote into the array", one[0], 42);
+    rect := new _int32[4];
+    fill_rect(rect, 7);
+    same("C filled four items", rect[0] + rect[1] + rect[2] + rect[3], 7 + 8 + 9 + 10);
+
+    // ---- variable arguments
+    same("va_ints, none", va_ints(0), 0);
+    same("va_ints", va_ints(3, 10, 0 - 20, 30), 10 - 40 + 90);
+    same("va_doubles (a float among them)", va_doubles(3, 1.5, 2.25, 0 - 3.125), 1.5 + 4.5 - 9.375);
+    same("va_mixed", va_mixed("idlsd", 0 - 7, 2.5, 9000000000, "four", 1.25), 0 - 7 + 5 + 27000000000 + 16 + 6.25);
+    line := new _int8[64];
+    written : _int64 = sprintf(line, "%d of %.2f for %s", 7, 2.5, "sharp");
+    same("sprintf's count", written, 19);
+    same_text("sprintf's text", new string(line, 0, written), "7 of 2.50 for sharp");
+
+    block : pointer = malloc(64);
+    checks++;
+    if(block == 0) { failures++; println("FAIL  malloc gave 0"); }
+    same("memset returns the block", memset(block, 0, 64), block);
+    same("ret_ptr", ret_ptr(block, 17), block + 17);
+    free(block);
+
+    if(failures == 0) { println("CALLS: PASS (" + checks + " checks)"); }
+    else { println("CALLS: FAIL (" + failures + " of " + checks + " checks failed)"); }
+}

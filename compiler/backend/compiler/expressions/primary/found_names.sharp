@@ -1,0 +1,138 @@
+mod backend.compiler.expressions.primary;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.names,
+    backend.compiler.context,
+    backend.compiler.names,
+    backend.compiler.expressions.primary.members
+)
+
+/**
+ * FROM "WHAT THE NAME IS" TO A TREE NODE
+ *
+ * Name lookup answers with a lookup_result. This file makes the typed-tree
+ * node for it and checks the rules of using it from HERE:
+ *
+ *      a local                 bound_local         (a use from inside a lambda marks it captured)
+ *      a field of the class    bound_field on an explicit `self` - or E0703 in static code
+ *      a static field, global  bound_field without an object
+ *      an enum value           bound_enum_value
+ *      a class, alias, T       bound_type_name     (legal only in front of `.` or `(`)
+ *      a function name         bound_functions     every overload; the calls stage picks
+ *
+ * Fields, classes, aliases and enums are checked for `private` /
+ * `protected` / `local` here (names/access_rules.sharp).
+ */
+def expression_for_found(context: analysis_context, found: lookup_result, node: _int64, name: string) : bound_expression {
+    kind : _int64 = found.kind;
+
+    if(found.applied != null) {
+        // a member of the object of an `apply(...) { }`: `wheels` there is `<the object>.wheels`
+        receiver := applied_object(context, found.applied!!, found.depth, node);
+        found.applied = null;
+        return member_of_value(context, receiver, found, name, node);
+    }
+
+    if(kind == FOUND_LOCAL) {
+        variable : local_variable = found.variable!!;
+        variable.reads++;
+        used := new bound_local(context.unit, node, variable);
+        used.depth = found.depth;
+        // (declared with a value its type refused, and reported there: its uses say
+        // nothing more - statements/local_declaration.sharp `written_type_refused`)
+        if(variable.value_refused == 1) { used.type = context.session.types.error_type; }
+        if(found.depth > 0) { note_local_capture(context, variable, found.depth); }
+        return used;
+    }
+
+    if(kind == FOUND_FIELD) {
+        field : sharp_field = found.field!!;
+        check_access(context, field, node);
+        if(field.owner == null || field.has(FLAG_STATIC)) { return read_field(context, field, null, node); }
+        if(context.is_static == 1 || context.class_of == null) {
+            report_instance_field_without_object(context, field, node, 0);
+            return new bound_error(context.unit, node, context.session.types.error_type);
+        }
+        return read_field(context, field, implied_self(context, node), node);
+    }
+
+    if(kind == FOUND_ENUM_VALUE) {
+        value : sharp_enum_value = found.value!!;
+        return new bound_enum_value(context.unit, node, value, type_of_enum_value(context, value));
+    }
+
+    if(kind == FOUND_FUNCTIONS) {
+        named := new bound_functions(context.unit, node, name, found.functions!!, context.session.types.error_type);
+        if(found.through_class == 1 && context.is_static == 0 && context.class_of != null && has_instance_function(found.functions!!)) {
+            // `area()` inside a class is `self->area()` when area is an instance function
+            named.on = implied_self(context, node);
+        }
+        return named;
+    }
+
+    // FOUND_TYPE
+    if(found.type != null) { return new bound_type_name(context.unit, node, found.type!!); }
+    declared : sharp_declaration = found.declaration!!;
+    check_access(context, declared, node);
+    return new bound_type_name(context.unit, node, type_named_by(context, declared, node));
+}
+
+/**
+ * A function of the class and a type of a module share the name at `node`,
+ * and lookup - nearest first - found the function. In front of a `.` a
+ * function means nothing, so the type is what the programmer wrote: this
+ * finds it (null when there is no such type).
+ *
+ *      C++ comparison: `resolve_normal_item` looks for fields and classes
+ *      before functions, whatever scope they are in.
+ */
+def type_hidden_by_function(context: analysis_context, node: _int64) : resolved_type? {
+    name := name_at(context, node);
+    declared := find_in_modules(context.file, name);
+    if(declared == null) {
+        declared = find_in_enclosing_scopes(context.prog, context.file, node, name, blueprint_function_of(context));
+    }
+    if(declared == null) { return null; }
+    check_access(context, declared!!, node);
+    return type_named_by(context, declared!!, node);
+}
+
+/** the object of an `apply(...) { }`, read from the hidden variable that holds it inside the block */
+def applied_object(context: analysis_context, variable: local_variable, depth: _int64, node: _int64) : bound_expression {
+    variable.reads++;
+    used := new bound_local(context.unit, node, variable);
+    used.depth = depth;
+    if(depth > 0) { note_local_capture(context, variable, depth); }
+    return used;
+}
+
+/** the `self` the programmer did not write: `x` meaning `self->x` */
+def implied_self(context: analysis_context, node: _int64) : bound_expression {
+    made := new bound_self(context.unit, node, context.self_type());
+    made.is_implied = 1;
+    made.depth = note_self_capture(context);
+    return made;
+}
+
+/** the type of an enum value: its enum */
+def type_of_enum_value(context: analysis_context, value: sharp_enum_value) : resolved_type {
+    if(value.value_type != null) { return value.value_type!!; }
+    if(value.owner != null) { return type_of_class(value.owner!!); }
+    return context.session.types.error_type;
+}
+
+/** is any of the functions an instance function (one that needs `self`)? */
+def has_instance_function(functions: list<sharp_function>) : _int64 {
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        if(!functions.at(i).has(FLAG_STATIC)) { return 1; }
+    }
+    return 0;
+}

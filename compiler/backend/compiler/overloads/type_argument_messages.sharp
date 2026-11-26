@@ -1,0 +1,87 @@
+mod backend.compiler.overloads;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * WHEN THE TYPE ARGUMENTS OF A CALL ARE WHAT IS WRONG
+ *
+ *      def first<T>(items: T[]) : T { ... }
+ *      def empty<T>() : list<T> { ... }
+ *      def bounded<T base animal>(a: T) : T { ... }
+ *      def add(a: _int64, b: _int64) : _int64 { ... }
+ *
+ *      first<_int64, string>(numbers)      E0515   one type argument is asked for, two are written
+ *      add<_int64>(1, 2)                   E0516   `add` is not generic
+ *      empty()                             E0517   nothing says what `T` is: write `empty<string>()`
+ *      bounded(a_table)                    E0518   `T` must be an `animal`
+ *
+ * The arguments themselves may be perfectly good, so these are not "no
+ * function takes these arguments" (E0501): each says what is wrong with the
+ * type arguments and what to write. They are reported only when EVERY
+ * candidate failed on its type arguments - when another overload failed on
+ * an ordinary argument, E0501 lists them all with their reasons
+ * (overload_messages.sharp).
+ *
+ *      C++ comparison: all four are "could not resolve symbol `first<...>(...)`".
+ */
+
+/**
+ * @param code      E0515, E0516, E0517 or E0518 (the first candidate's problem)
+ * @param name_node the name of the function at the call
+ * @param rejected  the candidates, each with its reason
+ */
+def report_type_arguments(context: analysis_context, code: string, name: string, name_node: _int64,
+                          rejected: list<call_candidate>, arguments: list<call_argument>) {
+    first : sharp_function = rejected.at(0).function;
+    for(i : _int64 = 0; i < rejected.size(); i++) {
+        if(rejected.at(i).type_argument_code == code) {
+            first = rejected.at(i).function;
+            break;
+        }
+    }
+    parameters := type_parameter_names(first);
+
+    heading := "";
+    label := "";
+    help := "";
+    if(code == "E0515") {
+        heading = "`" + name + "` is called with the wrong number of type arguments";
+        label = "`" + name + "` has " + count_of(first.type_parameters.size(), "type parameter") + ": `<" + parameters + ">`";
+        help = "write one type for each of `<" + parameters + ">`, or none and let the arguments decide: `" + name + "(...)`";
+    } else if(code == "E0516") {
+        heading = "`" + name + "` is not generic, but type arguments are written";
+        label = "takes no type arguments";
+        help = "remove the `<...>`: `" + name + "(...)`";
+    } else if(code == "E0517") {
+        heading = "the type arguments of `" + name + "` cannot be worked out from these arguments";
+        label = "called with " + argument_types_text(arguments);
+        help = "write them at the call: `" + name + "<" + parameters + ">(...)` with a real type for each";
+    } else {
+        heading = "a type argument of `" + name + "` is not what its type parameter asks for";
+        label = "called with " + argument_types_text(arguments);
+        help = "pass a value of a type that fits, or change the `base` written after the type parameter";
+    }
+
+    d := problem_at(context, code, heading, name_node);
+    d.with_label(label);
+    for(i : _int64 = 0; i < rejected.size() && i < 6; i++) {
+        d.with_note(signature_of(rejected.at(i).function) + "    " + rejected.at(i).reason_text());
+    }
+    if(code == "E0517") {
+        d.with_note("a type parameter is worked out from an argument whose parameter is written with it (`x: T`, `items: T[]`, `list<T>`)");
+    }
+    d.with_related_place(place_of_declaration(first, "`" + first.name + "` is declared here"));
+    d.with_help(help);
+    report(context, d);
+}

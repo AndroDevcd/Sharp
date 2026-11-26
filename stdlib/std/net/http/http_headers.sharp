@@ -1,0 +1,111 @@
+mod std.net;
+
+import ( std.io )
+
+/**
+ * THE HEADERS of a request or a response: names with values, in order
+ *
+ *      headers.put("Accept", "application/json");      // the one value of that name
+ *      headers.add("Set-Cookie", "a=1");               // one more of that name
+ *      type := headers.find("content-type");           // null when there is none
+ *
+ * Names are found whatever their capitals ("Content-Type" is
+ * "content-type"), and sent as they were written. A name may be there more
+ * than once (add); find() gives the first, all() every one.
+ */
+class http_headers {
+    private names : list<string> = new list<string>();
+    private values : list<string> = new list<string>();
+
+    /** how many there are (a name that is there twice counts twice) */
+    def size() : _int64 {
+        return names.size() as _int64;
+    }
+
+    def name_at(index: _int64) : string { return names.at(index); }
+    def value_at(index: _int64) : string { return values.at(index); }
+
+    private def index_of(name: string, from: _int64) : _int64 {
+        for(i : _int64 = from; i < names.size(); i++) {
+            if(io_strings.equals_ignore_case(names.at(i), name)) { return i; }
+        }
+        return 0 - 1;
+    }
+
+    def has(name: string) : bool {
+        return index_of(name, 0) >= 0;
+    }
+
+    /** the (first) value of that name; null when there is none */
+    def find(name: string) : string? {
+        at : _int64 = index_of(name, 0);
+        if(at < 0) { return null; }
+        return values.at(at);
+    }
+
+    /** the (first) value of that name, or `fallback` */
+    def find_or(name: string, fallback: string) : string {
+        at : _int64 = index_of(name, 0);
+        if(at < 0) { return fallback; }
+        return values.at(at);
+    }
+
+    /** every value of that name, in order */
+    def all(name: string) : list<string> {
+        found := new list<string>();
+        at : _int64 = index_of(name, 0);
+        while(at >= 0) {
+            found.add(values.at(at));
+            at = index_of(name, at + 1);
+        }
+        return found;
+    }
+
+    /** make this the one value of that name */
+    def put(name: string, value: string) : http_headers {
+        remove(name);
+        names.add(name);
+        values.add(value);
+        return self;
+    }
+
+    /** one more value of that name (what is there stays) */
+    def add(name: string, value: string) : http_headers {
+        names.add(name);
+        values.add(value);
+        return self;
+    }
+
+    /** take every value of that name out */
+    def remove(name: string) : http_headers {
+        at : _int64 = index_of(name, 0);
+        while(at >= 0) {
+            names.remove_at(at);
+            values.remove_at(at);
+            at = index_of(name, at);
+        }
+        return self;
+    }
+
+    /** set every header of `other` here (a name `other` has replaces the one here) */
+    def set_all(other: http_headers) : http_headers {
+        for(i : _int64 = 0; i < other.size(); i++) { remove(other.name_at(i)); }
+        for(i : _int64 = 0; i < other.size(); i++) { add(other.name_at(i), other.value_at(i)); }
+        return self;
+    }
+
+    def copy_all() : http_headers {
+        made := new http_headers();
+        for(i : _int64 = 0; i < size(); i++) { made.add(names.at(i), values.at(i)); }
+        return made;
+    }
+
+    /** "Name: value" lines, as they are sent */
+    override def to_string() : string? {
+        text := new char_buffer();
+        for(i : _int64 = 0; i < size(); i++) {
+            text.append(names.at(i)).append(": ").append(values.at(i)).append("\r\n");
+        }
+        return text.to_string();
+    }
+}

@@ -1,0 +1,185 @@
+mod backend.compiler.expressions.assignment;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions,
+    backend.compiler.expressions.calls,
+    backend.compiler.expressions.arithmetic
+)
+
+/**
+ * `target = value`
+ *
+ * The value must fit the target's type (doc/backend.md 7.5, 7.10). Where it
+ * goes depends on the target:
+ *
+ *      count = n;              storage: a bound_assign; `n` converted to count's type
+ *      p.size = 3;             a property with a setter: the setter is called (AS_SETTER)
+ *      names[0] = x;           an object indexed: put(0, x) (index_store.sharp)
+ *
+ * For a target of a CLASS type there is one more way: the class's
+ * `operator=` (doc/backend.md 7.5.4). When the value does not simply convert
+ * to the class (as a subclass or the same class would) but the class has an
+ * `operator=` that takes it, that function is called on the object the
+ * target holds:
+ *
+ *      count : int = 1;
+ *      count = 2;              count.operator=(2) - the number box changes its contents
+ *
+ * - unless the target may hold no object (it is nullable, or an item of an
+ * array, which starts out null): then a new object is built from the value
+ * when a constructor takes it, and stored (`names[1] = "one"` stores
+ * `new string("one")`). Without `operator=` a value that only fits through a
+ * constructor is built and stored too - the one rule of 7.5.4.
+ *
+ * A STRING IS THE EXCEPTION: it is always stored, never written into.
+ *
+ *      a : string = "one";
+ *      b : string = a;         // b and a are the same string object
+ *      a = "two";              // a is a NEW string; b is still "one"
+ *
+ * Quoted text is an array of bytes, not a string object, so `a = "two"` used
+ * to be `a.operator=("two")`: the bytes were copied into the object a held -
+ * and b, holding the same object, read "two" as well. `a = a + "!"` and
+ * `a = other` did not do that (a string was assigned: the variable was
+ * pointed at it). Two assignments that look the same did opposite things, and
+ * no other language lets `b` follow a plain `a = ...`. Now every assignment
+ * to a string variable points it at a string; the one that changes a string
+ * for everybody who holds it is `+=`.
+ *
+ *      E0711   the target is not a place that holds a value
+ *      E0713   a property's setter takes the field's type, but the value only fits through
+ *              the class's operator= (C++: "Cannot assign value via setter when `operator=`
+ *              function is required")
+ *
+ *      C++ comparison: `compile_assignment` in assign_expression.cpp.
+ */
+def plain_assignment(context: analysis_context, node: _int64, target: assign_target, value_node: _int64) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    if(target.kind == TARGET_NONE) {
+        given := analyse_value(context, value_node, null);
+        through := assign_to_returned_object(context, node, target.read, given);
+        if(through != null) { return through!!; }
+        report_not_assignable(context, target, node, "assigned to");
+        return new bound_error(context.unit, node, error_type);
+    }
+    value := analyse_value(context, value_node, target.type);
+    if(target.kind == TARGET_ERROR || value.type.kind == RT_ERROR) { return new bound_error(context.unit, node, error_type); }
+    if(target.kind == TARGET_INDEX) { return store_through_index(context, node, target.index_call!!, value); }
+
+    check_const(context, target, node);
+    if(target.kind == TARGET_PROPERTY && target.setter != null) { return assign_through_setter(context, node, target, value); }
+    return assign_into(context, node, target.storage!!, value);
+}
+
+/** the value into a local, a field or an array item */
+def assign_into(context: analysis_context, node: _int64, storage: bound_expression, value: bound_expression) : bound_expression {
+    type : resolved_type = storage.type;
+    purpose := "`" + source_text_of(context, storage.node) + "`";
+    if(type.kind == RT_CLASS && type.is_array == 0) {
+        plain := find_conversion(context.session, value.type, type, 0);
+        if(!plain.converts()) {
+            through := assign_operator_call(context, node, storage, value);
+            if(through != null) { return through!!; }
+        }
+    }
+    converted := convert(context, value, type, purpose);
+    if(converted.type.kind == RT_ERROR) { return new bound_error(context.unit, node, context.session.types.error_type); }
+    return new bound_assign(context.unit, node, storage, converted);
+}
+
+/**
+ * `target = value` through the class's operator=: the call, or - for a
+ * target that may hold no object - the object built from the value and
+ * stored. Null when the class has no operator= that takes the value.
+ */
+def assign_operator_call(context: analysis_context, node: _int64, storage: bound_expression, value: bound_expression) : bound_expression? {
+    chosen := operator_assign_for(context, storage, value);
+    if(chosen == null) { return null; }
+
+    may_hold_nothing : _int64 = storage.type.is_nullable == 1 || storage.kind == BX_INDEX;
+    // A STRING IS STORED, never written into (see the top of this file): `text = "b"` is `text = new string("b")`.
+    is_string : _int64 = context.session.known.string_class != null && storage.type.class_of == context.session.known.string_class;
+    if(may_hold_nothing == 1 || is_string == 1) {
+        built := conversion_by_construction(context.session, value.type, storage.type);
+        if(built != null && built!!.function != null) {
+            return new bound_assign(context.unit, node, storage, apply_conversion(context, value, built!!));
+        }
+    }
+    return call_operator_assign(context, node, storage, value, chosen!!);
+}
+
+/** the `operator=` of `on`'s class that takes `value`; null when the class has none that does */
+def operator_assign_for(context: analysis_context, on: bound_expression, value: bound_expression) : call_candidate? {
+    owner : sharp_class = on.type.class_of!!;
+    functions := operator_functions(context, owner, "operator=");
+    if(functions.size() == 0) { return null; }
+    return resolve_overload(context, functions, one_argument(value), null, owner).best;
+}
+
+/** `on.operator=(value)` as a bound call */
+def call_operator_assign(context: analysis_context, node: _int64, on: bound_expression, value: bound_expression,
+                         chosen: call_candidate) : bound_expression {
+    call := bind_call(context, chosen, on, one_argument(value), node, node);
+    call.written_as = AS_ASSIGN_OPERATOR;
+    return call;
+}
+
+/**
+ * `title() = "x";` - the left side is no place, but it is an OBJECT some
+ * expression gave back, and its class has an `operator=` that takes the
+ * value: that function is called on the object (a string changes its
+ * contents). Null when this does not apply, and the caller reports E0711.
+ *
+ *      C++ comparison: `compile_assignment` never asks whether the left side
+ *      is a place when it is an object; `a.get_name() = "z"` changes the name
+ *      there too (checked by running it).
+ */
+def assign_to_returned_object(context: analysis_context, node: _int64, on: bound_expression, value: bound_expression) : bound_expression? {
+    kind : _int64 = on.kind;
+    if(kind == BX_TYPE_NAME || kind == BX_FUNCTIONS || kind == BX_ENUM_VALUE || kind == BX_SAFE_NAVIGATION || kind == BX_NULL) { return null; }
+    if(on.type.kind != RT_CLASS || on.type.is_array == 1 || value.type.kind == RT_ERROR) { return null; }
+    chosen := operator_assign_for(context, on, value);
+    if(chosen == null) { return null; }
+    return call_operator_assign(context, node, on, value, chosen!!);
+}
+
+/** `p.size = 3` where `size` has a setter: the setter, with the value converted to the field's type */
+def assign_through_setter(context: analysis_context, node: _int64, target: assign_target, value: bound_expression) : bound_expression {
+    setter : sharp_function = target.setter!!;
+    field : sharp_field = target.field!!;
+    type : resolved_type = target.type;
+    how := find_conversion(context.session, value.type, type, 1);
+    if(!how.converts() && type.kind == RT_CLASS && type.is_array == 0
+       && operator_functions(context, type.class_of!!, "operator=").size() > 0) {
+        d := problem_over(context, "E0713", "this value fits `" + field.name + "` only through `" + type.to_text()
+                          + ".operator=`, and `" + field.name + "` has a setter", node);
+        d.with_label("a setter takes a `" + type.to_text() + "`");
+        d.with_related_place(place_of_declaration(setter, "the setter of `" + field.name + "` is declared here"));
+        d.with_note("the setter is given a new value; `operator=` would change the object the field holds - both cannot happen");
+        d.with_help("make the object first: `" + source_text_of(context, target.read.node) + " = new " + type.to_text() + "(...)`");
+        report(context, d);
+        return new bound_error(context.unit, node, context.session.types.error_type);
+    }
+    converted := convert(context, value, type, "`" + field.name + "`");
+    if(converted.type.kind == RT_ERROR) { return new bound_error(context.unit, node, context.session.types.error_type); }
+
+    on : bound_expression? = null;
+    if(target.storage != null && target.storage!!.kind == BX_FIELD) { on = (target.storage as bound_field).on; }
+    call := new bound_call(context.unit, node, setter, on, type);
+    call.add_argument(converted);
+    call.written_as = AS_SETTER;
+    call.dispatch = dispatch_of(setter, on);
+    check_function_access(context, setter, node);
+    return call;
+}

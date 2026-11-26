@@ -1,0 +1,37 @@
+mod std.time;
+
+/**
+ * HOW LONG A PIECE OF CODE TAKES
+ *
+ *      took := measure_time { sort(items); };
+ *      println("sorting took " + took.to_string());        // "sorting took 1.25s"
+ *      took.to_millis()                                    // the same as a number
+ *
+ *      ms := measure_millis { sort(items); };              // the number at once
+ *
+ * What comes back is a `duration`, so no unit has to be chosen beforehand:
+ * to_millis(), to_micros(), to_nanos() and to_fractional_seconds() read it
+ * in any of them.
+ *
+ * The time is the system clock's (see `system_clock`: good to about a
+ * quarter of a microsecond, and it can jump when the operating system
+ * corrects the time). For several readings of one run, or laps, use a
+ * `stopwatch`.
+ *
+ *      Kotlin comparison: measureTime { } and measureTimeMillis { }.
+ */
+def measure_time(block: ()()) : duration {
+    return measure_time(system_clock.instance, block);
+}
+
+/** as measure_time(block), by the clock given: a test hands over a `manual_clock` and gets exact numbers */
+def measure_time(time_source: clock, block: ()()) : duration {
+    watch := stopwatch.started(time_source);
+    block();
+    return watch.stop();
+}
+
+/** how long the block took in whole milliseconds */
+def measure_millis(block: ()()) : decimal {
+    return measure_time(system_clock.instance, block).to_millis();
+}

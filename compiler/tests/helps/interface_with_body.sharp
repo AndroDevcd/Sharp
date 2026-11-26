@@ -1,0 +1,15 @@
+// expect: E0379
+// help: mutate i { def f() { ... } }
+// before: class c
+// dots: println("shared");
+// remove: def f() { println("shared"); }
+mod tests.helps;
+import (std, std.io);
+
+interface i { def f() { println("shared"); } }
+class c : i { }
+
+def main() {
+    x : i = new c();
+    x.f();
+}

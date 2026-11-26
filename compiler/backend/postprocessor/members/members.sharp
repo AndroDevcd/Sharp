@@ -1,0 +1,143 @@
+mod backend.postprocessor.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.checks,
+    backend.postprocessor.generics,
+    backend.postprocessor.imports,
+    backend.postprocessor.inheritance,
+    backend.types.program,
+    backend.types.declarations,
+    backend.types.type_system
+)
+
+/**
+ * STAGE 5, GENERICS AND MEMBERS: the driver, member lookup, the rules of each kind of member
+ *
+ * The files of this package (module `backend.postprocessor.members`):
+ *
+ *      members.sharp              resolve_members (the stage's driver); the work list of generic instances
+ *      member_lookup.sharp        find_member: a member by name, inherited ones included
+ *      extension_functions.sharp  def string.shout(): attached to its class
+ *      constructors.sharp         constructor names, init(x), the added constructor without parameters
+ *      accessors.sharp            getters, setters and injected fields as declared
+ *      interface_members.sharp    what an interface may declare
+ *      enum_values.sharp          the numbers of enum values a declaration fixes
+ *      components.sharp           single / factory definitions recorded
+ *
+ * This file is the package's front door and holds its driver.
+ */
+
+/**
+ * STAGE 5 OF THE BACKEND: GENERICS AND MEMBERS
+ * (in the C++ compiler: the rest of its post-processing stage, and its
+ * generic class pre-processing)
+ *
+ * After stage 4 every NAME in a declaration is tied to what it means and the
+ * classes are checked against each other. What is still missing before a
+ * function body can be analysed:
+ *
+ *   - what a declared type IS. `names : list<string>?` names the blueprint
+ *     `list` and the class `string`; the body stages need "an object of the
+ *     class list<string>, may be null" - a resolved type - and for that the
+ *     class list<string> has to exist;
+ *   - what a class HAS. Its own members, the ones it inherits, the functions
+ *     added from outside (`def string.shout()`), the constructor everybody
+ *     gets, who may use each of them;
+ *   - the rules a declaration follows on its own: which modifier words it
+ *     may carry, what an interface may contain, how an operator is declared.
+ *
+ * The steps, in order - each uses what the ones before it set up:
+ *
+ *      find_well_known_classes     the library classes the language is built on      types/program/well_known.sharp
+ *      check_file_rules            the `mod` line                                    file_rules.sharp
+ *      check_modifiers             public static ...: which, how often, what order   modifiers.sharp
+ *      attach_extension_functions  def string.shout() becomes a member of string     extension_functions.sharp
+ *      apply_default_access        what a declaration is when it does not say        default_access.sharp
+ *      check_constructors          constructor names, init forms; the added constructor   constructors.sharp
+ *      check_interface_members     an interface declares functions only              interface_members.sharp
+ *      check_accessors             getters, setters, injected fields                 accessors.sharp
+ *      register_generic_functions  def f<T>(...): the blueprints                     generic_functions.sharp
+ *      check_function_forms        a native function with a body, an operator        function_forms.sharp
+ *                                  function outside any class
+ *      check_operator_functions    def operator+(...): how many parameters           operator_functions.sharp
+ *      check_name_conflicts        a field and a function with one name              name_conflicts.sharp
+ *      number_enum_values          green = 5: the numbers a declaration fixes        enum_values.sharp
+ *      record_components           single { } / factory { } as objects               components.sharp
+ *
+ *      then the types:
+ *      ensure_members              every member of every class gets its resolved     member_types.sharp
+ *                                  type; generic instances are MADE as their         generic_classes.sharp
+ *                                  names are met (resolve_written_type)              postprocessor/generics/resolve_written_type.sharp
+ *      complete_generic_instances  ... and each instance gets its own members,
+ *                                  which may name further instances: a work list
+ *                                  and is checked for functions that fall together   instance_duplicates.sharp
+ *                                  with its type arguments
+ *      link_families               base classes as real classes; which function      class_bases.sharp
+ *                                  overrides which, compared exactly                 override_families.sharp
+ *
+ * What the later stages call: `find_member` / `find_field` / `find_functions`
+ * (member_lookup.sharp), `resolve_written_type`, `ensure_members`,
+ * `resolve_bases`, `inherits_from`, `instantiate_function`.
+ *
+ *      resolve_members(prog, problems)     the way in
+ */
+def resolve_members(prog: sharp_program, problems: list<diagnostic>) {
+    prog.problems = problems;
+    prog.well_known = find_well_known_classes(prog, problems);
+
+    // ---- the rules a declaration follows on its own
+    check_file_rules(prog, problems);
+    check_modifiers(prog, problems);
+    attach_extension_functions(prog, problems);
+    apply_default_access(prog);
+    check_constructors(prog, problems);
+    check_interface_members(prog, problems);
+    check_accessors(prog, problems);
+    register_generic_functions(prog, problems);
+    check_function_forms(prog, problems);
+    check_operator_functions(prog, problems);
+    check_name_conflicts(prog, problems);
+    number_enum_values(prog, problems);
+    record_components(prog);
+
+    // ---- the types of everything declared. Blueprints first get theirs
+    // checked like everything else; generic instances appear on
+    // prog.generic_instances as their names are met.
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        ensure_members(prog, prog.all_classes.at(i));
+    }
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        resolve_global_types(prog, prog.module_list.at(i), problems);
+    }
+    attach_instance_extensions(prog, problems);
+
+    // ---- real base classes and override families of the written classes,
+    // then everything again for the instances - until no new one appears
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        link_families(prog, prog.all_classes.at(i));
+    }
+    complete_generic_instances(prog);
+}
+
+/**
+ * Give every generic instance made so far its members and its place in the
+ * override families. Doing that for one instance can name new ones
+ * (`list<string>` has a function returning `list<list<string>>`...), which
+ * are added to the end of the same list: a work list, walked until its end.
+ *
+ * The body stages call this again whenever they have analysed something,
+ * because a body can name an instance no declaration did
+ * (`x := new list<shape>();`). It continues where it stopped.
+ */
+def complete_generic_instances(prog: sharp_program) {
+    while(prog.instances_completed < prog.generic_instances.size()) {
+        instance := prog.generic_instances.at(prog.instances_completed);
+        prog.instances_completed++;
+        ensure_members(prog, instance);
+        check_instance_duplicates(prog, instance);
+        link_families(prog, instance);
+    }
+}

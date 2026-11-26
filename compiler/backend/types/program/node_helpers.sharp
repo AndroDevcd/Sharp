@@ -1,0 +1,69 @@
+mod backend.types.program;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.type_system
+)
+
+/**
+ * Small helpers every backend stage uses to get from a tree node to text and
+ * to a place in the source for a message.
+ */
+
+/** the N_NAME children of `node` joined with dots: std.io.files */
+def dotted_name(unit: source_unit, node: _int64) : string {
+    tree : syntax_tree = unit.parsed!!.tree;
+    text := new string_builder("");
+
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        if(tree.kinds!![child] == N_NAME) {
+            if(text.size() > 0) { text.append("."); }
+            text.append(node_text(unit, child));
+        }
+        child = tree.next_sibling!![child];
+    }
+    return text.build();
+}
+
+/** a diagnostic about the token a node is at (its name) */
+def error_at_node(code: string, message: string, unit: source_unit, node: _int64) : diagnostic {
+    p : parse_state = unit.parsed!!;
+    token : _int64 = p.tree.tokens!![node];
+    return new_error(code, message, unit.file, p.source, p.table, p.start_of(token), p.end_of(token));
+}
+
+/**
+ * A diagnostic about a dotted name: everything from the first N_NAME child of
+ * `node` to the last is marked (std.colections, not just std).
+ */
+def error_at_names(code: string, message: string, unit: source_unit, node: _int64) : diagnostic {
+    p : parse_state = unit.parsed!!;
+    tree : syntax_tree = p.tree;
+
+    first : _int64 = 0 - 1;
+    last : _int64 = 0 - 1;
+    child : _int64 = tree.first_child!![node];
+    while(child >= 0) {
+        if(tree.kinds!![child] == N_NAME) {
+            if(first < 0) { first = tree.tokens!![child]; }
+            last = tree.tokens!![child];
+        }
+        child = tree.next_sibling!![child];
+    }
+    if(first < 0) {
+        return error_at_node(code, message, unit, node);
+    }
+    return new_error(code, message, unit.file, p.source, p.table, p.start_of(first), p.end_of(last));
+}
+
+/** the place of a node, to show next to another diagnostic */
+def place_of_node(unit: source_unit, node: _int64, label: string) : related_place {
+    p : parse_state = unit.parsed!!;
+    token : _int64 = p.tree.tokens!![node];
+    return new related_place(unit.file, p.source, p.table, p.start_of(token), p.end_of(token), label);
+}

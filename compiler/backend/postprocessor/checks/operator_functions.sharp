@@ -1,0 +1,89 @@
+mod backend.postprocessor.checks;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * OPERATOR FUNCTIONS AS DECLARED
+ *
+ *      class money {
+ *          def operator+(other: money) : money { ... }     a + b    calls   a.operator+(b)
+ *          def operator-() : money { ... }                 -a       calls   a.operator-()
+ *          def operator[](index: int) : coin { ... }       a[i]     calls   a.operator[](i)
+ *      }
+ *
+ * An operator function is an ordinary instance function with a special name
+ * (sharp_function.is_operator; the name is "operator" + the operator). The
+ * object on the LEFT is `self`; what the operator is used with on the right
+ * is the parameter. That fixes how many parameters each can be used with:
+ *
+ *      + - * / % ** < > <= >= == != << >> & | ^ && ||      one: the right operand
+ *      = += -= *= /= %= &= |= ^=                           one: the value assigned
+ *      -                                                   also none: unary minus
+ *      !                                                   none
+ *      ++ --                                               none, or one (the two forms the library declares)
+ *      []                                                  one or more: the index
+ *
+ *      W1025   an operator function with a number of parameters the operator
+ *              can never be used with
+ *
+ * A WARNING, not an error [differs from the plan, which had no rule]: the
+ * C++ compiler does not check this, and such a function can still be called
+ * by its name (`a.operator+(b, c)`), so the program has a meaning.
+ */
+def check_operator_functions(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        declared := prog.all_classes.at(i);
+        for(j : _int64 = 0; j < declared.functions.size(); j++) {
+            function := declared.functions.at(j);
+            if(function.is_operator == 1) { check_operator_function(declared, function, problems); }
+        }
+    }
+}
+
+/** W1025 for one operator function whose number of parameters no use of the operator has */
+def check_operator_function(declared: sharp_class, function: sharp_function, problems: list<diagnostic>) {
+    count : _int64 = function.parameters.size();
+    name := function.name;
+    symbol := operator_symbol(name);
+
+    fits : _int64 = count == 1;
+    takes : string = "one parameter: what stands on the right of `" + symbol + "`";
+    if(name == "operator!") {
+        fits = count == 0;
+        takes = "no parameter: `!value` has nothing but the value itself";
+    } else if(name == "operator-") {
+        fits = count == 0 || count == 1;
+        takes = "one parameter (`a - b`) or none (`-a`)";
+    } else if(name == "operator++" || name == "operator--") {
+        fits = count == 0 || count == 1;
+        takes = "no parameter, or one";
+    } else if(name == "operator[]") {
+        fits = count >= 1;
+        takes = "at least one parameter: the index";
+    }
+    if(fits) { return; }
+
+    problems.add(error_at_node("W1025", "`" + name + "` with " + count + " parameter(s) can never be used as an operator",
+                               function.unit, function.node)
+        .with_label("`" + symbol + "` takes " + takes)
+        .with_note("the object the operator is used on is `self`; it is not a parameter. This function can only be called by name: value." + name + "(...)")
+        .with_help("give it the parameters the operator has, or make it an ordinary function with a name of its own")
+        .as_warning());
+}
+
+/** "+" for "operator+" */
+def operator_symbol(name: string) : string {
+    chars : _int8[]? = name.data;
+    symbol := new string_builder("");
+    for(i : _int64 = 8; i < sizeof(chars); i++) {
+        symbol.append(chars!![i]);
+    }
+    return symbol.build();
+}

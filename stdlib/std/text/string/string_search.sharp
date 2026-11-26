@@ -1,0 +1,207 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - searching (part of the `string` class, see string_core.sharp)
+ *
+ * index_of / last_index_of (text, single character, any of a set of characters),
+ * contains, count, and the ignore-case forms of starts_with / ends_with.
+ *
+ * Positions are native numbers; -1 always means "not found".
+ * Searching for the empty string "" finds it at the position the search
+ * starts from (as in Java and Kotlin); count("") is 0.
+ *
+ * A character literal can be passed wherever a `string` is expected:
+ * `s.index_of('x')` works and searches for the one-character text "x".
+ * For a character held in a variable use the `_char` forms.
+ */
+mutate string {
+
+    /**
+     * Position of the first occurrence of `text`, or -1 if it does not occur.
+     * "banana".index_of("an") is 1.
+     */
+    def index_of(text: string): decimal {
+        return string_support.find_forward(data, text.data, 0);
+    }
+
+    /**
+     * Position of the first occurrence of `text` at or after position `start`,
+     * or -1. A negative start counts as 0; a start beyond the end finds nothing
+     * (except the empty text, which is found at length).
+     * "banana".index_of("an", 2) is 3.
+     */
+    def index_of(text: string, start: int): decimal {
+        return string_support.find_forward(data, text.data, start.value);
+    }
+
+    /**
+     * Position of the last occurrence of `text`, or -1 if it does not occur.
+     * "banana".last_index_of("an") is 3.
+     */
+    def last_index_of(text: string): decimal {
+        return string_support.find_backward(data, text.data, sizeof(data));
+    }
+
+    /**
+     * Position of the last occurrence of `text` that STARTS at or before
+     * position `start`, or -1. A negative start finds nothing.
+     * "banana".last_index_of("an", 2) is 1.
+     */
+    def last_index_of(text: string, start: int): decimal {
+        return string_support.find_backward(data, text.data, start.value);
+    }
+
+    /** Position of the first character equal to `c`, or -1. */
+    def index_of_char(c: char): decimal {
+        return index_of_char(c, 0);
+    }
+
+    /** Position of the first character equal to `c` at or after `start`, or -1. A negative start counts as 0. */
+    def index_of_char(c: char, start: int): decimal {
+        n : decimal = sizeof(data);
+        wanted : decimal = c.value;
+        i : decimal = start.value;
+        if(i < 0) i = 0;
+        for(; i < n; i++) {
+            if(data[i] == wanted) return i;
+        }
+        return -1;
+    }
+
+    /** Position of the last character equal to `c`, or -1. */
+    def last_index_of_char(c: char): decimal {
+        return last_index_of_char(c, sizeof(data) - 1);
+    }
+
+    /** Position of the last character equal to `c` at or before `start`, or -1. */
+    def last_index_of_char(c: char, start: int): decimal {
+        n : decimal = sizeof(data);
+        wanted : decimal = c.value;
+        i : decimal = start.value;
+        if(i >= n) i = n - 1;
+        for(; i >= 0; i--) {
+            if(data[i] == wanted) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * Position of the first character that is one of the characters in `chars`, or -1.
+     * "a=b;c".index_of_any(";=") is 1. An empty set finds nothing.
+     */
+    def index_of_any(chars: string): decimal {
+        return index_of_any(chars, 0);
+    }
+
+    /** index_of_any, starting the search at position `start` (negative counts as 0). */
+    def index_of_any(chars: string, start: int): decimal {
+        n : decimal = sizeof(data);
+        i : decimal = start.value;
+        if(i < 0) i = 0;
+        for(; i < n; i++) {
+            if(string_support.in_set(data[i], chars.data)) return i;
+        }
+        return -1;
+    }
+
+    /** Position of the last character that is one of the characters in `chars`, or -1. */
+    def last_index_of_any(chars: string): decimal {
+        for(i : decimal = sizeof(data) - 1; i >= 0; i--) {
+            if(string_support.in_set(data[i], chars.data)) return i;
+        }
+        return -1;
+    }
+
+    /** Position of the first character that is NOT one of the characters in `chars`, or -1. */
+    def index_of_none(chars: string): decimal {
+        n : decimal = sizeof(data);
+        for(i : decimal = 0; i < n; i++) {
+            if(!string_support.in_set(data[i], chars.data)) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * index_of(text) that treats ASCII capital and small letters as equal.
+     * "Hello World".index_of_ignore_case("WORLD") is 6.
+     */
+    def index_of_ignore_case(text: string): decimal {
+        last_start : decimal = sizeof(data) - sizeof(text.data);
+        for(i : decimal = 0; i <= last_start; i++) {
+            if(string_support.region_equals_ignore_case(data, i, text.data)) return i;
+        }
+        return -1;
+    }
+
+    /**
+     * true if `text` occurs anywhere in the string. Every string contains "".
+     * (The older `find(text)` answers the same question with a `bool` object.)
+     */
+    def contains(text: string): bool {
+        return string_support.find_forward(data, text.data, 0) >= 0;
+    }
+
+    /** contains(text) that treats ASCII capital and small letters as equal. */
+    def contains_ignore_case(text: string): bool {
+        return index_of_ignore_case(text) >= 0;
+    }
+
+    /** true if at least one character of the string is one of the characters in `chars`. */
+    def contains_any(chars: string): bool {
+        return index_of_any(chars, 0) >= 0;
+    }
+
+    /** true if at least one character of the string equals `c`. */
+    def contains_char(c: char): bool {
+        return index_of_char(c, 0) >= 0;
+    }
+
+    /**
+     * How many times `text` occurs, not counting overlapping occurrences:
+     * "aaaa".count("aa") is 2. count("") is 0.
+     */
+    def count(text: string): decimal {
+        m : decimal = sizeof(text.data);
+        if(m == 0) return 0;
+
+        total : decimal = 0;
+        at : decimal = string_support.find_forward(data, text.data, 0);
+        while(at >= 0) {
+            total++;
+            at = string_support.find_forward(data, text.data, at + m);
+        }
+        return total;
+    }
+
+    /** How many characters of the string equal `c`. */
+    def count_char(c: char): decimal {
+        n : decimal = sizeof(data);
+        wanted : decimal = c.value;
+        total : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            if(data[i] == wanted) total++;
+        }
+        return total;
+    }
+
+    /**
+     * true if `text` occurs exactly at position `position`
+     * ("hello".starts_with_at("ll", 2) is 1). A position outside of the string,
+     * or a text that does not fit there, gives 0.
+     */
+    def starts_with_at(text: string, position: int): bool {
+        return string_support.region_equals(data, position.value, text.data);
+    }
+
+    /** starts_with(prefix) that treats ASCII capital and small letters as equal. */
+    def starts_with_ignore_case(prefix: string): bool {
+        return string_support.region_equals_ignore_case(data, 0, prefix.data);
+    }
+
+    /** ends_with(suffix) that treats ASCII capital and small letters as equal. */
+    def ends_with_ignore_case(suffix: string): bool {
+        return string_support.region_equals_ignore_case(data, sizeof(data) - sizeof(suffix.data), suffix.data);
+    }
+}

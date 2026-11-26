@@ -1,0 +1,39 @@
+mod std.collections;
+
+/**
+ * @interface iterator
+ *
+ * The uniform way to walk over the elements of any collection in
+ * std.collections, one element at a time:
+ *
+ *     it := names.iterator();
+ *     while(it.has_next()) {
+ *         name := it.next();
+ *         ...
+ *     }
+ *
+ * Every collection in this module hands out an iterator through its
+ * iterator() function (see the `iterable` interface). Collections also
+ * implement `loopable`, so the shorter `foreach(name in names)` works too;
+ * an iterator is the tool for when a loop has to be paused, resumed, or
+ * passed to another function.
+ *
+ * An iterator is a one-way, one-use cursor: once has_next() answers 0 it is
+ * finished, and a new one has to be requested to walk the collection again.
+ */
+interface iterator<T> {
+    /**
+     * Is there another element to read?
+     *
+     * @return true when next() can be called, false when the iterator is finished
+     */
+    def has_next() : bool;
+
+    /**
+     * Return the current element and move on to the one after it.
+     *
+     * @throws no_such_element_exception when there is no element left
+     *         (has_next() answers 0)
+     */
+    def next() : T;
+}

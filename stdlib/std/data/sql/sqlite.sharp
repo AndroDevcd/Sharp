@@ -1,0 +1,554 @@
+mod std.data;
+
+import ( std.c, std.io, std.reflect, platform )
+
+/**
+ * A DATABASE IN A FILE (SQLite)
+ *
+ *      db := sqlite.open("app.db");                    // made when it is not there; sqlite.memory() for one that is not kept
+ *      db.run("create table if not exists users (id integer primary key, name text, age integer, admin integer)");
+ *
+ *      db.sql("insert into users (name, age) values (?, ?)").with("ann").with(31).run();
+ *      id := db.last_id();
+ *
+ *      class user { id : _int64 = 0; name : string = ""; age : _int64 = 0; admin : bool = false; }
+ *
+ *      adults := db.sql("select * from users where age >= ?").with(18).all<user>();    // list<user>
+ *      ann := db.sql("select * from users where id = ?").with(id).first<user>();       // user? (null: no such row)
+ *      count := db.sql("select count(*) from users").number();
+ *
+ *      db.transaction {                                // all of it, or - when it throws - none of it
+ *          db.sql("update users set age = age + 1 where id = ?").with(id).run();
+ *          db.sql("insert into log (what) values (?)").with("birthday").run();
+ *      };
+ *      db.close();
+ *
+ * SQLite is a whole SQL database as a library: no server, the database is
+ * one file. It is on every Linux and inside Windows 10 and later, so there
+ * is nothing to install, and it is called directly from Sharp (the extern
+ * block below).
+ *
+ * VALUES GO IN WITH `?`, never pasted into the SQL text: .with(value) gives
+ * the next `?` its value - a text, a number, true / false, bytes, or
+ * with_null(). That is what makes "Robert'); drop table users; --" a name
+ * and not a disaster.
+ *
+ * ROWS COME OUT
+ *      all<t>() / first<t>()   as objects of a class of yours: a column fills the field of its name
+ *                              (`created_at` fills created_at or createdAt), as json fills objects (json.sharp)
+ *      rows()                  as sql_row: row.text("name"), row.number("age"), row.is_null("x"), by name or position
+ *      each { ... }            one row at a time (`it` is the row), for results too large to hold
+ *      number() / text()       the first column of the first row
+ *
+ * WHAT GOES WRONG - a mistake in the SQL, a constraint, a locked file - is
+ * a sql_exception with SQLite's own message.
+ *
+ * One connection can be used by several threads; they take turns.
+ *
+ *      Java comparison: JDBC with a PreparedStatement; Python: sqlite3.connect(...).execute(sql, params).
+ */
+class sql_exception base exception {
+    public sql_exception(message : string?) -> base(message) {}
+}
+
+/** SQLite's C functions */
+class sqlite_library {
+    extern "sqlite3" {
+        static def sqlite3_open_v2(file: string, database: _int64[], flags: c_int, system: pointer) : c_int;
+        static def sqlite3_close_v2(database: pointer) : c_int;
+        static def sqlite3_errmsg(database: pointer) : string;
+        static def sqlite3_busy_timeout(database: pointer, milliseconds: c_int) : c_int;
+        static def sqlite3_prepare_v2(database: pointer, sql: _int8[], bytes: c_int, statement: _int64[], rest: _int64[]) : c_int;
+        static def sqlite3_finalize(statement: pointer) : c_int;
+        static def sqlite3_step(statement: pointer) : c_int;
+        static def sqlite3_bind_text(statement: pointer, place: c_int, text: _int8[], bytes: c_int, keep: pointer) : c_int;
+        static def sqlite3_bind_blob(statement: pointer, place: c_int, data: _int8[], bytes: c_int, keep: pointer) : c_int;
+        static def sqlite3_bind_double(statement: pointer, place: c_int, value: c_double) : c_int;
+        static def sqlite3_bind_int64(statement: pointer, place: c_int, value: c_longlong) : c_int;
+        static def sqlite3_bind_null(statement: pointer, place: c_int) : c_int;
+        static def sqlite3_bind_parameter_count(statement: pointer) : c_int;
+        static def sqlite3_column_count(statement: pointer) : c_int;
+        static def sqlite3_column_name(statement: pointer, column: c_int) : string;
+        static def sqlite3_column_type(statement: pointer, column: c_int) : c_int;
+        static def sqlite3_column_int64(statement: pointer, column: c_int) : c_longlong;
+        static def sqlite3_column_double(statement: pointer, column: c_int) : c_double;
+        static def sqlite3_column_blob(statement: pointer, column: c_int) : pointer;
+        static def sqlite3_column_bytes(statement: pointer, column: c_int) : c_int;
+        static def sqlite3_last_insert_rowid(database: pointer) : c_longlong;
+        static def sqlite3_changes(database: pointer) : c_int;
+        static def sqlite3_libversion() : string;
+    }
+    extern "unix:c" {
+        static def dlopen(file: string, how: c_int) : pointer;
+    }
+
+    private static found : bool = false;
+
+    /** say where the library is: winsqlite3.dll is part of Windows; Linux has libsqlite3.so.0 */
+    static def find() {
+        if(found) { return; }
+        found = true;
+        if(build.is_windows()) { c_library("sqlite3", "winsqlite3"); return; }
+        names := new string[] { "libsqlite3.so.0", "libsqlite3.so", "libsqlite3.dylib" };
+        for(i : _int64 = 0; i < sizeof(names); i++) {
+            if(dlopen(names[i], 2) != 0) { c_library("sqlite3", names[i]); return; }
+        }
+        throw new sql_exception("this system has no SQLite library (libsqlite3.so.0): install it (Debian and Ubuntu: apt install libsqlite3-0)");
+    }
+}
+
+class sqlite {
+    private handle : pointer = 0;
+    private where : string = "";
+    private depth : _int64 = 0;             // transactions inside transactions
+
+    private sqlite(handle: pointer, where: string) {
+        self->handle = handle;
+        self->where = where;
+    }
+
+    /** open the database in that file; it is made when it is not there */
+    static def open(path: string) : sqlite {
+        sqlite_library.find();
+        place := new _int64[1];
+        // 6: read and write, and create the file
+        status : _int64 = sqlite_library.sqlite3_open_v2(path, place, 6, 0);
+        if(status != 0) {
+            said : string = "error " + status;
+            if(place[0] != 0) {
+                said = sqlite_library.sqlite3_errmsg(place[0]);
+                sqlite_library.sqlite3_close_v2(place[0]);
+            }
+            throw new sql_exception("the database `" + path + "` could not be opened: " + said);
+        }
+        sqlite_library.sqlite3_busy_timeout(place[0], 5000);    // another program has it locked: wait up to 5 s for it
+        return new sqlite(place[0], path);
+    }
+
+    /** a database in memory: gone when it is closed. For tests, and for data that need not be kept. */
+    static def memory() : sqlite {
+        return open(":memory:");
+    }
+
+    /** the version of the SQLite library in use ("3.45.1") */
+    static def version() : string {
+        sqlite_library.find();
+        return sqlite_library.sqlite3_libversion();
+    }
+
+    def is_open() : bool { return handle != 0; }
+
+    /** close the database. Closing twice does nothing. */
+    def close() {
+        lock(self) {
+            if(handle == 0) { return; }
+            sqlite_library.sqlite3_close_v2(handle);
+            handle = 0;
+        }
+    }
+
+    /** (for sql_statement) */
+    def system_handle() : pointer {
+        if(handle == 0) { throw new sql_exception("the database `" + where + "` is closed"); }
+        return handle;
+    }
+
+    /** SQLite's words for what went wrong last */
+    def last_error() : string {
+        return sqlite_library.sqlite3_errmsg(system_handle());
+    }
+
+    /** one statement, to be given its values and run: db.sql("...").with(v).run() / all<t>() / rows() ... */
+    def sql(text: string) : sql_statement {
+        return new sql_statement(self, text);
+    }
+
+    /**
+     * Run SQL that needs no values and gives no rows: "create table ...",
+     * "delete from log". Several statements separated by `;` are run one
+     * after the other. Returns how many rows the last one changed.
+     */
+    def run(text: string) : _int64 {
+        lock(self) {
+            rest : _int8[]? = text.data;
+            while(sizeof(rest) > 0) {
+                place := new _int64[1];
+                after := new _int64[1];
+                start : pointer = 0;
+                status : _int64 = sqlite_library.sqlite3_prepare_v2(system_handle(), rest!!, sizeof(rest), place, after);
+                if(status != 0) { throw new sql_exception(last_error() + "\n    in: " + text); }
+                if(place[0] == 0) { break; }                    // only spaces or a comment were left
+                status = sqlite_library.sqlite3_step(place[0]);
+                while(status == 100) { status = sqlite_library.sqlite3_step(place[0]); }
+                said : string = "";
+                if(status != 101) { said = last_error(); }
+                sqlite_library.sqlite3_finalize(place[0]);
+                if(status != 101) { throw new sql_exception(said + "\n    in: " + text); }
+                // `after` is the address, inside `rest`, of what follows the statement: how far that is
+                // from the start is not known here, so the statement's text is found by its `;`
+                rest = after_statement(rest!!);
+            }
+            return sqlite_library.sqlite3_changes(system_handle());
+        }
+        return 0;
+    }
+
+    /** what follows the first statement of `text`: after its `;` (one inside quotes does not count) */
+    private static def after_statement(text: _int8[]) : _int8[]? {
+        quote : _int64 = 0;
+        for(i : _int64 = 0; i < sizeof(text); i++) {
+            ch : _int64 = text[i];
+            if(quote != 0) {
+                if(ch == quote) { quote = 0; }
+            } else if(ch == '\'' || ch == '"' || ch == '`') {
+                quote = ch;
+            } else if(ch == ';') {
+                if(i + 1 >= sizeof(text)) { return null; }
+                return copy(text, i + 1, sizeof(text));
+            }
+        }
+        return null;
+    }
+
+    /** the id SQLite gave the row that was inserted last (its "integer primary key") */
+    def last_id() : _int64 {
+        return sqlite_library.sqlite3_last_insert_rowid(system_handle());
+    }
+
+    /** how many rows the last insert, update or delete changed */
+    def changed() : _int64 {
+        return sqlite_library.sqlite3_changes(system_handle());
+    }
+
+    /**
+     * Everything the block does to the database happens together, or -
+     * when the block throws - not at all (and the exception goes on). A
+     * transaction inside a transaction is part of the outer one.
+     */
+    def transaction(work: ()()) {
+        lock(self) {
+            if(depth == 0) { run("begin"); }
+            depth++;
+            try {
+                work();
+            } catch(problem: throwable) {
+                depth--;
+                if(depth == 0) { run("rollback"); }
+                throw problem;
+            }
+            depth--;
+            if(depth == 0) { run("commit"); }
+        }
+    }
+
+    /** is there a table of that name? */
+    def has_table(name: string) : bool {
+        return sql("select count(*) from sqlite_master where type = 'table' and name = ?").with(name).number() > 0;
+    }
+}
+
+/**
+ * ONE SQL STATEMENT with its values: made by db.sql(text), given a value
+ * for each `?` with .with(...), and then run in one of these ways:
+ *
+ *      run()           for insert, update, delete: how many rows it changed
+ *      rows()          every row, as a list of sql_row
+ *      all<t>()        every row, as objects of t
+ *      first<t>()      the first row as an object of t; null when there is none
+ *      first_row()     the first row as an sql_row; null when there is none
+ *      each { }        the block once per row (`it` is the row)
+ *      number()        the first column of the first row as a number (0 when there is no row)
+ *      text()          ... as a text ("" when there is no row)
+ */
+class sql_statement {
+    private database : sqlite;
+    private asked : string;
+    private values : list<sql_value> = new list<sql_value>();
+
+    sql_statement(database: sqlite, text: string) {
+        self->database = database;
+        asked = text;
+    }
+
+    def with(value: string) : sql_statement { values.add(sql_value.of_text(value)); return self; }
+    def with(value: decimal) : sql_statement { values.add(sql_value.of_number(value)); return self; }
+    def with(value: bool) : sql_statement {
+        if(value) { values.add(sql_value.of_number(1)); } else { values.add(sql_value.of_number(0)); }
+        return self;
+    }
+    def with_bytes(value: _int8[]?) : sql_statement { values.add(sql_value.of_bytes(value)); return self; }
+    def with_null() : sql_statement { values.add(new sql_value()); return self; }
+
+    /** the statement made ready by SQLite, its values bound. The caller finalizes it. */
+    private def prepared() : pointer {
+        handle : pointer = database.system_handle();
+        place := new _int64[1];
+        after := new _int64[1];
+        source : _int8[] = asked.data ?: new _int8[1];
+        status : _int64 = sqlite_library.sqlite3_prepare_v2(handle, source, sizeof(asked.data), place, after);
+        if(status != 0 || place[0] == 0) { throw new sql_exception(database.last_error() + "\n    in: " + asked); }
+        statement : pointer = place[0];
+        wanted : _int64 = sqlite_library.sqlite3_bind_parameter_count(statement);
+        if(wanted != values.size()) {
+            sqlite_library.sqlite3_finalize(statement);
+            throw new sql_exception("the statement has " + wanted + " `?` and was given " + values.size() + " value(s)\n    in: " + asked);
+        }
+        empty := new _int8[1];
+        for(i : _int64 = 0; i < values.size(); i++) {
+            value := values.at(i);
+            // -1 (every bit set): SQLite makes its own copy of the bytes
+            if(value.kind == sql_value.TEXT) { status = sqlite_library.sqlite3_bind_text(statement, i + 1, value.bytes ?: empty, sizeof(value.bytes), 0 - 1); }
+            else if(value.kind == sql_value.BYTES) { status = sqlite_library.sqlite3_bind_blob(statement, i + 1, value.bytes ?: empty, sizeof(value.bytes), 0 - 1); }
+            else if(value.kind == sql_value.WHOLE) { status = sqlite_library.sqlite3_bind_int64(statement, i + 1, value.number); }
+            else if(value.kind == sql_value.NUMBER) { status = sqlite_library.sqlite3_bind_double(statement, i + 1, value.number); }
+            else { status = sqlite_library.sqlite3_bind_null(statement, i + 1); }
+            if(status != 0) {
+                said : string = database.last_error();
+                sqlite_library.sqlite3_finalize(statement);
+                throw new sql_exception(said + "\n    in: " + asked);
+            }
+        }
+        return statement;
+    }
+
+    /** the names of the result's columns */
+    private static def names_of(statement: pointer) : string[] {
+        count : _int64 = sqlite_library.sqlite3_column_count(statement);
+        names := new string[count];
+        for(i : _int64 = 0; i < count; i++) { names[i] = sqlite_library.sqlite3_column_name(statement, i); }
+        return names;
+    }
+
+    /** the row the statement stands on */
+    private static def row_of(statement: pointer, names: string[]) : sql_row {
+        count : _int64 = sizeof(names);
+        cells := new sql_value[count];
+        for(i : _int64 = 0; i < count; i++) {
+            cell := new sql_value();
+            kind : _int64 = sqlite_library.sqlite3_column_type(statement, i);
+            if(kind == 1) { cell.kind = sql_value.WHOLE; cell.number = sqlite_library.sqlite3_column_int64(statement, i); }
+            else if(kind == 2) { cell.kind = sql_value.NUMBER; cell.number = sqlite_library.sqlite3_column_double(statement, i); }
+            else if(kind == 3 || kind == 4) {
+                if(kind == 3) { cell.kind = sql_value.TEXT; } else { cell.kind = sql_value.BYTES; }
+                from : pointer = sqlite_library.sqlite3_column_blob(statement, i);
+                size : _int64 = sqlite_library.sqlite3_column_bytes(statement, i);
+                if(from != 0 && size > 0) { cell.bytes = c_memory.view(from, size).bytes_at(0, size); }
+            }
+            cells[i] = cell;
+        }
+        return new sql_row(names, cells);
+    }
+
+    /** step to the next row: true when there is one */
+    private def step(statement: pointer) : bool {
+        status : _int64 = sqlite_library.sqlite3_step(statement);
+        if(status == 100) { return true; }
+        if(status == 101) { return false; }
+        said : string = database.last_error();
+        sqlite_library.sqlite3_finalize(statement);
+        throw new sql_exception(said + "\n    in: " + asked);
+    }
+
+    def run() : _int64 {
+        lock(database) {
+            statement : pointer = prepared();
+            while(step(statement)) { }
+            sqlite_library.sqlite3_finalize(statement);
+            return database.changed();
+        }
+        return 0;
+    }
+
+    def rows() : list<sql_row> {
+        found := new list<sql_row>();
+        lock(database) {
+            statement : pointer = prepared();
+            names : string[] = names_of(statement);
+            while(step(statement)) { found.add(row_of(statement, names)); }
+            sqlite_library.sqlite3_finalize(statement);
+        }
+        return found;
+    }
+
+    def first_row() : sql_row? {
+        found : sql_row? = null;
+        lock(database) {
+            statement : pointer = prepared();
+            if(step(statement)) { found = row_of(statement, names_of(statement)); }
+            sqlite_library.sqlite3_finalize(statement);
+        }
+        return found;
+    }
+
+    /** the block once per row, in order; the rows are not all held at once */
+    def each(work: (sql_row)()) {
+        lock(database) {
+            statement : pointer = prepared();
+            names : string[] = names_of(statement);
+            try {
+                while(step(statement)) { work(row_of(statement, names)); }
+            } catch(problem: sql_exception) {
+                throw problem;                      // (step finalized the statement)
+            } catch(problem: throwable) {
+                sqlite_library.sqlite3_finalize(statement);
+                throw problem;
+            }
+            sqlite_library.sqlite3_finalize(statement);
+        }
+    }
+
+    def all<t>() : list<t> {
+        reflects<t>();
+        found := new list<t>();
+        table : list<sql_row> = rows();
+        for(i : _int64 = 0; i < table.size(); i++) {
+            made := new t();
+            json_objects.fill_top(made, table.at(i).to_json());
+            found.add(made);
+        }
+        return found;
+    }
+
+    def first<t>() : t? {
+        reflects<t>();
+        row : sql_row? = first_row();
+        if(row == null) { return null; }
+        made := new t();
+        json_objects.fill_top(made, row!!.to_json());
+        return made;
+    }
+
+    def number() : decimal {
+        row : sql_row? = first_row();
+        if(row == null || row!!.size() == 0) { return 0; }
+        return row!!.number_at(0);
+    }
+
+    def text() : string {
+        row : sql_row? = first_row();
+        if(row == null || row!!.size() == 0) { return ""; }
+        return row!!.text_at(0);
+    }
+}
+
+/** one value going into a statement or coming out of a row */
+class sql_value {
+    static const NOTHING : _int64 = 0;
+    static const WHOLE : _int64 = 1;
+    static const NUMBER : _int64 = 2;
+    static const TEXT : _int64 = 3;
+    static const BYTES : _int64 = 4;
+
+    kind : _int64 = 0;
+    number : decimal = 0;
+    bytes : _int8[]?;
+
+    static def of_text(value: string) : sql_value {
+        made := new sql_value();
+        made.kind = TEXT;
+        made.bytes = value.data;
+        return made;
+    }
+
+    static def of_number(value: decimal) : sql_value {
+        made := new sql_value();
+        whole : _int64 = value as _int64;
+        if(whole == value) { made.kind = WHOLE; } else { made.kind = NUMBER; }
+        made.number = value;
+        return made;
+    }
+
+    static def of_bytes(value: _int8[]?) : sql_value {
+        made := new sql_value();
+        made.kind = BYTES;
+        made.bytes = value;
+        return made;
+    }
+}
+
+/**
+ * ONE ROW of a result: its values by column name or by position (0 = first)
+ *
+ *      row.text("name")    row.number("age")   row.flag("admin")   row.bytes("photo")   row.is_null("email")
+ *      row.text_at(0)      row.number_at(1)    row.size()          row.name_at(0)
+ *
+ * A value is given as what is asked for: number() of a text column reads
+ * the number in the text, text() of a number writes it out; of null they
+ * give 0 and "". A column that is not in the result is a sql_exception.
+ */
+class sql_row {
+    private names : string[];
+    private cells : sql_value[];
+
+    sql_row(names: string[], cells: sql_value[]) {
+        self->names = names;
+        self->cells = cells;
+    }
+
+    def size() : _int64 { return sizeof(names); }
+    def name_at(index: _int64) : string { return names[index]; }
+
+    def has(name: string) : bool {
+        for(i : _int64 = 0; i < sizeof(names); i++) {
+            if(io_strings.equals_ignore_case(names[i], name)) { return true; }
+        }
+        return false;
+    }
+
+    private def find(name: string) : _int64 {
+        for(i : _int64 = 0; i < sizeof(names); i++) {
+            if(io_strings.equals_ignore_case(names[i], name)) { return i; }
+        }
+        throw new sql_exception("the result has no column `" + name + "`");
+    }
+
+    private def cell(index: _int64) : sql_value {
+        if(index < 0 || index >= sizeof(names)) { throw new sql_exception("the result has " + sizeof(names) + " column(s): there is no column " + index); }
+        return cells[index];
+    }
+
+    def is_null(name: string) : bool { return cells[find(name)].kind == sql_value.NOTHING; }
+    def is_null_at(index: _int64) : bool { return cell(index).kind == sql_value.NOTHING; }
+    def text(name: string) : string { return text_at(find(name)); }
+    def number(name: string) : decimal { return number_at(find(name)); }
+    def flag(name: string) : bool { return number_at(find(name)) != 0; }
+    def bytes(name: string) : _int8[]? { return cells[find(name)].bytes; }
+
+    def text_at(index: _int64) : string {
+        value := cell(index);
+        if(value.kind == sql_value.TEXT || value.kind == sql_value.BYTES) {
+            if(sizeof(value.bytes) == 0) { return ""; }
+            return new string(value.bytes!!, 0, sizeof(value.bytes));
+        }
+        if(value.kind == sql_value.WHOLE) { return "" + (value.number as _int64); }
+        if(value.kind == sql_value.NUMBER) { return io_strings.number_to_string(value.number); }
+        return "";
+    }
+
+    def number_at(index: _int64) : decimal {
+        value := cell(index);
+        if(value.kind == sql_value.WHOLE || value.kind == sql_value.NUMBER) { return value.number; }
+        if(value.kind == sql_value.TEXT && sizeof(value.bytes) > 0) {
+            text : string = io_strings.trim(new string(value.bytes!!, 0, sizeof(value.bytes)));
+            if(io_strings.is_number(text)) { return io_strings.parse_number(text); }
+        }
+        return 0;
+    }
+
+    /** the row as a json object: a member per column */
+    def to_json() : json_value {
+        made := json_value.new_object();
+        for(i : _int64 = 0; i < sizeof(names); i++) {
+            value := cells[i];
+            if(value.kind == sql_value.WHOLE || value.kind == sql_value.NUMBER) { made.put_number(names[i], value.number); }
+            else if(value.kind == sql_value.TEXT) { made.put_string(names[i], text_at(i)); }
+            else if(value.kind == sql_value.BYTES) { made.put_string(names[i], base64.encode_bytes(value.bytes)); }
+            else { made.put_null(names[i]); }
+        }
+        return made;
+    }
+
+    override def to_string() : string? {
+        return to_json().to_string();
+    }
+}

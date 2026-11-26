@@ -1,0 +1,154 @@
+mod std.guikit.core.state;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * reconciler - settles freshly built widgets into the tree, carrying over
+ * what the widgets they replace had remembered.
+ *
+ * THE PROBLEM: build() makes NEW widget objects every time. If the screen
+ * simply swapped to the new tree, everything that lives in the widgets and
+ * not in your state would reset on every change: the list would jump back to
+ * the top, the text cursor would vanish, the focused field would lose focus,
+ * a nested counter would forget its count.
+ *
+ * THE ANSWER: walk the old tree and the new tree side by side. Where a new
+ * widget sits in the place of an old widget OF THE SAME KIND, the new one
+ * takes over the old one's memory:
+ *
+ *      old tree                 new tree
+ *      column                   column            same kind  -> carry over
+ *        text "count: 1"          text "count: 2"   same kind  -> carry over (nothing to carry)
+ *        scroller (at 240px)      scroller          same kind  -> scroll position carried
+ *          ...                      ...
+ *        button                   checkbox          different  -> the checkbox starts fresh
+ *
+ * "The same place" is the same position among the siblings - or, for widgets
+ * that were given a key (modifier().key("row-17")), the sibling with the same key, so a
+ * reordered list keeps each row's memory with the row.
+ *
+ * What "memory" is, is up to each widget: it implements `stateful` and copies
+ * what it wants in adopt(old). The reconciler itself carries the things every
+ * view has: is the mouse over it, is it pressed, does it have the focus.
+ *
+ * Composables are where it recurses in an interesting way: a new composable
+ * first adopts the old one's STATES (so its build() sees the remembered
+ * values), then builds, then its result is settled against the old result.
+ *
+ * (React calls this "reconciliation"; Compose does the equivalent with its
+ * slot table. This one is deliberately the simple version: the NEW tree
+ * always becomes the live tree, and only memory moves across.)
+ */
+stable class reconciler {
+
+    /**
+     * Make `fresh` (a subtree that was just built) ready to live in the tree.
+     * `before` is the subtree it replaces, or null when nothing was there.
+     */
+    static def settle(fresh: view, before: view?) {
+        matched : view? = null;
+        if(before != null && same_slot(fresh, before!!) == 1) {
+            matched = before;
+            carry_over(fresh, before!!);
+        }
+
+        // A composable has no children yet: it builds them now - after it has
+        // adopted the old states, so build() reads the remembered values.
+        if(fresh.how is composable) {
+            part := fresh.how as composable;
+            old_result : view? = null;
+            if(matched != null && matched!!.kid_count() > 0) {
+                old_result = matched!!.kids.at(0);
+            } else if(fresh.kid_count() > 0) {
+                // This very composable object was built before and is being put
+                // back into the tree (a screen kept on a navigation stack and
+                // shown again): its own last result is what the new one replaces,
+                // so its widgets keep their memory too.
+                old_result = fresh.kids.at(0);
+            }
+            part.rebuild(old_result);
+            part.appeared();                    // its life on the screen begins (nothing happens if it already had)
+            return;
+        }
+
+        count : _int64 = fresh.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            kid : view = fresh.kids.at(i);
+            settle(kid, partner_of(kid, i, matched));
+        }
+    }
+
+    /**
+     * `old` is a subtree that is not on the screen any more. Every composable
+     * in it whose place was NOT taken by a new object is gone for good: it is
+     * told (composable.left), and so is everything it had built.
+     *
+     * A composable that WAS replaced carries on in its new object; what it had
+     * built was handed to the new object's rebuild, which retires the leftovers
+     * of that itself - so the walk stops there.
+     */
+    static def retire(old: view) {
+        if(old.how is composable) {
+            part := old.how as composable;
+            if(part.is_replaced() == 1) {
+                return;
+            }
+            part.left();
+        }
+        count : _int64 = old.kid_count();
+        for(i : _int64 = 0; i < count; i++) {
+            retire(old.kids.at(i));
+        }
+    }
+
+    /** may `fresh` take over from `before`? The same kind of widget, and the same key. */
+    private static def same_slot(fresh: view, before: view) : _int64 {
+        if(fresh.how.kind() == before.how.kind() && fresh.key == before.key) { return 1; }
+        return 0;
+    }
+
+    /**
+     * The old child a new child is compared with: the old sibling with the
+     * same key when the new child has one, otherwise the old sibling at the
+     * same position.
+     */
+    private static def partner_of(kid: view, position: _int64, old_parent: view?) : view? {
+        if(old_parent == null) {
+            return null;
+        }
+        before : view = old_parent!!;
+        count : _int64 = before.kid_count();
+
+        if(kid.key != "") {
+            for(i : _int64 = 0; i < count; i++) {
+                if(before.kids.at(i).key == kid.key) {
+                    return before.kids.at(i);
+                }
+            }
+            return null;
+        }
+        if(position < count) {
+            return before.kids.at(position);
+        }
+        return null;
+    }
+
+    /** `fresh` replaces `before`: move the memory across */
+    private static def carry_over(fresh: view, before: view) {
+        fresh.hovered = before.hovered;
+        fresh.pressed = before.pressed;
+        glide.carry(fresh, before);             // where it was, and any movement that is running (glide.sharp)
+
+        // the host points at views (focus, hover, the pressed one): point it at the new one
+        if(ui_host.current != null) {
+            ui_host.current!!.replace_view(before, fresh);
+        }
+
+        if(fresh.how is stateful) {
+            keeper := fresh.how as stateful;
+            keeper.adopt(before.how);
+        }
+    }
+}

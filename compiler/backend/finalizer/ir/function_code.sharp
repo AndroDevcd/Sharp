@@ -1,0 +1,75 @@
+mod backend.finalizer.ir;
+
+import (
+    std.io
+)
+
+/**
+ * THE FINISHED CODE OF ONE FUNCTION: what the bytecode step makes of an ir_function
+ *
+ *      words               the instructions, 32-bit words (doc/codegen.md 4.2)
+ *      line_pcs / line_numbers
+ *                          the line table: at word line_pcs[i] begins source line
+ *                          line_numbers[i] (ascending pcs; stack traces read it)
+ *      stack_size, fp_offset, sp_offset, frame_stack_offset
+ *                          how the VM places the frame over the arguments when the
+ *                          function is called, and how many slots it makes (4.4)
+ *      tries               the try records (3.8): the ranges of every `try` as pcs, in the
+ *                          order the statements start in the code
+ *      value_calls_returning
+ *                          the pcs of the `calld` instructions whose function returns a
+ *                          value: the word does not say so (the VM learns it from the
+ *                          function it finds in the value), and the verifier needs it to
+ *                          count the operand stack (verify/stack_heights.sharp)
+ *
+ * The file writer copies all of it into the function's record (3.7) and its
+ * code record (3.9).
+ */
+class function_code {
+    words : number_list;
+    line_pcs : number_list;
+    line_numbers : number_list;
+    stack_size : _int64 = 0;
+    fp_offset : _int64 = 0;
+    sp_offset : _int64 = 0;
+    frame_stack_offset : _int64 = 0;
+    value_calls_returning : number_list;
+    tries : list<try_record>;
+
+    function_code() {
+        value_calls_returning = new number_list();
+        tries = new list<try_record>();
+        words = new number_list();
+        line_pcs = new number_list();
+        line_numbers = new number_list();
+    }
+}
+
+/**
+ * ONE TRY RECORD, as the VM reads it (doc/codegen.md 3.8): the ranges of an
+ * ir_try as pcs. Every range includes BOTH its ends, and a pc counts words:
+ * an end is the last word of the range's last instruction.
+ *
+ *      try_start .. try_end        a `finally` guards it: the try block and its catch handlers
+ *      block_start .. block_end    the catch clauses take the exceptions raised in it: the try block
+ *      handler_pcs                 where each catch clause's code starts
+ */
+class try_record {
+    try_start : _int64 = 0;
+    try_end : _int64 = 0;
+    block_start : _int64 = 0;
+    block_end : _int64 = 0;
+    handler_pcs : number_list;
+    catch_slots : number_list;          // the frame slot each clause's exception goes into (-1: none)
+    catch_classes : number_list;        // the address of the class each clause takes
+    has_finally : _int64 = 0;
+    finally_start : _int64 = 0;
+    finally_end : _int64 = 0;
+    finally_slot : _int64 = 0 - 1;
+
+    try_record() {
+        handler_pcs = new number_list();
+        catch_slots = new number_list();
+        catch_classes = new number_list();
+    }
+}

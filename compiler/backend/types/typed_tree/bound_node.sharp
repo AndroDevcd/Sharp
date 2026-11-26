@@ -1,0 +1,163 @@
+mod backend.types.typed_tree;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.type_system
+)
+
+/**
+ * WHAT EVERY NODE OF THE TYPED TREE HAS
+ *
+ * Every node says which kind it is (`kind`), so code can branch on it and
+ * cast (`node as bound_field`) - the same pattern as sharp_declaration - and
+ * where in the source it came from (`unit`, `node`), for messages and later
+ * for line numbers.
+ *
+ * An EXPRESSION also has:
+ *
+ *      type        what its value is (a resolved_type). Never null.
+ *      constant    its value, when the compiler knows it (5, 'a', "text")
+ *      literal     what it was written as, when it is a literal (LIT_...).
+ *                  `x := 5` makes x an `int` object because of this mark.
+ *      storage     can it stand on the left of `=`, and as what
+ *
+ * Two special expressions:
+ *
+ *      bound_error     something that was REPORTED as wrong. It has the
+ *                      error type, which fits everywhere, so one mistake
+ *                      gives one message and not a chain of them.
+ *      bound_pending   an argument that WAITS for its parameter: a lambda
+ *                      whose types are not written, a function name, a
+ *                      `get()` in a component definition. It has the error
+ *                      type too, and nothing was reported. It is replaced by
+ *                      the real value when the call is bound; it stays only
+ *                      in a call that failed for another reason (reported).
+ *                      (While the body stages were built one by one, this
+ *                      node also stood for what a later stage would analyse.)
+ */
+
+// ---- kinds of expression
+const BX_ERROR           : _int64 = 1;
+const BX_PENDING         : _int64 = 2;
+const BX_LITERAL         : _int64 = 3;
+const BX_NULL            : _int64 = 4;
+const BX_LOCAL           : _int64 = 5;
+const BX_FIELD           : _int64 = 6;
+const BX_ENUM_VALUE      : _int64 = 7;
+const BX_SELF            : _int64 = 8;
+const BX_BASE            : _int64 = 9;
+const BX_TYPE_NAME       : _int64 = 10;
+const BX_CALL            : _int64 = 11;
+const BX_CONVERSION      : _int64 = 12;
+const BX_CAST            : _int64 = 13;
+const BX_IS              : _int64 = 14;
+const BX_NOT_NULL        : _int64 = 15;
+const BX_SAFE_NAVIGATION : _int64 = 16;
+const BX_RECEIVER        : _int64 = 17;
+const BX_ELVIS           : _int64 = 18;
+const BX_TERNARY         : _int64 = 19;
+const BX_SIZEOF          : _int64 = 20;
+const BX_INDEX           : _int64 = 21;
+const BX_NEW_ARRAY       : _int64 = 22;
+const BX_ARRAY_LITERAL   : _int64 = 23;
+const BX_STRING_TEMPLATE : _int64 = 24;
+const BX_FUNCTIONS       : _int64 = 25;
+const BX_VALUE_CALL      : _int64 = 26;     // a call of a function VALUE: f(x) with f : (int)(int)
+const BX_NEW             : _int64 = 27;     // new point(1, 2), point(1, 2)
+const BX_BINARY          : _int64 = 28;     // a + b on numbers; a == b on references
+const BX_LOGICAL         : _int64 = 29;     // a && b, a || b
+const BX_UNARY           : _int64 = 30;     // -a, !a on a number
+const BX_INCREMENT       : _int64 = 31;     // a++, --a on a number
+const BX_ASSIGN          : _int64 = 32;     // a = b, a += b into storage
+const BX_DICTIONARY      : _int64 = 33;     // { "a" : 1 }
+const BX_FUNCTION_REFERENCE : _int64 = 34;  // `twice` used as a value: a function value without captures
+const BX_LAMBDA          : _int64 = 35;     // { x -> ... }: a function written in place, and what it captures
+const BX_WITH            : _int64 = 37;     // with(value) as name { } else { }, apply(value) { } else { }: an expression that holds statements
+const BX_GET_COMPONENT   : _int64 = 36;     // get<database>(): the value a component definition makes
+
+// ---- what a literal was written as
+const LIT_NONE    : _int64 = 0;
+const LIT_INTEGER : _int64 = 1;     // 12, 0xff
+const LIT_DECIMAL : _int64 = 2;     // 1.5
+const LIT_CHAR    : _int64 = 3;     // 'a'
+const LIT_BOOL    : _int64 = 4;     // true, false
+const LIT_TEXT    : _int64 = 5;     // "text"
+
+// ---- what kind of place an expression is (can it be assigned to?)
+const STORE_NONE    : _int64 = 0;   // a value only
+const STORE_LOCAL   : _int64 = 1;   // a local variable or parameter
+const STORE_FIELD   : _int64 = 2;   // a field of an object, a static field, a global
+const STORE_ELEMENT : _int64 = 3;   // an item of an array
+
+/** what expressions and statements share */
+class bound_node {
+    kind : _int64;              // BX_... (expressions) or BS_... (statements: typed_tree/statements)
+    unit : source_unit;
+    node : _int64;              // the syntax node it was built from
+
+    bound_node(kind: _int64, unit: source_unit, node: _int64) {
+        self->kind = kind;
+        self->unit = unit;
+        self->node = node;
+    }
+}
+
+/** an expression: something that has a value */
+class bound_expression base bound_node {
+    type : resolved_type;
+    constant : constant_value?;
+    literal : _int64 = 0;       // LIT_...
+    storage : _int64 = 0;       // STORE_...
+
+    bound_expression(kind: _int64, unit: source_unit, node: _int64, type: resolved_type) -> base(kind, unit, node) {
+        self->type = type;
+    }
+}
+
+/**
+ * a statement: something that is carried out. Its classes are in the package
+ * typed_tree/statements; this base is here because a function owns its body
+ * as a bound_statement (sharp_function.bound_body).
+ */
+class bound_statement base bound_node {
+    completes : _int64 = 1;     // can execution continue after it (worked out by the flow analysis, backend/compiler/flow)
+    holds_blocks : _int64 = 0;  // 1: a `with` / `apply` was analysed while this statement was (in one of its own
+                                // expressions, or deeper): the flow analysis looks for its blocks there
+
+    bound_statement(kind: _int64, unit: source_unit, node: _int64) -> base(kind, unit, node) {
+    }
+}
+
+/**
+ * An expression that was reported as wrong. `inner` is what was analysed of
+ * it before the mistake showed (a value that did not convert, for example),
+ * kept so the -analysis option can show it; null when there is nothing.
+ */
+class bound_error base bound_expression {
+    inner : bound_expression?;
+
+    bound_error(unit: source_unit, node: _int64, error_type: resolved_type) -> base(BX_ERROR, unit, node, error_type) {
+    }
+}
+
+/**
+ * The placeholder of an argument that waits for its parameter (a lambda, a
+ * function name, a `get()`), until the call is bound. `what` is the kind of
+ * syntax node it stands for; `parts` are pieces that are analysed already.
+ */
+class bound_pending base bound_expression {
+    what : _int64;
+    parts : list<bound_expression>?;
+
+    bound_pending(unit: source_unit, node: _int64, what: _int64, error_type: resolved_type)
+            -> base(BX_PENDING, unit, node, error_type) {
+        self->what = what;
+    }
+
+    /** one more piece that is analysed already: an operand, an argument, the thing called */
+    def add_part(part: bound_expression) {
+        if(parts == null) { parts = new list<bound_expression>(); }
+        parts!!.add(part);
+    }
+}

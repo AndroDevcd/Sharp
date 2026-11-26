@@ -1,0 +1,138 @@
+mod std.io.coroutines;
+
+import (
+    std.io,
+    std.io.fiber,
+    platform.kernel
+)
+
+/**
+ * pool_dispatcher - runs coroutines on whichever worker thread is free.
+ * dispatchers.default_pool() is the one shared instance.
+ *
+ * USAGE
+ *     dispatchers.set_parallelism(4);                      // optional, before the first coroutine
+ *     launch_on(dispatchers.default_pool(), { -> crunch(); });
+ *
+ * HOW IT WORKS
+ * Coroutines are started as unbound fibers. The scheduler of the runtime
+ * hands an unbound fiber to any thread that has nothing to run, so all this
+ * class has to do is make sure such threads exist: the first coroutine starts
+ * `parallelism` worker threads whose own first fiber just sleeps. A thread that
+ * is blocked in run_blocking { } or job.join() helps as well, it is free while
+ * it waits. Idle workers are parked by the scheduler and cost no cpu.
+ *
+ * The workers are never stopped; they end with the program (the virtual
+ * machine does not wait for them when main returns).
+ *
+ * AUTOMATIC SIZE
+ * Without set_parallelism() the pool has one worker per cpu core minus one
+ * (the main thread works too while it waits), but at most 4. The limit is
+ * deliberate caution about the current runtime: starting a thread hangs once
+ * in a long while (seen about once in 50 program runs that started 15
+ * threads, with every thread idle and only the first few workers created),
+ * and code that the JIT compiles while several threads are inside it can
+ * crash (tests/suite/known_bugs/lib_coroutines_jit_fiber_frames.sharp). Fewer
+ * threads means fewer chances for both. Ask for more with
+ * dispatchers.set_parallelism(n) when you need them.
+ *
+ * Kotlin equivalent: Dispatchers.Default. Java equivalent:
+ * Executors.newWorkStealingPool().
+ *
+ * LOCKING DISCIPLINE: `guard` protects started and parallelism. The threads
+ * are created after the lock is released, by the one caller that changed
+ * started from 0 to 1.
+ */
+class pool_dispatcher : coroutine_dispatcher {
+
+    private guard : object = new _object_();
+    private started : decimal = 0;
+    private parallelism : decimal = 0;
+
+    /**
+     * @param threads number of worker threads; 0 or less means the automatic
+     *                size (cores - 1, at most 4, see the class comment)
+     */
+    pool_dispatcher(threads: decimal) {
+        parallelism = threads;
+    }
+
+    /** number of worker threads this dispatcher has, or will start */
+    def get_parallelism() : decimal {
+        count : decimal = 0;
+        lock(guard) {
+            if(parallelism <= 0) {
+                cores : decimal = vm.hardware_concurrency().value;
+                parallelism = cores - 1;
+                if(parallelism < 1) {
+                    parallelism = 1;
+                }
+                // see AUTOMATIC SIZE in the class comment
+                if(parallelism > 4) {
+                    parallelism = 4;
+                }
+            }
+            count = parallelism;
+        }
+        return count;
+    }
+
+    /**
+     * Change the number of worker threads. Only has an effect before the first
+     * coroutine was dispatched.
+     * @return true when the new value was taken
+     */
+    def set_parallelism(threads: decimal) : bool {
+        changed : decimal = 0;
+        lock(guard) {
+            if(started == 0 && threads >= 1) {
+                parallelism = threads;
+                changed = 1;
+            }
+        }
+        return changed != 0;
+    }
+
+    /** true once the worker threads were started */
+    def is_started() : bool {
+        return started != 0;
+    }
+
+    /** null: the coroutine is not tied to a thread. Starts the workers on first use. */
+    override def select_thread() : thread? {
+        if(started == 0) {
+            start_workers();
+        }
+        return null;
+    }
+
+    private def start_workers() {
+        first : decimal = 0;
+        count : decimal = get_parallelism();
+        lock(guard) {
+            if(started == 0) {
+                started = 1;
+                first = 1;
+            }
+        }
+
+        if(first != 0) {
+            for(i : decimal = 0; i < count; i++) {
+                worker := new thread("coroutine-worker", pool_dispatcher.keep_alive);
+                worker.start();
+            }
+        }
+    }
+
+    /**
+     * The function of a worker thread. Its first fiber only has to exist: while
+     * it sleeps the thread is free, and a free thread is given the unbound
+     * fibers that are ready. One timer per hour is the whole cost.
+     */
+    static def keep_alive(args: object[]) : int {
+        for( ;; ) {
+            waiter.sleep_raw(3600000);
+        }
+        return 0;
+    }
+}

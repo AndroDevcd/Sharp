@@ -1,0 +1,85 @@
+mod main;
+
+// output:
+// 5
+// 3
+// 31
+// 32
+// 33
+// 15
+// 4
+
+/*
+ * Three things about exceptions where the C++-built program is WRONG, so the
+ * output block is the rule of the language worked out by hand (doc/codegen.md
+ * sections 10 and 11):
+ *
+ *   - G14 / 11.4: `boom(); try { quiet(); } catch ...` - the exception of the
+ *     call just BEFORE the try is not the try's: it leaves before_try, and
+ *     main's clause takes it (5). The C++-built program runs the try's clause
+ *     (it would print 1, then 2): the VM looks a call's exception up at the
+ *     word after the call, and the C++ compiler puts the try's first word
+ *     there. This compiler writes a `nop` in front of every try;
+ *   - G15: `throw e;` of a null `e` raises nullptr_exception, which the clause
+ *     takes (3). The C++-built program crashes the VM (SIGSEGV). The same for
+ *     a null the TYPE does not show: `throw e!!;` (`!!` tests nothing, 31), a
+ *     local written `e : oops;` that was never given a value (32), a field
+ *     that was never set (33);
+ *   - 11.1: a function whose finally keeps its exception in frame slot 5 (the
+ *     five parameters are slots 0 - 4) makes a file the VM refuses to load
+ *     when the C++ compiler builds it ("data section may be corrupt"). This
+ *     compiler never gives a finally that slot (here it would be the first
+ *     slot after the parameters: the try block needs no slot of its own), so
+ *     the program loads and prints 15 and the finally's 4.
+ */
+
+class oops base exception {
+    oops() -> base("oops") { }
+}
+
+def boom() { throw new oops(); }
+def quiet() { }
+
+def before_try() {
+    boom();
+    try { quiet(); } catch(e: oops) { show(1); }
+    show(2);
+}
+
+def throws_null() {
+    try {
+        e : oops? = null;
+        throw e;
+    } catch(x: nullptr_exception) {
+        show(3);
+    }
+}
+
+class holder { kept : oops; }
+
+def throws_hidden_null(which: _int64) {
+    try {
+        maybe : oops? = null;
+        never_set : oops;
+        if(which == 1) { throw maybe!!; }
+        if(which == 2) { throw never_set; }
+        throw new holder().kept;
+    } catch(x: nullptr_exception) {
+        show(30 + which);
+    }
+}
+
+def five(a: _int64, b: _int64, c: _int64, d: _int64, e: _int64) {
+    try {
+        show(a);
+    } finally {
+        show(4);
+    }
+}
+
+def main() {
+    try { before_try(); } catch(e: oops) { show(5); }
+    throws_null();
+    for(which : _int64 = 1; which <= 3; which++) { throws_hidden_null(which); }
+    five(15, 2, 3, 4, 5);
+}

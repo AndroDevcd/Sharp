@@ -1,0 +1,9 @@
+// expect: E0100
+// help: class
+// replace: calss
+mod tests.helps;
+import (std, std.io);
+
+calss point { x : _int64 = 0; }
+
+def main() { p := new point(); println(p.x); }

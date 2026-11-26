@@ -1,0 +1,183 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * case_format
+ *
+ * Converts names between the usual spellings. All functions are static:
+ *
+ *     case_format.to_snake("parseHttpRequest")        "parse_http_request"
+ *     case_format.to_camel("parse_http_request")      "parseHttpRequest"
+ *     case_format.to_pascal("parse-http-request")     "ParseHttpRequest"
+ *     case_format.to_kebab("ParseHTTPRequest")        "parse-http-request"
+ *     case_format.to_screaming_snake("max size")      "MAX_SIZE"
+ *     case_format.to_title("max_size")                "Max Size"
+ *
+ * Every conversion first cuts the input into words (see split_words) and then
+ * writes the words in the wanted style, so any style can be converted into
+ * any other, and mixed input ("some_mixedInput-here") works too.
+ *
+ * How a name is cut into words
+ *  - at '_', '-', '.', spaces and other whitespace (these are dropped;
+ *    several in a row count as one)
+ *  - before a capital letter that follows a small letter or a digit:
+ *    "max_size" -> max | Size,   "v2Final" -> v2 | Final
+ *  - before the last capital of a run of capitals when a small letter
+ *    follows, so abbreviations stay together: "HTTPServer" -> HTTP | Server
+ *  - digits stay with the word in front of them: "utf8Text" -> utf8 | Text
+ *
+ * Only ASCII letters are handled. An empty or separator-only input gives "".
+ */
+class case_format {
+
+    private static def is_upper(c: decimal): bool { return c >= 'A' && c <= 'Z'; }
+    private static def is_lower(c: decimal): bool { return c >= 'a' && c <= 'z'; }
+    private static def is_digit(c: decimal): bool { return c >= '0' && c <= '9'; }
+
+    /** true if `c` separates words and is not part of any word. */
+    private static def is_separator(c: decimal): bool {
+        return c == '_' || c == '-' || c == '.' || c == ' ' || (c >= 9 && c <= 13);
+    }
+
+    /**
+     * true if a new word starts at position `i` of `d` (which is not a separator
+     * and not the first character of a word run).
+     */
+    private static def starts_word(d: _int8[]?, n: decimal, i: decimal): bool {
+        c : decimal = d[i];
+        previous : decimal = d[i - 1];
+        if(!is_upper(c)) return false;
+        // aB or 2B
+        if(is_lower(previous) || is_digit(previous)) return true;
+        // ABc: the B starts a word ("HTTPServer" -> HTTP | Server)
+        if(is_upper(previous) && i + 1 < n && is_lower(d[i + 1])) return true;
+        return false;
+    }
+
+    /**
+     * The words of `name`, all in small letters, in order:
+     * split_words("parseHTTPRequest_v2") is ["parse", "http", "request", "v2"].
+     * An empty or separator-only name gives an array of length 0.
+     */
+    static def split_words(name: string): string[] {
+        d := name.data;
+        n : decimal = sizeof(d);
+
+        // pass 1: count the words
+        count : decimal = 0;
+        in_word : decimal = 0;
+        for(i : decimal = 0; i < n; i++) {
+            if(is_separator(d[i])) {
+                in_word = 0;
+            } else if(!in_word) {
+                in_word = 1;
+                count++;
+            } else if(starts_word(d, n, i)) {
+                count++;
+            }
+        }
+
+        // pass 2: cut them out, in small letters
+        result := new string[count];
+        used : decimal = 0;
+        start : decimal = -1;               // start of the word being read, -1 = between words
+        for(i : decimal = 0; i < n; i++) {
+            if(is_separator(d[i])) {
+                if(start >= 0) {
+                    result[used++] = lower_copy(d, start, i);
+                    start = -1;
+                }
+            } else if(start < 0) {
+                start = i;
+            } else if(starts_word(d, n, i)) {
+                result[used++] = lower_copy(d, start, i);
+                start = i;
+            }
+        }
+        if(start >= 0) result[used] = lower_copy(d, start, n);
+        return result;
+    }
+
+    /** The characters from..to-1 of `d` as a string in small letters. */
+    private static def lower_copy(d: _int8[]?, from: decimal, to: decimal): string {
+        buffer := new _int8[to - from];
+        for(i : decimal = from; i < to; i++) {
+            c : decimal = d[i];
+            if(is_upper(c)) c = c + 32;
+            buffer[i - from] = c;
+        }
+        return new string(buffer);
+    }
+
+    /**
+     * Writes the words into one string.
+     *   separator    character put between words, 0 for none
+     *   first_style  how the first word is written, rest_style how the others are:
+     *                0 = small letters, 1 = Capitalised, 2 = ALL CAPITALS
+     */
+    private static def assemble(words: string[], separator: decimal, first_style: decimal, rest_style: decimal): string {
+        count : decimal = sizeof(words);
+        out := new char_buffer();
+        for(w : decimal = 0; w < count; w++) {
+            if(w > 0 && separator != 0) out.append_char(separator);
+            style : decimal = w == 0 ? first_style : rest_style;
+            word := words[w];
+            len : decimal = sizeof(word.data);
+            for(i : decimal = 0; i < len; i++) {
+                c : decimal = word.data[i];
+                if(is_lower(c)) {
+                    if(style == 2) c = c - 32;
+                    else if(style == 1 && i == 0) c = c - 32;
+                }
+                out.append_char(c);
+            }
+        }
+        return out.build();
+    }
+
+    /** snake_case: small letters, words joined with '_'. to_snake("max_size") is "max_size". */
+    static def to_snake(name: string): string {
+        return assemble(split_words(name), '_', 0, 0);
+    }
+
+    /** SCREAMING_SNAKE_CASE, as used for constants: to_screaming_snake("max_size") is "MAX_SIZE". */
+    static def to_screaming_snake(name: string): string {
+        return assemble(split_words(name), '_', 2, 2);
+    }
+
+    /** kebab-case: small letters, words joined with '-'. to_kebab("max_size") is "max-size". */
+    static def to_kebab(name: string): string {
+        return assemble(split_words(name), '-', 0, 0);
+    }
+
+    /** camelCase: first word small, the others capitalised, nothing between. to_camel("max_size") is "max_size". */
+    static def to_camel(name: string): string {
+        return assemble(split_words(name), 0, 0, 1);
+    }
+
+    /** PascalCase: every word capitalised, nothing between. to_pascal("max_size") is "MaxSize". */
+    static def to_pascal(name: string): string {
+        return assemble(split_words(name), 0, 1, 1);
+    }
+
+    /** Title Case for people: every word capitalised, spaces between. to_title("max_size") is "Max Size". */
+    static def to_title(name: string): string {
+        return assemble(split_words(name), ' ', 1, 1);
+    }
+
+    /** Sentence case: first word capitalised, the rest small, spaces between. to_sentence("maxSizeLimit") is "Max size limit". */
+    static def to_sentence(name: string): string {
+        return assemble(split_words(name), ' ', 1, 0);
+    }
+
+    /** dot.case: small letters, words joined with '.'. to_dot("max_size") is "max.size". */
+    static def to_dot(name: string): string {
+        return assemble(split_words(name), '.', 0, 0);
+    }
+
+    /** How many words the name has: word_count("parseHTTPRequest") is 3. */
+    static def word_count(name: string): decimal {
+        return sizeof(split_words(name));
+    }
+}

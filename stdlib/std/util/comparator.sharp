@@ -1,0 +1,297 @@
+mod std.util;
+
+/**
+ * @class comparator
+ *
+ * An ordering for objects of type T: something that can say which of two
+ * objects comes first. Comparators are built from small pieces and combined
+ * (Java's Comparator, Kotlin's compareBy / thenBy / reversed):
+ *
+ *     by_age := comparator<person>.by_key({ p: person -> (decimal) return p.age; });
+ *     by_name := comparator<person>.by_text({ p: person -> (string) return p.name; });
+ *
+ *     oldest_first := by_age.reversed();
+ *     by_age_then_name := by_age.then_by(by_name);
+ *
+ *     by_age_then_name.sort(people);          // sorts the array in place
+ *     youngest := by_age.min_of(people);
+ *
+ * compare(a, b) follows the usual convention: a NEGATIVE number when a
+ * comes before b, a POSITIVE number when a comes after b, 0 when the order
+ * does not distinguish them.
+ *
+ * A comparator never changes after it is made; reversed() and then_by()
+ * return new comparators. The class std.util#comparators has ready-made
+ * comparators for strings and the number classes.
+ *
+ * LIMITATION: T must be an object type.
+ */
+class comparator<T> {
+    // What `primary()` does is chosen by `kind`:
+    //   0  call compare_function(a, b)
+    //   1  compare the numbers  number_key(a)  and  number_key(b)
+    //   2  compare the texts    text_key(a)    and  text_key(b)   (by character code)
+    //   3  ask the comparator `inner`
+    private kind : decimal = 0;
+    private compare_function : (T, T)(decimal);
+    private number_key : (T)(decimal);
+    private text_key : (T)(string);
+    private inner : comparator<T>?;
+
+    /** 1: the result of primary() is negated */
+    private negate : decimal = 0;
+
+    /** asked when primary() says "equal" */
+    private next : comparator<T>?;
+
+    /**
+     * A comparator from a function that returns a negative number, 0 or a
+     * positive number for "a before b", "same" and "a after b".
+     */
+    comparator(compare_function: (T, T)(decimal)) {
+        self->compare_function = compare_function;
+        kind = 0;
+    }
+
+    private comparator() {
+    }
+
+    /**
+     * Order objects by a number taken from each: the object with the
+     * smaller key comes first (Kotlin compareBy).
+     */
+    static def by_key(key: (T)(decimal)): comparator<T> {
+        result := new comparator<T>();
+        result.kind = 1;
+        result.number_key = key;
+        return result;
+    }
+
+    /**
+     * Order objects by a text taken from each, compared character by
+     * character by character code ("Zebra" comes before "apple"; a text
+     * comes after its own prefixes).
+     */
+    static def by_text(key: (T)(string)): comparator<T> {
+        result := new comparator<T>();
+        result.kind = 2;
+        result.text_key = key;
+        return result;
+    }
+
+    /**
+     * Compare two texts character by character by character code:
+     * negative when a comes first, positive when b comes first, 0 when they
+     * are equal. A text that is a prefix of the other comes first.
+     */
+    static def compare_text(a: string, b: string): decimal {
+        size_a : decimal = a.size();
+        size_b : decimal = b.size();
+        shared : decimal = size_a;
+        if(size_b < shared) shared = size_b;
+
+        for(i : decimal = 0; i < shared; i++) {
+            difference : decimal = a.at(i).value - b.at(i).value;
+            if(difference != 0) return difference;
+        }
+        return size_a - size_b;
+    }
+
+    private def primary(a: T, b: T): decimal {
+        if(kind == 0) {
+            return compare_function(a, b);
+        }
+        if(kind == 1) {
+            left : decimal = number_key(a);
+            right : decimal = number_key(b);
+            if(left < right) return 0 - 1;
+            if(left > right) return 1;
+            return 0;
+        }
+        if(kind == 2) {
+            return compare_text(text_key(a), text_key(b));
+        }
+        return inner!!.compare(a, b);
+    }
+
+    /**
+     * Compare two objects: negative when a comes before b, positive when a
+     * comes after b, 0 when this ordering does not distinguish them.
+     */
+    def compare(a: T, b: T): decimal {
+        result : decimal = primary(a, b);
+        if(negate) {
+            result = 0 - result;
+        }
+        if(result == 0 && (next as object) != null) {
+            return next!!.compare(a, b);
+        }
+        return result;
+    }
+
+    /** the opposite ordering: what came first now comes last */
+    def reversed(): comparator<T> {
+        result := new comparator<T>();
+        result.kind = 3;
+        result.inner = self;
+        result.negate = 1;
+        return result;
+    }
+
+    /**
+     * This ordering, with `other` deciding between objects this one calls
+     * equal (sort by last name, then by first name).
+     */
+    def then_by(other: comparator<T>): comparator<T> {
+        result := new comparator<T>();
+        result.kind = 3;
+        result.inner = self;
+        result.next = other;
+        return result;
+    }
+
+    /** then_by(by_key(key)): ties are decided by a number taken from each object */
+    def then_by_key(key: (T)(decimal)): comparator<T> {
+        return then_by(by_key(key));
+    }
+
+    /** then_by(by_text(key)): ties are decided by a text taken from each object */
+    def then_by_text(key: (T)(string)): comparator<T> {
+        return then_by(by_text(key));
+    }
+
+    /** true when a and b are in order or equal: compare(a, b) <= 0 */
+    def in_order(a: T, b: T): bool {
+        return compare(a, b) <= 0;
+    }
+
+    /**
+     * Sort the array in place, smallest first according to this ordering.
+     *
+     * Algorithm: bottom-up merge sort (no recursion) with one helper array.
+     * O(n log n) comparisons and STABLE: objects the ordering calls equal
+     * keep their original relative order, which is what makes sorting by
+     * one key and then by another work.
+     */
+    def sort(items: T[]) {
+        n : decimal = sizeof(items);
+        if(n < 2) return;
+
+        from := items;
+        to := new T[n];
+
+        for(width : decimal = 1; width < n; width = width * 2) {
+            for(start : decimal = 0; start < n; start += 2 * width) {
+                middle : decimal = start + width;
+                if(middle > n) middle = n;
+                end : decimal = start + 2 * width;
+                if(end > n) end = n;
+
+                left : decimal = start;
+                right : decimal = middle;
+                for(target : decimal = start; target < end; target++) {
+                    // take from the left run unless the right one is strictly smaller (keeps it stable)
+                    if(left < middle && (right >= end || compare(from[left], from[right]) <= 0)) {
+                        to[target] = from[left];
+                        left++;
+                    } else {
+                        to[target] = from[right];
+                        right++;
+                    }
+                }
+            }
+
+            swap := from;
+            from = to;
+            to = swap;
+        }
+
+        // an odd number of passes leaves the result in the helper array
+        if((from as object) != (items as object)) {
+            for(i : decimal = 0; i < n; i++) {
+                items[i] = from[i];
+            }
+        }
+    }
+
+    /** sort a list in place (see sort for arrays); does nothing for an empty list */
+    def sort(items: list<T>) {
+        n : decimal = items.size();
+        if(n < 2) return;
+
+        sorted := new T[n];
+        for(i : decimal = 0; i < n; i++) {
+            sorted[i] = items.at(i);
+        }
+        sort(sorted);
+        for(i : decimal = 0; i < n; i++) {
+            items.put(i, sorted[i]);
+        }
+    }
+
+    /** true when every element is in order with the one after it (also for 0 or 1 elements) */
+    def is_sorted(items: T[]): bool {
+        for(i : decimal = 1; i < sizeof(items); i++) {
+            if(compare(items[i - 1], items[i]) > 0) return false;
+        }
+        return true;
+    }
+
+    /**
+     * The element that comes first in this ordering (the first of several
+     * equal ones).
+     * Throws no_such_element_exception when the array is empty.
+     */
+    def min_of(items: T[]): T {
+        if(sizeof(items) == 0)
+            throw new no_such_element_exception("comparator.min_of: the array is empty");
+
+        best := items[0];
+        for(i : decimal = 1; i < sizeof(items); i++) {
+            if(compare(items[i], best) < 0) {
+                best = items[i];
+            }
+        }
+        return best;
+    }
+
+    /**
+     * The element that comes last in this ordering (the last of several
+     * equal ones).
+     * Throws no_such_element_exception when the array is empty.
+     */
+    def max_of(items: T[]): T {
+        if(sizeof(items) == 0)
+            throw new no_such_element_exception("comparator.max_of: the array is empty");
+
+        best := items[0];
+        for(i : decimal = 1; i < sizeof(items); i++) {
+            if(compare(items[i], best) >= 0) {
+                best = items[i];
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Find `wanted` in an array that is SORTED by this ordering, by halving
+     * the search interval: O(log n). Returns the index of an element that
+     * compares equal to `wanted`, or -1 when there is none.
+     */
+    def binary_search(items: T[], wanted: T): decimal {
+        low : decimal = 0;
+        high : decimal = sizeof(items) - 1;
+
+        while(low <= high) {
+            middle : decimal = low + ((high - low) >> 1);
+            order : decimal = compare(items[middle], wanted);
+            if(order == 0) return middle;
+            if(order < 0) {
+                low = middle + 1;
+            } else {
+                high = middle - 1;
+            }
+        }
+        return 0 - 1;
+    }
+}

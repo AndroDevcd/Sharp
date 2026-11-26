@@ -1,0 +1,240 @@
+mod backend.finalizer.ir;
+
+import (
+    std.io,
+    backend.types.declarations
+)
+
+/**
+ * THE IR AS TEXT (the -ir option)
+ *
+ *      ir of main#__srt_global.main  (slots: %0 int, %1 ref)
+ *          line 4
+ *          text         %1, string 0
+ *          call         -, std.io.console#__srt_global.println(%1)
+ *          return
+ *
+ * Read it like assembly: one instruction per line, `%n` is slot n, `Ln` a
+ * label; the `try` statements follow the instructions, their ranges given as
+ * labels. It is what the bytecode step is given, so a wrong program can be
+ * traced to the step that made it wrong.
+ */
+def ir_text(code: ir_function) : string {
+    out := new string_builder("ir of " + code.name + "  (slots:");
+    for(i : _int64 = 0; i < code.slot_kinds.count; i++) {
+        out.append(" %" + i + " " + slot_kind_name(code.slot_kinds.at(i)));
+    }
+    out.append(")\n");
+    for(i : _int64 = 0; i < code.instructions.size(); i++) {
+        made := code.instructions.at(i);
+        if(made.handed_on == 1) { out.append("    " + instruction_text(made) + "      (handed on in its register)\n"); }
+        else { out.append("    " + instruction_text(made) + "\n"); }
+    }
+    for(i : _int64 = 0; i < code.tries.size(); i++) { out.append("    " + try_text(i, code.tries.at(i)) + "\n"); }
+    return out.build();
+}
+
+/**
+ * One `try` statement: its ranges as labels (ir_function.sharp), e.g.
+ * `try 0: block L3 .. L4, guarded L3 .. L5, catch L4 %2 class 17, finally L5 .. L6 %6`
+ * - an end label is one past the range's last word.
+ */
+def try_text(index: _int64, made: ir_try) : string {
+    text := new string_builder("try " + index + ": block L" + made.start + " .. L" + made.block_end + ", guarded L" + made.start
+                               + " .. L" + made.end);
+    for(i : _int64 = 0; i < made.handlers.count; i++) {
+        text.append(", catch L" + made.handlers.at(i) + " " + slot_text(made.catch_slots.at(i)) + " class "
+                    + made.catch_classes.at(i));
+    }
+    if(made.has_finally == 1) {
+        text.append(", finally L" + made.finally_start + " .. L" + made.finally_end + " " + slot_text(made.finally_slot));
+    }
+    return text.build();
+}
+
+/** one instruction as text */
+def instruction_text(made: ir_instruction) : string {
+    kind : _int64 = made.kind;
+    if(kind == IR_INT_CONSTANT) { return "int_constant  " + slot_text(made.target) + ", " + made.number; }
+    if(kind == IR_DECIMAL_CONSTANT) {
+        if(made.text != null) { return "dec_constant  " + slot_text(made.target) + ", " + made.text!!; }
+        return "dec_constant  " + slot_text(made.target) + ", " + made.real;
+    }
+    if(kind == IR_NULL) { return "null          " + slot_text(made.target); }
+    if(kind == IR_TEXT) {
+        shown := "text          " + slot_text(made.target) + ", string " + made.number;
+        if(made.detail == TEXT_SHARED_ARRAY) { return shown + " (shared)"; }
+        if(made.detail == TEXT_SHARED_STRING) { return shown + " (shared string)"; }
+        return shown;
+    }
+    if(kind == IR_COPY) { return "copy          " + slot_text(made.target) + ", " + slot_text(made.first) + narrow_text(made.number); }
+    if(kind == IR_CONVERT) {
+        return "convert " + convert_name(made.number) + " " + slot_text(made.target) + ", " + slot_text(made.first)
+               + narrow_text(made.detail);
+    }
+    if(kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY) {
+        prefix := "int_binary ";
+        if(kind == IR_DECIMAL_BINARY) { prefix = "dec_binary "; }
+        return prefix + operation_name(made.number) + " " + slot_text(made.target) + ", " + slot_text(made.first) + ", "
+               + slot_text(made.second);
+    }
+    if(kind == IR_INT_IMMEDIATE) {
+        return "int_immediate " + operation_name(made.number) + " " + slot_text(made.target) + ", " + slot_text(made.first) + ", "
+               + made.detail;
+    }
+    if(kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE) {
+        prefix := "int_compare ";
+        if(kind == IR_DECIMAL_COMPARE) { prefix = "dec_compare "; }
+        return prefix + compare_name(made.number) + " " + slot_text(made.target) + ", " + slot_text(made.first) + ", "
+               + slot_text(made.second);
+    }
+    if(kind == IR_NEGATE) { return "negate        " + slot_text(made.target) + ", " + slot_text(made.first); }
+    if(kind == IR_NOT) { return "not           " + slot_text(made.target) + ", " + slot_text(made.first); }
+    if(kind == IR_MATH) {
+        text := "math " + math_name(made.number) + " " + slot_text(made.target) + ", " + slot_text(made.first);
+        if(made.second >= 0) { text = text + ", " + slot_text(made.second); }
+        return text;
+    }
+    if(kind == IR_SAME_OBJECT) {
+        return "same_object   " + slot_text(made.target) + ", " + slot_text(made.first) + ", " + slot_text(made.second);
+    }
+    if(kind == IR_IS_NULL) { return "is_null       " + slot_text(made.target) + ", " + slot_text(made.first); }
+    if(kind == IR_GET_FIELD) {
+        return "get_field     " + slot_text(made.target) + ", " + slot_text(made.first) + "." + declaration_text(made.declaration);
+    }
+    if(kind == IR_SET_FIELD) {
+        return "set_field     " + slot_text(made.first) + "." + declaration_text(made.declaration) + ", "
+               + slot_text(made.second) + narrow_text(made.number);
+    }
+    if(kind == IR_GET_STATIC) { return "get_static    " + slot_text(made.target) + ", " + declaration_text(made.declaration); }
+    if(kind == IR_SET_STATIC) {
+        return "set_static    " + declaration_text(made.declaration) + ", " + slot_text(made.second) + narrow_text(made.number);
+    }
+    if(kind == IR_NEW_OBJECT) { return "new_object    " + slot_text(made.target) + ", " + declaration_text(made.declaration); }
+    if(kind == IR_NEW_ARRAY) {
+        return "new_array     " + slot_text(made.target) + ", " + slot_text(made.first) + " of " + element_text(made.number);
+    }
+    if(kind == IR_GET_ELEMENT) {
+        return "get_element   " + slot_text(made.target) + ", " + slot_text(made.first) + "[" + slot_text(made.second) + "]"
+               + (made.in_range == 1 ? "   (in range)" : "");
+    }
+    if(kind == IR_SET_ELEMENT) {
+        return "set_element   " + slot_text(made.first) + "[" + slot_text(made.second) + "], " + slot_text(made.detail)
+               + (made.in_range == 1 ? "   (in range)" : "");
+    }
+    if(kind == IR_LENGTH) { return "length        " + slot_text(made.target) + ", " + slot_text(made.first); }
+    if(kind == IR_CALL) {
+        text := new string_builder("call          " + slot_text(made.target) + ", ");
+        if(made.number == CALL_HOW_VIRTUAL) { text.append("virtual "); }
+        if(made.number == CALL_HOW_NATIVE) { text.append("native "); }
+        text.append(declaration_text(made.declaration) + "(");
+        for(i : _int64 = 0; i < made.arguments!!.count; i++) {
+            if(i > 0) { text.append(", "); }
+            text.append(slot_text(made.arguments!!.at(i)));
+        }
+        text.append(")");
+        return text.build();
+    }
+    if(kind == IR_LABEL) { return "L" + made.number + ":"; }
+    if(kind == IR_JUMP) { return "jump          L" + made.number; }
+    if(kind == IR_JUMP_IF) { return "jump_if       " + slot_text(made.first) + ", L" + made.number; }
+    if(kind == IR_JUMP_UNLESS) { return "jump_unless   " + slot_text(made.first) + ", L" + made.number; }
+    if(kind == IR_RETURN) { return "return"; }
+    if(kind == IR_RETURN_VALUE) { return "return_value  " + slot_text(made.first) + narrow_text(made.number); }
+    if(kind == IR_LINE) { return "line " + made.number; }
+    if(kind == IR_ASM) {
+        text := new string_builder("asm           #" + made.number);
+        for(i : _int64 = 0; i < made.arguments!!.count; i++) {
+            if(made.label_operands!!.at(i) == 1) { text.append(" L" + made.arguments!!.at(i)); }
+            else { text.append(" " + made.arguments!!.at(i)); }
+        }
+        return text.build();
+    }
+    if(kind == IR_NOP) { return "nop"; }
+    if(kind == IR_CAST) {
+        if(made.detail == 1) { return "cast          " + slot_text(made.first) + " to number array " + made.number; }
+        return "cast          " + slot_text(made.first) + " to class " + made.number;
+    }
+    if(kind == IR_IS) {
+        if(made.detail == 1) { return "is            " + slot_text(made.target) + ", " + slot_text(made.first) + " number array " + made.number; }
+        return "is            " + slot_text(made.target) + ", " + slot_text(made.first) + " class " + made.number;
+    }
+    if(kind == IR_CALL_VALUE) {
+        text := new string_builder("call_value    " + slot_text(made.target) + ", " + slot_text(made.first) + "(");
+        for(i : _int64 = 0; i < made.arguments!!.count; i++) {
+            if(i > 0) { text.append(", "); }
+            text.append(slot_text(made.arguments!!.at(i)));
+        }
+        text.append(")");
+        return text.build();
+    }
+    if(kind == IR_THROW) { return "throw         " + slot_text(made.first); }
+    if(kind == IR_LOCK) { return "lock          " + slot_text(made.first); }
+    if(kind == IR_UNLOCK) { return "unlock        " + slot_text(made.first); }
+    return "?";
+}
+
+/** `%3`, or `-` for no slot */
+def slot_text(slot: _int64) : string {
+    if(slot < 0) { return "-"; }
+    return "%" + slot;
+}
+
+/** the full name of what an instruction names */
+def declaration_text(declared: sharp_declaration?) : string {
+    if(declared == null) { return "?"; }
+    return declared!!.full_name();
+}
+
+/** ` (as _int8)` ... for a narrowing; nothing for none */
+def narrow_text(narrow: _int64) : string {
+    if(narrow == NARROW_I8) { return " (as _int8)"; }
+    if(narrow == NARROW_I16) { return " (as _int16)"; }
+    if(narrow == NARROW_I32) { return " (as _int32)"; }
+    if(narrow == NARROW_U8) { return " (as _uint8)"; }
+    if(narrow == NARROW_U16) { return " (as _uint16)"; }
+    if(narrow == NARROW_U32) { return " (as _uint32)"; }
+    return "";
+}
+
+/** the element type of an array instruction */
+def element_text(element: _int64) : string {
+    if(element == ELEMENT_REFERENCE) { return "references"; }
+    return "number type " + element;
+}
+
+/** `add`, `mul` ... for an ARITH_ code */
+def operation_name(operation: _int64) : string {
+    if(operation == ARITH_ADD) { return "add"; }
+    if(operation == ARITH_SUB) { return "sub"; }
+    if(operation == ARITH_MUL) { return "mul"; }
+    if(operation == ARITH_DIV) { return "div"; }
+    if(operation == ARITH_REM) { return "rem"; }
+    if(operation == ARITH_AND) { return "and"; }
+    if(operation == ARITH_OR) { return "or"; }
+    if(operation == ARITH_XOR) { return "xor"; }
+    if(operation == ARITH_SHL) { return "shl"; }
+    if(operation == ARITH_SHR) { return "shr"; }
+    if(operation == ARITH_POW) { return "pow"; }
+    return "?";
+}
+
+/** `lt`, `eq` ... for a CMP_ code */
+def compare_name(operation: _int64) : string {
+    if(operation == CMP_LT) { return "lt"; }
+    if(operation == CMP_GT) { return "gt"; }
+    if(operation == CMP_LE) { return "le"; }
+    if(operation == CMP_GE) { return "ge"; }
+    if(operation == CMP_EQ) { return "eq"; }
+    if(operation == CMP_NE) { return "ne"; }
+    return "?";
+}
+
+/** the name of a CONVERT_ code */
+def convert_name(how: _int64) : string {
+    if(how == CONVERT_INT_TO_DECIMAL) { return "int_to_decimal"; }
+    if(how == CONVERT_DECIMAL_TO_INT) { return "decimal_to_int"; }
+    if(how == CONVERT_NARROW) { return "narrow"; }
+    if(how == CONVERT_TRUTH) { return "truth"; }
+    return "?";
+}

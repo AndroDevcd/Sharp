@@ -1,0 +1,68 @@
+file
+  module
+    name  tests
+    name  trees
+  function  f
+    parameters
+    block
+      variable  a
+        initializer
+          binary  -
+            binary  +
+              literal  1
+              binary  *
+                literal  2
+                literal  3
+            binary  **
+              unary  -
+                literal  4
+              binary  **
+                literal  2
+                literal  3
+      variable  b
+        initializer
+          binary  ||
+            binary  ==
+              identifier  x
+              unary  -
+                literal  1
+            binary  &&
+              identifier  y
+              unary  !
+                identifier  z
+      expression_statement
+        assign  =
+          identifier  c
+          assign  =
+            identifier  d
+            elvis
+              identifier  e
+              identifier  g
+      variable  h
+        initializer
+          ternary
+            identifier  i
+            identifier  j
+            ternary
+              identifier  k
+              identifier  l
+              identifier  m
+      variable  n
+        initializer
+          binary  +
+            cast
+              identifier  o
+              type
+                type_name
+                  type_part  p
+            identifier  q
+      variable  r
+        initializer
+          call
+            member  .
+              string_template
+                literal  "n=
+                identifier  s
+                literal  "
+              identifier  size
+            arguments

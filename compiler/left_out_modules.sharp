@@ -1,0 +1,127 @@
+mod main;
+
+import (
+    std.io,
+    configuration,
+    frontend.diagnostics
+)
+
+/*
+ * A MODULE THAT IS MISSING BECAUSE ITS FILES WERE LEFT OUT
+ *
+ *      sharpc -P shop -ignoredir shop/src/model
+ *
+ *      error[E0303]: there is no module named `model`
+ *        2 | import (model)
+ *
+ * The analysis is right - no file that is compiled declares `model` - but it
+ * cannot say WHY: it sees the files it is given, not the options that took
+ * others away. The driver knows. So when the build ends with an E0303, the
+ * files `-ignore` / `-ignoredir` (or "ignore_files" / "ignore_folders" of
+ * settings.json) left out are looked at, and when one of them declares the
+ * module that is missing, the message gets a note that names the file and a
+ * help that says how to bring it back.
+ *
+ * The files left out are not parsed for this: only their `mod <name>;` line
+ * is read from the text, and only when there is an E0303 to explain - a
+ * build without that error pays nothing.
+ *
+ *      C++ comparison: none. The C++ compiler reports "could not find module"
+ *      and nothing more.
+ *
+ * In this file:
+ *      note_file_left_out          remove_ignored_files (source_folders.sharp) tells what it removed
+ *      explain_modules_left_out    the note and the help on every E0303 a left-out file explains
+ *      declared_module_of          the name in a file's `mod <name>;` line
+ *      name_in_backticks           the name a message quotes
+ */
+
+/** the files `-ignore` / `-ignoredir` removed from the build, as absolute paths */
+left_out_files : list<string> = new list<string>();
+
+/** one more file was left out of the build */
+def note_file_left_out(path: string) {
+    left_out_files.add(path);
+}
+
+/**
+ * Every "there is no module named `x`" (E0303) whose module a left-out file
+ * declares is given the reason and the way out. The others stay as they are.
+ */
+def explain_modules_left_out(shown: list<diagnostic>) {
+    if(left_out_files.size() == 0) { return; }
+    // the module of each left-out file, read once, and only when the first E0303 is met
+    modules : list<string>? = null;
+
+    for(i : _int64 = 0; i < shown.size(); i++) {
+        d := shown.at(i);
+        if(d.code != "E0303") { continue; }
+        if(modules == null) {
+            modules = new list<string>();
+            foreach(path in left_out_files) { modules!!.add(declared_module_of(path)); }
+        }
+        missing : string = name_in_backticks(d.message);
+        for(k : _int64 = 0; k < left_out_files.size(); k++) {
+            if(modules!!.at(k) != missing) { continue; }
+            d.with_note("`" + left_out_files.at(k) + "` declares module `" + missing + "`, but it was left out of this build "
+                        + "(`-ignore` / `-ignoredir`, or \"ignore_files\" / \"ignore_folders\" in settings.json)");
+            d.with_help("take that file's folder out of the ones left out, or remove what uses `" + missing + "`");
+            break;      // one file is enough to say why
+        }
+    }
+}
+
+/**
+ * The module a source file declares: the name in its first `mod <name>;`
+ * line. "" when the file has none or cannot be read. Read from the text,
+ * line by line, without the parser: the file is not part of the build, and
+ * all that is asked is this one name.
+ */
+def declared_module_of(path: string) : string {
+    text : string = "";
+    try {
+        text = file_utils.read_text(path);
+    } catch(e: throwable) {
+        return "";
+    }
+    size : _int64 = sizeof(text.data);
+    if(size == 0) { return ""; }
+    characters : _int8[] = text.data!!;
+
+    at : _int64 = 0;
+    while(at < size) {
+        // the first character of the line that is not a space
+        while(at < size && (characters[at] == ' ' || characters[at] == '\t')) { at++; }
+        if(at + 3 < size && characters[at] == 'm' && characters[at + 1] == 'o' && characters[at + 2] == 'd'
+           && (characters[at + 3] == ' ' || characters[at + 3] == '\t')) {
+            name := new string_builder("");
+            for(k : _int64 = at + 4; k < size && characters[k] != ';' && characters[k] != '\n'; k++) {
+                if(characters[k] != ' ' && characters[k] != '\t' && characters[k] != '\r') { name.append(characters[k]); }
+            }
+            return name.build();
+        }
+        // not the `mod` line: on to the next line
+        while(at < size && characters[at] != '\n') { at++; }
+        at++;
+    }
+    return "";
+}
+
+/**
+ * The text between the first pair of backticks of a message: the `model` of
+ * "there is no module named `model`". "" when the message quotes nothing.
+ */
+def name_in_backticks(message: string) : string {
+    name := new string_builder("");
+    size : _int64 = sizeof(message.data);
+    inside : _int64 = 0;
+    for(i : _int64 = 0; i < size; i++) {
+        if(message.data[i] == '`') {
+            if(inside == 1) { return name.build(); }
+            inside = 1;
+        } else if(inside == 1) {
+            name.append(message.data[i]);
+        }
+    }
+    return "";
+}

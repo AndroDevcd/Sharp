@@ -1,0 +1,10 @@
+// expect: E0414
+// help: n : _int64[] = new _int64[10];
+// replace: n : _int64 = 3;
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    n : _int64 = 3;
+    x : _int64 = n[0];
+}

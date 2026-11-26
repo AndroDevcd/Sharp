@@ -1,0 +1,44 @@
+mod backend.finalizer.ir;
+
+import (
+    std.io,
+    backend.types.declarations
+)
+
+/**
+ * ONE INSTRUCTION OF THE INTERMEDIATE FORM
+ *
+ *      int_binary add  %3, %0, %1          kind IR_INT_BINARY, number ARITH_ADD, target 3, first 0, second 1
+ *      call %4, f(%1, %2)                  kind IR_CALL, declaration f, arguments [1, 2], target 4
+ *      jump_unless %5, L2                  kind IR_JUMP_UNLESS, first 5, number 2
+ *
+ * Which fields mean something depends on the kind; ir.sharp says it for each
+ * one next to its constant. A slot field that is not used holds -1.
+ *
+ *      C++ comparison: an `operation_step` (backend/operation/operation.h)
+ *      plays a similar part, but it refers to "the value just computed"
+ *      instead of naming a slot.
+ */
+class ir_instruction {
+    kind : _int64;
+    target : _int64 = 0 - 1;            // the slot written
+    first : _int64 = 0 - 1;             // the first slot read
+    second : _int64 = 0 - 1;            // the second slot read
+    number : _int64 = 0;                // a constant, an operation, a label, a line ... (by kind)
+    detail : _int64 = 0;                // a second number (by kind)
+    real : decimal = 0;                 // a decimal constant
+    text : string?;                     // a decimal literal's digits; a stub's message
+    declaration : sharp_declaration?;   // the field, function or class it is about
+    arguments : number_list?;           // a call: the slots of its arguments, `self` first; asm: the operand values
+    label_operands : number_list?;      // asm: 1 for an operand that is a label (its value is the label number)
+    in_range : _int64 = 0;              // get_element / set_element, 1: the array is known not to be null and the position
+                                        // inside it, so the bytecode step writes no `checklen` (set by the optimizer:
+                                        // passes/control/bounds_checks.sharp)
+    handed_on : _int64 = 0;             // 1: the value written is read by the next instruction and by nothing after it,
+                                        // so the bytecode step may leave it in its register instead of storing it and
+                                        // loading it again (set by the optimizer: passes/registers/register_hand_off.sharp)
+
+    ir_instruction(kind: _int64) {
+        self->kind = kind;
+    }
+}

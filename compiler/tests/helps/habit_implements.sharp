@@ -1,0 +1,13 @@
+// expect: E0100
+// help: class circle : drawable
+// replace: class circle implements drawable
+mod tests.helps;
+import (std, std.io);
+
+interface drawable { def draw(); }
+class circle implements drawable { override def draw() { println("o"); } }
+
+def main() {
+    d : drawable = new circle();
+    d.draw();
+}

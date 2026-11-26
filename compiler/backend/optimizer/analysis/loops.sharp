@@ -1,0 +1,222 @@
+mod backend.optimizer.analysis;
+
+import (
+    std.io,
+    backend.finalizer.ir
+)
+
+/**
+ * THE LOOPS OF ONE FUNCTION, found in its control-flow graph
+ *
+ * The source says `while` and `for`; the IR only has labels and jumps. The
+ * textbook way to find the loops again (the dragon book, 9.6) needs no
+ * knowledge of how the generator lays a loop out:
+ *
+ *  - block D DOMINATES block B when every way from the entry to B goes
+ *    through D;
+ *  - an edge B -> H whose target H dominates its source B is a BACK EDGE:
+ *    it can only be the jump that closes a loop, and H is the loop's HEADER -
+ *    the one block through which the loop is entered;
+ *  - the NATURAL LOOP of that edge is H plus every block that can reach B
+ *    without going through H.
+ *
+ *          int_constant %1, 0            block 0
+ *      L0:                               block 1   the header: dominates 2 and 3
+ *          int_compare lt %3, %1, %0
+ *          jump_unless %3, L2
+ *          ...                           block 2
+ *          jump L0                                 2 -> 1 is a back edge: the loop is { 1, 2 }
+ *      L2:                               block 3
+ *
+ * Two back edges to the same header (a `continue` makes a second one) are one
+ * loop here: their blocks are joined.
+ *
+ * The dominators are found with the algorithm of Cooper, Harvey and Kennedy
+ * ("A Simple, Fast Dominance Algorithm"): every block gets its IMMEDIATE
+ * dominator - the closest one - by going over the blocks in reverse
+ * postorder and meeting the dominators of the predecessors, until nothing
+ * changes; `D dominates B` is then a walk up from B.
+ *
+ * A function with a `try` gets no answer (`valid` is 0): its handlers are
+ * entered by the VM from the middle of blocks, which the plain graph does
+ * not show, and the pass that asks (passes/control/loop_unrolling.sharp)
+ * leaves such functions alone anyway.
+ *
+ *      C++ comparison: analysis/loops.cpp of the C++ optimizer (`find_loops`,
+ *      `loop_forest`), over decoded bytecode.
+ */
+class loop_forest {
+    valid : _int64 = 0;                 // 0: not looked for (the function has a `try`)
+    count : _int64 = 0;                 // how many loops
+    headers : number_list;              // per loop: its header block
+    first_member : number_list;         // per loop (and one more): where its blocks begin in `members`
+    members : number_list;              // the blocks of every loop, each loop's in increasing order
+
+    loop_forest() {
+        headers = new number_list();
+        first_member = new number_list();
+        members = new number_list();
+    }
+
+    /** the first block of loop `l` in the order of the code */
+    def first_block(l: _int64) : _int64 {
+        return members.at(first_member.at(l));
+    }
+
+    /** the last block of loop `l` in the order of the code */
+    def last_block(l: _int64) : _int64 {
+        return members.at(first_member.at(l + 1) - 1);
+    }
+
+    /** how many blocks loop `l` has */
+    def size(l: _int64) : _int64 {
+        return first_member.at(l + 1) - first_member.at(l);
+    }
+
+    /** is block `b` one of loop `l`? */
+    def has(l: _int64, b: _int64) : _int64 {
+        for(i : _int64 = first_member.at(l); i < first_member.at(l + 1); i++) {
+            if(members.at(i) == b) { return 1; }
+        }
+        return 0;
+    }
+}
+
+/** the natural loops of a graph (the header says how they are found) */
+def find_loops(graph: flow_graph) : loop_forest {
+    forest := new loop_forest();
+    forest.first_member.add(0);
+    if(graph.code.tries.size() > 0 || graph.blocks == 0) { return forest; }
+    forest.valid = 1;
+    blocks : _int64 = graph.blocks;
+    dominator := immediate_dominators(graph);
+
+    // ---- the headers: targets of back edges, in the order of the code
+    is_header := new _int64[blocks + 1];
+    for(b : _int64 = 0; b < blocks; b++) {
+        if(dominator[b] < 0) { continue; }             // nothing reaches it
+        for(e : _int64 = 0; e < 2; e++) {
+            to : _int64 = graph.successor(b, e);
+            if(to >= 0 && dominates(dominator, to, b)) { is_header[to] = 1; }
+        }
+    }
+
+    // ---- per header: every block that reaches one of its back edges without passing the header
+    in_loop := new _int64[blocks + 1];                 // per block: 1 + the header of the loop being gathered
+    work := new number_list();
+    for(h : _int64 = 0; h < blocks; h++) {
+        if(is_header[h] == 0) { continue; }
+        in_loop[h] = h + 1;
+        for(i : _int64 = graph.first_predecessor[h]; i < graph.first_predecessor[h + 1]; i++) {
+            tail : _int64 = graph.predecessors[i];
+            if(dominator[tail] >= 0 && dominates(dominator, h, tail) && in_loop[tail] != h + 1) {
+                in_loop[tail] = h + 1;
+                work.add(tail);
+            }
+        }
+        while(work.count > 0) {
+            b : _int64 = work.pop_last();
+            for(i : _int64 = graph.first_predecessor[b]; i < graph.first_predecessor[b + 1]; i++) {
+                from : _int64 = graph.predecessors[i];
+                if(dominator[from] >= 0 && in_loop[from] != h + 1) {
+                    in_loop[from] = h + 1;
+                    work.add(from);
+                }
+            }
+        }
+        forest.headers.add(h);
+        for(b : _int64 = 0; b < blocks; b++) {
+            if(in_loop[b] == h + 1) { forest.members.add(b); }
+        }
+        forest.first_member.add(forest.members.count);
+        forest.count++;
+    }
+    return forest;
+}
+
+/** does block `d` dominate block `b` (every block dominates itself)? `dominator`: immediate_dominators */
+def dominates(dominator: _int64[], d: _int64, b: _int64) : _int64 {
+    current : _int64 = b;
+    while(current != d) {
+        if(current == 0 || dominator[current] < 0) { return 0; }       // the entry has no dominator but itself
+        current = dominator[current];
+    }
+    return 1;
+}
+
+/**
+ * The immediate dominator of every block: the entry's is itself, a block
+ * nothing reaches has -1 (Cooper, Harvey and Kennedy's algorithm: the header).
+ */
+def immediate_dominators(graph: flow_graph) : _int64[] {
+    blocks : _int64 = graph.blocks;
+    order := reverse_postorder(graph);              // the blocks the entry reaches, entry first
+    position := new _int64[blocks + 1];             // per block: its place in `order`, -1 when not reached
+    for(b : _int64 = 0; b < blocks; b++) { position[b] = 0 - 1; }
+    for(i : _int64 = 0; i < order.count; i++) { position[order.at(i)] = i; }
+    dominator := new _int64[blocks + 1];
+    for(b : _int64 = 0; b < blocks; b++) { dominator[b] = 0 - 1; }
+    dominator[0] = 0;
+    changed : _int64 = 1;
+    while(changed == 1) {
+        changed = 0;
+        for(i : _int64 = 1; i < order.count; i++) {
+            b : _int64 = order.at(i);
+            closest : _int64 = 0 - 1;
+            for(p : _int64 = graph.first_predecessor[b]; p < graph.first_predecessor[b + 1]; p++) {
+                from : _int64 = graph.predecessors[p];
+                if(position[from] < 0 || dominator[from] < 0) { continue; }     // not reached, or not known yet
+                if(closest < 0) { closest = from; }
+                else { closest = common_dominator(dominator, position, closest, from); }
+            }
+            if(closest >= 0 && dominator[b] != closest) {
+                dominator[b] = closest;
+                changed = 1;
+            }
+        }
+    }
+    return dominator;
+}
+
+/** the closest block that dominates both `a` and `b`: the two walk up until they meet */
+def common_dominator(dominator: _int64[], position: _int64[], a: _int64, b: _int64) : _int64 {
+    while(a != b) {
+        while(position[a] > position[b]) { a = dominator[a]; }
+        while(position[b] > position[a]) { b = dominator[b]; }
+    }
+    return a;
+}
+
+/**
+ * The blocks the entry reaches in REVERSE POSTORDER: a block comes before
+ * the blocks it leads to, except along back edges (a depth-first walk notes
+ * a block when everything after it has been walked; that list, turned
+ * around). The walk keeps its own stack - a deep function must not use up
+ * the compiler's.
+ */
+def reverse_postorder(graph: flow_graph) : number_list {
+    blocks : _int64 = graph.blocks;
+    seen := new _int64[blocks + 1];
+    next_edge := new _int64[blocks + 1];            // per block: the next of its two edges to walk
+    stack := new number_list();
+    finished := new number_list();
+    stack.add(0);
+    seen[0] = 1;
+    while(stack.count > 0) {
+        b : _int64 = stack.at(stack.count - 1);
+        if(next_edge[b] >= 2) {
+            stack.pop_last();
+            finished.add(b);
+            continue;
+        }
+        to : _int64 = graph.successor(b, next_edge[b]);
+        next_edge[b] = next_edge[b] + 1;
+        if(to >= 0 && seen[to] == 0) {
+            seen[to] = 1;
+            stack.add(to);
+        }
+    }
+    order := new number_list();
+    for(i : _int64 = finished.count - 1; i >= 0; i--) { order.add(finished.at(i)); }
+    return order;
+}

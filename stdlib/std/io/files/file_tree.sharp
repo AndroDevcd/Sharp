@@ -1,0 +1,384 @@
+mod std.io;
+
+/**
+ * More members of the class `file` (see file.sharp), added with `mutate`:
+ * creating and removing, and operations on directories and whole trees -
+ * a directory with its parents, listing, walking, copying, moving and
+ * deleting with everything inside.
+ *
+ *     dir := new file("build/out");
+ *     dir.mkdirs();
+ *     foreach(entry in dir.list_files()) { println(entry.name()); }
+ *     dir.copy_to(new file("backup/out"));
+ *     dir.delete_recursively();
+ *
+ * None of the tree operations use recursion; they are safe for deep trees.
+ * The static helpers of file_utils cover the same ground for callers that
+ * have paths as strings.
+ *
+ * size(), create_new(), remove() and list_names() are the dependable
+ * versions of the older length(), create(), delete() and list(): they work
+ * for paths that do not exist, report through their result, and
+ * list_names() really lists what is in the directory.
+ */
+mutate file {
+
+    /**
+     * How deep walk(), tree_size() and copy_to() go below the directory
+     * they are called on. Far more than any real tree; the limit only ends
+     * a walk around a directory that (through a link) contains itself.
+     */
+    private static const walk_depth : decimal = 1000;
+
+    /** the size of the file in bytes; 0 for a directory and for a path that does not exist */
+    def size() : decimal {
+        if(!is_file()) {
+            return 0;
+        }
+        bytes : decimal = file_natives.size(path);
+        if(bytes < 0) {
+            return 0;
+        }
+        return bytes;
+    }
+
+    /**
+     * Create a new, empty file if and only if nothing with this name
+     * exists yet; an existing file is left as it is. The directory the file
+     * goes in has to exist.
+     *
+     * Returns true when the file was created, false when something with
+     * that name was already there or the file could not be created.
+     */
+    def create_new() : bool {
+        if(exists()) {
+            return false;
+        }
+        file_natives.create(path);
+        return exists();
+    }
+
+    /**
+     * Delete this file, or this directory when it is empty (see
+     * delete_recursively() for a directory with content).
+     *
+     * Returns true when it was deleted, false when it was not (it does not
+     * exist, the directory is not empty, no permission).
+     */
+    def remove() : bool {
+        if(is_directory()) {
+            return file_natives.delete_directory(path) == 0;
+        }
+        return file_natives.delete_file(path) == 0;
+    }
+
+    /**
+     * Create the directory this path names, and every directory above it
+     * that does not exist yet.
+     *
+     * Returns true when the directory exists afterwards (also when it was
+     * already there), false when it could not be created (e.g. a plain file
+     * is in the way).
+     */
+    def mkdirs() : bool {
+        if(is_directory()) {
+            return true;
+        }
+        if(exists()) {
+            return false; // a file with that name is in the way
+        }
+
+        // collect the missing directories, the deepest first
+        missing := new list<file>();
+        current : file? = self;
+        while(current != null) {
+            dir := current!!;
+            if(dir.exists()) {
+                break;
+            }
+            missing.add(dir);
+            current = dir.parent();
+        }
+        if(current != null) {
+            above := current!!;
+            if(!above.is_directory()) {
+                return false; // something above is a plain file
+            }
+        }
+
+        // create them from the top down
+        for(i : decimal = missing.size() - 1; i >= 0; i--) {
+            dir := missing.at(i);
+            dir.mkdir();
+            if(!dir.is_directory()) {
+                return false;
+            }
+        }
+        return is_directory();
+    }
+
+    /**
+     * The names (not paths) of the files and directories directly inside
+     * this directory, sorted by character code, without "." and "..".
+     * Hidden entries and empty directories are included. An empty
+     * directory gives an empty list.
+     *
+     * Throws io_exception when this is not a directory.
+     */
+    def list_names() : list<string> {
+        if(!is_directory()) {
+            throw new io_exception("not a directory: " + path);
+        }
+        return directory_listing.names(path);
+    }
+
+    /**
+     * The files and directories directly inside this directory as file
+     * objects (this path + separator + name), sorted by name.
+     *
+     * Throws io_exception when this is not a directory.
+     */
+    def list_files() : list<file> {
+        if(!is_directory()) {
+            throw new io_exception("not a directory: " + path);
+        }
+
+        result := new list<file>();
+        names := directory_listing.names(path);
+        count : decimal = names.size();
+        for(i : decimal = 0; i < count; i++) {
+            result.add(new file(file_natives.join(path, names.at(i))));
+        }
+        return result;
+    }
+
+    /**
+     * The entries directly inside this directory for which `accept` returns
+     * true, sorted by name.
+     *
+     * Throws io_exception when this is not a directory.
+     */
+    def list_files(accept: (file)(bool)) : list<file> {
+        all := list_files();
+        result := new list<file>();
+        count : decimal = all.size();
+        for(i : decimal = 0; i < count; i++) {
+            entry := all.at(i);
+            if(accept(entry)) {
+                result.add(entry);
+            }
+        }
+        return result;
+    }
+
+    /** true when this is a directory with nothing in it (false for a plain file or a path that does not exist) */
+    def is_empty_directory() : bool {
+        if(!is_directory()) {
+            return false;
+        }
+        return directory_listing.names(path).size() == 0;
+    }
+
+    /**
+     * Everything below this directory, at any depth: each directory is
+     * followed by its content, entries of one directory are sorted by name
+     * (see directory_walker for other orders and for filters). This
+     * directory itself is not in the list. Goes at most 1000 levels deep.
+     *
+     * Throws io_exception when this path does not exist.
+     */
+    def walk() : list<file> {
+        return new directory_walker(self).set_max_depth(walk_depth).to_list();
+    }
+
+    /**
+     * The number of bytes in this file, or in all files below this
+     * directory added up. 0 for a path that does not exist.
+     */
+    def tree_size() : decimal {
+        if(!exists()) {
+            return 0;
+        }
+        if(!is_directory()) {
+            return size();
+        }
+
+        total : decimal = 0;
+        walker := new directory_walker(self).set_max_depth(walk_depth).files_only();
+        while(walker.has_next()) {
+            entry := walker.next();
+            bytes : decimal = file_natives.size(entry.path);
+            if(bytes > 0) {
+                total += bytes;
+            }
+        }
+        return total;
+    }
+
+    /**
+     * Delete this file, or this directory with everything in it.
+     *
+     * A link to a directory is removed as a link: what it points to stays.
+     *
+     * Returns true when nothing is left at this path (also when there was
+     * nothing to begin with), false when something could not be deleted.
+     */
+    def delete_recursively() : bool {
+        /*
+        * Without recursion: `pending` is a stack of the paths that still
+        * have to go. Everything is first simply deleted, which works for
+        * files, empty directories and links (a link to a directory is
+        * removed as a link; what it points to is never touched). Only when
+        * that fails for a directory its content is put on the stack, once
+        * (`opened`), and the directory is tried again when the content is
+        * gone.
+        */
+        pending := new list<string>();
+        opened := new list<int>();
+        pending.add(path);
+        opened.add(new int(0));
+
+        while(pending.size() > 0) {
+            top := pending.last();
+            was_opened : decimal = opened.last().value;
+            if(file_natives.delete_file(top) == 0) {
+                pending.pop_back();
+                opened.pop_back();
+                continue;
+            }
+            if(file_natives.delete_directory(top) == 0) {
+                pending.pop_back();
+                opened.pop_back();
+                continue;
+            }
+            top_file := new file(top);
+            is_dir : decimal = top_file.is_directory();
+            if(was_opened || !is_dir) {
+                // cannot be deleted (or is not there): give up on this one
+                pending.pop_back();
+                opened.pop_back();
+                continue;
+            }
+
+            opened.put(opened.size() - 1, new int(1));
+            names := directory_listing.names(top);
+            count : decimal = names.size();
+            for(i : decimal = 0; i < count; i++) {
+                pending.add(file_natives.join(top, names.at(i)));
+                opened.add(new int(0));
+            }
+        }
+        return !exists();
+    }
+
+    /** copy the content of the plain file at `from` into the file at `to`, which is created or replaced */
+    private static def copy_content(from: string, to: string) {
+        content := file_natives.read(from);
+        text : string = "";
+        if(!io_strings.is_null(content)) {
+            text = content!!;
+        } else {
+            source := new file(from);
+            if(!source.is_file()) {
+                throw new io_exception("copy: cannot read: " + from);
+            }
+        }
+        if(file_natives.write(to, text) != 0) {
+            throw new io_exception("copy: could not write file: " + to);
+        }
+    }
+
+    /**
+     * Copy this file to `dest`, or this directory and everything in it.
+     *
+     * A file: `dest` is the path of the copy (not the directory to put it
+     * in); an existing file there is replaced. A directory: `dest` is
+     * created when needed, and the content of this directory is copied into
+     * it; files that exist there under the same names are replaced, other
+     * files stay.
+     *
+     * Throws io_exception when this path does not exist, when `dest` lies
+     * inside this directory, or when something cannot be read or written.
+     */
+    def copy_to(dest: file) {
+        if(!exists()) {
+            throw new io_exception("copy: not found: " + path);
+        }
+
+        if(!is_directory()) {
+            if(dest.is_directory()) {
+                throw new io_exception("copy: the destination is a directory: " + dest.path);
+            }
+            copy_content(path, dest.path);
+            return;
+        }
+
+        // refuse to copy a directory into itself: that would never end
+        from := file_natives.absolute(path);
+        to := file_natives.absolute(dest.path);
+        sep : decimal = std.io#path.separator();
+        inside : decimal = 0;
+        if(io_strings.equals(from, to)) {
+            inside = 1;
+        } else if(io_strings.starts_with(to, from)) {
+            if(to.data[sizeof(from.data)] == sep) {
+                inside = 1;
+            }
+        }
+        if(inside) {
+            throw new io_exception("copy: the destination " + dest.path + " is inside the source " + path);
+        }
+
+        walker := new directory_walker(self).set_max_depth(walk_depth);
+        prefix : decimal = sizeof(path.data);
+        if(path.data[prefix - 1] != sep) {
+            prefix++;
+        }
+
+        if(!dest.mkdirs()) {
+            throw new io_exception("copy: could not create directory: " + dest.path);
+        }
+        while(walker.has_next()) {
+            entry := walker.next();
+            target := new file(file_natives.join(dest.path, io_strings.slice_from(entry.path, prefix)));
+            if(entry.is_directory()) {
+                if(!target.mkdirs()) {
+                    throw new io_exception("copy: could not create directory: " + target.path);
+                }
+            } else {
+                copy_content(entry.path, target.path);
+            }
+        }
+    }
+
+    /**
+     * Move this file or directory to `dest` (the new path, not the
+     * directory to put it in). On success this object names the new path.
+     *
+     * First a rename is tried, which is instant but only works within one
+     * disk; when it fails the content is copied and the original deleted.
+     *
+     * Throws io_exception when this path does not exist, when `dest`
+     * exists already, or when the copy fails.
+     */
+    def move_to(dest: file) {
+        if(!exists()) {
+            throw new io_exception("move: not found: " + path);
+        }
+        if(dest.exists()) {
+            throw new io_exception("move: the destination exists: " + dest.path);
+        }
+
+        if(file_natives.rename(path, dest.path) == 0) {
+            path = dest.path;
+            return;
+        }
+
+        source := new file(path);
+        source.copy_to(dest);
+        if(!source.delete_recursively()) {
+            throw new io_exception("move: copied, but could not delete the original: " + source.path);
+        }
+        path = dest.path;
+    }
+}

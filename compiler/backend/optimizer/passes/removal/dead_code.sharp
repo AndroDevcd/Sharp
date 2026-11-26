@@ -1,0 +1,122 @@
+mod backend.optimizer.passes.removal;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * DEAD CODE: values that feed only themselves are not computed at all
+ *
+ *      steps := 0;
+ *      while(more()) { steps = steps + 1; work(); }        `steps` is never read for anything else
+ *
+ * Here `steps` IS read - by its own `+ 1` - so it is live everywhere in the
+ * loop and dead_stores.sharp keeps every write of it. But nothing the program
+ * does depends on it. The textbook answer is "mark and sweep" dead-code
+ * elimination (the dragon book, 9.6 exercise; Cooper & Torczon, "Engineering
+ * a Compiler", 10.2): start from what the program DOES and mark backwards.
+ *
+ *  1. every instruction with an effect (a store into a field, a call, a jump,
+ *     a return, anything that may raise: `has_effect`) is needed;
+ *  2. every slot a needed instruction reads is needed;
+ *  3. every instruction that writes a needed slot is needed - and so are the
+ *     slots IT reads; repeat until nothing new is needed.
+ *
+ * What is left unmarked computes only values that lead to nothing needed and
+ * is removed. Slots are taken as a whole here (one mark per slot, not per
+ * write), which is coarse but cannot be wrong: a slot is needed as soon as
+ * one needed instruction anywhere reads it. A call whose result is not
+ * needed stays, but no longer takes the result.
+ *
+ * A LOOP IS NEVER REMOVED HERE. The C++ pass also removes whole loops whose
+ * results are unused (with the control dependences of post-dominators), and
+ * says what that assumes: such a loop "is assumed to END" - one that would
+ * spin forever on its locals simply ends, and a delay loop loses its delay.
+ * Here a loop's jumps are effects, so its test is always needed and the loop
+ * stays: an optimized program does what its source says (doc/codegen.md 13.6).
+ *
+ *      C++ comparison: passes/pass_dead_code.cpp.
+ */
+def remove_dead_code(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    count : _int64 = code.instructions.size();
+    needed_slots := new slot_set(code.slot_count());
+    needed := new number_list();
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        if(has_effect(made)) {
+            needed.add(1);
+            mark_reads(made, needed_slots);
+        } else {
+            needed.add(0);
+        }
+    }
+    // step 3 with a worklist: the instructions that write each slot, and the slots newly needed
+    // (a slot a `try` writes as it enters a handler is the VM's write, not an instruction's: nothing to mark)
+    slots : _int64 = code.slot_count();
+    first_write := new _int64[slots + 2];
+    for(i : _int64 = 0; i < count; i++) {
+        written : _int64 = slot_written(code.instructions.at(i));
+        if(written >= 0) { first_write[written + 1] = first_write[written + 1] + 1; }
+    }
+    for(s : _int64 = 0; s < slots; s++) { first_write[s + 1] = first_write[s + 1] + first_write[s]; }
+    writes := new _int64[first_write[slots] + 1];
+    filled := new _int64[slots + 1];
+    for(i : _int64 = 0; i < count; i++) {
+        written : _int64 = slot_written(code.instructions.at(i));
+        if(written >= 0) {
+            writes[first_write[written] + filled[written]] = i;
+            filled[written] = filled[written] + 1;
+        }
+    }
+    work := new number_list();
+    for(s : _int64 = 0; s < slots; s++) { if(needed_slots.has(s)) { work.add(s); } }
+    while(work.count > 0) {
+        s : _int64 = work.pop_last();
+        for(w : _int64 = first_write[s]; w < first_write[s + 1]; w++) {
+            i : _int64 = writes[w];
+            if(needed.at(i) == 1) { continue; }
+            needed.replace(i, 1);
+            made := code.instructions.at(i);
+            k : _int64 = 0;
+            read : _int64 = slot_read(made, 0);
+            while(read >= 0) {
+                if(!needed_slots.has(read)) {
+                    needed_slots.add(read);
+                    work.add(read);
+                }
+                k++;
+                read = slot_read(made, k);
+            }
+        }
+    }
+    removed := new number_list();
+    changes : _int64 = 0;
+    for(i : _int64 = 0; i < count; i++) {
+        made := code.instructions.at(i);
+        written : _int64 = slot_written(made);
+        if(needed.at(i) == 0) {
+            removed.add(i);
+            changes++;
+        } else if((made.kind == IR_CALL || made.kind == IR_CALL_VALUE) && written >= 0 && !needed_slots.has(written)) {
+            made.target = 0 - 1;
+            changes++;
+        }
+    }
+    remove_instructions(code, removed);
+    if(changes > 0) { analyses.changed(); }
+    return changes;
+}
+
+/** every slot the instruction reads is needed */
+def mark_reads(made: ir_instruction, needed_slots: slot_set) {
+    k : _int64 = 0;
+    read : _int64 = slot_read(made, 0);
+    while(read >= 0) {
+        needed_slots.add(read);
+        k++;
+        read = slot_read(made, k);
+    }
+}

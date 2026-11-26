@@ -1,0 +1,116 @@
+mod std.time;
+
+/**
+ * Tells when it is time to do something again: "every 5 seconds".
+ *
+ * It does not call anything and starts no thread. A loop that runs anyway
+ * (a game loop, a polling loop, a server tick) asks it:
+ *
+ *     autosave := new interval_timer(duration.of_minutes(5));
+ *     while(running) {
+ *         handle_input();
+ *         if(autosave.poll()) { save(); }
+ *     }
+ *
+ * The due times lie on a fixed grid: start + period, start + 2 * period, ...
+ * A late poll does not shift the grid, so the timer does not drift. When the
+ * loop was away for several periods, `poll()` returns HOW MANY periods have
+ * passed since the last successful poll (so the caller can catch up, or
+ * simply treat any non-zero value as "due"), and the next due time is the
+ * next grid point in the future.
+ *
+ * The time comes from a `clock` (system clock by default, `manual_clock` in
+ * tests). Not synchronised.
+ */
+class interval_timer {
+    private source : clock;
+    private period_length : duration;
+    /** the next grid point at which the timer becomes due */
+    private next_due : instant;
+    /** total number of periods reported by poll() so far */
+    private fired : decimal = 0;
+
+    /**
+     * A timer on the system clock that first becomes due one `every` from now.
+     * @throws date_time_exception when `every` is not longer than zero
+     */
+    interval_timer(every: duration) {
+        setup(every, system_clock.instance);
+    }
+
+    /** as above, reading the time from `time_source` */
+    interval_timer(every: duration, time_source: clock) {
+        setup(every, time_source);
+    }
+
+    private def setup(every: duration, time_source: clock) {
+        if(!every.is_positive()) {
+            throw new date_time_exception("the period of an interval timer must be longer than zero");
+        }
+        source = time_source;
+        period_length = every;
+        next_due = time_source.now().plus(every);
+        fired = 0;
+    }
+
+    /** true when at least one period has passed since the last successful `poll()`; does not change the timer */
+    def is_due(): bool {
+        return source.now() >= next_due;
+    }
+
+    /**
+     * How many whole periods have become due since the last successful poll:
+     * 0 when it is not time yet, otherwise 1 or more. A non-zero result
+     * moves the next due time to the first grid point after "now".
+     */
+    def poll(): decimal {
+        now : instant = source.now();
+        if(now < next_due) {
+            return 0;
+        }
+        // one period is due at next_due itself, plus one for every further whole period up to now
+        behind : duration = duration.between(next_due, now);
+        extra : decimal = time_math.trunc(behind.to_fractional_seconds() / period_length.to_fractional_seconds());
+        // correct the floating point estimate with exact comparisons
+        while(extra > 0 && period_length.multiplied_by(extra) > behind) {
+            extra--;
+        }
+        while(period_length.multiplied_by(extra + 1) <= behind) {
+            extra++;
+        }
+        count : decimal = extra + 1;
+        next_due = next_due.plus(period_length.multiplied_by(count));
+        fired += count;
+        return count;
+    }
+
+    /** the moment the timer next becomes due (already in the past when it is due now) */
+    def next_due_at(): instant {
+        return next_due;
+    }
+
+    /** the time until the timer is next due; `duration.zero` when it is due now */
+    def time_until_due(): duration {
+        wait : duration = duration.between(source.now(), next_due);
+        if(wait.is_negative()) {
+            return duration.zero;
+        }
+        return wait;
+    }
+
+    /** the length of one period */
+    def period_duration(): duration {
+        return period_length;
+    }
+
+    /** the total number of periods `poll()` has reported since the timer was created or reset */
+    def fired_count(): decimal {
+        return fired;
+    }
+
+    /** starts the grid again from now: next due one period from the current time, count back to 0 */
+    def reset(): interval_timer {
+        setup(period_length, source);
+        return self;
+    }
+}

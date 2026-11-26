@@ -1,0 +1,123 @@
+mod backend.compiler.expressions.calls;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.names,
+    backend.compiler.overloads,
+    backend.compiler.expressions,
+    backend.compiler.expressions.primary,
+    backend.compiler.expressions.primary.members
+)
+
+/**
+ * A CALL THROUGH A VALUE, A CLASS OR A MODULE
+ *
+ *      names.add("x")          a function of the object's class (or a class above it)
+ *      maybe?.close()          ... called only when `maybe` is not null (the null rule of `.`
+ *                              is the member access's: primary/members)
+ *      base->area()            the base class's own function, never looked up at run time
+ *      point.origin()          a STATIC function, through the class (an instance function is E0704)
+ *      shapes.circle(2)        a class declared inside a class: an object of it is made
+ *      button.on_click(e)      a field holding a function value: that value is called
+ *      std.io#print("x")       a global function of a named module (steps 5 to 7 of
+ *                              call_by_name.sharp, in that module only)
+ *
+ * On a value only the functions of its class are candidates - nothing
+ * global is tried. When none fits it is E0501, listing them.
+ *
+ *      C++ comparison: `compile_dot_notation_call_expression` and the
+ *      class branch of `resolve_function_reference_item` in dependency.cpp.
+ */
+def call_member(context: analysis_context, node: _int64, callee_node: _int64, arguments_node_owner: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    name_node : _int64 = second_child_of(context, callee_node);
+    type_arguments := type_arguments_at(context, name_node);
+    target := analyse_member(context, callee_node, 1);
+    arguments := arguments_of(context, arguments_node_owner);
+    if(has_error_type(type_arguments) == 1) { return failed_call(context, node, target, arguments); }
+
+    if(target.kind == BX_FUNCTIONS) {
+        named := target as bound_functions;
+        return call_named_functions(context, named, arguments, type_arguments, node, name_node);
+    }
+    if(target.kind == BX_TYPE_NAME) { return construct(context, target.type, arguments, node, name_node, 1); }
+    if(target.kind == BX_ERROR) { return failed_call(context, node, target, arguments); }
+    return call_function_value(context, target, arguments, node);
+}
+
+/**
+ * The functions found as a member: on an object (`named.on` set) any of
+ * them; through the class (`named.on` null) only a static one.
+ */
+def call_named_functions(context: analysis_context, named: bound_functions, arguments: list<call_argument>,
+                         type_arguments: list<resolved_type>?, node: _int64, name_node: _int64) : bound_expression {
+    on : bound_expression? = named.on;
+    receiver_class : sharp_class? = null;
+    if(on != null && on!!.type.kind == RT_CLASS) { receiver_class = on!!.type.class_of; }
+
+    result := resolve_overload(context, named.candidates, arguments, type_arguments, receiver_class);
+    if(result.best == null) {
+        if(has_error_argument(arguments) == 0) {
+            if(result.tied.size() > 0) {
+                report_ambiguous(context, named.name, name_node, result.tied, arguments);
+            } else {
+                search := new call_search();
+                search.remember(result);
+                report_rejected(context, search, named.name, name_node, arguments);
+            }
+        }
+        return failed_call(context, node, on, arguments);
+    }
+
+    chosen : call_candidate = result.best!!;
+    function : sharp_function = chosen.function;
+    if(on == null && function.owner != null && !function.has(FLAG_STATIC)) {
+        report_instance_function_without_object(context, function, name_node, 1);
+        return failed_call(context, node, null, arguments);
+    }
+    return bind_call(context, chosen, on, arguments, node, name_node);
+}
+
+/** `module#name(args)`: a function, a function value or a class of that one module (or import group) */
+def call_in_module(context: analysis_context, node: _int64, callee_node: _int64, arguments: list<call_argument>) : bound_expression {
+    tree : syntax_tree = context.tree;
+    path : _int64 = tree.child_of_kind(callee_node, N_MODULE_PATH);
+    name_node : _int64 = tree.child_of_kind(callee_node, N_IDENTIFIER);
+    if(path < 0 || name_node < 0) { return failed_call(context, node, null, arguments); }
+    type_arguments := type_arguments_at(context, name_node);
+    if(has_error_type(type_arguments) == 1) { return failed_call(context, node, null, arguments); }
+
+    module_name := dotted_name(context.unit, path);
+    name := name_at(context, name_node);
+    modules := new list<sharp_module>();
+    group := context.file.import_group_named(module_name);
+    if(group != null) {
+        for(i : _int64 = 0; i < group!!.modules.size(); i++) { modules.add(group!!.modules.at(i)); }
+    } else {
+        module := context.prog.find_module(module_name);
+        if(module != null) { modules.add(module!!); }
+    }
+
+    search := new call_search();
+    found := call_in_modules(context, modules, name, arguments, type_arguments, node, name_node, search);
+    if(found != null) { return found!!; }
+    if(search.rejected.size() > 0) {
+        if(has_error_argument(arguments) == 0) { report_rejected(context, search, name, name_node, arguments); }
+        return failed_call(context, node, null, arguments);
+    }
+
+    // a class of that module (`geometry#point(1, 2)`), or what the name is (reported when nothing)
+    target := analyse_module_name(context, callee_node, 1);
+    if(target.kind == BX_TYPE_NAME) { return construct(context, target.type, arguments, node, name_node, 1); }
+    if(target.kind == BX_ERROR) { return failed_call(context, node, target, arguments); }
+    return call_function_value(context, target, arguments, node);
+}

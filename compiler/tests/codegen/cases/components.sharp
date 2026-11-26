@@ -1,0 +1,86 @@
+mod main;
+
+// output:
+// 1
+// main
+// 1
+// 1
+// 1
+// 0
+// 1
+// 201
+// 1
+// 1
+// 1
+// service
+// 1
+// 301
+
+/*
+ * Components (doc/codegen.md 6.16): each kept `single { }` / `factory { }`
+ * is a function of its module's globals class, and every `get` and `inject`
+ * a call of it.
+ *
+ *  - a `single` is made once, the first time it is asked for, and every
+ *    request gets that one object; a `factory` makes a new object for every
+ *    request (and its own `get()` asks the single for its database)
+ *  - an injected global gets its object while the program starts, before
+ *    `main` (so `made` is 1 when main begins, in both builds)
+ *  - an injected local, and injected fields set up with the object
+ *  - a definition that no kept code asks for is not in the executable: its
+ *    value never runs (`unused` would add 1000)
+ *
+ * One component only: the C++ compiler searches every component and finds
+ * only what the LAST one defines (doc/backend.md 10.5).
+ */
+made : int = new int(0);
+
+class database {
+    name : string;
+    number : _int64;
+    database(n: string) { name = n; made += 1; number = made.value; }
+}
+class worker {
+    db : database;
+    worker(d: database) { db = d; made += 100; }
+}
+class unused { unused() { made += 1000; } }
+
+component app {
+    single { new database("main") }
+    factory { new worker(get()) }
+    single { new unused() }
+}
+
+class service {
+    inject db : database;
+    inject(app) helper : worker;
+    tag : string = "service";
+}
+
+inject global_db : database;
+
+def same(a: object, b: object) : _int64 { if(a == b) { return 1; } return 0; }
+
+def main() {
+    show(made.value);
+    a := get<database>();
+    println(a.name);
+    show(a.number);
+    b := get<database>();
+    show(same(a, b));
+    show(made.value);
+    w1 := get<worker>();
+    w2 := get<worker>();
+    show(same(w1, w2));
+    show(same(w1.db, w2.db));
+    show(made.value);
+    inject log_db : database;
+    show(same(log_db, a));
+    s := new service();
+    show(same(s.db, a));
+    show(same(s.helper.db, a));
+    println(s.tag);
+    show(same(global_db, a));
+    show(made.value);
+}

@@ -1,0 +1,386 @@
+mod main;
+
+import ( std.testing, std.io, std.reflect )
+
+/**
+ * std.reflect: classes, fields and functions looked at, read, written,
+ * made and called by name.
+ */
+
+enum color { red, green = 5, blue };
+
+interface greeter { def greet(other: string) : string; }
+
+class address {
+    city : string = "";
+    address() { }
+    address(city: string) { self->city = city; }
+}
+
+class animal {
+    legs : _int64 = 4;
+    private secret : string = "hidden";
+    def sound() : string { return "..."; }
+    def legs_twice() : _int64 { return legs * 2; }
+}
+
+class user base animal : greeter {
+    name : string = "";
+    age : _int64 = 0;
+    ratio : decimal = 0.5;
+    small : _int8 = 1;
+    alive : bool = true;
+    home : address?;
+    tags : list<string> = new list<string>();
+    likes : color = color.red;
+    scores : _int64[]?;
+    friends : user[]?;
+    anything : object?;
+    static count : _int64 = 7;
+    const kind : _int64 = 3;
+
+    user() { }
+    user(name: string, age: _int64) { self->name = name; self->age = age; }
+    user(home: address) { self->home = home; }
+    override def greet(other: string) : string { return "hi " + other + ", I am " + name; }
+    def older(years: _int64) : _int64 { age += years; return age; }
+    def older(years: _int64, again: _int64) : _int64 { age += years * again; return age; }
+    def rename(to: string) { name = to; }
+    def half() : decimal { return age / 2; }
+    def is_adult() : bool { return age >= 18; }
+    def move(to: address?) : address? { before := home; home = to; return before; }
+    def fail() { throw new illegal_state_exception("thrown inside"); }
+    def many(a: _int64, b: _int64, c: _int64, d: _int64, e: _int64, f: _int64, g: _int64) : _int64 { return a + b * 10 + c * 100 + d * 1000 + e * 10000 + f * 100000 + g * 1000000; }
+    static def total() : _int64 { return count; }
+    static def add(a: _int64, b: decimal) : decimal { return a + b; }
+    static def tag(text: string, times: _int64) : string { made := new string_builder(); for(i : _int64 = 0; i < times; i++) { made.append(text); } return made.to_string()!!; }
+}
+
+class student base user {
+    school : string = "";
+    student() { }
+    def sound() : string { return "hello"; }
+}
+
+class point { x : _int64 = 0; y : _int64 = 0; }
+
+class vault {
+    label : string = "main";
+    private code : _int64 = 1234;
+    protected owner : string = "ann";
+    const size : _int64 = 8;
+    vault() { }
+    private vault(code: _int64) { self->code = code; }
+    private def check(guess: _int64) : bool { return guess == code; }
+    protected def hint() : string { return "four digits"; }
+    def shown() : _int64 { return code; }
+}
+
+def names(fields: list<field_info>) : string {
+    text := new string_builder();
+    for(i : _int64 = 0; i < fields.size(); i++) { if(i > 0) { text.append(" "); } text.append(fields.at(i).name); }
+    return text.to_string()!!;
+}
+
+def function_names(functions: list<function_info>) : string {
+    text := new string_builder();
+    for(i : _int64 = 0; i < functions.size(); i++) { if(i > 0) { text.append(" "); } text.append(functions.at(i).to_string()!!); }
+    return text.to_string()!!;
+}
+
+def refused(action: ()()) : string {
+    try { action(); } catch(no: reflect_exception) { return no.get_message(); }
+    return "nothing was refused";
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_reflect") {
+        shape := reflect.of<user>();
+        someone := new user("ann", 31);
+        someone.home = new address("oslo");
+
+        // finding a class
+        test("of a type") { expect(shape.full_name + "|" + shape.name + "|" + shape.module).should_be("main#user|user|main"); };
+        test("of an object") { expect_true(reflect.of(someone) == shape); };
+        test("of an object of a class below") { expect(reflect.of(new student())!!.name).should_be("student"); };
+        test("of null, of an array") { expect_true(reflect.of(null) == null && reflect.of(new user[2]) == null); };
+        test("find by full name") { expect_true(reflect.find("main#user") == shape && reflect.find("std#string")!!.name == "string"); };
+        test("find: no such class") { expect_true(reflect.find("main#nobody") == null && reflect.find("") == null); };
+        test("classes") { expect_true(reflect.classes().size() > 20 && reflect.classes().contains(shape)); };
+        test("of a generic class") { expect(reflect.of<list<string> >().full_name + "|" + reflect.of<list<string> >().name).should_be("std#list<std#string>|list<string>"); };
+        test("of what is no class") { expect(refused { reflect.of<_int64[]>(); }).should_be("`_int64[]` is not a class of this program (a number or an array has no class)"); };
+
+        // where it stands
+        test("base_class") { expect(shape.base_class()!!.name + ">" + shape.base_class()!!.base_class()!!.full_name).should_be("animal>std#_object_"); };
+        test("is_a") { expect_true(shape.is_a(reflect.of<animal>()) && shape.is_a(shape) && !reflect.of<animal>().is_a(shape) && reflect.of<student>().is_a(reflect.of<animal>())); };
+        test("is_a an interface") { expect_true(shape.is_a(reflect.of<greeter>()) && reflect.of<student>().is_a(reflect.of<greeter>()) && !reflect.of<animal>().is_a(reflect.of<greeter>())); };
+        test("interfaces") { expect_true(shape.interfaces().contains(reflect.of<greeter>())); };
+        test("is_enum, is_generic") { expect_true(!shape.is_enum && reflect.of<color>().is_enum && reflect.of<list<string> >().is_generic && !shape.is_generic); };
+        test("type_arguments") { expect(reflect.of<list<user> >().type_arguments().at(0).full_name).should_be("main#user"); };
+
+        // fields
+        test("fields: those above first") { expect(names(shape.fields())).should_be("legs secret name age ratio small alive home tags likes scores friends anything kind"); };
+        test("static_fields") { expect(names(shape.static_fields())).should_be("count"); };
+        test("field by name") { expect(shape.field("age")!!.to_string()!!).should_be("age : _int64"); };
+        test("no such field") { expect_true(shape.field("nothing") == null); };
+        test("field_or_fail") { expect_true(io_strings.starts_with(refused { shape.field_or_fail("nothing"); }, "`main#user` has no field `nothing` (it has: legs, secret, name")); };
+        test("types of fields") {
+            expect(shape.field("ratio")!!.type.name + " " + shape.field("small")!!.type.name + " " + shape.field("home")!!.type.name + " " + shape.field("tags")!!.type.name
+                + " " + shape.field("scores")!!.type.name + " " + shape.field("friends")!!.type.name + " " + shape.field("anything")!!.type.name)
+                .should_be("decimal _int8 address list<string> _int64[] user[] object");
+        };
+        test("type: full_name") { expect(shape.field("tags")!!.type.full_name).should_be("std#list<std#string>"); };
+        test("type: is_number, is_class, is_text, is_array") {
+            expect_true(shape.field("age")!!.type.is_number && !shape.field("scores")!!.type.is_number && shape.field("home")!!.type.is_class
+                && shape.field("name")!!.type.is_text && shape.field("friends")!!.type.is_array && !shape.field("friends")!!.type.is_class);
+        };
+        test("type: class_of") { expect(shape.field("home")!!.type.class_of()!!.full_name + shape.field("friends")!!.type.class_of()!!.name).should_be("main#addressuser"); };
+        test("type: arguments") { expect(shape.field("tags")!!.type.arguments().at(0).name).should_be("string"); };
+        test("declared_in") { expect(shape.field("legs")!!.declared_in().name + shape.field("age")!!.declared_in().name).should_be("animaluser"); };
+        test("is_private, is_static, is_constant") {
+            expect_true(shape.field("secret")!!.is_private && !shape.field("name")!!.is_private && shape.field("count")!!.is_static
+                && !shape.field("age")!!.is_static && shape.field("kind")!!.is_constant && !shape.field("age")!!.is_constant);
+        };
+
+        // reading
+        test("read an object field") { expect(shape.field("name")!!.read(someone) as string).should_be("ann"); };
+        test("read a number field: in its number class") { expect((shape.field("age")!!.read(someone) as long).value).should_be(31); };
+        test("number") { expect_true(shape.field("age")!!.number(someone) == 31 && shape.field("ratio")!!.number(someone) == 0.5 && shape.field("small")!!.number(someone) == 1); };
+        test("number of a field above") { expect_true(shape.field("legs")!!.number(someone) == 4); };
+        test("text") { expect(shape.field("name")!!.text(someone)!! + shape.field("age")!!.text(someone)!! + shape.field("ratio")!!.text(someone)!!).should_be("ann310.5"); };
+        test("text of null") { expect_true(shape.field("friends")!!.text(someone) == null); };
+        test("a private field is read once opened") { expect(shape.field("secret")!!.open().text(someone)!!).should_be("hidden"); };
+        test("a static field") { expect_true(shape.field("count")!!.number(null) == 7); };
+        test("number of a field that holds none") { expect(refused { shape.field("name")!!.number(someone); }).should_be("`main#user.name` holds a `string`, not a number"); };
+        test("a field of another class's object") {
+            thrown : decimal = 0;
+            try { shape.field("age")!!.read(new address()); } catch(wrong: illegal_state_exception) { thrown = 1; }
+            expect_true(thrown);
+        };
+
+        // writing
+        changed := new user("bob", 20);
+        shape.field("name")!!.write(changed, "zed");
+        shape.field("age")!!.write(changed, 44);
+        shape.field("ratio")!!.write(changed, 1.25);
+        shape.field("small")!!.write(changed, 300);
+        shape.field("home")!!.write(changed, new address("rome"));
+        shape.field("legs")!!.write(changed, new int(2));
+        test("write a text in quotes") { expect(changed.name).should_be("zed"); };
+        test("write numbers") { expect_true(changed.age == 44 && changed.ratio == 1.25 && changed.legs == 2); };
+        test("a number is cut to the field's size") { expect_true(changed.small == 44); };
+        test("write an object") { expect(changed.home!!.city).should_be("rome"); };
+        shape.field("home")!!.write(changed, null);
+        test("write null") { expect_true(changed.home == null); };
+        shape.field("anything")!!.write(changed, changed);
+        test("an object field takes anything") { expect_true(changed.anything == changed); };
+        marks := new _int64[2];
+        marks[1] = 9;
+        shape.field("scores")!!.write(changed, marks);
+        test("write an array") { expect_true(changed.scores!![1] == 9); };
+        shape.field("count")!!.write(null, 8);
+        test("write a static field") { expect_true(user.count == 8); };
+        shape.field("count")!!.write(null, 7);
+        test("a wrong object is refused") { expect(refused { shape.field("home")!!.write(changed, new point()); }).should_be("`main#user.home` holds a `address` and was given a `point`"); };
+        test("an object for a number field") { expect(refused { shape.field("age")!!.write(changed, new address()); }).should_be("`main#user.age` holds a `_int64` and was given a `address`"); };
+        test("a number for an object field") { expect(refused { shape.field("name")!!.write(changed, 5); }).should_be("`main#user.name` holds a `string` and was given a number"); };
+        test("an array for an object field") { expect(refused { shape.field("home")!!.write(changed, marks); }).should_be("`main#user.home` holds a `address` and was given a `_int64[]`"); };
+        test("a wrong array") { expect(refused { shape.field("friends")!!.write(changed, marks); }).should_be("`main#user.friends` holds a `user[]` and was given a `_int64[]`"); };
+        test("after a refusal the field is what it was") { expect_true(changed.home == null && changed.age == 44); };
+        shape.field("home")!!.write(changed, null);
+        below := new student();
+        shape.field("anything")!!.write(changed, null);
+        reflect.of<user>().field("friends")!!.write(changed, new student[1]);
+        test("an array of a class below") { expect_true(sizeof(changed.friends) == 1); };
+
+        // functions
+        test("functions: the class's own first") { expect_true(io_strings.starts_with(function_names(shape.functions()), "total() : _int64 add(_int64, decimal) : decimal tag(string, _int64) : string")
+            || io_strings.contains(function_names(shape.own_functions()), "greet(string) : string")); };
+        test("own_functions") {
+            expect(function_names(shape.own_functions().sorted_by_text { it.to_string()!! }))
+                .should_be("add(_int64, decimal) : decimal fail() greet(string) : string half() : decimal is_adult() : _uint8 "
+                    + "many(_int64, _int64, _int64, _int64, _int64, _int64, _int64) : _int64 move(address) : address older(_int64) : _int64 "
+                    + "older(_int64, _int64) : _int64 rename(string) tag(string, _int64) : string total() : _int64");
+        };
+        test("functions of the classes above are there") { expect_true(shape.function("legs_twice") != null && shape.function("sound")!!.owner()!!.name == "animal"); };
+        test("the class's own function replaces the one above") { expect(reflect.of<student>().function("sound")!!.owner()!!.name).should_be("student"); };
+        test("no such function") { expect_true(shape.function("nothing") == null); };
+        test("function by name and count") { expect(shape.function("older", 2)!!.to_string()!!).should_be("older(_int64, _int64) : _int64"); };
+        test("functions_named") { expect(shape.functions_named("older").size()).should_be(2); };
+        greet := shape.function("greet")!!;
+        test("parameters, result") { expect(greet.parameters.at(0).name + ">" + greet.result.name + " " + shape.function("rename")!!.result.is_nothing).should_be("string>string 1"); };
+        test("is_static, is_constructor") { expect_true(shape.function("total")!!.is_static && !greet.is_static && !greet.is_constructor); };
+        test("constructors") { expect(function_names(shape.constructors())).should_be("user() user(string, _int64) user(address)"); };
+        test("full_name, owner") { expect(greet.full_name + "|" + greet.owner()!!.name).should_be("main#user.greet|user"); };
+
+        // calling
+        caller := new user("cy", 40);
+        test("call: a text in and out") { expect(greet.call(caller, "bob") as string).should_be("hi bob, I am cy"); };
+        test("call: a string variable") { other : string = "dee"; expect(greet.call(caller, other) as string).should_be("hi dee, I am cy"); };
+        test("call: a number in and out") { expect((shape.function("older", 1)!!.call(caller, new int(2)) as long).value).should_be(42); };
+        test("call: two numbers") { expect((shape.function("older", 2)!!.call(caller, new int(2), new long(4)) as long).value).should_be(50); };
+        test("call: a decimal out") { expect((shape.function("half")!!.call(caller) as double).value).should_be(25); };
+        test("call: a bool out") { expect((shape.function("is_adult")!!.call(caller) as uchar).value).should_be(1); };
+        test("call: nothing out") { expect_true(shape.function("rename")!!.call(caller, "zoe") == null && caller.name == "zoe"); };
+        test("call: an object in and out") {
+            first := shape.function("move")!!.call(caller, new address("bern"));
+            second := shape.function("move")!!.call(caller, null) as address;
+            expect_true(first == null && second.city == "bern" && caller.home == null);
+        };
+        test("call: seven numbers, each in its place") {
+            expect((shape.function("many")!!.call_on(caller, numbers(7)) as long).value).should_be(7654321);
+        };
+        test("call_static") { expect((shape.function("total")!!.call_static() as long).value).should_be(7); };
+        test("call_static with a number and a decimal") { expect((shape.function("add")!!.call_static(new int(2), new double(0.25)) as double).value).should_be(2.25); };
+        test("call_static: a text and a number") { expect(shape.function("tag")!!.call_static("ab", new int(3)) as string).should_be("ababab"); };
+        test("call: a function of a class above") { expect((shape.function("legs_twice")!!.call(caller) as long).value).should_be(8); };
+        test("call on an object of a class below") { expect(greet.call(new student(), "x") as string).should_be("hi x, I am "); };
+        test("call: what the function throws comes out") {
+            said : string = "";
+            try { shape.function("fail")!!.call(caller); } catch(thrown: illegal_state_exception) { said = thrown.get_message(); }
+            expect(said).should_be("thrown inside");
+        };
+        test("call: a wrong argument is refused") { expect(refused { greet.call(caller, new int(1)); }).should_be("`greet(string) : string` cannot be called with (int)"); };
+        test("call: too few arguments") { expect(refused { greet.call(caller); }).should_be("`greet(string) : string` cannot be called with ()"); };
+        test("call: without an object") { expect(refused { greet.call(null, "x"); }).should_be("`greet(string) : string` is a function of an object: it cannot be called without one"); };
+        test("call: on a wrong object") { expect(refused { greet.call(new address(), "x"); }).should_be("`greet(string) : string` is a function of `main#user`, and the object is a `main#address`"); };
+        test("many calls in a row") {
+            total : _int64 = 0;
+            twice := shape.function("legs_twice")!!;
+            for(i : _int64 = 0; i < 20000; i++) { total += (twice.call(caller) as long).value; }
+            expect(total).should_be(160000);
+        };
+
+        // making objects
+        test("create") { expect((shape.create() as user).ratio).should_be(0.5); };
+        test("create with arguments") { made := shape.create("eve", new int(9)) as user; expect(made.name + made.age + made.legs).should_be("eve94"); };
+        test("create: the constructor that takes the value") { expect((shape.create(new address("lima")) as user).home!!.city).should_be("lima"); };
+        test("reflect.create") { expect(reflect.create<user>("fay", new int(3)).greet("x")).should_be("hi x, I am fay"); };
+        test("reflect.create without arguments") { expect_true(reflect.create<point>().x == 0); };
+        test("create: no such constructor") {
+            expect(refused { shape.create(new int(1), new int(2)); }).should_be("`main#user` has no constructor that takes (int, int) (it has: user(), user(string, _int64), user(address))");
+        };
+        test("create_array") { several := shape.create_array(3) as user[]; expect_true(sizeof(several) == 3 && several[0] == null && shape.create_array(0) == null); };
+
+        // enums
+        colors := reflect.of<color>();
+        test("values of an enum") { expect(colors.values().join_to_string(" ") { it.name + "=" + it.number }).should_be("red=0 green=5 blue=6"); };
+        test("value by name") { expect_true(colors.value("green")!!.number == 5 && colors.value("pink") == null); };
+        test("value_at") { expect(colors.value_at(6)!!.name).should_be("blue"); };
+        test("the value itself goes into a field") {
+            shape.field("likes")!!.write(changed, colors.value("blue")!!.value);
+            expect_true(changed.likes == color.blue);
+        };
+        test("values of a class that is no enum") { expect(shape.values().size()).should_be(0); };
+
+        // one object, by names
+        view := reflect.on(someone);
+        test("view: read") { expect(view.read("name") as string).should_be("ann"); };
+        test("view: read through an object") { expect(view.read("home.city") as string).should_be("oslo"); };
+        test("view: number, text") { expect_true(view.number("age") == 31 && view.text("home.city")!! == "oslo" && view.text("age")!! == "31"); };
+        test("view: a null on the way") { expect_true(reflect.on(new user()).read("home.city") == null && reflect.on(new user()).text("home.city") == null); };
+        test("view: no such field") { expect_true(io_strings.starts_with(refused { view.read("home.street"); }, "`main#address` has no field `street` (it has: city)")); };
+        writable := reflect.on(new user("gus", 1));
+        writable.write("age", 33);
+        writable.write("name", "hal");
+        test("view: write") { expect(writable.text("name")!! + writable.text("age")!!).should_be("hal33"); };
+        test("view: call") { expect(view.call("greet", "bob") as string).should_be("hi bob, I am ann"); };
+        test("view: call picks by the arguments") { expect((reflect.on(new user("x", 10)).call("older", new int(1), new int(5)) as long).value).should_be(15); };
+        test("view: call of the object's own class") { expect(reflect.on(new student()).call("sound") as string).should_be("hello"); };
+        test("view: no such function") { expect(refused { view.call("fly"); }).should_be("`main#user` has no function `fly`"); };
+        test("view: wrong arguments") { expect(refused { view.call("greet"); }).should_be("`main#user.greet` cannot be called with () (there is: greet(string) : string)"); };
+        seen := new string_builder();
+        reflect.on(new point()).fields { seen.append(it.name + "=" + it.text() + " "); };
+        test("view: fields") { expect(seen.to_string()!!).should_be("x=0 y=0 "); };
+        test("view: to_text") {
+            shown := new user("ann", 31);
+            shown.home = new address("oslo");
+            shown.tags.add("a"); shown.tags.add("b");
+            expect(reflect.on(shown).to_text()).should_be("user(legs=4, name=ann, age=31, ratio=0.5, small=1, alive=1, home=address(city=oslo), tags=[a, b], likes=red, scores=null, friends=null, anything=null, kind=3)");
+        };
+        test("view: copy") {
+            twin := view.copy() as user;
+            twin.age = 99;
+            expect_true(twin.name == "ann" && twin.home == someone.home && someone.age == 31 && twin.legs == 4 && twin.ratio == 0.5);
+        };
+        test("view: same_as") {
+            same := new user("ann", 31);
+            same.home = new address("oslo");
+            other := new user("ann", 32);
+            other.home = new address("oslo");
+            expect_true(view.same_as(same) && !view.same_as(other) && !view.same_as(null) && !view.same_as(new address("oslo")));
+        };
+        test("open view: to_text shows private fields") { expect(reflect.on(new vault()).open().to_text()).should_be("vault(label=main, code=1234, owner=ann, size=8)"); };
+        test("view: of an array is refused") { expect(refused { reflect.on(new user[1]); }).should_be("reflect.on: this is an array, not an object of a class"); };
+
+        // protections: private, protected, const
+        safe := reflect.of<vault>();
+        box := new vault();
+        test("a private field is listed") { expect(names(safe.fields())).should_be("label code owner size"); };
+        test("a private field is not read") { expect(refused { safe.field("code")!!.read(box); }).should_be("`main#vault.code` is private: open() it (or its class_info) before reading it"); };
+        test("... nor as a number or a text") {
+            expect_true(io_strings.starts_with(refused { safe.field("code")!!.number(box); }, "`main#vault.code` is private")
+                && io_strings.starts_with(refused { safe.field("code")!!.text(box); }, "`main#vault.code` is private"));
+        };
+        test("a private field is not written") {
+            said := refused { safe.field("code")!!.write(box, 1); };
+            expect_true(said == "`main#vault.code` is private: open() it (or its class_info) before writing it" && box.shown() == 1234);
+        };
+        test("a protected field is not read") { expect(refused { safe.field("owner")!!.read(box); }).should_be("`main#vault.owner` is protected: open() it (or its class_info) before reading it"); };
+        test("is_open") { expect_true(safe.field("label")!!.is_open() && !safe.field("code")!!.is_open() && safe.field("code")!!.open().is_open()); };
+        test("an opened field is read and written") {
+            code := safe.field("code")!!.open();
+            code.write(box, 77);
+            expect_true(code.number(box) == 77 && box.shown() == 77);
+        };
+        test("opening leaves the field of the class closed") { expect_true(!safe.field("code")!!.is_open()); };
+        test("a const is not written") { expect(refused { safe.field("size")!!.write(box, 9); }).should_be("`main#vault.size` is a const: it is not written"); };
+        test("... opened or not") { expect(refused { safe.open().field("size")!!.write(box, new int(9)); }).should_be("`main#vault.size` is a const: it is not written"); };
+        test("a const is read") { expect_true(safe.field("size")!!.number(box) == 8); };
+        test("a private function is not called") { expect(refused { safe.function("check")!!.call(box, new int(77)); }).should_be("`main#vault.check` is private: open() it (or its class_info) before calling it"); };
+        test("a protected function is not called") { expect(refused { safe.function("hint")!!.call(box); }).should_be("`main#vault.hint` is protected: open() it (or its class_info) before calling it"); };
+        test("an opened function is called") { expect_true((safe.function("check")!!.open().call(box, new int(77)) as uchar).value == 1); };
+        test("a private constructor is not used") { expect_true(io_strings.starts_with(refused { safe.create(new int(5)); }, "`main#vault.vault` is private")); };
+        test("an open class: its private constructor") { expect_true((safe.open().create(new int(5)) as vault).shown() == 5); };
+        test("an open class: fields and functions") {
+            wide := safe.open();
+            expect_true(wide.is_open() && !safe.is_open() && wide.id == safe.id && wide.open() == wide
+                && wide.field("owner")!!.text(box)!! == "ann" && (wide.function("hint")!!.call(box) as string) == "four digits");
+        };
+        test("view: private things are refused") {
+            closed := reflect.on(box);
+            expect_true(io_strings.starts_with(refused { closed.read("code"); }, "`main#vault.code` is private")
+                && io_strings.starts_with(refused { closed.write("code", 1); }, "`main#vault.code` is private")
+                && io_strings.starts_with(refused { closed.call("check", new int(1)); }, "`main#vault.check` is private"));
+        };
+        test("view: to_text and fields leave private fields out") {
+            listed := new string_builder();
+            reflect.on(box).fields { listed.append(it.name + " "); };
+            expect(reflect.on(box).to_text() + "|" + listed.to_string()!!).should_be("vault(label=main, size=8)|label size ");
+        };
+        test("open view: reads, writes and calls") {
+            wide := reflect.on(box).open();
+            wide.write("code", 42);
+            expect_true(wide.number("code") == 42 && (wide.call("check", new int(42)) as uchar).value == 1);
+        };
+        test("copy and same_as go by private fields too") {
+            twin := reflect.on(box).copy() as vault;
+            other := new vault();
+            expect_true(twin.shown() == 42 && reflect.on(box).same_as(twin) && !reflect.on(box).same_as(other));
+        };
+
+        // what an object is
+        test("type_of") {
+            expect(reflect.type_of(someone).name + " " + reflect.type_of(new user[1]).name + " " + reflect.type_of(new _int64[1]).name + " " + reflect.type_of(null).name + " " + reflect.type_of("text").name)
+                .should_be("user user[] _int64[] nothing _int8[]");
+        };
+    };
+    finish_tests("lib_reflect");
+}
+
+def numbers(count: _int64) : object[] {
+    made := new object[count];
+    for(i : _int64 = 0; i < count; i++) { made[i] = new int(i + 1); }
+    return made;
+}

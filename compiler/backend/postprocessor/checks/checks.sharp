@@ -1,0 +1,16 @@
+mod backend.postprocessor.checks;
+
+/**
+ * DECLARATION CHECKS: rules about how something is declared
+ *
+ * The files of this package (module `backend.postprocessor.checks`):
+ *
+ *      duplicates.sharp          nothing declared twice in one place (stage 4)
+ *      modifiers.sharp           which modifier words a declaration may have, and their order
+ *      default_access.sharp      the flags a declaration has without saying so
+ *      name_conflicts.sharp      a field, function, alias and class sharing a name
+ *      function_forms.sharp      native with a body; an operator function outside any class
+ *      operator_functions.sharp  how many parameters an operator function takes
+ *
+ * This file is the package's front door: it only says what is where.
+ */

@@ -1,0 +1,12 @@
+// expect: E0100 E0102 E0115
+//
+// Strings with ${ } that go wrong.
+mod tests.fail;
+
+def main(args: string[]) {
+    count := 1;
+    a := "empty ${} here";
+    b := "half ${ count + } done";
+    c := "open ${ count
+    d := "fine again ${count}";
+}

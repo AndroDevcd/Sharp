@@ -1,0 +1,260 @@
+mod main;
+
+// output:
+// 453
+// 303
+// 202
+// 100
+// 100
+// 1003
+// 1020
+// 113
+// 3
+// 5012
+// 2
+// 4026006
+// 34
+// -20
+// -20
+// 23
+// -2
+// -2
+// 2
+// -2
+// 5
+// -2
+// 2
+// 111
+// 1
+// 10
+// 20
+// 30
+// 5
+// 1
+// -99
+// 99
+
+/*
+ * THE OPTIMIZER AND EXCEPTIONS (doc/codegen.md 7.2: the three rules about `try`)
+ *
+ * Built plain and with -O by codegen.sh; both must print the block the C++-built program
+ * prints. Written by the verifier of the optimizer stage. A handler is entered from the
+ * middle of a block with every slot as it was BEFORE the instruction that raised, so:
+ *
+ *   - a value set right before something raises is not a dead store when a `catch`, a
+ *     `finally` or the code after the `try` reads it (`stages`, `with_finally`, `finally_passes`);
+ *   - a constant known in the `try` block is not known in the handler (`known_in_try`);
+ *   - everything that may raise counts: a call, an element out of range, `%` by zero, a field
+ *     of null, a cast (`element_in_try` ... `cast_in_try`);
+ *   - a `try` in a loop with `continue` and `break` in the handler, an exception raised again
+ *     from a handler, `return` inside `try` with a `finally`.
+ */
+
+class holder {
+    value : _int64 = 0;
+    items : _int64[];
+    holder() { items = new _int64[4]; }
+}
+
+def raise_if(a: _int64) : _int64 {
+    if(a > 2) { throw new exception("too big"); }
+    return a;
+}
+
+def zero() : _int64 { return 0; }
+
+/** values a catch reads were set right before something raised */
+def stages(limit: _int64) : _int64 {
+    stage : _int64 = 0;
+    seen : _int64 = 0;
+    try {
+        stage = 1;
+        seen = seen + raise_if(limit);
+        stage = 2;
+        seen = seen + raise_if(limit + 1);
+        stage = 3;
+        seen = seen + raise_if(limit + 2);
+        stage = 4;
+    } catch(e: exception) {
+        return stage * 100 + seen;
+    }
+    return stage * 100 + seen + 50;
+}
+
+def with_finally(limit: _int64) : _int64 {
+    result : _int64 = 1;
+    try {
+        result = 2;
+        raise_if(limit);
+        result = 3;
+    } catch(e: exception) {
+        result = result * 10;
+    } finally {
+        result = result + 1000;
+    }
+    return result;
+}
+
+def finally_passes(limit: _int64, h: holder) : _int64 {
+    step : _int64 = 0;
+    try {
+        step = 1;
+        try {
+            step = 2;
+            raise_if(limit);
+            step = 3;
+        } finally {
+            h.value = step;
+            step = step + 10;
+        }
+        step = step + 100;
+    } catch(e: exception) {
+        return step + 5000;
+    }
+    return step;
+}
+
+def loop_with_try(n: _int64) : _int64 {
+    total : _int64 = 0;
+    last : _int64 = 0 - 1;
+    for(i : _int64 = 0; i < n; i++) {
+        try {
+            last = i;
+            total = total + raise_if(i);
+            last = i + 100;
+        } catch(e: exception) {
+            total = total + 1000 + last;
+            if(i == 4) { continue; }
+            if(i == 6) { break; }
+        }
+        total = total + 1;
+    }
+    return total * 1000 + last;
+}
+
+def element_in_try(a: _int64[], at: _int64) : _int64 {
+    got : _int64 = 0 - 1;
+    k : _int64 = 10;
+    try {
+        k = 20;
+        got = a[at];
+        k = 30;
+    } catch(e: exception) {
+        return 0 - k;
+    }
+    return got + k;
+}
+
+def remainder_in_try(a: _int64, b: _int64) : _int64 {
+    k : _int64 = 1;
+    result : _int64 = 0;
+    try {
+        k = 2;
+        result = a % b;
+        k = 3;
+    } catch(e: exception) {
+        return 0 - k;
+    }
+    return result * 10 + k;
+}
+
+def null_field_in_try(h: holder?) : _int64 {
+    k : _int64 = 1;
+    try {
+        k = 2;
+        k = h!!.value;
+    } catch(e: exception) {
+        return 0 - k;
+    }
+    return k;
+}
+
+def cast_in_try(o: object) : _int64 {
+    k : _int64 = 1;
+    try {
+        k = 2;
+        h := o as holder;
+        k = 3;
+        return h.value + k;
+    } catch(e: exception) {
+        return 0 - k;
+    }
+}
+
+def rethrown(a: _int64) : _int64 {
+    k : _int64 = 0;
+    try {
+        try {
+            k = 1;
+            raise_if(a);
+            k = 2;
+        } catch(e: exception) {
+            k = k + 10;
+            throw e;
+        }
+    } catch(e: exception) {
+        k = k + 100;
+    }
+    return k;
+}
+
+def known_in_try() : _int64 {
+    a : _int64 = 5;
+    try {
+        a = 6;
+        raise_if(3);
+        a = 7;
+    } catch(e: exception) {
+        // a is 6 here, not 5 and not 7
+        if(a == 6) { return 1; }
+        return 0;
+    }
+    return 2;
+}
+
+def return_in_try(a: _int64, h: holder) : _int64 {
+    try {
+        if(a == 1) { return 10; }
+        raise_if(a);
+        return 20;
+    } catch(e: exception) {
+        return 30;
+    } finally {
+        h.value = h.value + 1;
+    }
+}
+
+def main() {
+    for(i : _int64 = 0; i < 5; i++) { show(stages(i)); }
+    show(with_finally(0));
+    show(with_finally(9));
+    h := new holder();
+    show(finally_passes(0, h));
+    show(h.value);
+    show(finally_passes(9, h));
+    show(h.value);
+    show(loop_with_try(9));
+    a := new _int64[3];
+    a[1] = 4;
+    show(element_in_try(a, 1));
+    show(element_in_try(a, 3));
+    show(element_in_try(a, 0 - 1));
+    show(remainder_in_try(17, 5));
+    show(remainder_in_try(17, zero()));
+    show(remainder_in_try(17, 0));
+    show(null_field_in_try(h));
+    show(null_field_in_try(null));
+    show(cast_in_try(h));
+    show(cast_in_try("text"));
+    show(rethrown(0));
+    show(rethrown(5));
+    show(known_in_try());
+    show(return_in_try(1, h));
+    show(return_in_try(2, h));
+    show(return_in_try(3, h));
+    show(h.value);
+    show(raise_if(1));
+    b := new _int64[2];
+    try { show(b[zero() + 2]); } catch(e: exception) { show(0 - 99); }
+    show(99);
+}

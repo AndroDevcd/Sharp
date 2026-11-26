@@ -1,0 +1,83 @@
+mod std;
+
+/**
+ * The questions of `character` asked of a `char` object itself:
+ *
+ *     c : char = 'G';
+ *     c.is_upper()                    // true
+ *     c.to_lower().value              // 'g'
+ *     c.is_hex_digit()                // false
+ *     digit : char = '7';
+ *     digit.digit_value()             // 7
+ *     char.from_digit(11).value       // 'b'
+ *
+ * Each one is the function of the same name of `character`, which takes the
+ * code of a character (a plain number) and says what is covered: the ASCII
+ * range, codes 0 .. 127.
+ */
+mutate char {
+    /** true for the capital letters A .. Z */
+    def is_upper(): bool {
+        return character.is_upper(value);
+    }
+
+    /** true for the small letters a .. z */
+    def is_lower(): bool {
+        return character.is_lower(value);
+    }
+
+    /** true for the letters A .. Z and a .. z */
+    def is_letter(): bool {
+        return character.is_letter(value);
+    }
+
+    /** true for the decimal digits 0 .. 9 */
+    def is_digit(): bool {
+        return character.is_digit(value);
+    }
+
+    /** true for letters and decimal digits */
+    def is_letter_or_digit(): bool {
+        return character.is_letter_or_digit(value);
+    }
+
+    /** true for the hexadecimal digits 0 .. 9, a .. f and A .. F */
+    def is_hex_digit(): bool {
+        return character.is_hex_digit(value);
+    }
+
+    /** true for the characters that only make space: blank, tab, line feed, vertical tab, form feed, carriage return */
+    def is_whitespace(): bool {
+        return character.is_whitespace(value);
+    }
+
+    /** the capital form of a small letter; every other character is returned as it is */
+    def to_upper(): char {
+        return new char(character.to_upper(value));
+    }
+
+    /** the small form of a capital letter; every other character is returned as it is */
+    def to_lower(): char {
+        return new char(character.to_lower(value));
+    }
+
+    /**
+     * The number a digit character stands for: '0' .. '9' give 0 .. 9 and
+     * the letters a .. z / A .. Z give 10 .. 35 (so the result is usable for
+     * any base up to 36). -1 for every other character.
+     */
+    def digit_value(): decimal {
+        return character.digit_value(value, 36);
+    }
+
+    /**
+     * The character for a digit value: 0 .. 9 give '0' .. '9' and 10 .. 35
+     * give 'a' .. 'z' (the opposite of digit_value()).
+     * Throws illegal_argument_exception when digit is outside 0 .. 35.
+     */
+    static def from_digit(digit: decimal): char {
+        if(digit < 0 || digit > 35 || digit != (digit as _int64))
+            throw new illegal_argument_exception("char.from_digit: the digit must be a whole number in 0 .. 35");
+        return new char(character.for_digit(digit, 36));
+    }
+}

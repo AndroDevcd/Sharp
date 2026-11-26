@@ -1,0 +1,138 @@
+mod app;
+
+/*
+ * Components, `get`, `inject` and `obfuscate` blocks: every correct form.
+ * Look at the result with -analysis: each `get` and each injected field
+ * names the definition it was resolved to.
+ *
+ * (The C++ compiler does not serve as the reference for this file: its
+ * search through all components returns only what the LAST component has,
+ * and it crashes on a field listed in an `obfuscate` block - doc/backend.md
+ * 10.5, "C++ compiler bugs found".)
+ */
+
+class database {
+    name : string;
+    database(n: string) { name = n; }
+}
+class worker {
+    db : database;
+    worker(d: database) { db = d; }
+    worker(d: database, extra: logger) { db = d; }
+}
+class logger { }
+class engine { }
+class car {
+    car(e: engine?) { }
+}
+class registry<T> { items := new list<T>(); }
+
+component app {
+    single { new database("main") }                         // found by its type
+    factory("worker") { new worker(get()) }                 // `get()`: the type of the parameter - a database
+    factory { new worker(get(), get()) }                    // two of them: the overload with a logger (from the main component)
+    single("port") { 8080 }                                 // a number (an `int` object), by name
+    single("greeting") { "hello" }                          // a string
+    single { new registry<string>() }                       // a generic class: the instance is made here
+    single { { x: decimal -> (decimal) return x * 2; } }    // a function value
+    single { new car(get()) }                               // the parameter is `engine?`: an engine fits
+    single("first") { get<database>() }                     // the value of another definition, under a name
+}
+
+component {                                                 // no name: the main component ...
+    single { new logger() }
+}
+
+component {                                                 // ... which may have several blocks
+    single { new engine() }
+    factory("spare") { new engine() }
+}
+
+component backup {
+    single { new database("backup") }                       // another database: fine in another component
+    single("port") { 9090 }
+}
+
+// ---- injected fields and globals
+class service {
+    inject db : database;                                   // app is declared first, so its database (W1013 says so)
+    inject(backup) spare : database;                        // ... of that component only
+    inject(app) helper : worker;
+    static inject shared : logger;
+    inject wheels : engine?;                                // a nullable field takes the engine
+}
+
+inject global_log : logger;
+
+class holder<T> {
+    inject log : logger;                                    // in a generic class: per instance
+    item : T;
+    holder(i: T) { item = i; }
+}
+
+def use(d: database) { }
+
+def main() {
+    a := get<database>(app);                                // by type, in one component
+    b := get<worker>("worker");                             // by name
+    c := get("worker", app);                                // name and component decide: no type needed
+    d := get<int>("port", backup);                          // `{ 9090 }` is an `int`, as `x := 9090;` would be
+    e := get<logger>();                                     // only the main component has one
+    f := get<registry<string>>();
+    g := get<(decimal)(decimal)>();
+    h := g(4);
+    i := get<string>("greeting");
+    j := get<engine>("spare");
+    use(get<database>(backup));                             // as an argument, with its type written
+    k : database = get<database>(app);
+    get<worker>("worker");                                  // a statement: the factory makes an object
+    inject log : logger;                                    // a local
+    inject(backup) local_db : database;
+    m := new holder<string>("x");
+    n := new service();
+    println(n.db.name + k.name + local_db.name + i);
+}
+
+// ---- obfuscate blocks: every kind of name
+class point {
+    x : decimal;
+    def move(a: decimal, b: decimal) { }
+    def move(a: string) { }
+    static def origin() : point { return new point(0); }
+    point(a: decimal) { x = a; }
+    class inner { depth : decimal; }
+}
+enum color { red, green }
+def start(args: string[]) { }
+total : decimal = 0;
+
+obfuscate -keep {
+    "std", "std.io",
+    point, point.x, point.move(decimal, decimal), point.move(string), point.origin(), point(decimal),
+    point.inner, point.inner.depth, color, color.red,
+    start(string[]), total, app#total, std#string, std#string.at(int), list<int>,
+    list.add(T), dictionary<string, int>
+}
+obfuscate -keep_inclusive { list, point }
+obfuscate -inclusive { color }
+obfuscate { total }
+
+// a lambda written in a definition is still inside the component: its `get()` takes the type expected
+class job { job(run_it: ()(database)) { } }
+component jobs {
+    single { new database("jobs") }
+    single { new job({ -> (database) return get(); }) }
+}
+
+// a chain written in dependency order is no circle: looking for the config of `repository`
+// also analyses `service`, whose `get()` asks for the repository still in progress - that
+// analysis is put back and done again afterwards (components/definitions.sharp)
+class config { name : string = "cfg"; }
+class repository { cfg : config; repository(c: config) { cfg = c; } }
+class chained_service { repo : repository; chained_service(r: repository) { repo = r; } }
+component chain {
+    single { new config() }
+    single { new repository(get()) }
+    factory { new chained_service(get()) }
+}
+def chain_user() : string { return get<chained_service>(chain).repo.cfg.name; }

@@ -1,0 +1,62 @@
+// expect: E0703 E0804 E0800 E0801 E0802 E0803 E0410 E0801 E0801 E0602 E0805 E0410 E0808 E0603 E0606 E0607 E0804 E0809 E0809 W1011 E0607 E0410 W1029 E0501 E0924 E0925 E0925 E0925
+mod app;
+
+/*
+ * Lambdas and function values used wrongly. Every marked line was compiled
+ * alone with the C++ compiler, which rejects it too - except where a comment
+ * says otherwise.
+ */
+
+def apply(f: (decimal)(decimal), x: decimal) : decimal { return f(x); }
+def run(work: ()()) { work(); }
+def pair(f: (decimal, decimal)(decimal)) : decimal { return f(1, 2); }
+def generic_one<T>(x: T) : T { return x; }
+def twice(x: decimal) : decimal { return x * 2; }
+def twice(x: string) : string { return x + x; }
+def gives_text(x: decimal) : string { return "t"; }
+
+class dog {
+    n : decimal = 0;
+    def bark() : string { return "woof"; }
+    static def make() {
+        f : ()() = { -> n += 1; };                                  // E0703 no object in a static function
+    }
+    def test() {
+        f := bark;                                                  // E0804 an instance function as a value
+    }
+}
+
+def main() {
+    a := { x -> return x; };                                        // E0800 nothing says what x is
+    b : (decimal)(decimal) = { x, y -> return x; };                 // E0801 two parameters, one expected
+    c : (decimal)(decimal) = { x: string -> (decimal) return 1; };  // E0802
+    d : (decimal)(decimal) = { x: decimal -> (string) return "s"; };   // E0803
+    e := { x: decimal -> (decimal) return "text"; };                // E0410 the returned value
+    apply({ x, y -> return x; }, 2);                                // E0801 the lambda has two parameters (one apply: its own rule)
+    pair { it + 1 };                                                // E0801 two values cannot both be `it`
+    for(;;) { run { break; }; break; }                              // E0602 (C++: accepted, then a code-generator crash)
+    h := generic_one;                                               // E0805 (C++: "could not resolve symbol")
+    k : (decimal)(decimal) = apply;                                 // E0410 another function type
+    m := { x: decimal -> (decimal) return 1; } + 1;                 // E0808
+    for(i := 0; i < 2; i++) { run { continue; }; }                  // E0603 (C++: accepted)
+    q : ()() = { -> return 5; };                                    // E0606
+    r : ()(decimal) = { -> return; };                               // E0607
+    g := new dog().bark;                                            // E0804 through an object
+    s := it;                                                        // E0809 not in a lambda
+    run({ -> println(it); });                                       // E0809 a lambda without an `it`
+    t := twice;                                                     // W1011 two overloads, the first is taken (C++: a warning too)
+    u := { n: _int64 -> if(n > 0) { return 1; } return; };          // E0607 the result is `_int32` (wider: C++ wants it written)
+    v := { n: _int64 -> if(n > 0) { return 1; } return "x"; };      // E0410 the first `return` decided `_int32`
+    apply(gives_text, 1);                                           // W1029 (C++: accepted, the result is not compared)
+    apply(twice);                                                   // E0501 one argument missing
+    w : _int64 = 5;
+    run({ -> asm { loadl ebx, [w] } });                             // E0924 asm cannot name a variable of the function around the lambda
+    x1 : _int64 = 5;
+    asm { loadl ebx, [x1] }                                         // E0925 the lambda of the next line captures it: not in the frame (C++: accepted, names the frame's copy)
+    run({ -> x1++; });
+    x2 : _int64 = 5;
+    run({ -> x2++; });
+    asm { loadl ebx, [x2] }                                         // E0925 captured before the asm block
+    localized x3 : _int64 = 5;
+    asm { loadl ebx, [x3] }                                         // E0925 a `localized` local lives in its fiber
+}

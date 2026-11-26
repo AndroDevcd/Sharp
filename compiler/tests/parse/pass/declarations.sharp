@@ -1,0 +1,109 @@
+mod tests.declarations;
+
+import (
+    std.io,
+    std.io.*,
+    std.collections
+)
+
+import ( std.math ) as m
+
+// ---- variables
+count : decimal = 0;
+name := "text";
+private static const limit : _int32 = 10;
+a := 1, b = 2, c = 3;
+localized depth : decimal;
+maybe : string?;
+items : string[]?;
+grid : list<list<int>>? = null;
+callback : (int, int)(decimal);
+nothing : ()();
+
+alias list<string> as names;
+
+// ---- enums
+enum color { red, green = 5, blue }
+enum single_value { only }
+
+// ---- interfaces
+interface printable {
+    def print();
+    def describe(indent: decimal) : string;
+}
+
+// ---- classes
+class shape : printable {
+    private sides : decimal = 0;
+    protected label : string = "";
+
+    width : decimal;
+        get { return width * 2; }
+        set value -> { width = value / 2; }
+
+    height : decimal;
+        get return height;
+
+    shape() {}
+    shape(sides: decimal) { self->sides = sides; }
+
+    init { label = "shape"; }
+    init(extra: decimal) { sides = extra; }
+
+    def print() { println(label); }
+    def describe(indent: decimal) : string { return label; }
+    def area() : decimal = 0;
+    def twice() := area() * 2;
+    static def make() : shape { return new shape(); }
+    native def raw(x: decimal) : decimal;
+
+    def operator+(other: shape) : shape { return self; }
+    def operator==(other: shape) : bool { return true; }
+    def operator[](index: int) : decimal { return sides; }
+    def operator!() : bool { return false; }
+    def operator++() : shape { return self; }
+
+    class corner {
+        x : decimal;
+        y : decimal;
+    }
+
+    enum kind { round, flat }
+}
+
+class square base shape {
+    square(side: decimal) -> base(4) { width = side; }
+}
+
+class box<T> {
+    value : T?;
+    def get_value() : T? { return value; }
+}
+
+class pair<K, V base printable> {
+    key : K?;
+    value : V?;
+}
+
+stable ext class locked {}
+
+mutate shape {
+    extra : decimal = 0;
+    def with_extra() : decimal { return extra; }
+}
+
+// ---- functions
+def plain() {}
+def typed(a: decimal, b: string[]) : decimal { return a; }
+def nothing_back() : nil {}
+def first<T>(items: list<T>) : T { return items.at(0); }
+def short_form(x: decimal) : decimal = x * 2;
+def inferred(x: decimal) := x * 2;
+
+// ---- dependency injection and obfuscation
+component app {
+    single { new shape() }
+    factory("fresh") { new square(1) }
+}
+
+obfuscate -keep { "tests", shape, shape.area() }

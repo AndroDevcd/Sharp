@@ -1,0 +1,644 @@
+mod std.guikit.core.tree;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * view - one box on the screen, and one node of the tree.
+ *
+ * Every widget has exactly one view. The view holds what ALL boxes have in
+ * common and does the work that is the same for all of them:
+ *
+ *      the tree         parent, kids
+ *      the box model    padding, fixed / minimum / maximum size, "fill", background,
+ *                       corner radius, border
+ *      layout           measure() works out the size it wants, arrange() gives it
+ *                       its final place - asking its behavior about the content
+ *      painting         background, border, then the behavior, then the kids
+ *      the mouse        which view is under a point; hovered / pressed; on_click
+ *
+ * What is DIFFERENT per kind of widget lives in its `behavior` (behavior.sharp):
+ * `how`. A view never checks "am I a button?".
+ *
+ * LAYOUT IN TWO PASSES (the same idea as Android, Flutter and Compose):
+ *
+ *   1. measure(low_w, high_w, low_h, high_h)
+ *                                top-down the allowed range of sizes, bottom-up
+ *                                the answers: "inside that, I want want_w x want_h".
+ *   2. arrange(x, y, w, h)       top-down: "here is your final rectangle" - the
+ *                                size it answered, at the place the parent chose.
+ *
+ * All positions are in WINDOW pixels (not relative to the parent). That makes
+ * painting and "what is under the mouse" trivial; moving a subtree (scrolling)
+ * is done by arranging it again.
+ *
+ * THE BOX:
+ *
+ *      (x, y) +------------------------------+
+ *             |  padding                     |
+ *             |   +----------------------+   |
+ *             |   |  content             |   |   h
+ *             |   |  (inner_x .. inner_h)|   |
+ *             |   +----------------------+   |
+ *             +------------------------------+
+ *                            w
+ *
+ * You normally never touch a view directly: a modifier passed to the widget
+ * (.padding(), .background(), .fill() ...) sets these fields for you (modifier.sharp).
+ */
+stable class view {
+    // ------------------------------------------------------------ the tree
+    parent : view?;
+    kids : list<view> = new list<view>();
+    how : behavior;                     // what kind of widget this box is
+
+    /**
+     * An optional name for this box among its siblings. When a list is
+     * rebuilt with its rows in a different order, rows with keys keep their
+     * own remembered state (the reconciler matches by key before position).
+     */
+    key : string = "";
+
+    /**
+     * A name a UI test finds this box by (modifier().tag("save"), then
+     * on_tag("save") in std.guikit.testing). It changes nothing about the box.
+     */
+    tag : string = "";
+
+    /**
+     * A place in the PARENT'S own terms, for a parent that puts its children
+     * where its content says rather than in a row or a column: in a chart, the
+     * place across and the number up (modifier().at(4, 80)). What the two
+     * numbers mean is the parent's business; other parents ignore them.
+     * at_set: 0 nothing said, 1 only across, 2 only up, 3 both.
+     */
+    at_set : _int64 = 0;
+    at_across : decimal = 0;
+    at_up : decimal = 0;
+
+    // ------------------------------------------------------------ the box model (set by modifiers)
+    pad_left : decimal = 0;
+    pad_top : decimal = 0;
+    pad_right : decimal = 0;
+    pad_bottom : decimal = 0;
+
+    fixed_w : decimal = 0 - 1;          // an exact width; -1: as wide as the content needs
+    fixed_h : decimal = 0 - 1;
+    min_w : decimal = 0;
+    min_h : decimal = 0;
+    max_w : decimal = 0 - 1;            // -1: no limit
+    max_h : decimal = 0 - 1;
+
+    fill_w : _int64 = 0;                // 1: take all the width the parent offers
+    fill_h : _int64 = 0;
+    weight : decimal = 0;               // share of the LEFTOVER room along the parent's direction (row / column)
+
+    // room OUTSIDE the box, between it and its neighbours (padding is room inside it)
+    mar_left : decimal = 0;
+    mar_top : decimal = 0;
+    mar_right : decimal = 0;
+    mar_bottom : decimal = 0;
+
+    part_w : decimal = 0;               // this fraction of the width the parent offers (0.5 = half); 0: not used
+    part_h : decimal = 0;
+    aspect : decimal = 0;               // keep width / height at this ratio (16.0 / 9); 0: not used
+
+    // where this ONE child sits in its container, instead of where the container puts its children
+    self_align : _int64 = 0 - 1;        // across a row or column (ALIGN_...); -1: as the container says
+    self_across : _int64 = 0 - 1;       // in a stack: left / center / right; -1: as the stack says
+    self_down : _int64 = 0 - 1;         // in a stack: top / center / bottom
+
+    back : color?;                      // background colour (null: none)
+    corner : decimal = 0;               // corner radius of background and border
+    border_w : decimal = 0;             // border thickness (0: none)
+    border_c : color?;
+    shadow : decimal = 0;               // a soft shadow this many pixels deep under the box (0: none)
+    opacity : decimal = 1;              // how solid the box and everything in it is painted: 1 fully, 0 not at all
+    page : _int64 = 0;                  // 1: a whole screen - painted on the theme's background when it has none of its own
+
+    // ------------------------------------------------------------ the whole box treated as one picture (set by modifiers)
+    turn : decimal = 0;                 // turned this many degrees clockwise around its middle
+    zoom : decimal = 1;                 // painted this many times its size, around its middle
+    blur : decimal = 0;                 // blurred by about this many pixels (0: sharp)
+    outline : shape?;                   // what the background and border are drawn as (null: a box with `corner` radius)
+    cut : shape?;                       // the content is cut to this shape (null: not cut)
+
+    // ------------------------------------------------------------ movement (FRAMEWORK USE: animation/glide.sharp and friends)
+    //
+    // Layout decides where a box IS (x, y, w, h). These say where it is PAINTED
+    // for the moment: a box that moved to a new place is painted at its old
+    // place first and glides over. Layout, and what the mouse hits, are not
+    // touched - which is why an animation can never break a layout.
+    shift_x : decimal = 0;              // painted this far right of where layout put it
+    shift_y : decimal = 0;              // ... and this far down
+    sway_y : decimal = 0;               // one more offset down, owned by the scroller around it (stagger.sharp)
+    veil : decimal = 1;                 // how solid it is painted on top of `opacity`: an entering box comes up from 0
+    raised : _int64 = 0;                // 1: painted after its siblings, so on top of them (a row being dragged)
+
+    glides : _int64 = 0;                // 1 on a CONTAINER: its children glide to their new places (animate_items)
+    was_x : decimal = 0;                // where the last layout put this box, relative to its parent
+    was_y : decimal = 0;
+    was_placed : _int64 = 0;            // 1 once it has been laid out (a box without a past is NEW: it fades in)
+    glide_on : _int64 = 0;              // 1 while the shift is moving towards its aim
+    glide_from_x : decimal = 0;
+    glide_from_y : decimal = 0;
+    glide_aim_x : decimal = 0;
+    glide_aim_y : decimal = 0;
+    glide_start : decimal = 0;          // on the host's clock
+    entering : _int64 = 0;              // 1 while the veil is coming up
+
+    size_glides : _int64 = 0;           // 1: a change of height is glided through (modifier().animate_size())
+    size_known : _int64 = 0;
+    size_shown : decimal = 0;           // the height it has right now
+    size_from : decimal = 0;
+    size_target : decimal = 0;
+    size_start : decimal = 0;
+
+    shown : _int64 = 1;                 // 0: takes no room and paints nothing ("gone")
+    hidden : _int64 = 0;                // 1: keeps its room but paints nothing and cannot be clicked ("invisible")
+    enabled : _int64 = 1;               // 0: cannot be clicked or focused
+
+    // ------------------------------------------------------------ the mouse
+    on_click : ()()?;                   // run when the view is clicked (pressed and released on it)
+    feedback : _int64 = 0;              // 1: tint the box while the mouse is over it or presses it (set by modifier().click)
+
+    // more gestures, all set by the modifier and carried out by the host (host.sharp, "gestures")
+    on_long_press : ()()?;              // pressed and held without moving
+    on_double_click : ()()?;            // clicked twice in quick succession
+    on_right_click : ()()?;             // the right mouse button
+    on_drag_start : ()()?;              // a drag began on this view (the mouse moved while held)
+    on_drag : (decimal, decimal)()?;    // the drag moved: how far since the last time, across and down
+    on_drag_end : ()()?;                // the button came back up after a drag
+    on_press_end : ()()?;               // the button came back up after a press this view felt, whatever it turned into
+    wired : _int64 = 0;                 // FRAMEWORK USE: 1 once a container gave this child its gesture handlers (reorder.sharp)
+    tip : string = "";                  // words shown in a small box when the mouse rests on the view
+    hovered : _int64 = 0;               // 1 while the mouse is over it
+    pressed : _int64 = 0;               // 1 while the mouse button is held on it
+
+    // ------------------------------------------------------------ results of layout
+    content_w : decimal = 0;            // set by the behavior in measure(): what the content wants
+    content_h : decimal = 0;
+    room_w : decimal = UNBOUNDED;       // set by measure(): the most room the content may use (see part_w)
+    room_h : decimal = UNBOUNDED;
+    want_w : decimal = 0;               // set by measure(): the whole box, padding included
+    want_h : decimal = 0;
+    x : decimal = 0;                    // set by arrange(): the final rectangle, in window pixels
+    y : decimal = 0;
+    w : decimal = 0;
+    h : decimal = 0;
+
+    // the last measure() question, and the layout pass it was asked in (see measure)
+    private seen_pass : _int64 = 0 - 1;
+    private seen_low_w : decimal = 0;
+    private seen_high_w : decimal = 0;
+    private seen_low_h : decimal = 0;
+    private seen_high_h : decimal = 0;
+
+    view(what: behavior) {
+        how = what;
+    }
+
+    // ------------------------------------------------------------ the tree
+
+    /**
+     * Make `kid` the last child of this view. A view lives in ONE place: if
+     * it already has a parent it is taken out of there first - it is moved,
+     * never duplicated. (That is what lets .add(...) and the nested block
+     * style be mixed freely: scope.sharp.)
+     */
+    def add_kid(kid: view) {
+        if(kid.parent != null) {
+            kid.parent!!.remove_kid(kid);
+        }
+        kid.parent = self;
+        kids.add(kid);
+    }
+
+    /** take `kid` out of this view's children (nothing happens if it is not one) */
+    def remove_kid(kid: view) {
+        count : _int64 = kids.size();
+        for(i : _int64 = count - 1; i >= 0; i--) {         // from the end: the usual case is the child added last
+            if(kids.at(i) == kid) {
+                kids.remove_at(i);
+                kid.parent = null;
+                return;
+            }
+        }
+    }
+
+    def clear_kids() {
+        kids.clear();
+    }
+
+    def kid_count() : _int64 {
+        return kids.size();
+    }
+
+    // ------------------------------------------------------------ the content box
+
+    def inner_x() : decimal { return x + pad_left; }
+    def inner_y() : decimal { return y + pad_top; }
+    def inner_w() : decimal { return num.larger(0, w - pad_left - pad_right); }
+    def inner_h() : decimal { return num.larger(0, h - pad_top - pad_bottom); }
+
+    // ------------------------------------------------------------ pass 1: measure
+
+    /**
+     * Work out want_w x want_h. The parent says how small and how big this
+     * box may be, each way:
+     *
+     *      low_w .. high_w   and   low_h .. high_h
+     *
+     * `high` may be UNBOUNDED ("as big as you like"); low == high means
+     * "exactly this size, no choice". This pair of ranges is the whole
+     * conversation between a parent and a child. (It is Compose's Constraints:
+     * minWidth / maxWidth / minHeight / maxHeight. Android's MeasureSpec says
+     * the same with three modes: EXACTLY is low == high, AT_MOST is low 0,
+     * UNSPECIFIED is high unbounded.)
+     *
+     * The box's own modifiers then narrow the range, in this order, always
+     * staying inside what the parent allowed (the parent wins):
+     *
+     *   - fill: the smallest allowed becomes the biggest allowed (when that is
+     *     limited) - "exactly as big as there is room";
+     *   - min / max size;
+     *   - an exact size: both ends become it.
+     *
+     * The behavior measures the content inside what is left after padding,
+     * and the box ends up as content + padding, pulled into the range.
+     *
+     * WHY THE RANGE MATTERS: because the child is told its exact size HERE
+     * when the parent already knows it (a child that shares a row's leftover
+     * room, a child that fills), it measures its content once, for the size
+     * it really gets. arrange() never has to measure again.
+     *
+     * Measuring a box twice with the same range in one layout pass costs
+     * nothing: the answer is remembered (Android keeps the same kind of
+     * cache in View.measure).
+     */
+    def measure(low_w: decimal, high_w: decimal, low_h: decimal, high_h: decimal) {
+        if(shown == 0) {
+            want_w = 0;
+            want_h = 0;
+            return;
+        }
+
+        if(seen_pass == ui_host.pass && seen_low_w == low_w && seen_high_w == high_w && seen_low_h == low_h && seen_high_h == high_h) {
+            return;                                 // the same question in the same pass: the same answer
+        }
+        seen_pass = ui_host.pass;
+        seen_low_w = low_w;
+        seen_high_w = high_w;
+        seen_low_h = low_h;
+        seen_high_h = high_h;
+
+        // The margin is room around the box that belongs to nobody: take it off
+        // what the parent offers, work out the box inside the rest, and report
+        // box + margin. (Android: MarginLayoutParams; CSS: margin.)
+        mar_w : decimal = mar_left + mar_right;
+        mar_h : decimal = mar_top + mar_bottom;
+        box_low_w : decimal = num.larger(0, low_w - mar_w);
+        box_high_w : decimal = high_w;
+        if(num.is_bounded(high_w) == 1) { box_high_w = num.larger(0, high_w - mar_w); }
+        box_low_h : decimal = num.larger(0, low_h - mar_h);
+        box_high_h : decimal = high_h;
+        if(num.is_bounded(high_h) == 1) { box_high_h = num.larger(0, high_h - mar_h); }
+
+        // "A fraction of the parent" is an exact size, once the parent's size is
+        // known. It is a fraction of the parent's WHOLE content room (room_w),
+        // not of whatever is left after the siblings before this one - so two
+        // children that each ask for half really are the same width. (Compose's
+        // fillMaxWidth(fraction) inside a Row uses the REMAINING room, which
+        // makes the result depend on the order of the children; not copied.)
+        exact_w : decimal = fixed_w;
+        if(exact_w < 0 && part_w > 0) {
+            whole_w : decimal = box_high_w;
+            if(parent != null && num.is_bounded(parent!!.room_w) == 1) { whole_w = parent!!.room_w; }
+            if(num.is_bounded(whole_w) == 1) { exact_w = whole_w * part_w; }
+        }
+        exact_h : decimal = fixed_h;
+        if(exact_h < 0 && part_h > 0) {
+            whole_h : decimal = box_high_h;
+            if(parent != null && num.is_bounded(parent!!.room_h) == 1) { whole_h = parent!!.room_h; }
+            if(num.is_bounded(whole_h) == 1) { exact_h = whole_h * part_h; }
+        }
+
+        // each way: narrow the parent's range by this box's own modifiers
+        from_w : decimal = narrowed_low(box_low_w, box_high_w, fill_w, min_w, max_w, exact_w);
+        to_w : decimal = narrowed_high(box_low_w, box_high_w, min_w, max_w, exact_w);
+        from_h : decimal = narrowed_low(box_low_h, box_high_h, fill_h, min_h, max_h, exact_h);
+        to_h : decimal = narrowed_high(box_low_h, box_high_h, min_h, max_h, exact_h);
+
+        // A fixed shape (width / height): take the widest allowed and the height
+        // that goes with it; if that is too tall, the tallest allowed and the
+        // width that goes with it. Either way the size is then decided.
+        // (Compose: Modifier.aspectRatio, which also tries the width first.)
+        if(aspect > 0) {
+            shaped_w : decimal = 0 - 1;
+            shaped_h : decimal = 0 - 1;
+            if(num.is_bounded(to_w) == 1) {
+                shaped_w = to_w;
+                shaped_h = shaped_w / aspect;
+                if(num.is_bounded(to_h) == 1 && shaped_h > to_h) {
+                    shaped_h = to_h;
+                    shaped_w = shaped_h * aspect;
+                }
+            } else if(num.is_bounded(to_h) == 1) {
+                shaped_h = to_h;
+                shaped_w = shaped_h * aspect;
+            }
+            if(shaped_w >= 0) {
+                from_w = shaped_w;
+                to_w = shaped_w;
+                from_h = shaped_h;
+                to_h = shaped_h;
+            }
+        }
+
+        pad_w : decimal = pad_left + pad_right;
+        pad_h : decimal = pad_top + pad_bottom;
+
+        // the most room this box's content can have: what a child's "fraction of the parent" is a fraction of
+        room_w = num.larger(0, to_w - pad_w);
+        room_h = num.larger(0, to_h - pad_h);
+
+        how.measure(num.larger(0, from_w - pad_w), room_w, num.larger(0, from_h - pad_h), room_h);
+
+        want_w = num.between(content_w + pad_w, from_w, to_w) + mar_w;
+        want_h = num.between(content_h + pad_h, from_h, to_h) + mar_h;
+
+        // a height that glides: what is reported is somewhere between the old height and the new one
+        if(size_glides == 1) {
+            want_h = glide.sized(self, want_h);
+        }
+    }
+
+    /** the largest size this box may have one way, after its own maximum and exact size */
+    private static def narrowed_high(low: decimal, high: decimal, own_min: decimal, own_max: decimal, exact: decimal) : decimal {
+        if(exact >= 0) {
+            return num.between(exact, low, high);
+        }
+        top : decimal = high;
+        if(own_max >= 0 && own_max < top) { top = num.larger(own_max, low); }
+        return top;
+    }
+
+    /** the smallest size this box may have one way, after fill, its own minimum and exact size */
+    private static def narrowed_low(low: decimal, high: decimal, fill: _int64, own_min: decimal, own_max: decimal, exact: decimal) : decimal {
+        if(exact >= 0) {
+            return num.between(exact, low, high);
+        }
+        top : decimal = narrowed_high(low, high, own_min, own_max, exact);
+        bottom : decimal = low;
+        if(fill == 1 && num.is_bounded(top) == 1) { bottom = top; }
+        if(own_min > bottom) { bottom = num.smaller(own_min, top); }
+        return bottom;
+    }
+
+    // ------------------------------------------------------------ pass 2: arrange
+
+    /**
+     * Your final rectangle; the behavior then places the children inside it.
+     * A parent arranges a child at the size the child's measure() answered
+     * (want_w x want_h), so nothing is measured again here.
+     *
+     * The rectangle handed in includes this box's margin; the box itself
+     * (x, y, w, h - what is painted and clicked) is what is left inside it.
+     */
+    def arrange(nx: decimal, ny: decimal, nw: decimal, nh: decimal) {
+        x = nx + mar_left;
+        y = ny + mar_top;
+        w = num.larger(0, nw - mar_left - mar_right);
+        h = num.larger(0, nh - mar_top - mar_bottom);
+        if(shown == 1) {
+            how.arrange();
+        }
+    }
+
+    // ------------------------------------------------------------ painting
+
+    /**
+     * Paint this box and everything in it, back to front: background, border,
+     * the behavior's own content, the children, and last whatever the behavior
+     * paints over its children (a scroll bar).
+     */
+    def paint(p: painter) {
+        if(shown == 0 || hidden == 1 || w <= 0 || h <= 0 || opacity <= 0) {
+            return;
+        }
+
+        // see-through: everything this box paints - itself, its children, what
+        // they paint - goes through the painter's fade level until it is put back
+        faded : _int64 = 0;
+        level_before : decimal = 1;
+        solid : decimal = opacity * veil;
+        if(solid <= 0) {
+            return;
+        }
+        if(solid < 1) {
+            faded = 1;
+            level_before = p.fade(solid);
+        }
+
+        // painted somewhere else than laid out (it is gliding, swaying, being dragged): move
+        // the painter's (0, 0) for everything in this box, and put it back at the end
+        moved_x : decimal = shift_x;
+        moved_y : decimal = shift_y + sway_y;
+        if(moved_x != 0 || moved_y != 0) {
+            p.move_origin(moved_x, moved_y);
+        }
+
+        // turned, enlarged, blurred or cut to a shape: the box is painted to one
+        // side first - exactly as usual - and put on the screen as ONE picture at
+        // the end of this function (painter.begin_layer)
+        layered : _int64 = 0;
+        if(turn != 0 || zoom != 1 || blur > 0 || cut != null) {
+            layered = p.begin_layer();
+        }
+
+        if(shadow > 0) {
+            paint_shadow(p);
+        }
+        // A screen must not be see-through (another screen may be sliding
+        // under it). The colour is looked up NOW, so it follows the theme
+        // when the theme is switched while the app runs.
+        if(page == 1 && back == null && ui_host.current != null) {
+            p.rect(x, y, w, h, ui_host.current!!.look.background);
+        }
+        if(back != null) {
+            if(outline != null) { outline!!.fill(p, x, y, w, h, back!!); }
+            else { p.rect(x, y, w, h, corner, back!!); }
+        }
+        if(border_w > 0 && border_c != null) {
+            if(outline != null) { outline!!.stroke(p, x, y, w, h, border_w, border_c!!); }
+            else { p.outline(x, y, w, h, corner, border_w, border_c!!); }
+        }
+
+        // made clickable by a modifier: show that it reacts, the way a button does
+        if(feedback == 1 && enabled == 1 && (hovered == 1 || pressed == 1) && ui_host.current != null) {
+            strength : _int32 = 16;
+            if(pressed == 1) { strength = 34; }
+            glow : color = ui_host.current!!.look.text.with_alpha(strength);
+            if(outline != null) { outline!!.fill(p, x, y, w, h, glow); }       // the highlight has the box's own shape
+            else { p.rect(x, y, w, h, corner, glow); }
+        }
+
+        how.paint(p);
+
+        clipped : _int64 = 0;
+        if(how is clipper || size_glides == 1) {    // a box whose height is gliding cuts its content off at its edge
+            clipped = 1;
+            p.clip(x, y, w, h);
+        }
+        // a floater's children are not painted here, in the flow of the page:
+        // the host paints them afterwards, on top of everything (popup.sharp)
+        if(!(how is floater)) {
+            count : _int64 = kids.size();
+            lifted : _int64 = 0;
+            for(i : _int64 = 0; i < count; i++) {
+                if(kids.at(i).raised == 1) { lifted = 1; }
+                else { kids.at(i).paint(p); }
+            }
+            if(lifted == 1) {                       // a raised child is painted after the others: on top
+                for(i : _int64 = 0; i < count; i++) {
+                    if(kids.at(i).raised == 1) { kids.at(i).paint(p); }
+                }
+            }
+        }
+
+        if(clipped == 1) {
+            p.unclip();
+        }
+
+        if(how is overlay_painter) {
+            over := how as overlay_painter;
+            over.paint_over(p);
+        }
+
+        if(layered == 1) {
+            if(cut != null && cut!!.is_boxy() == 1) {
+                gone : shape = cut!!;
+                p.mask_layer(gone.left_on(x, w, h), gone.top_on(y, w, h), gone.wide_on(w, h), gone.tall_on(w, h), gone.radius_on(w, h));
+            }
+            // a margin around the box comes along: its shadow is part of the picture
+            p.end_layer(x - 24, y - 24, w + 48, h + 48, turn, zoom, blur);
+        }
+        if(moved_x != 0 || moved_y != 0) {
+            p.move_origin(0 - moved_x, 0 - moved_y);
+        }
+        if(faded == 1) {
+            p.unfade(level_before);
+        }
+    }
+
+    /**
+     * A soft shadow under the box, so it looks lifted off the page (a card, a
+     * dialog, a menu). There is no blur to draw with, so it is built from a few
+     * see-through black boxes, each one pixel bigger than the last: where they
+     * all overlap (near the box) it is darkest, and it thins out toward the
+     * edge. The shadow sits a little below the box, as if lit from above.
+     * (Android: elevation. CSS: box-shadow.)
+     */
+    private def paint_shadow(p: painter) {
+        layers : _int64 = num.between(shadow, 1, 16);
+        // A shadow is black laid on in thin layers. On a dark page it takes a lot
+        // of black to be seen at all; on a light page the same amount is a hard
+        // grey edge - so a light theme gets far less.
+        darkness : decimal = 56;
+        if(ui_host.current != null) {
+            page_color : color = ui_host.current!!.look.background;
+            if(page_color.red + page_color.green + page_color.blue > 384) { darkness = 16; }
+        }
+        ink : color = new color(0, 0, 0, num.larger(1, darkness / layers));
+        drop : decimal = shadow * 0.3;
+        for(i : _int64 = layers; i >= 1; i--) {
+            p.rect(x - i, y - i + drop, w + i * 2, h + i * 2, corner + i, ink);
+        }
+    }
+
+    // ------------------------------------------------------------ the mouse
+
+    /** is the window point (px, py) inside this box? */
+    def contains(px: decimal, py: decimal) : _int64 {
+        if(px >= x && px < x + w && py >= y && py < y + h) { return 1; }
+        return 0;
+    }
+
+    /**
+     * The deepest shown view under the point, or null. Children are asked
+     * last-to-first: the one painted on top wins. A point outside this box
+     * never reaches its children, so things scrolled out of a list cannot be
+     * clicked.
+     */
+    def find_at(px: decimal, py: decimal) : view? {
+        if(shown == 0 || hidden == 1 || contains(px, py) == 0) {
+            return null;
+        }
+        // a floater's children are not in the flow of the page: the host asks them first, itself (popup.sharp)
+        if(!(how is floater)) {
+            count : _int64 = kids.size();
+            for(i : _int64 = count - 1; i >= 0; i--) {
+                found : view? = kids.at(i).find_at(px, py);
+                if(found != null) {
+                    return found;
+                }
+            }
+        }
+        return self;
+    }
+
+    /** would this view react to the mouse or the keyboard - whether or not it is enabled right now? */
+    def wants_input() : _int64 {
+        if(shown == 0) { return 0; }
+        if(on_click != null) { return 1; }
+        if(on_long_press != null || on_double_click != null || on_drag != null) { return 1; }
+        // a scrolling area can be grabbed anywhere - also on the empty room
+        // between its rows - and dragged, the way a finger moves a list
+        if(how is drag_scroller) { return 1; }
+        if(how is pointer_target) { return 1; }
+        if(how is key_target) { return 1; }
+        return 0;
+    }
+
+    /** can the keyboard focus land here (Tab stops here)? */
+    def is_focusable() : _int64 {
+        if(enabled == 0 || shown == 0 || hidden == 1) { return 0; }
+        if(how is key_target) { return 1; }
+        if(on_click != null) { return 1; }
+        return 0;
+    }
+
+    /** run the click handler, if there is one and the view is enabled */
+    def click() {
+        if(enabled == 1 && on_click != null) {
+            on_click();
+        }
+    }
+
+    // the same for the other gestures: each runs its handler, if the view has one
+
+    def long_pressed() {
+        if(on_long_press != null) { on_long_press(); }
+    }
+
+    def double_clicked() {
+        if(on_double_click != null) { on_double_click(); }
+    }
+
+    def right_clicked() {
+        if(on_right_click != null) { on_right_click(); }
+    }
+
+    def drag_started() {
+        if(on_drag_start != null) { on_drag_start(); }
+    }
+
+    def dragged(dx: decimal, dy: decimal) {
+        if(on_drag != null) { on_drag(dx, dy); }
+    }
+
+    def drag_ended() {
+        if(on_drag_end != null) { on_drag_end(); }
+    }
+}

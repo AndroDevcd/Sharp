@@ -1,0 +1,54 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Assigning a value that needs a conversion (a string literal, a number for a
+ * number object) to a target that may hold no object yet: an element of an
+ * object array, or a variable / field of a nullable type. A new object is made.
+ */
+
+class note {
+    text : string?;
+    title : string = "untitled";
+    count : int?;
+    init { }
+    def fill() { text = "filled"; }
+}
+
+def main(args: string[]) {
+    names : string[] = new string[3];
+    names[1] = "one";
+    expect_str("names[1] = literal", names[1], "one");
+    names[1] = "uno";
+    expect_str("...assigned again", names[1], "uno");
+    names[2] = names[1] + "!";
+    expect_str("element = string expression", names[2], "uno!");
+
+    maybe : string? = null;
+    maybe = "x";
+    expect_str("nullable local = literal", maybe!!, "x");
+
+    n := new note();
+    n.text = "hello";
+    expect_str("nullable field = literal", n.text!!, "hello");
+    n.fill();
+    expect_str("nullable field = literal inside a method", n.text!!, "filled");
+    n.title = "named";
+    expect_str("non nullable field = literal", n.title, "named");
+    n.count = 5;
+    expect("nullable int field = number", n.count!!.value, 5);
+
+    numbers : int[] = new int[2];
+    numbers[0] = 41;
+    numbers[1] = numbers[0].value + 1;
+    expect("int element = number", numbers[0].value + numbers[1].value, 83);
+
+    keep : string = "first";
+    other : string = keep;
+    keep = "second";
+    // (a string is stored, never written into: the other name keeps the string it has)
+    expect_str("a string local = literal is a new string: the other name keeps its own", other, "first");
+    expect_str("... and the local assigned to has the new text", keep, "second");
+    finish("assign_to_null_targets");
+}

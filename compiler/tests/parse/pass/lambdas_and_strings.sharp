@@ -1,0 +1,55 @@
+mod tests.lambdas_and_strings;
+
+def run(block: ()()) { block(); }
+def apply(f: (decimal)(decimal), x: decimal) : decimal { return f(x); }
+
+def lambdas(items: list<int>) {
+    // ---- written out
+    add := { a: decimal, b: decimal -> (decimal) return a + b; };
+    untyped := { a, b -> a + b };
+    no_parameters := { -> run({ -> }); };
+    returns_nothing := { x: decimal -> (nil) println("" + x); };
+    paren_body := { x: decimal -> (x + 1).to_string() };
+
+    // ---- passed to calls
+    run({ -> println("in"); });
+    apply({ x: decimal -> (decimal) return x * 2; }, 4);
+
+    // ---- trailing
+    run { println("trailing"); }
+    items.for_each { println("" + it); }
+    items.filter { it > 3 }.map { it * 2 };
+    items.map({ v: int -> (int) return v * 2; }).size();
+
+    // ---- function values
+    f := run;
+    f({ -> });
+    table := new (decimal)(decimal)[2];
+    table[0](4);
+}
+
+def strings(name: string, count: decimal) {
+    // ---- plain
+    a := "";
+    b := "plain text";
+    c := "escapes \n \t \\ \" \' \0";
+    d := "one dollar: $$ and a price $5";
+
+    // ---- interpolation, as in Kotlin
+    e := "hello $name";
+    f := "$name";
+    g := "$name$name";
+    h := "count: ${count + 1} items";
+    i := "${count}";
+    j := "a ${ "inner ${count} text" + name } b";
+    k := "call ${name.size()} and index ${name[0]}";
+    l := "lambda ${ apply({ x: decimal -> (decimal) return x; }, 1) } done";
+    m := "$name.size";
+    n := "size of the whole text".size() + "n=$count".size();
+
+    // ---- characters
+    o := 'a';
+    p := '\n';
+    q := '\'';
+    r := '\\';
+}

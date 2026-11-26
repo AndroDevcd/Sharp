@@ -1,0 +1,58 @@
+mod main;
+
+// output:
+// 5
+// 720
+// 65
+
+/*
+ * asm blocks (doc/codegen.md 6.17): registers, numbers, a local's slot,
+ * labels - a jump back while `lt` sets cmt (`movi adx, @label` then `ife`;
+ * `je` takes a number, not a label, in both compilers), a jump forward
+ * (`jmp @label`) - and instructions whose written operands are encoded in
+ * another order (`smovr2 [slot], register`; `add out, left, right`).
+ */
+def main() {
+    n : _int64 = 0;
+    asm {
+        movi ebx, 0
+    .again:
+        inc ebx
+        smovr2 [n], ebx
+        movi ecx, 5
+        lt ebx, ecx
+        movi adx, @again
+        ife
+    }
+    show(n);
+
+    product : _int64 = 1;
+    asm {
+        movi ebx, 1
+        movi ecx, 1
+    .step:
+        mul egx, ebx, ecx
+        movr ebx, egx
+        inc ecx
+        movi egx, 6
+        le ecx, egx
+        movi adx, @step
+        ife
+        smovr2 [product], ebx
+    }
+    show(product);
+
+    letter : _int64 = 0;
+    asm {
+        movi ebx, 60
+        movi ecx, 5
+        add egx, ebx, ecx
+        smovr2 [letter], egx
+        jmp @done
+        movi ebx, 99
+        smovr2 [letter], ebx
+    .done:
+        nop
+    }
+    show(letter);
+}

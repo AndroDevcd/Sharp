@@ -1,0 +1,82 @@
+mod std.guikit.core.style;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * theme - the colours and sizes every built-in widget draws itself with.
+ *
+ * Widgets never hard-code a colour: a button asks the theme for `primary`, a
+ * label for `text`. Change the theme and the whole app changes with it:
+ *
+ *      gui.use_theme(theme.light());          // before gui.run(...)
+ *
+ *      mine := theme.dark();                  // or start from one and adjust
+ *      mine.primary = gui.rgb(255, 120, 60);
+ *      gui.use_theme(mine);
+ *
+ * A widget can still be given its own colour with a modifier
+ * (.background(c), text .color(c)); the theme is only the default.
+ * Android comparison: a Theme / Material colour scheme. CSS: custom properties
+ * on :root.
+ */
+stable class theme {
+    // ------------------------------------------------------------ colours
+    background : color;         // the window behind everything
+    surface : color;            // cards, panels, input boxes
+    surface_high : color;       // a surface under the mouse, raised things
+    border : color;             // thin lines around and between things
+    text : color;               // ordinary text
+    text_dim : color;           // less important text, placeholders
+    primary : color;            // THE colour of the app: main buttons, switches that are on, the focus ring
+    primary_high : color;       // primary under the mouse
+    primary_low : color;        // primary while pressed
+    on_primary : color;         // text on top of primary
+    danger : color;             // destructive buttons, errors
+    success : color;            // "it worked"
+
+    // ------------------------------------------------------------ sizes (pixels)
+    radius : decimal = 8;               // corner radius of buttons, inputs, cards
+    text_size : decimal = 16;           // ordinary text
+    small_size : decimal = 13;          // captions
+    title_size : decimal = 28;          // headings
+    space : decimal = 8;                // the basic gap; paddings are multiples of it
+    control_height : decimal = 36;      // the height of a button, an input box
+
+    /** the dark theme (the default) */
+    static def dark() : theme {
+        t := new theme();
+        t.background   = new color(18, 20, 30, 255);
+        t.surface      = new color(34, 38, 54, 255);
+        t.surface_high = new color(48, 54, 76, 255);
+        t.border       = new color(70, 78, 110, 255);
+        t.text         = new color(240, 242, 250, 255);
+        t.text_dim     = new color(150, 156, 180, 255);
+        t.primary      = new color(80, 140, 255, 255);
+        t.primary_high = new color(110, 162, 255, 255);
+        t.primary_low  = new color(58, 112, 220, 255);
+        t.on_primary   = new color(255, 255, 255, 255);
+        t.danger       = new color(235, 80, 90, 255);
+        t.success      = new color(60, 200, 130, 255);
+        return t;
+    }
+
+    /** a light theme */
+    static def light() : theme {
+        t := new theme();
+        t.background   = new color(246, 247, 250, 255);
+        t.surface      = new color(255, 255, 255, 255);
+        t.surface_high = new color(236, 239, 246, 255);
+        t.border       = new color(206, 211, 224, 255);
+        t.text         = new color(28, 32, 44, 255);
+        t.text_dim     = new color(110, 118, 140, 255);
+        t.primary      = new color(40, 104, 232, 255);
+        t.primary_high = new color(66, 126, 245, 255);
+        t.primary_low  = new color(28, 84, 196, 255);
+        t.on_primary   = new color(255, 255, 255, 255);
+        t.danger       = new color(214, 54, 66, 255);
+        t.success      = new color(30, 160, 100, 255);
+        return t;
+    }
+}

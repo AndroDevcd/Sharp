@@ -1,0 +1,88 @@
+mod backend.finalizer.generation.assignment;
+
+import (
+    std.io,
+    frontend.lexer,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation,
+    backend.finalizer.generation.values,
+    backend.finalizer.generation.operators
+)
+
+/**
+ * ASSIGNMENTS AND INCREMENTS (doc/codegen.md 6.4)
+ *
+ *      x = v, x += v           bound_assign     the value FIRST (6.0), then the parts of the target
+ *      x++, --x                bound_increment  the parts of the target once, in order
+ *
+ * The target is a STORAGE PLACE: a local, a field (instance, static, global,
+ * `localized`), an element of an array, or a property - a field read through
+ * its getter and written through its setter. The parts that lead to the
+ * place (the object of a field, the array and index of an element) are
+ * evaluated once, even when the place is read and then written
+ * (`a[next()] += 1` calls next() once). A store into a whole-number place
+ * narrower than 64 bits cuts the value to it (`mov8` ... `movu32`), as the
+ * C++-built program does (4.3, Q3).
+ *
+ * The files of this package (module `backend.finalizer.generation.assignment`):
+ *
+ *      assignment.sharp        this front door: `=` and `op=`
+ *      places.sharp            a storage place: its parts evaluated once, read, written
+ *      increments.sharp        `++` and `--`, prefix and postfix
+ */
+
+/**
+ * `target = value` and `target op= value` (6.4): the value FIRST (6.0), then
+ * the parts of the target; for `op=` the target's old value, the operation
+ * (on integers or decimals, as analysis decided), the result converted back
+ * to the target's type (`store`: `small += 1` with `small : _int8` cuts it).
+ * The value of the whole expression is the value stored. On a PROPERTY
+ * (`box.width += 2`) the old value comes from its getter and the new one goes
+ * through its setter (`getter` / `setter`; a plain `=` to a property is a call
+ * of the setter in the typed tree already).
+ */
+def assign_value(g: generator, e: bound_assign) : _int64 {
+    value : _int64 = held_over(g, value_of(g, e.value), e.target);
+    place := place_of(g, e.target, e, e.getter, e.setter);
+    if(e.operation == 0) {
+        write_place(g, place, value, e);
+        release_place(g, place);
+        if(place.kind == STORE_LOCAL) {
+            g.b.release(value);
+            return place.slot;
+        }
+        return value;
+    }
+    old : _int64 = as_operand(g, read_place(g, place, e), e.operands);
+    value = as_operand(g, value, e.operands);
+    arithmetic : _int64 = arithmetic_of(e.operation);
+    if(arithmetic == 0) { g.stop("`" + compound_text(e.operation) + "`", e.unit, e.node); }
+    result : _int64 = 0 - 1;
+    if(e.operands == OPERANDS_DECIMAL) {
+        result = g.b.temp(SLOT_DEC);
+        g.b.binary(IR_DECIMAL_BINARY, arithmetic, result, old, value);
+    } else {
+        result = g.b.temp(SLOT_INT);
+        g.b.binary(IR_INT_BINARY, arithmetic, result, old, value);
+    }
+    g.b.release(old);
+    g.b.release(value);
+    if(e.store != null) { result = converted(g, result, e.store!!, e); }
+    write_place(g, place, result, e);
+    release_place(g, place);
+    return result;
+}
+
+/** `+=`, `-=` ... as written, for a "not generated yet" message */
+def compound_text(operation: _int64) : string {
+    if(operation == P_PLUSEQ || operation == P_PLUS) { return "+="; }
+    if(operation == P_MINUSEQ || operation == P_MINUS) { return "-="; }
+    if(operation == P_MULTEQ || operation == P_STAR) { return "*="; }
+    if(operation == P_DIVEQ || operation == P_SLASH) { return "/="; }
+    if(operation == P_MODEQ || operation == P_PERCENT) { return "%="; }
+    return "a compound assignment";
+}

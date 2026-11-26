@@ -1,0 +1,183 @@
+mod backend.finalizer.bytecode;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.finalizer.ir,
+    backend.finalizer.layout
+)
+
+/**
+ * SELECTION: FIELDS AND ARRAY ELEMENTS (doc/codegen.md 4.5, 6.2, 6.7)
+ *
+ * The VM reaches a field or an element through its "object pointer" (`ptr`):
+ * first ptr is put on the object that holds it, then the field is read or
+ * written through it.
+ *
+ *      get_field %2, %0.count      ->  movl 0;  getf ebx, <slot of count>;  smovr_2 ebx, 2     (a number)
+ *      get_field %2, %0.name       ->  movl 0;  movn <slot of name>;  smovr_3 2               (a reference)
+ *      get_static %2, counter.made ->  movg <address of counter>;  then as above
+ *      get_element %3, %1[%2]      ->  movl 1;  loadl adx, 2;  checklen adx;  aload64 ebx, adx;  smovr_2 ebx, 3
+ *
+ * A `localized` field is not in an object at all: it is a slot at the bottom
+ * of the fiber's own stack (`load_abs` / `mov_abs` for numbers, `tls_movl`
+ * for references; codegen.md 4.8). `checklen` raises nullptr_exception for a
+ * null array and out_of_bounds_exception for a position outside it.
+ */
+
+/** does a field (or enum value) hold a number, not a reference? */
+def holds_number(declared: sharp_declaration) : _int64 {
+    if(declared.kind != D_FIELD) { return 0; }
+    type := (declared as sharp_field).value_type;
+    return type != null && type!!.is_number();
+}
+
+/** ptr on the object that holds the field: an object in a slot, or a class's static object */
+def point_at_holder(out: code_emitter, made: ir_instruction) {
+    if(made.kind == IR_GET_STATIC || made.kind == IR_SET_STATIC) { out.class_d(OP_MOVG, made.detail); }
+    else { out.class_d(OP_MOVL, made.first); }
+}
+
+/** d = a field: of an object, of a class's static object, or of the fiber (`localized`) */
+def select_get_field(out: code_emitter, made: ir_instruction) {
+    field := made.declaration!!;
+    slot : _int64 = field.address;
+    if(field.has(FLAG_LOCALIZED)) {
+        // a fiber local: slot k at the bottom of the fiber's stack (codegen.md 4.8)
+        if(holds_number(field)) {
+            out.class_d(OP_LOAD_ABS, slot);
+            out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+        } else {
+            out.class_d(OP_TLS_MOVL, slot);
+            out.class_d(OP_SMOVR_3, made.target);
+        }
+        return;
+    }
+    if(made.kind == IR_GET_FIELD && slots_in_reach(made.target, made.first, slot)) {
+        if(holds_number(field)) { out.class_b(OP_GETF_S, made.target, made.first, slot); }
+        else { out.class_b(OP_GETOBJ_S, made.target, made.first, slot); }
+        return;
+    }
+    point_at_holder(out, made);
+    if(holds_number(field)) {
+        out.class_c(OP_GETF, REG_EBX, slot);
+        out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+    } else {
+        out.e_and_raw(OP_MOVN, slot);
+        out.class_d(OP_SMOVR_3, made.target);
+    }
+}
+
+/** a field = b, a number cut to the field's type first */
+def select_set_field(out: code_emitter, made: ir_instruction) {
+    field := made.declaration!!;
+    slot : _int64 = field.address;
+    if(field.has(FLAG_LOCALIZED)) {
+        if(holds_number(field)) {
+            out.class_c(OP_LOADL, REG_EBX, made.second);
+            narrow(out, REG_EBX, made.number);
+            out.class_d(OP_MOV_ABS, slot);
+        } else {
+            out.class_d(OP_PUSHL, made.second);
+            out.class_d(OP_TLS_MOVL, slot);
+            out.class_e(OP_POPOBJ);
+        }
+        return;
+    }
+    if(holds_number(field)) {
+        if(made.kind == IR_SET_FIELD && made.number == NARROW_NONE && slots_in_reach(made.first, slot, made.second)) {
+            out.class_b(OP_PUTF_S, made.first, slot, made.second);
+            return;
+        }
+        out.class_c(OP_LOADL, REG_EBX, made.second);
+        narrow(out, REG_EBX, made.number);
+        point_at_holder(out, made);
+        out.class_c(OP_PUTF, REG_EBX, slot);
+    } else {
+        if(made.kind == IR_SET_FIELD && slots_in_reach(made.first, slot, made.second)) {
+            out.class_b(OP_PUTOBJ_S, made.first, slot, made.second);
+            return;
+        }
+        out.class_d(OP_PUSHL, made.second);
+        point_at_holder(out, made);
+        out.e_and_raw(OP_MOVN, slot);
+        out.class_e(OP_POPOBJ);
+    }
+}
+
+/** d = a new array of `a` elements: of numbers, of one class, or of any references */
+def select_new_array(out: code_emitter, made: ir_instruction) {
+    out.class_c(OP_LOADL, REG_ADX, made.first);
+    if(made.number == ELEMENT_REFERENCE) {
+        if(made.detail >= 0) { out.d_and_raw(OP_NEWCLASSARRAY, REG_ADX, made.detail); }
+        else { out.class_d(OP_NEWOBJARRAY, REG_ADX); }
+    } else {
+        out.class_c(OP_NEWARRAY, REG_ADX, made.number);
+    }
+    out.class_d(OP_POPL, made.target);
+}
+
+/** the load instruction for an element of a number array of this VM type (its width and sign: codegen.md 4.5) */
+def element_load(element: _int64) : _int64 {
+    if(element == VM_TYPE_INT8) { return OP_ALOAD8; }
+    if(element == VM_TYPE_UINT8) { return OP_ALOADU8; }
+    if(element == VM_TYPE_INT16) { return OP_ALOAD16; }
+    if(element == VM_TYPE_UINT16) { return OP_ALOADU16; }
+    if(element == VM_TYPE_INT32) { return OP_ALOAD32; }
+    if(element == VM_TYPE_UINT32) { return OP_ALOADU32; }
+    return OP_ALOAD64;
+}
+
+/** the store instruction for an element of a number array of this VM type (its width) */
+def element_store(element: _int64) : _int64 {
+    if(element == VM_TYPE_INT8 || element == VM_TYPE_UINT8) { return OP_ASTORE8; }
+    if(element == VM_TYPE_INT16 || element == VM_TYPE_UINT16) { return OP_ASTORE16; }
+    if(element == VM_TYPE_INT32 || element == VM_TYPE_UINT32) { return OP_ASTORE32; }
+    return OP_ASTORE64;
+}
+
+/**
+ * d = a[b]: `checklen` first, which raises for a null array and for a position outside it -
+ * unless the optimizer proved there is nothing to raise (`in_range`: passes/control/bounds_checks.sharp)
+ */
+def select_get_element(out: code_emitter, made: ir_instruction) {
+    if(slots_in_reach(made.target, made.first, made.second)) {
+        // (the slot form always checks the position: two machine instructions, less than the loads it saves)
+        if(made.number == ELEMENT_REFERENCE) { out.class_b(OP_AGETOBJ_S, made.target, made.first, made.second); }
+        else { out.class_b(OP_ALOAD8_S + (element_load(made.number) - OP_ALOAD8), made.target, made.first, made.second); }
+        return;
+    }
+    out.class_d(OP_MOVL, made.first);
+    out.class_c(OP_LOADL, REG_ADX, made.second);
+    if(made.in_range == 0) { out.class_d(OP_CHECKLEN, REG_ADX); }
+    if(made.number == ELEMENT_REFERENCE) {
+        out.class_d(OP_MOVND, REG_ADX);
+        out.class_d(OP_SMOVR_3, made.target);
+    } else {
+        out.class_c(element_load(made.number), REG_EBX, REG_ADX);
+        out.class_c(OP_SMOVR_2, REG_EBX, made.target);
+    }
+}
+
+/** a[b] = value, checked like a read; the VM cuts a number to the element's width */
+def select_set_element(out: code_emitter, made: ir_instruction, context: selection_context) {
+    if(made.number == ELEMENT_REFERENCE) {
+        out.class_d(OP_PUSHL, made.detail);
+        out.class_d(OP_MOVL, made.first);
+        out.class_c(OP_LOADL, REG_ADX, made.second);
+        if(made.in_range == 0) { out.class_d(OP_CHECKLEN, REG_ADX); }
+        out.class_d(OP_MOVND, REG_ADX);
+        out.class_e(OP_POPOBJ);
+    } else {
+        if(slots_in_reach(made.first, made.second, made.detail)) {
+            out.class_b(OP_ASTORE8_S + (element_store(made.number) - OP_ASTORE8), made.first, made.second, made.detail);
+            return;
+        }
+        out.class_c(OP_LOADL, REG_EBX, made.detail);
+        out.class_d(OP_MOVL, made.first);
+        out.class_c(OP_LOADL, REG_ADX, made.second);
+        if(made.in_range == 0) { out.class_d(OP_CHECKLEN, REG_ADX); }
+        out.class_c(element_store(made.number), REG_ADX, REG_EBX);
+    }
+}

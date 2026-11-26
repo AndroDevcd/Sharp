@@ -1,0 +1,69 @@
+mod frontend.syntax.parser.habits;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    frontend.syntax.tree,
+    frontend.syntax.parser
+)
+
+/**
+ * HABITS IN VALUES (see habits.sharp for the idea)
+ *
+ *      (string) o                  C, Java         o as string
+ *      x : string? = nil;          Swift, Ruby     x : string? = null;
+ *
+ * Called from parse_expressions.sharp, where a value is expected.
+ */
+
+/**
+ * `(string) o`, `(_int64) x`: a cast written the C way. The current token
+ * is the `(`. It is one when the parentheses hold only a type - a name or a
+ * number type, with `[]`, `?`, `.`, `#` and type arguments - and a plain
+ * value follows on the same line. (`(f)(x)` is a call and is left alone: a
+ * `(` after the `)` is not a plain value.)
+ * @return the index of the `)`, or -1
+ */
+def c_cast_end(p: parse_state) : _int64 {
+    first : _int64 = p.peek(1);
+    if(first != T_IDENTIFIER && !is_native_type(first)) { return 0 - 1; }
+    ahead : _int64 = 2;
+    for( ;; ) {
+        kind : _int64 = p.peek(ahead);
+        if(kind == P_RPAREN) { break; }
+        if(kind != T_IDENTIFIER && kind != P_LBRACKET && kind != P_RBRACKET && kind != P_QUESTION && kind != P_DOT
+           && kind != P_HASH && kind != P_LESS && kind != P_GREATER && kind != P_COMMA && !is_native_type(kind)) { return 0 - 1; }
+        ahead++;
+    }
+    closing : _int64 = p.position + ahead;
+    after : _int64 = p.peek(ahead + 1);
+    if(after == P_NOT || after == P_MINUS) { return 0 - 1; }      // `(a) - b` is a subtraction
+    if(!starts_a_plain_value(after) || !p.same_line(closing, closing + 1)) { return 0 - 1; }
+    // `(a) b`: a name in the parentheses and a name after: only a cast reads that way
+    return closing;
+}
+
+/** parse `(type) value` (see c_cast_end) as the value, and report it; returns an N_ERROR node over the value */
+def parse_c_cast(p: parse_state, closing: _int64) : _int64 {
+    opener : _int64 = p.position;
+    type_text := tokens_text(p, opener + 1, closing - 1);
+    while(p.position <= closing) { p.advance(); }
+    node : _int64 = p.node(N_ERROR);
+    p.tree.append(node, parse_unary(p));
+    value := tokens_text(p, closing + 1, p.position - 1);
+    d := report_habit(p, opener, closing, "a cast is written `value as type` in Sharp");
+    d.with_label("the type in parentheses, in front of the value, is the C form");
+    d.with_note("`as` comes after the value and converts it to the type: a number to another number type, an object to a class it really is");
+    d.with_help("write: `" + value + " as " + type_text + "`");
+    return node;
+}
+
+/** `x : string? = nil;` - the current token is `nil` where a value belongs */
+def report_nil_value(p: parse_state) {
+    d := report_habit(p, p.position, p.position, "`nil` is not a value: \"no object\" is written `null` in Sharp");
+    d.with_label("`nil` means \"returns nothing\" and is only written as a result type");
+    d.with_note("`def f() : nil` declares a function that returns nothing; a variable that holds no object holds `null`");
+    d.with_help("write `null`");
+    p.advance();
+}

@@ -1,0 +1,348 @@
+mod backend.compiler.overloads;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * WHEN OVERLOAD RESOLUTION FINDS NO SINGLE FUNCTION
+ *
+ *      error[E0501]: no `add` takes (string, _int32)
+ *        --> shop.sharp:20:10
+ *         |
+ *      20 |     cart.add("pen", 3);
+ *         |          ^^^ called with (string, _int32)
+ *         |
+ *         = note: add(item: product, count: decimal)   argument 1 is `string`, but parameter `item` is a `product`
+ *         = note: add(item: product)                   takes 1 argument, 2 were given
+ *
+ * Every candidate is listed with the ONE reason it does not fit, nearest miss
+ * first (a candidate that failed at its third argument is nearer than one
+ * that failed at the first, which is nearer than a wrong count), at most six.
+ * With one candidate the message also explains the mismatch the way a
+ * declaration would (E0410: `.value`, `"" + n` ...).
+ *
+ *      error[E0503]: the call of `dd` is ambiguous: 2 functions fit (_int32) equally well
+ *         = note: dd(a: decimal)
+ *         = note: dd(a: _int64)
+ *         = help: say which one with a cast: `dd(x as decimal)`
+ *
+ *      C++ comparison: "could not resolve symbol `add(string, _int32)`" and
+ *      "call to method `dd` is ambiguous" with a list printed on the side.
+ */
+
+/**
+ * E0501 (or another code, for constructors and operators): no candidate
+ * takes the arguments.
+ *
+ * @param code      E0501 for a call, E0506 for a constructor, E0511 for an operator
+ * @param heading   the message: "no `add` takes (string, _int32)"
+ * @param node      where the call is (the name of the function)
+ */
+def report_no_fit(context: analysis_context, code: string, heading: string, node: _int64, rejected: list<call_candidate>,
+                  arguments: list<call_argument>) {
+    report_no_fit_with_help(context, code, heading, node, rejected, arguments, "");
+}
+
+/**
+ * The same, with one more help line the caller knows to give ("constructors
+ * are not inherited: add `dog(n: string) -> base(n) { }`"); "" for none.
+ */
+def report_no_fit_with_help(context: analysis_context, code: string, heading: string, node: _int64, rejected: list<call_candidate>,
+                            arguments: list<call_argument>, help: string) {
+    d := problem_for_call(context, code, heading, node);
+    d.with_label("called with " + argument_types_text(arguments));
+
+    ordered := without_added_constructors(nearest_misses_first(rejected));
+
+    // Two mistakes are known for what they are, whatever the candidates: Python's print
+    // of several values, and a function named where its result was meant. With several
+    // overloads (`println` has fourteen) the list of why each one does not fit would only
+    // bury the one line that helps, so it is left out then.
+    understood : _int64 = add_print_of_several_values(context, d, node, arguments);
+    if(understood == 0) { understood = add_call_of_named_function(context, d, ordered, arguments); }
+
+    shown : _int64 = 0;
+    for(i : _int64 = 0; i < ordered.size() && shown < 6 && (understood == 0 || ordered.size() == 1); i++) {
+        candidate := ordered.at(i);
+        d.with_note(signature_of(candidate.function) + "    " + candidate.reason_text());
+        shown++;
+    }
+    if(ordered.size() > shown && shown > 0) { d.with_note("and " + (ordered.size() - shown) + " more"); }
+
+    add_equals_as_operator(context, d, node, arguments);
+    if(ordered.size() == 1) {
+        only := ordered.at(0);
+        d.with_related_place(place_of_declaration(only.function, "`" + only.function.name + "` is declared here"));
+        explain_failed_argument(context, d, only, arguments);
+        add_count_fix(context, d, only, arguments);
+    }
+    if(help.size() > 0) { d.with_help(help); }
+    report(context, d);
+}
+
+/**
+ * `s.equals("y")`: Java's way to compare. In Sharp `==` is the comparison
+ * (numbers by value, objects by their class's `operator==` - a `string`
+ * compares its text), and it takes a text literal as it is. So when a call
+ * of `equals` with one argument fits no `equals`, the help is the `==`
+ * that does what was meant - before the narrower "make the argument fit".
+ */
+def add_equals_as_operator(context: analysis_context, d: diagnostic, node: _int64, arguments: list<call_argument>) {
+    tree : syntax_tree = context.tree;
+    if(arguments.size() != 1 || !(name_at(context, node) == "equals")) { return; }
+    member : _int64 = tree.parents!![node];
+    if(member < 0 || tree.kinds!![member] != N_MEMBER || tree.last_child!![member] != node) { return; }
+    receiver := as_operand_text(context, tree.first_child!![member]);
+    value := source_text_of(context, arguments.at(0).node);
+    if(receiver == "<value>" || value == "<value>") { return; }
+    d.with_help("Sharp compares with `==`: `" + receiver + " == " + value + "`");
+}
+
+/**
+ * `println(name, total)`: Python's `print` takes several values and puts a
+ * space between them. Sharp's `print` / `println` take ONE value, so the help
+ * is one string template that holds them all, in the same order, with the
+ * same spaces: `println("$${name} $${total}")`. A text literal goes into the
+ * template as its text.
+ * @return 1 when the call is one and the help was added
+ */
+def add_print_of_several_values(context: analysis_context, d: diagnostic, node: _int64, arguments: list<call_argument>) : _int64 {
+    name := name_at(context, node);
+    if(arguments.size() < 2 || (!(name == "println") && !(name == "print"))) { return 0; }
+    tree : syntax_tree = context.tree;
+    if(tree.kinds!![tree.parents!![node]] != N_CALL) { return 0; }
+    text := new string_builder("");
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        argument := arguments.at(i);
+        if(argument.is_lambda == 1) { return 0; }
+        written := source_text_of(context, argument.node);
+        if(written == "<value>") { return 0; }
+        if(i > 0) { text.append(" "); }
+        if(argument.value.literal == LIT_TEXT && sizeof(written.data) >= 2 && has_dollar(written) == 0) {
+            text.append(new string(written.data!!, 1, sizeof(written.data) - 1));
+        } else {
+            text.append("$${" + written + "}");
+        }
+    }
+    d.with_note("`" + name + "` takes ONE value; Python's print, which takes several, puts a space between them");
+    d.with_help("put them into one text: `" + name + "(\"" + text.build() + "\")`");
+    return 1;
+}
+
+/**
+ * `println(total)` with a function `total`: a function NAMED as an argument
+ * where its result was meant - the `( )` forgotten. When no candidate takes
+ * a function at that place, the help is the call: `total()`, or `total(...)`
+ * when every function of that name takes parameters. (A candidate that does
+ * take a function there is left to its own reason: the name may be right
+ * and the function's parameters wrong.)
+ * @return 1 when the help was added
+ */
+def add_call_of_named_function(context: analysis_context, d: diagnostic, candidates: list<call_candidate>, arguments: list<call_argument>) : _int64 {
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        argument := arguments.at(i);
+        if(argument.named == null) { continue; }
+        for(k : _int64 = 0; k < candidates.size(); k++) {
+            parameters := candidates.at(k).function.parameters;
+            if(i < parameters.size() && parameters.at(i).value_type != null && parameters.at(i).value_type!!.kind == RT_FUNCTION) { return 0; }
+        }
+        written := source_text_of(context, argument.node);
+        if(written == "<value>") { continue; }
+        functions := argument.named!!.candidates;
+        takes := "(...)";
+        for(k : _int64 = 0; k < functions.size(); k++) {
+            if(functions.at(k).parameters.size() == 0) { takes = "()"; }
+        }
+        d.with_note("`" + written + "` names the function; only calling it gives its result");
+        d.with_help("call it: `" + written + takes + "`");
+        return 1;
+    }
+    return 0;
+}
+
+/** does the text hold a `$$` (which, put into a template, would start a value)? */
+def has_dollar(text: string) : _int64 {
+    for(i : _int64 = 0; i < sizeof(text.data); i++) {
+        if((text.data[i] as _int64) == 36) { return 1; }
+    }
+    return 0;
+}
+
+/**
+ * With a single candidate the one argument that does not fit is explained
+ * like any value that does not fit its place: the rule, and what to write.
+ */
+def explain_failed_argument(context: analysis_context, d: diagnostic, candidate: call_candidate, arguments: list<call_argument>) {
+    position : _int64 = candidate.failed_argument;
+    if(position < 0 || position >= arguments.size()) { return; }
+    argument := arguments.at(position);
+    wanted := candidate.function.parameters.at(position).value_type;
+    if(wanted == null || argument.is_lambda == 1) { return; }
+    how := find_conversion(context.session, argument.value.type, wanted!!, 1);
+    if(how.only_nullable_in_the_way == 1) { add_null_fixes(context, d, argument.node); }
+    else { explain_mismatch(context, d, argument.value, how); }
+}
+
+/**
+ * With a single candidate and the wrong NUMBER of arguments, say which
+ * values are missing or which are too many:
+ *
+ *      def add(a: _int64, b: _int64)
+ *      add(1);             give a value for `b` as well
+ *      add(1, 2, 3);       `add` takes 2: remove `3`
+ */
+def add_count_fix(context: analysis_context, d: diagnostic, candidate: call_candidate, arguments: list<call_argument>) {
+    if(candidate.wrong_count == 0) { return; }
+    parameters := candidate.function.parameters;
+    given : _int64 = arguments.size();
+    wanted : _int64 = parameters.size();
+    text := new string_builder("");
+    if(given < wanted) {
+        for(i : _int64 = given; i < wanted; i++) {
+            if(i > given) { text.append(", "); }
+            text.append("`" + parameters.at(i).name + "`");
+        }
+        d.with_help("give a value for " + text.build() + " as well");
+        return;
+    }
+    for(i : _int64 = wanted; i < given; i++) {
+        written := source_text_of(context, arguments.at(i).node);
+        if(written == "<value>") { return; }
+        if(i > wanted) { text.append(", "); }
+        text.append("`" + written + "`");
+    }
+    if(wanted == 0) { d.with_help("`" + candidate.function.name + "` takes no arguments: remove " + text.build()); }
+    else { d.with_help("`" + candidate.function.name + "` takes " + wanted + ": remove " + text.build()); }
+}
+
+/**
+ * The candidates without the constructor the compiler added (`item()`, which
+ * every class gets, 7.15.1) - when the programmer wrote others: listing a
+ * constructor nobody wrote next to the ones written only distracts.
+ */
+def without_added_constructors(candidates: list<call_candidate>) : list<call_candidate> {
+    written := new list<call_candidate>();
+    for(i : _int64 = 0; i < candidates.size(); i++) {
+        if(candidates.at(i).function.is_synthesized == 0) { written.add(candidates.at(i)); }
+    }
+    if(written.size() == 0) { return candidates; }
+    return written;
+}
+
+/** the candidates in the order the message lists them: those that failed at a later argument first */
+def nearest_misses_first(rejected: list<call_candidate>) : list<call_candidate> {
+    ordered := new list<call_candidate>();
+    for(position : _int64 = 32; position >= 0 - 1; position--) {
+        for(i : _int64 = 0; i < rejected.size(); i++) {
+            if(rejected.at(i).failed_argument == position) { ordered.add(rejected.at(i)); }
+        }
+    }
+    for(i : _int64 = 0; i < rejected.size(); i++) {
+        if(rejected.at(i).failed_argument > 32) { ordered.add(rejected.at(i)); }
+    }
+    return ordered;
+}
+
+/** E0503: several candidates fit equally well */
+def report_ambiguous(context: analysis_context, name: string, node: _int64, tied: list<call_candidate>,
+                     arguments: list<call_argument>) {
+    d := problem_for_call(context, "E0503", "the call of `" + name + "` is ambiguous: " + tied.size()
+                    + " functions fit " + argument_types_text(arguments) + " equally well", node);
+    d.with_label("cannot tell which `" + name + "` is meant");
+    for(i : _int64 = 0; i < tied.size() && i < 6; i++) { d.with_note(signature_of(tied.at(i).function)); }
+    d.with_note("each of them needs a conversion of the arguments, and none needs a better one than the others");
+
+    // the first argument where the tied functions want different types: a cast there decides
+    for(position : _int64 = 0; position < arguments.size(); position++) {
+        first := tied.at(0).function.parameters.at(position).value_type;
+        second := tied.at(1).function.parameters.at(position).value_type;
+        if(first == null || second == null || first == second) { continue; }
+        argument := arguments.at(position);
+        one := written_as_type(context, argument, first!!);
+        other := written_as_type(context, argument, second!!);
+        if(one == other) {
+            // nul(s: string) and nul(s: string?): the same object fits both exactly, and the first is called
+            d.with_help("give the argument exactly that type: `" + one + "` - then the first of them is called");
+        } else {
+            d.with_help("say which one by giving exactly its type: `" + one + "` or `" + other + "`");
+        }
+        break;
+    }
+    report(context, d);
+}
+
+/**
+ * The argument written so that it HAS the type `wanted`, for the help of
+ * E0503: a cast, `x as cat` - or, for a plain number or a text literal that
+ * a class would be built from (a cast cannot do that), the object made by
+ * hand: `new string("x")`.
+ */
+def written_as_type(context: analysis_context, argument: call_argument, wanted: resolved_type) : string {
+    written := source_text_of(context, argument.node);
+    if(argument.is_lambda == 1) { return written; }
+    builds_an_object : _int64 = wanted.kind == RT_CLASS && wanted.is_array == 0
+                               && (argument.value.type.is_number() || argument.value.literal == LIT_TEXT);
+    if(builds_an_object == 1) { return "new " + wanted.as_non_null().to_text() + "(" + written + ")"; }
+    return written + " as " + wanted.to_text();
+}
+
+/**
+ * The diagnostic of a call that went wrong, placed on the name of what is
+ * called - or, for `-> base(args)`, which has no name, over the whole of it.
+ */
+def problem_for_call(context: analysis_context, code: string, heading: string, node: _int64) : diagnostic {
+    if(context.tree.kinds!![node] == N_BASE_CALL) { return problem_over(context, code, heading, node); }
+    return problem_at(context, code, heading, node);
+}
+
+/** "(string, _int32)": the types of the arguments of a call */
+def argument_types_text(arguments: list<call_argument>) : string {
+    text := new string_builder("(");
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        argument := arguments.at(i);
+        if(argument.is_lambda == 1) { text.append(argument.waiting_kind()); }
+        else if(argument.value.literal == LIT_TEXT) { text.append("a text literal"); }
+        else { text.append(argument.value.type.to_text()); }
+    }
+    text.append(")");
+    return text.build();
+}
+
+/** "add(item: product, count: decimal)": a function as a reader recognises it, with the real types */
+def signature_of(function: sharp_function) : string {
+    text := new string_builder("");
+    if(function.kind == D_CONSTRUCTOR && function.owner != null) { text.append(function.owner!!.written.name); }
+    else { text.append(function.name); }
+    if(function.type_arguments != null) {
+        text.append("<");
+        for(i : _int64 = 0; i < function.type_arguments!!.size(); i++) {
+            if(i > 0) { text.append(", "); }
+            text.append(function.type_arguments!!.at(i).to_text());
+        }
+        text.append(">");
+    } else if(function.is_generic()) {
+        text.append("<" + type_parameter_names(function) + ">");
+    }
+    text.append("(");
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        parameter := function.parameters.at(i);
+        text.append(parameter.name + ": ");
+        if(parameter.value_type != null) { text.append(parameter.value_type!!.to_text()); }
+        else if(parameter.type != null) { text.append(parameter.type!!.to_text()); }
+        else { text.append("?"); }
+    }
+    text.append(")");
+    return text.build();
+}

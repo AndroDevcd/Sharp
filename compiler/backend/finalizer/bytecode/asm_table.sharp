@@ -1,0 +1,235 @@
+mod backend.finalizer.bytecode;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir
+)
+
+/**
+ * THE INSTRUCTIONS AN `asm { }` BLOCK CAN WRITE, AND HOW EACH IS ENCODED
+ *
+ * An asm instruction is written with its operands in the order the C++
+ * compiler reads them (frontend/syntax/assembly/asm_instructions.sharp has
+ * the same list, for the parser). Here each one says which VM instruction it
+ * is and into which field of the encoding each WRITTEN operand goes:
+ *
+ *      movi ebx, 12            "02 DK 0 1"     opcode 02, class D with a raw word:
+ *                                              operand 0 (ebx) is a, operand 1 (12) the raw word
+ *      add ebx, ecx, egx       "10 B 1 2 0"    class B: a = operand 1, b = operand 2, c = operand 0
+ *                                              (written: the result first; encoded: the result last)
+ *      smovr2 [x], ebx         "5d C 1 0"      class C: a = operand 1 (the register), b = operand 0 (the slot)
+ *      iaddl 5, 2              "4f DK 1 0"     a = the slot (operand 1), the raw word = 5 (operand 0);
+ *                                              both are written as numbers: the grammar takes no
+ *                                              `[x]` here (E0120), in either compiler
+ *
+ *      forms   E   no operand          D   a               C   a, b            B   a, b, c
+ *              DK  a, raw word         EK  raw word        DEL invoke_delegate: function, count, static
+ *
+ * The mapping was read from the C++ compiler: the operand order of
+ * `compile_asm_instruction` (compiler/functions/statements/asm_statement.cpp),
+ * the parameter order of `resolve_dynamic_instruction`
+ * (finalizer/generation/code/code_context.cpp), and where each Opcode::Builder
+ * function (runtime/opcode/opcode.cpp) puts each parameter.
+ */
+class asm_spec {
+    name : string;
+    opcode : _int64;
+    form : string;
+    fields : number_list;       // the written operand that goes into a, b, c (or a, raw word) in that order
+
+    asm_spec(name: string, opcode: _int64, form: string, fields: number_list) {
+        self->name = name;
+        self->opcode = opcode;
+        self->form = form;
+        self->fields = fields;
+    }
+}
+
+asm_specs : list<asm_spec>? = null;
+asm_specs_by_name : name_table<numbered_spec>? = null;
+
+/** a position in the list of specs, kept as an object (a hash table value) */
+class numbered_spec {
+    index : _int64;
+    numbered_spec(index: _int64) { self->index = index; }
+}
+
+/** the number of the spec of an asm instruction name; -1 when there is none */
+def asm_spec_number(name: string) : _int64 {
+    if(asm_specs == null) { build_asm_specs(); }
+    found := asm_specs_by_name!!.at(name);
+    if(found == null) { return 0 - 1; }
+    return found!!.index;
+}
+
+/** the entry of the table at this position (the table is built the first time it is asked for) */
+def asm_spec_at(index: _int64) : asm_spec {
+    if(asm_specs == null) { build_asm_specs(); }
+    return asm_specs!!.at(index);
+}
+
+/** one entry: "02 DK 0 1" -> opcode 02, form DK, operands 0 and 1 */
+def add_spec(name: string, recipe: string) {
+    parts := split_names(recipe);
+    opcode : _int64 = hex_value(parts[0]);
+    fields := new number_list();
+    for(i : _int64 = 2; i < sizeof(parts); i++) { fields.add(hex_value(parts[i])); }
+    asm_specs_by_name!!.put(name, new numbered_spec(asm_specs!!.size()));
+    asm_specs!!.add(new asm_spec(name, opcode, parts[1], fields));
+}
+
+/** "5d" -> 93 */
+def hex_value(text: string) : _int64 {
+    value : _int64 = 0;
+    characters : _int8[] = text.data!!;
+    for(i : _int64 = 0; i < sizeof(characters); i++) {
+        ch : _int64 = characters[i];
+        if(ch >= '0' && ch <= '9') { value = value * 16 + (ch - '0'); }
+        else if(ch >= 'a' && ch <= 'f') { value = value * 16 + (ch - 'a' + 10); }
+    }
+    return value;
+}
+
+/** fill the table: every asm instruction, its opcode and where its written operands go */
+def build_asm_specs() {
+    asm_specs = new list<asm_spec>();
+    asm_specs_by_name = new name_table<numbered_spec>();
+    add_spec("nop", "00 E");                add_spec("int", "01 D 0");
+    add_spec("movi", "02 DK 0 1");          add_spec("dmovi", "93 DK 0 1");
+    add_spec("ret", "03 D 0");              add_spec("hlt", "04 E");
+    add_spec("newVarArray", "05 C 0 1");    add_spec("cast", "06 D 0");
+    add_spec("mov8", "07 C 0 1");           add_spec("mov16", "08 C 0 1");
+    add_spec("mov32", "09 C 0 1");          add_spec("mov64", "0a C 0 1");
+    add_spec("d2i", "96 C 0 1");            add_spec("i2d", "95 C 0 1");
+    add_spec("movu8", "0b C 0 1");          add_spec("movu16", "0c C 0 1");
+    add_spec("movu32", "0d C 0 1");         add_spec("movu64", "0e C 0 1");
+    add_spec("rstore", "0f D 0");
+    add_spec("add", "10 B 1 2 0");          add_spec("dadd", "79 B 1 2 0");
+    add_spec("sub", "11 B 1 2 0");          add_spec("dsub", "7a B 1 2 0");
+    add_spec("mul", "12 B 1 2 0");          add_spec("dmul", "7b B 1 2 0");
+    add_spec("ddiv", "13 B 1 2 0");         add_spec("mod", "14 B 1 2 0");
+    add_spec("iadd", "15 DK 0 1");          add_spec("diadd", "87 DK 0 1");
+    add_spec("isub", "16 DK 0 1");          add_spec("disub", "88 DK 0 1");
+    add_spec("imul", "17 DK 0 1");          add_spec("dimul", "89 DK 0 1");
+    add_spec("didiv", "18 DK 0 1");         add_spec("imod", "19 DK 0 1");
+    add_spec("pop", "1a E");
+    add_spec("inc", "1b D 0");              add_spec("dinc", "7d D 0");
+    add_spec("dec", "1c D 0");              add_spec("ddec", "7e D 0");
+    add_spec("movr", "1d C 0 1");
+    add_spec("aload64", "9f C 0 1");        add_spec("aloadu32", "9e C 0 1");
+    add_spec("aload32", "9d C 0 1");        add_spec("aloadu16", "9c C 0 1");
+    add_spec("aload16", "9b C 0 1");        add_spec("aloadu8", "9a C 0 1");
+    add_spec("aload8", "99 C 0 1");
+    add_spec("brh", "1e E");                add_spec("ife", "1f E");            add_spec("ifne", "20 E");
+    add_spec("lt", "21 C 0 1");             add_spec("dlt", "7f C 0 1");
+    add_spec("gt", "22 C 0 1");             add_spec("dgt", "80 C 0 1");
+    add_spec("le", "23 C 0 1");             add_spec("dlte", "81 C 0 1");
+    add_spec("ge", "24 C 0 1");             add_spec("dgte", "82 C 0 1");
+    add_spec("movl", "25 D 0");             add_spec("movsl", "26 D 0");
+    add_spec("sizeof", "27 D 0");           add_spec("put", "28 D 0");
+    add_spec("dput", "94 D 0");             add_spec("putc", "29 D 0");
+    add_spec("checklen", "2a D 0");         add_spec("jmp", "2b D 0");
+    add_spec("loadpc", "2c D 0");           add_spec("pushObj", "2d E");
+    add_spec("del", "2e E");                add_spec("call", "2f D 0");
+    add_spec("newClass", "30 EK 0");        add_spec("movn", "31 EK 0");
+    add_spec("sleep", "32 D 0");
+    add_spec("te", "33 C 0 1");             add_spec("dtest", "83 C 0 1");
+    add_spec("tne", "34 C 0 1");            add_spec("dtne", "84 C 0 1");
+    add_spec("lock", "35 E");               add_spec("ulock", "36 E");
+    add_spec("movg", "37 D 0");             add_spec("movnd", "38 D 0");
+    add_spec("newObjArray", "39 D 0");
+    add_spec("not", "3a C 0 1");            add_spec("dnot", "85 C 0 1");
+    add_spec("skip", "3b D 0");             add_spec("loadVal", "3c D 0");
+    add_spec("shl", "3d B 1 2 0");          add_spec("shr", "3e B 1 2 0");
+    add_spec("skipife", "3f C 0 1");        add_spec("skipifne", "40 C 0 1");
+    add_spec("and", "41 C 0 1");            add_spec("uand", "42 C 0 1");
+    add_spec("or", "43 C 0 1");             add_spec("xor", "44 C 0 1");
+    add_spec("throw", "45 E");              add_spec("checknull", "46 D 0");
+    add_spec("returnObj", "47 E");          add_spec("newClassArray", "48 DK 0 1");
+    add_spec("newString", "49 D 0");
+    add_spec("addl", "4a C 0 1");           add_spec("daddl", "8a C 0 1");
+    add_spec("subl", "4b C 0 1");           add_spec("dsubl", "8b C 0 1");
+    add_spec("mull", "4c C 0 1");           add_spec("dmull", "8c C 0 1");
+    add_spec("ddivl", "4d C 0 1");          add_spec("modl", "4e C 0 1");
+    add_spec("iaddl", "4f DK 1 0");         add_spec("diaddl", "8d DK 1 0");
+    add_spec("isubl", "50 DK 1 0");         add_spec("disubl", "8e DK 1 0");
+    add_spec("imull", "51 DK 1 0");         add_spec("dimull", "8f DK 1 0");
+    add_spec("didivl", "52 DK 1 0");        add_spec("imodl", "53 DK 1 0");
+    add_spec("loadl", "54 C 0 1");          add_spec("getf", "97 C 0 1");
+    add_spec("popObj", "55 E");             add_spec("smovr", "56 C 0 1");
+    add_spec("andl", "57 C 0 1");           add_spec("orl", "58 C 0 1");
+    add_spec("xorl", "59 C 0 1");
+    add_spec("astore64", "a3 C 0 1");       add_spec("astore32", "a2 C 0 1");
+    add_spec("astore16", "a1 C 0 1");       add_spec("astore8", "a0 C 0 1");
+    add_spec("smov", "5a C 0 1");           add_spec("returnVal", "5b D 0");
+    add_spec("istore", "5c EK 0");          add_spec("distore", "91 EK 0");
+    add_spec("smovr2", "5d C 1 0");         add_spec("putf", "98 C 1 0");
+    add_spec("smovr3", "72 D 0");
+    add_spec("istorel", "5e DK 0 1");       add_spec("distorel", "92 DK 0 1");
+    add_spec("popl", "5f D 0");             add_spec("pushNull", "60 E");
+    add_spec("ipushl", "61 D 0");           add_spec("pushl", "62 D 0");
+    add_spec("itest", "63 D 0");            add_spec("invokeDelegate", "64 DEL 0 1 2");
+    add_spec("get", "65 D 0");
+    add_spec("isadd", "66 DK 0 1");         add_spec("disadd", "90 DK 0 1");
+    add_spec("je", "67 D 0");               add_spec("jne", "68 D 0");
+    add_spec("ipopl", "69 D 0");
+    add_spec("cmp", "6a DK 0 1");           add_spec("dcmp", "86 DK 0 1");
+    add_spec("calld", "6b D 0");            add_spec("varCast", "6c C 0 1");
+    add_spec("tlsMovl", "6d D 0");          add_spec("dup", "6e E");
+    add_spec("popObj2", "6f E");            add_spec("swap", "70 E");
+    add_spec("ldc", "71 C 0 1");
+    add_spec("neg", "73 C 0 1");            add_spec("dneg", "7c C 0 1");
+    add_spec("dsqrt", "f1 C 0 1");          add_spec("dfloor", "f2 C 0 1");
+    add_spec("dceil", "f3 C 0 1");          add_spec("dabs", "f4 C 0 1");
+    add_spec("dmath", "f5 B 0 1 2");
+}
+
+/**
+ * The words of one asm instruction, its operand values given (registers as
+ * numbers, labels already turned into pcs). `ret`, `varCast` and
+ * `invokeDelegate` take a yes / no in one field: any number but 0 is 1, as
+ * the C++ builders write it.
+ */
+def emit_asm(out: code_emitter, spec: asm_spec, values: number_list) {
+    form := spec.form;
+    op : _int64 = spec.opcode;
+    if(form == "E") { out.class_e(op); return; }
+    if(form == "D") {
+        a : _int64 = operand_value(values, spec.fields, 0);
+        if(op == OP_RET && a != 0) { a = 1; }
+        out.class_d(op, a);
+        return;
+    }
+    if(form == "C") {
+        b : _int64 = operand_value(values, spec.fields, 1);
+        if(op == 0x6c && b != 0) { b = 1; }         // varCast: "is an array"
+        out.class_c(op, operand_value(values, spec.fields, 0), b);
+        return;
+    }
+    if(form == "B") {
+        out.class_b(op, operand_value(values, spec.fields, 0), operand_value(values, spec.fields, 1),
+                    operand_value(values, spec.fields, 2));
+        return;
+    }
+    if(form == "DK") {
+        out.d_and_raw(op, operand_value(values, spec.fields, 0), operand_value(values, spec.fields, 1));
+        return;
+    }
+    if(form == "EK") {
+        out.e_and_raw(op, operand_value(values, spec.fields, 0));
+        return;
+    }
+    // DEL: invoke_delegate function, argument count, static
+    is_static : _int64 = operand_value(values, spec.fields, 2);
+    if(is_static != 0) { is_static = 1; }
+    out.invoke_delegate(operand_value(values, spec.fields, 0), operand_value(values, spec.fields, 1), is_static);
+}
+
+/** the value of the written operand that goes into field `field` (0 when the instruction was written without it) */
+def operand_value(values: number_list, fields: number_list, field: _int64) : _int64 {
+    if(field >= fields.count) { return 0; }
+    written : _int64 = fields.at(field);
+    if(written >= values.count) { return 0; }
+    return values.at(written);
+}

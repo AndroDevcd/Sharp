@@ -1,0 +1,158 @@
+mod backend.compiler.statements.assembly;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.typed_tree.statements,
+    backend.compiler.context,
+    backend.compiler.overloads
+)
+
+/**
+ * THE GLOBALS OF A MODULE IN AN `asm` OPERAND, AND ADDRESSES OF OVERLOADED FUNCTIONS
+ *
+ *      movi adx, $std.io#__srt_global[_srt_thread_start]
+ *
+ * `__srt_global` is not a class anyone declares. It is the name the C++
+ * compiler gives to the hidden class that holds everything a module declares
+ * OUTSIDE any class - its global variables and its global functions. Only
+ * asm code ever names it, to take the address of a global function (above:
+ * the function a new thread starts in, platform/kernel/vm.sharp) or the slot
+ * of a global variable. Here a module is its own object (sharp_module), so
+ * `$m#__srt_global[name]` is looked up in the names `m` declares:
+ *
+ *      a global variable of `m`    ASM_FIELD     its slot
+ *      a global function of `m`    ASM_FUNCTION  its address (and it is now used, so it
+ *                                                is reached from main like a called one)
+ *      nothing of that name        E0923 (the C++ compiler: "attempt to get address of
+ *                                  a member `x` when none were found")
+ *      no `[name]` at all          E0923: the globals of a module are not a class
+ *
+ * Written without a module - `$__srt_global[name]` - it is the globals of the
+ * module the code is in (the C++ compiler accepts that form too).
+ *
+ * E0805: an operand that names a GENERIC function (`[first]` with
+ * `def first<T>(...)`). A generic function is made anew for every list of
+ * type arguments; there is no one function to take the address of - the same
+ * rule as for a generic function used as a value. (The C++ compiler: "attempt
+ * to get address of a member `first` when none were found".)
+ *
+ * W1042: an operand that names an OVERLOADED function (`[h]` with `h(_int64)`
+ * and `h(string)`) is the address of ONE function, and nothing in the operand
+ * says which. The first declared is taken, as in the C++ compiler, and the
+ * warning says which one that is. (The C++ compiler also reads `[h + 1]` as
+ * "the second `h`"; the bootstrap's parser has no offsets, so the way to be
+ * sure is a function of its own name.)
+ *
+ *      C++ comparison: `compile_asm_member_address` in
+ *      compiler/functions/statements/asm_statement.cpp, called with the class
+ *      `resolve()` found for `$m#__srt_global` (global_class_name in compiler_info.h).
+ */
+
+/**
+ * The module whose globals `$m#__srt_global` names, or null when the type
+ * written in the operand is anything else (a real class, a misspelling).
+ */
+def module_of_globals(context: analysis_context, type_node: _int64) : sharp_module? {
+    tree : syntax_tree = context.tree;
+    if(tree.child_of_kind(type_node, N_ARRAY_SUFFIX) >= 0 || tree.child_of_kind(type_node, N_NULLABLE) >= 0) { return null; }
+    name_node : _int64 = tree.child_of_kind(type_node, N_TYPE_NAME);
+    if(name_node < 0) { return null; }
+    // `$m#__srt_global`: a module path, then the one word. `$__srt_global`: the word alone.
+    path : _int64 = 0 - 1;
+    part : _int64 = tree.first_child!![name_node];
+    if(part >= 0 && tree.kinds!![part] == N_MODULE_PATH) {
+        path = part;
+        part = tree.next_sibling!![path];
+    }
+    if(part < 0 || tree.kinds!![part] != N_TYPE_PART || tree.next_sibling!![part] >= 0) { return null; }
+    if(tree.first_child!![part] >= 0) { return null; }        // type arguments: not the globals
+    if(name_at(context, part) != "__srt_global") { return null; }
+    if(path < 0) { return context.file.module; }               // no module written: the one this code is in
+    return context.prog.find_module(dotted_name(context.unit, path));
+}
+
+/** `$m#__srt_global[name]`: a global variable or global function of module `m`, or E0923 */
+def global_operand(context: analysis_context, module: sharp_module, type_node: _int64, member_node: _int64) : bound_asm_operand {
+    failed := new bound_asm_operand(ASM_NUMBER);
+    if(member_node < 0) {
+        d := problem_over(context, "E0923", "`$$" + module.name + "#__srt_global` is not a class", type_node);
+        d.with_label("the globals of module `" + module.name + "`");
+        d.with_note("`__srt_global` stands for what a module declares outside any class; an asm operand can name one of those, not the whole");
+        d.with_help("name a global function or variable of it: `$$" + module.name + "#__srt_global[<name>]`");
+        report(context, d);
+        return failed;
+    }
+
+    name := name_at(context, member_node);
+    found := module.declared.find(name);
+    functions := new list<sharp_function>();
+    if(found != null) {
+        for(i : _int64 = 0; i < found!!.size(); i++) {
+            declared := found!!.at(i);
+            if(declared.kind == D_FIELD) {
+                made := new bound_asm_operand(ASM_FIELD);
+                made.field = declared as sharp_field;
+                return made;
+            }
+            if(declared.kind == D_FUNCTION) { functions.add(declared as sharp_function); }
+        }
+    }
+    if(functions.size() > 0) { return function_address(context, name, functions, member_node); }
+
+    d := problem_at(context, "E0923", "module `" + module.name + "` has no global function or variable `" + name + "`", member_node);
+    d.with_label("not declared outside a class in `" + module.name + "`");
+    d.with_note("`$$module#__srt_global[name]` names a function or a variable declared at the top level of that module (not in a class)");
+    known := new list<string>();
+    for(i : _int64 = 0; i < module.functions.size(); i++) {
+        if(module.functions.at(i).extension_of == null) { known.add(module.functions.at(i).name); }
+    }
+    for(i : _int64 = 0; i < module.fields.size(); i++) { known.add(module.fields.at(i).name); }
+    suggestion := did_you_mean(closest_names(name, known, 3));
+    if(sizeof(suggestion.data) > 0) { d.with_help(suggestion); }
+    else { d.with_help("for a member of a class write `$$" + module.name + "#<class>[" + name + "]`; for a local variable `[" + name + "]`"); }
+    report(context, d);
+    return failed;
+}
+
+/**
+ * The address of a function an operand names: the first one declared, with
+ * W1042 when there are several and the operand cannot say which.
+ */
+def function_address(context: analysis_context, name: string, named: list<sharp_function>, node: _int64) : bound_asm_operand {
+    // a generic function has no address: only the others can be meant
+    functions := new list<sharp_function>();
+    for(i : _int64 = 0; i < named.size(); i++) {
+        if(!named.at(i).is_generic()) { functions.add(named.at(i)); }
+    }
+    if(functions.size() == 0) {
+        report_address_of_generic(context, named.at(0), node);
+        return new bound_asm_operand(ASM_NUMBER);
+    }
+
+    made := new bound_asm_operand(ASM_FUNCTION);
+    made.function = functions.at(0);
+    if(functions.size() > 1) {
+        d := problem_at(context, "W1042", "`" + name + "` has " + functions.size() + " overloads; this operand is the address of `"
+                        + signature_of(functions.at(0)) + "`", node);
+        d.with_label("nothing here says which `" + name + "` is meant");
+        d.with_related_place(place_of_declaration(functions.at(0), "the one taken: the first declared"));
+        d.with_note("an asm operand is the address of one function; for an overloaded name the first declared is used");
+        d.with_help("give the function you mean a name of its own (`def " + name + "_for_asm(...)`) and name that in the operand");
+        report(context, d);
+    }
+    return made;
+}
+
+/** E0805: the operand names a generic function, which is no one function */
+def report_address_of_generic(context: analysis_context, function: sharp_function, node: _int64) {
+    d := problem_at(context, "E0805", "`" + function.name + "` is a generic function: it has no address", node);
+    d.with_label("which `" + function.name + "<...>` is meant?");
+    d.with_related_place(place_of_declaration(function, "declared here with type parameters"));
+    d.with_note("a generic function is made anew for every list of type arguments it is called with; there is no single function to take the address of");
+    d.with_help("write a function without type parameters that calls `" + function.name + "<...>` with the types you mean, and name that one here");
+    report(context, d);
+}

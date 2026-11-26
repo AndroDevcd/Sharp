@@ -1,0 +1,120 @@
+mod main;
+import ( std.testing )
+
+/**
+ * std.testing: groups inside groups (before_each and after_each of every group
+ * around a test run for it, the outermost group's first), skip_test, and the
+ * order of calls on mocks (verify_order).
+ */
+
+opening : string = "";      // what the before_each blocks wrote for the test that is running
+closing : string = "";      // what the after_each blocks wrote for the test before it
+
+interface door {
+    def unlock();
+    def open();
+    def knock(times: _int64);
+}
+
+interface alarm {
+    def off();
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_testing_groups") {
+        before_each { opening = "[outer]"; closing = ""; };
+        after_each { closing = closing + "[/outer]"; };
+
+        test("a test of the outer group: its own before_each") {
+            expect(opening).should_be("[outer]");
+        };
+
+        tests("an inner group") {
+            before_each { opening = opening + "[inner]"; };
+            after_each { closing = closing + "[/inner]"; };
+
+            test("the outer before_each first, then the inner one") {
+                expect(opening).should_be("[outer][inner]");
+            };
+
+            tests("a group in the inner group") {
+                before_each { opening = opening + "[innermost]"; };
+
+                test("three groups deep: all three, outermost first") {
+                    expect(opening).should_be("[outer][inner][innermost]");
+                };
+            };
+
+            test("after the group inside it: two again") {
+                expect(opening).should_be("[outer][inner]");
+            };
+        };
+
+        // (the last test above ran in the inner group: its after_each blocks, the innermost group's first)
+        ended : string = "" + closing;       // (its own text: `closing` is written over by the next before_each)
+        test("after_each: the inner group's first, then the outer one's") {
+            expect(ended).should_be("[/inner][/outer]");
+        };
+
+        test("back in the outer group: only its own before_each") {
+            expect(opening).should_be("[outer]");
+        };
+
+        tests("another inner group, with nothing of its own") {
+            test("the outer before_each still runs") {
+                expect(opening).should_be("[outer]");
+            };
+        };
+
+        // ---- skipping
+        before_skip : _int64 = test_run.skipped_count();
+        reached : _int64 = 0;
+        test("a test that is skipped stops where it says so") {
+            skip_test("not on this machine");
+            reached = 1;
+        };
+        test("... and is counted as skipped, not as passed or failed") {
+            expect(reached).should_be(0);
+            expect(test_run.skipped_count()).should_be(before_skip + 1);
+        };
+
+        // ---- the order of calls on mocks
+        test("calls made in the order asked for") {
+            front := mock<door>();
+            siren := mock<alarm>();
+            front.unlock();
+            siren.off();
+            front.knock(3);
+            front.open();
+            verify_order { front.unlock(); }.then { siren.off(); }.then { front.open(); };
+            verify_order { front.unlock(); }.then { front.open(); };
+            verify_order { front.knock(3); }.then { front.open(); };
+        };
+        test("the same calls in another order fail") {
+            front := mock<door>();
+            siren := mock<alarm>();
+            front.open();
+            siren.off();
+            front.unlock();
+            expect_throws<test_failure>() { verify_order { front.unlock(); }.then { siren.off(); }; };
+            expect_throws<test_failure>() { verify_order { front.unlock(); }.then { front.open(); }; };
+            verify_order { front.open(); }.then { siren.off(); }.then { front.unlock(); };
+        };
+        test("a call that was never made fails the order") {
+            front := mock<door>();
+            front.unlock();
+            expect_throws<test_failure>() { verify_order { front.open(); }; };
+            expect_throws<test_failure>() { verify_order { front.unlock(); }.then { front.open(); }; };
+            expect_throws<test_failure>() { verify_order { front.knock(2); }; };
+        };
+        test("one call cannot be two steps of an order") {
+            front := mock<door>();
+            front.unlock();
+            expect_throws<test_failure>() { verify_order { front.unlock(); }.then { front.unlock(); }; };
+            front.unlock();
+            verify_order { front.unlock(); }.then { front.unlock(); };
+        };
+    };
+    finish_tests("lib_testing_groups");
+}

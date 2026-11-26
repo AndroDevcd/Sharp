@@ -1,0 +1,117 @@
+mod backend.ide.bodies;
+
+import (
+    std.io,
+    backend.ide.files,
+    backend.ide.types,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * USES OF A TYPE NAME (kind 1)
+ *
+ * Every place a file WRITES a type is a use of what the name means: the
+ * `string` in `name : string`, the `box<string>` in `new box<string>()`, the
+ * `shape` in `x as shape`. The editor shows what the name is on hover and
+ * jumps to the class on go-to-definition.
+ *
+ * The typed tree is no help here: a type written in `x as shape` is a `sharp_type` the
+ * body stages resolved. There are two sources, both made by the compiler:
+ *
+ *      the declarations of a file       the type of a field, of each parameter, the result of a function,
+ *                                       the `extends` of an extension function, the `base` and `:` types of a
+ *                                       class, the target of an alias, the bound of a type parameter
+ *      `sharp_file.body_types`          one slot per syntax node, filled by the body stages for every type
+ *                                       they met in a body (`new list<T>()`, `n : box<string>`, `catch(e: x)`)
+ *
+ * A type that was not found (`declaration == null`) is skipped, and so is a
+ * type the compiler made itself (`node < 0`). A type that is only the name of
+ * an alias declared inside a block is answered by the compiler another way and
+ * has no slot: no use (accepted).
+ *
+ * The range is the LAST name part of the type (`file` of `std.io#file`); the
+ * type arguments and the parts of a function type are types of their own and
+ * are visited the same way.
+ */
+
+/** a use of the type `written` in the file the collector belongs to, and of every type inside it */
+def add_type_name_uses(job: bodies_job, types: ide_types, bodies: file_bodies, written: sharp_type?) {
+    if(written == null) { return; }
+    t : sharp_type = written!!;
+
+    if(t.form == TYPE_NAMED && t.node >= 0 && t.declaration != null && t.unit == bodies.file.unit) {
+        tree := t.unit.parsed!!.tree;
+        token : _int64 = type_name_token(tree, t.node);
+        if(token >= 0) {
+            declared : sharp_declaration = t.declaration!!;
+            add_use(bodies, token, 1, job.files.index_of(declared.unit), declared.node, written_type_id(types, t));
+        }
+    }
+
+    for(i : _int64 = 0; i < t.arguments.size(); i++) { add_type_name_uses(job, types, bodies, t.arguments.at(i)); }
+    for(i : _int64 = 0; i < t.parameters.size(); i++) { add_type_name_uses(job, types, bodies, t.parameters.at(i)); }
+    add_type_name_uses(job, types, bodies, t.result);
+}
+
+/** every type written in the bodies of a wanted file */
+def add_body_type_uses(prog: sharp_program, job: bodies_job, types: ide_types, bodies: file_bodies) {
+    declared := prog.file_of(bodies.file.unit);
+    if(declared == null || declared!!.body_types == null) { return; }
+    slots : sharp_type[]? = declared!!.body_types!!;
+    for(i : _int64 = 0; i < sizeof(slots); i++) {
+        if(slots!![i] != null) { add_type_name_uses(job, types, bodies, slots!![i]); }
+    }
+}
+
+/** every type written in the declarations of the program, for the files that were asked for */
+def add_declared_type_uses(prog: sharp_program, job: bodies_job, types: ide_types) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+        for(j : _int64 = 0; j < module.fields.size(); j++) { add_field_type_uses(job, types, module.fields.at(j)); }
+        for(j : _int64 = 0; j < module.functions.size(); j++) {
+            if(module.functions.at(j).owner == null) { add_function_type_uses(job, types, module.functions.at(j)); }
+        }
+        for(j : _int64 = 0; j < module.aliases.size(); j++) { add_alias_type_uses(job, types, module.aliases.at(j)); }
+        for(j : _int64 = 0; j < module.classes.size(); j++) { add_class_type_uses(job, types, module.classes.at(j)); }
+    }
+}
+
+private def add_class_type_uses(job: bodies_job, types: ide_types, declared: sharp_class) {
+    slot := job.slot_of(declared.unit);
+    if(slot != null) {
+        add_type_name_uses(job, types, slot!!, declared.base_type);
+        for(i : _int64 = 0; i < declared.interface_types.size(); i++) {
+            add_type_name_uses(job, types, slot!!, declared.interface_types.at(i));
+        }
+        for(i : _int64 = 0; i < declared.type_parameters.size(); i++) {
+            add_type_name_uses(job, types, slot!!, declared.type_parameters.at(i).constraint);
+        }
+    }
+    for(i : _int64 = 0; i < declared.fields.size(); i++) { add_field_type_uses(job, types, declared.fields.at(i)); }
+    for(i : _int64 = 0; i < declared.functions.size(); i++) { add_function_type_uses(job, types, declared.functions.at(i)); }
+    for(i : _int64 = 0; i < declared.constructors.size(); i++) { add_function_type_uses(job, types, declared.constructors.at(i)); }
+    for(i : _int64 = 0; i < declared.aliases.size(); i++) { add_alias_type_uses(job, types, declared.aliases.at(i)); }
+    for(i : _int64 = 0; i < declared.classes.size(); i++) { add_class_type_uses(job, types, declared.classes.at(i)); }
+}
+
+private def add_field_type_uses(job: bodies_job, types: ide_types, field: sharp_field) {
+    slot := job.slot_of(field.unit);
+    if(slot != null) { add_type_name_uses(job, types, slot!!, field.type); }
+}
+
+private def add_alias_type_uses(job: bodies_job, types: ide_types, synonym: sharp_alias) {
+    slot := job.slot_of(synonym.unit);
+    if(slot != null) { add_type_name_uses(job, types, slot!!, synonym.target); }
+}
+
+private def add_function_type_uses(job: bodies_job, types: ide_types, function: sharp_function) {
+    slot := job.slot_of(function.unit);
+    if(slot == null) { return; }
+    for(i : _int64 = 0; i < function.parameters.size(); i++) {
+        add_type_name_uses(job, types, slot!!, function.parameters.at(i).type);
+    }
+    add_type_name_uses(job, types, slot!!, function.return_type);
+    add_type_name_uses(job, types, slot!!, function.extends);
+}

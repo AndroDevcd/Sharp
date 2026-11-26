@@ -1,0 +1,111 @@
+mod std.text;
+
+import ( std.io )
+
+/**
+ * string - converting to numbers and bools (part of the `string` class, see string_core.sharp)
+ *
+ * Each conversion comes in three flavours, as in Kotlin:
+ *
+ *     "42".to_int()             the number; throws number_format_exception if it is not one
+ *     "42".to_int_or_null()     an `int` object, or null if it is not a number
+ *     "42".to_int_or(0)         the number, or the given fallback
+ *
+ * The rules for what is accepted (no surrounding spaces, the ranges of int
+ * and long, the decimal syntax) are those of std.text#number_parser, which
+ * does the work. trim() first if the text may have spaces around it.
+ */
+mutate string {
+
+    /**
+     * The whole number written in this string in base 10 ("-42".to_int() is -42).
+     * Throws number_format_exception if the string is not an optional sign
+     * followed by digits, or is outside of -2147483648 .. 2147483647.
+     */
+    def to_int(): decimal {
+        return number_parser.parse_int(self);
+    }
+
+    /**
+     * The whole number written in this string in base `radix`, 2 to 36
+     * ("ff".to_int(16) is 255).
+     * Throws number_format_exception, or illegal_argument_exception for a bad radix.
+     */
+    def to_int(radix: int): decimal {
+        return number_parser.parse_int(self, radix);
+    }
+
+    /** to_int() that returns null instead of throwing. */
+    def to_int_or_null(): int? {
+        return number_parser.parse_int_or_null(self);
+    }
+
+    /** to_int() that returns `fallback` instead of throwing. */
+    def to_int_or(fallback: int): decimal {
+        return number_parser.parse_int_or(self, fallback);
+    }
+
+    /**
+     * Like to_int(), with the larger range -9007199254740991 .. 9007199254740991.
+     * Throws number_format_exception if the string is not such a number.
+     */
+    def to_long(): decimal {
+        return number_parser.parse_long(self);
+    }
+
+    /** to_long() that returns null instead of throwing. */
+    def to_long_or_null(): long? {
+        return number_parser.parse_long_or_null(self);
+    }
+
+    /** to_long() that returns `fallback` instead of throwing. */
+    def to_long_or(fallback: long): decimal {
+        return number_parser.parse_long_or(self, fallback);
+    }
+
+    /**
+     * The decimal number written in this string ("3.25", "-0.5", "1e3", "7").
+     * Throws number_format_exception if the string is not a decimal number.
+     */
+    def to_double(): decimal {
+        return number_parser.parse_double(self);
+    }
+
+    /** to_double() that returns null instead of throwing. */
+    def to_double_or_null(): double? {
+        return number_parser.parse_double_or_null(self);
+    }
+
+    /** to_double() that returns `fallback` instead of throwing. */
+    def to_double_or(fallback: double): decimal {
+        return number_parser.parse_double_or(self, fallback);
+    }
+
+    /**
+     * true if the string is "true", false if it is "false" (capital / small letters do not matter).
+     * Throws number_format_exception for anything else.
+     */
+    def to_bool(): bool {
+        return number_parser.parse_bool(self);
+    }
+
+    /** to_bool() that returns null instead of throwing. */
+    def to_bool_or_null(): boolean? {
+        return number_parser.parse_bool_or_null(self);
+    }
+
+    /** to_bool() that returns `fallback` instead of throwing. */
+    def to_bool_or(fallback: bool): decimal {
+        return number_parser.parse_bool_or(self, fallback);
+    }
+
+    /** true if the string is a whole or decimal number that to_double() accepts ("12", "-1.5e3"). */
+    def is_number(): bool {
+        return number_parser.is_double(self);
+    }
+
+    /** true if the string is a whole number that to_long() accepts ("12", "-7"; not "1.5"). */
+    def is_integer(): bool {
+        return number_parser.is_long(self);
+    }
+}

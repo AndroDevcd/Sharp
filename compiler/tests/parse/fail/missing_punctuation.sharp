@@ -1,0 +1,24 @@
+// expect: E0101 E0101 E0101 E0101 E0101
+//
+// Something that ends or separates is missing. Each is reported where it
+// belongs: right after the last thing that was fine.
+mod tests.fail;
+
+class point {
+    x : decimal
+    y : decimal;
+
+    def length() : decimal {
+        return (x * x + y * y;
+    }
+
+    def scale(by: decimal) {
+        x = x * by
+        y = y * by;
+    }
+
+    def move(dx: decimal dy: decimal) {
+    }
+
+def after() {
+}

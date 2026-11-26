@@ -1,0 +1,111 @@
+mod backend.optimizer.passes.registers;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * REGISTER HAND-OFF: a value used once, by the very next instruction, stays in its register
+ *
+ * The bytecode step turns each IR instruction into VM code on its own: load
+ * the operands from their slots, compute, store the result into its slot
+ * (codegen.md 5.1). So a comparison feeding a jump stores its result only to
+ * load it straight back:
+ *
+ *      int_compare lt %5, %1, %2       loadl ebx, 1;  loadl ecx, 2;  lt ebx, ecx;  smovr_2 cmt, 5
+ *      jump_unless %5, L2              loadl cmt, 5;  jne L2
+ *
+ * When %5 is read by that next instruction and by nothing after it, the
+ * store and the load can both go: the value is handed on in the register it
+ * is already in (`lt` leaves it in cmt, which `jne` reads). This pass finds
+ * where that is allowed and marks the instruction (`handed_on`); the bytecode
+ * step (bytecode.sharp, `hand_on`) then drops the two words - but only when
+ * the words really are a store and the matching load of the same register,
+ * so a mark can never make wrong code, at worst no difference.
+ *
+ * The conditions, for instruction i writing %t and the next instruction j
+ * (only `line` marks between, no label: a jump could arrive in between):
+ *
+ *  - j reads %t exactly once;
+ *  - %t is not live after j (analysis/liveness.sharp) - or j itself writes %t, so that
+ *    what is live after j is j's own value, not the one handed on;
+ *  - if j may raise inside a `try`, no handler reads %t.
+ *
+ * This is the smallest form of what the textbook calls register allocation
+ * (the dragon book, 8.8): a value whose whole life is two adjacent
+ * instructions never needs its home in memory. It runs last, after every
+ * other pass, since it describes the final order of the instructions.
+ *
+ *      C++ comparison: the closest is passes/pass_stack_forwarding.cpp, which
+ *      turns a push followed by a pop into a move; the C++ generator keeps
+ *      values on the operand stack where this one keeps them in slots.
+ */
+def mark_hand_offs(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    total : _int64 = code.instructions.size();
+    for(i : _int64 = 0; i < total; i++) { code.instructions.at(i).handed_on = 0; }
+    graph := analyses.graph();
+    live := analyses.live();
+    marked : _int64 = 0;
+    for(b : _int64 = 0; b < graph.block_count(); b++) {
+        walking := live.out_of(b);
+        into_handlers := live.live_into_handlers(b);
+        start : _int64 = graph.starts[b];
+        for(j : _int64 = graph.ends[b] - 1; j > start; j--) {
+            next := code.instructions.at(j);
+            if(next.kind != IR_LINE) {
+                // `walking` is what is live after j: may the instruction before it hand its value on to j?
+                i : _int64 = j - 1;
+                while(i > start && code.instructions.at(i).kind == IR_LINE) { i--; }
+                before := code.instructions.at(i);
+                value : _int64 = slot_written(before);
+                if(value >= 0 && code.slot_kinds.at(value) != SLOT_REF && times_read(next, value) == 1
+                   && (!walking.has(value) || slot_written(next) == value)
+                   && !(into_handlers != null && may_raise(next) && into_handlers!!.has(value))) {
+                    before.handed_on = 1;
+                    put_first(next, value);
+                    marked++;
+                }
+            }
+            step_back(next, walking, into_handlers);
+        }
+    }
+    return marked;
+}
+
+/**
+ * The bytecode step loads an operation's FIRST operand first (`loadl ebx, a`),
+ * and only that first load can be the one a hand-off saves. So when the value
+ * handed on is the second operand of an operation whose operands may change
+ * places, they change places: `+`, `*`, `&`, `|`, `^` as they are, a
+ * comparison turned round (`a < b` is `b > a`; for decimals too, also with
+ * NaN: both are false).
+ */
+def put_first(made: ir_instruction, value: _int64) {
+    if(made.second != value || made.first == value) { return; }
+    kind : _int64 = made.kind;
+    if(kind == IR_INT_BINARY || kind == IR_DECIMAL_BINARY) {
+        operation : _int64 = made.number;
+        if(operation != ARITH_ADD && operation != ARITH_MUL && operation != ARITH_AND && operation != ARITH_OR
+           && operation != ARITH_XOR) {
+            return;
+        }
+    } else if(kind == IR_INT_COMPARE || kind == IR_DECIMAL_COMPARE) {
+        made.number = turned_round(made.number);
+    } else {
+        return;
+    }
+    made.second = made.first;
+    made.first = value;
+}
+
+/** the comparison that asks the same with its two operands swapped (CMP_...) */
+def turned_round(operation: _int64) : _int64 {
+    if(operation == CMP_LT) { return CMP_GT; }
+    if(operation == CMP_GT) { return CMP_LT; }
+    if(operation == CMP_LE) { return CMP_GE; }
+    if(operation == CMP_GE) { return CMP_LE; }
+    return operation;       // == and != ask the same either way
+}

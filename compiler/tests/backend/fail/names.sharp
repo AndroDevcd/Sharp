@@ -1,0 +1,90 @@
+// expect: E0408 E0421 E0700 E0400 E0700 E0703 E0421 E0421 E0422 E0703 E0400 E0400 E0407 E0400 E0403 E0303 E0400 E0402 E0700 E0703 E0402 E0405 E0405 E0405 E0405 E0700 E0402 E0402 W1012 E0405 W1005 E0404 E0404 E0404 E0600 E0600 E0600 E0407 E0407
+mod name_mistakes;
+
+import ( std.io )
+
+/**
+ * NAMES THAT DO NOT RESOLVE, AND NAMES USED WHERE THEY MAY NOT BE
+ * One mistake per line; the expected codes are in the order the compiler
+ * prints them (globals, then global functions, then each class).
+ */
+
+total : _int64 = 10;
+private hidden_total : _int64 = 1;                      // private to the module's global code: not for its classes
+circular_a := circular_b;                               // E0408: a := b; b := a
+circular_b := circular_a;
+from_instance : _int64 = self;                          // E0421: no object in a global
+
+enum color { red, green }
+
+class vault {
+    private combination : _int64 = 1234;
+    protected weight : decimal = 2;
+    contents : string = "gold";
+    static opened : _int64 = 0;
+    static localized ticks : _int64 = 0;
+    private class lock_plate { static depth : _int64 = 3; }
+    def describe() : string { return contents; }
+    def leak() : _int64 { return hidden_total; }        // E0700: a private global is for the global code of its module only
+    class drawer {
+        def peek() : _int64 { return contents; }        // E0400: the outer class's members are not visible by plain name
+    }
+}
+
+class strongbox base vault {
+    def crack() : _int64 { return combination; }        // E0700: private shuts out the classes below
+    static def tally() : _int64 { return contents; }    // E0703: an instance field in static code
+    static def me() : object { return self; }           // E0421
+    static def above() : object { return base; }        // E0421
+    def other_base() : object { return base@color; }    // E0422: color is not above strongbox
+    static shared : string = contents;                  // E0703: the value of a static field
+}
+
+def unknown_names(count: _int64) {
+    a : _int64 = totl;                                  // E0400 + did you mean `total`
+    b : _int64 = this;                                  // E0400 + `this` is `self`
+    c : _int64 = later;                                 // E0407: declared further down
+    later : _int64 = 1;
+    d : _int64 = coutn;                                 // E0400 + did you mean `count`
+    e : _int64 = name_mistakes#totl;                    // E0403: the module has no such name
+    f : _int64 = no.such.module#total;                  // E0303: no such module
+    g : exception? = null;
+    h : _int64 = processor_count;                       // E0400 + it exists in a module that is not imported
+}
+
+def members(v: vault, n: _int64, numbers: _int64[], anything: object, c: color, maybe_v: vault?) {
+    a : string = v.content;                             // E0402 + did you mean `contents`
+    b : _int64 = v.combination;                         // E0700: private
+    d : _int64 = vault.contents;                        // E0703: an instance field through the class
+    e : _int64 = vault.nothing;                         // E0402
+    f : _int64 = n.value;                               // E0405: a number has no members
+    g : _int64 = numbers.size;                          // E0405: an array has no members (sizeof)
+    h : _int64 = anything.name;                         // E0405: object
+    i : _int64 = v.describe.size;                       // E0405: a function has no members
+    j : _int64 = vault.lock_plate.depth;                // E0700: a private class
+    k : color = color.blue;                             // E0402: no such enum value
+    m : _int64 = v.opened;                              // fine: a static field through an object
+    o : decimal = v.weight;                             // fine: protected, same module
+    p : _int64 = maybe_v.nothng;                        // E0402 only: that the object may be null is not the news
+    q : _int64 = v.ticks;                               // W1012: a static localized field through an object
+    r : _int64 = hidden_total;                          // fine: a global function is global code of the module
+    s : object = v.drawer;                              // E0405: a class inside a class is reached through the class
+    t : _int64 = vault?.opened;                         // W1005: a class is never null
+}
+
+def types_as_values(n: _int64) {
+    a : _int64 = vault;                                 // E0404: a type is not a value
+    b := color;                                         // E0404
+    c : object = std#string;                            // E0404
+}
+
+def twice(n: _int64, n2: _int64) {
+    n : _int64 = 1;                                     // E0600: a parameter of this function
+    a : _int64 = 1;
+    { a : _int64 = 2; }                                 // E0600: still in scope
+    { b : _int64 = 1; }
+    { b : _int64 = 2; }                                 // fine: the first b is gone
+    for(i : _int64 = 0; i < n2; i++) { i : _int64 = 3; }// E0600
+    x := x;                                             // E0407: not declared yet inside its own value
+    y : _int64 = y + 1;                                 // E0407
+}

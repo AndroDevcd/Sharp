@@ -1,0 +1,257 @@
+mod std.math;
+
+/**
+ * THE MATHEMATICAL FUNCTIONS: sin, sqrt, pow, floor ...
+ *
+ *     import ( std.math )
+ *
+ *     side := sqrt(a * a + b * b);
+ *     angle := atan2(y, x);
+ *     whole := floor(7.9);            // 7
+ *     area := PI * radius * radius;
+ *
+ * Every function takes plain numbers and gives a plain number (`decimal`):
+ * nothing is created for a call. For a number object (`double`, `int`) pass
+ * its `value`.
+ *
+ * The other files of the module build on these: rounding.sharp (round_to,
+ * floor_div ...), powers.sharp (cbrt, hypot, log2 ...), trigonometry.sharp
+ * (asin, sinh, to_radians ...), comparison.sharp (min, max, clamp ...).
+ */
+
+/** the base of the natural logarithm */
+public const E : decimal = 2.7182818284590452;
+
+/** the ratio of the circumference of a circle to its diameter */
+public const PI : decimal = 3.1415926535897932;
+
+/** larger than every number: what 1 / 0 gives */
+public const POSITIVE_INFINITY : decimal = positive_infinity_value();
+
+/** smaller than every number: what -1 / 0 gives */
+public const NEGATIVE_INFINITY : decimal = 0 - positive_infinity_value();
+
+/** "not a number": what 0 / 0 gives. It is not equal to anything, not even to itself - ask is_nan(). */
+public const NaN : decimal = nan_value();
+
+// (worked out while the program runs, on variables: the compiler folds the
+// constant expression `-1.0 / 0.0` to a whole number - tests/suite/known_bugs/lib_math_literals.sharp)
+local def positive_infinity_value(): decimal {
+    zero : decimal = 0;
+    one : decimal = 1;
+    return one / zero;
+}
+
+local def nan_value(): decimal {
+    zero : decimal = 0;
+    return zero / zero;
+}
+
+/** true when v is NaN ("not a number", what 0 / 0 gives) */
+public def is_nan(v: decimal): bool {
+    return v != v;
+}
+
+/** true when v is positive or negative infinity */
+public def is_infinite(v: decimal): bool {
+    return v == v && (v - v) != 0;
+}
+
+/**
+ * Run math procedure `proc` of the runtime on `a` (and `b` for the
+ * procedures that take two; 0 otherwise): for code that only knows WHICH
+ * function when it runs. The functions of this module do not come here:
+ * each is an instruction of the runtime with its number written in it
+ * (`dmath`; sqrt, ceil, floor and abs have instructions of their own), and
+ * with -O a call of one becomes that instruction where it is written.
+ *
+ *     0x00 sin    0x01 cos    0x02 tan    0x03 sinh   0x04 cosh   0x05 tanh
+ *     0x06 asin   0x07 acos   0x08 atan   0x09 atan2(a, b)        0x0a exp
+ *     0x0b log    0x0c log10  0x0d pow(a, b)          0x0e sqrt   0x0f ceil
+ *     0x10 floor  0x11 fabs   0x12 ldexp(a, b)        0x13 fmod(a, b)
+ *
+ * Throws invalid_operation_exception (raised by the runtime) when `proc` is
+ * not one of these numbers.
+ */
+def math_call(a: decimal, b: decimal, proc: _int64): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [a]
+        loadl egx, [b]
+        loadl ecx, [proc]
+        int 0x18
+        smovr2 [result], cmt
+    }
+    return result;
+}
+
+/** sine of an angle in radians */
+def sin(radians: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [radians]
+        dmath ebx, ebx, 0x0
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/** cosine of an angle in radians */
+def cos(radians: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [radians]
+        dmath ebx, ebx, 0x1
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/** tangent of an angle in radians */
+def tan(radians: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [radians]
+        dmath ebx, ebx, 0x2
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/** e raised to the power v */
+def exp(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0xa
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/** the natural logarithm of v (base e); log(0) is negative infinity, of a negative number NaN */
+def log(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0xb
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/** the logarithm of v to the base 10: log10(1000) is 3 */
+def log10(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dmath ebx, ebx, 0xc
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/**
+ * `base_value` raised to the power `exponent`: pow(2, 10) is 1024,
+ * pow(2, 0.5) is sqrt(2), pow(x, 0) is 1. A negative base with a
+ * fractional exponent gives NaN.
+ */
+def pow(base_value: decimal, exponent: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [base_value]
+        loadl egx, [exponent]
+        dmath ebx, ebx, 0xd
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/**
+ * The square root; NaN for a negative number. It is one instruction of the
+ * runtime (`dsqrt`: the processor's own square root), and with -O a call of
+ * this function becomes that instruction where it is written.
+ */
+def sqrt(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dsqrt ebx, ebx
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/** the smallest whole number that is >= v: ceil(2.1) is 3, ceil(-2.5) is -2 */
+def ceil(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dceil ebx, ebx
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/** the largest whole number that is <= v: floor(2.9) is 2, floor(-2.5) is -3 */
+def floor(v: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dfloor ebx, ebx
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/**
+ * Round to the nearest whole number; a tie (x.5) goes away from zero:
+ * round(2.5) is 3, round(2.4) is 2, round(-2.5) is -3 (round_half_away of
+ * rounding.sharp; round_half_even is the other rule).
+ */
+def round(v: decimal): decimal {
+    return round_half_away(v);
+}
+
+/** v * 2 to the power `exponent` */
+def ldexp(v: decimal, exponent: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        loadl egx, [exponent]
+        dmath ebx, ebx, 0x12
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/** what is left of a / b, with the sign of a (the `%` of plain numbers, for fractions too): fmod(7.5, 2) is 1.5 */
+def fmod(a: decimal, b: decimal): decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [a]
+        loadl egx, [b]
+        dmath ebx, ebx, 0x13
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+/** the distance of v from zero: abs(-3) is 3 */
+def abs(v: decimal) : decimal {
+    result : decimal = 0;
+    asm {
+        loadl ebx, [v]
+        dabs ebx, ebx
+        smovr2 [result], ebx
+    }
+    return result;
+}
+
+// the same for the number objects: an object in, an object of its kind out
+def abs(num: double) : double { return new double(abs(num.value as decimal)); }
+def abs(num: int) : int { return new int(abs(num.value as decimal)); }
+def abs(num: long) : long { return new long(abs(num.value as decimal)); }
+def abs(num: short) : short { return new short(abs(num.value as decimal)); }
+def abs(num: char) : char { return new char(abs(num.value as decimal)); }
+def abs(num: byte) : byte { return new byte(abs(num.value as decimal)); }

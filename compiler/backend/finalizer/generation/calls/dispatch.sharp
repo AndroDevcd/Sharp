@@ -1,0 +1,67 @@
+mod backend.finalizer.generation.calls;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.finalizer.ir,
+    backend.finalizer.layout,
+    backend.finalizer.generation
+)
+
+/**
+ * WHICH BODY A VIRTUAL CALL RUNS (doc/codegen.md 4.6, 6.6)
+ *
+ * A call of a function of an override family is made through the family's
+ * root with `invoke_delegate`: the VM looks at the object's class when the
+ * program runs. When nothing below the function's own class can replace it,
+ * the call goes straight to the body instead (`call`) - the textbook
+ * devirtualisation by class hierarchy analysis.
+ */
+
+/**
+ * Can a virtual call go straight to this body? (Textbook: devirtualisation by
+ * class hierarchy analysis.) Yes when it has a body and no class BELOW its own
+ * has another body of the same override family - then every object the call
+ * can be made on runs this one.
+ *
+ *      interface speaker { def sound() : _int64; }
+ *      class animal : speaker { override def sound() ... }
+ *      class dog base animal  { override def sound() ... }
+ *
+ *      an_animal.sound()       virtual: the object may be a dog
+ *      a_dog.sound()           direct: nothing below dog has a sound()
+ *
+ * Every body of a family is listed on the family's ROOT (`overridden_by` of
+ * the body-less function at the top: speaker.sound lists animal's and dog's),
+ * not on the bodies in between, so the root's list is what is searched. A
+ * body in a class that is not kept cannot run: no object of it is ever made.
+ * The answer is remembered per function (`layout.direct_calls`).
+ */
+def called_directly(g: generator, function: sharp_function) : _int64 {
+    if(!function.has_body()) { return 0; }
+    known := g.layout.direct_calls;
+    if(function.address >= 0 && function.address < known.count && known.at(function.address) >= 0) {
+        return known.at(function.address);
+    }
+    answer : _int64 = 1;
+    root : sharp_function = function;
+    if(function.family_root != null) { root = function.family_root!!; }
+    if(has_body_below(function, root.overridden_by) || has_body_below(function, function.overridden_by)) { answer = 0; }
+    if(function.address >= 0 && function.address < known.count) { known.replace(function.address, answer); }
+    return answer;
+}
+
+/** is one of `bodies` a kept function of a class below the class of `function`? */
+def has_body_below(function: sharp_function, bodies: list<sharp_function>?) : _int64 {
+    if(bodies == null || function.owner == null) { return 0; }
+    for(i : _int64 = 0; i < bodies!!.size(); i++) {
+        other := bodies!!.at(i);
+        if(other == function || other.kept == 0 || other.owner == null) { continue; }
+        above : sharp_class? = other.owner!!.base_class;
+        for(depth : _int64 = 0; above != null && depth < 64; depth++) {
+            if(above!! == function.owner!!) { return 1; }
+            above = above!!.base_class;
+        }
+    }
+    return 0;
+}

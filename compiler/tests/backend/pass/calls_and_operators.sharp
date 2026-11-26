@@ -1,0 +1,170 @@
+mod calls_and_operators;
+
+import ( std.io )
+
+/**
+ * CALLS AND OPERATORS: every form the calls stage binds, written correctly.
+ * The C++ compiler accepts this file too (the lines it would not accept -
+ * where the bootstrap is deliberately wider - are in calls_wider.sharp).
+ */
+
+class animal {
+    name : string = "animal";
+    def speak() : string { return name; }
+    static def make() : animal { return new animal(); }
+}
+class dog base animal {
+    dog() { }
+    dog(name: string) { self->name = name; }
+    def fetch() : _int64 { return 1; }
+}
+class cat base animal { }
+
+/** `-> base(args)`: the base class's constructor, chosen by the arguments like any constructor */
+class named {
+    name : string = "";
+    named() { }
+    named(name: string) { self->name = name; }
+    named(name: string, times: _int64) { self->name = name; }
+    def title() : string { return name; }
+}
+class pet base named {
+    pet() -> base() { }
+    pet(name: string) -> base(name) { }
+    pet(name: string, age: _int64) -> base(name, age + 1) { }     // an expression of the constructor's parameters
+    pet(letter: _int8) -> base("" + letter) { }
+}
+class holder<T> {
+    item : T;
+    holder(item: T) { self->item = item; }
+}
+class keeper<T> base holder<T> {
+    keeper(item: T) -> base(item) { }           // in keeper<string>, holder<string>'s constructor
+}
+class free_standing {
+    free_standing() -> base() { }               // no base class named: `_object_`'s constructor
+}
+
+/** the probe rows of doc/backend.md 7.6 that the C++ compiler resolves */
+class overloads {
+    def lit(a: _int32) : _int64 { return 32; }
+    def lit(a: _int64) : _int64 { return 64; }
+    def mix(a: _int32) : _int64 { return 1; }
+    def mix(a: decimal) : _int64 { return 2; }
+    def ch(a: _int8) : _int64 { return 8; }
+    def ch(a: _int64) : _int64 { return 64; }
+    def nul(a: string) : _int64 { return 1; }
+    def nul(a: string?) : _int64 { return 2; }
+    def two(a: animal) : _int64 { return 1; }
+    def two(a: dog) : _int64 { return 2; }
+    def of(a: decimal, b: decimal, c: decimal) : _int64 { return 1; }
+    def of(a: decimal, b: month_like, c: decimal) : _int64 { return 2; }
+
+    def all() {
+        a : _int64 = lit(5);                    // lit(_int32): exact
+        b : _int64 = lit(5000000000);           // lit(_int64)
+        c : _int64 = mix(5);                    // mix(_int32)
+        d : _int64 = ch('a') + ch(true);        // ch(_int8)
+        e : _int64 = nul(new string("x"));      // the first exact: nul(string)
+        f : _int64 = two(new animal());         // two(animal)
+        g : _int64 = of(2024, 2, 29);           // the plain-number rule: the first `of`
+    }
+}
+class month_like {
+    n : decimal;
+    month_like(n: decimal) { self->n = n; }
+}
+
+/** operators on a class of the program */
+class money {
+    cents : _int64;
+    money(cents: _int64) { self->cents = cents; }
+    def operator+(other: money) : money { return new money(cents + other.cents); }
+    def operator+(more: _int64) : money { return new money(cents + more); }
+    def operator==(other: money) : _int64 { return cents == other.cents; }
+    def operator-() : money { return new money(0 - cents); }
+    def operator[](i: _int64) : _int64 { return cents; }
+    def operator+=(more: _int64) : money { cents += more; return self; }
+    def operator++() : money { cents++; return self; }
+    def operator++(step: decimal) : money { cents++; return self; }
+}
+
+class shelf {
+    items : list<string> = new list<string>();
+    count : _int64 = 0;
+        get { return count; }
+        set value -> { count = value; }
+    on_change : (_int64)(nil)?;
+}
+
+def add(a: _int64, b: _int64) : _int64 { return a + b; }
+def twice(n: decimal) : decimal { return n * 2; }
+def identity<T>(x: T) : T { return x; }
+def first_or<T>(items: list<T>, fallback: T) : T {
+    if(items.size() > 0) { return items.at(0); }
+    return fallback;
+}
+
+def calls() {
+    s : _int64 = add(1, 2);                     // by name
+    t : decimal = twice(s);                     // _int64 to decimal
+    u : string = calls_and_operators#to_text(5);    // a function of a named module
+    a := animal.make();                         // a static function through the class
+    d := new dog("rex");                        // new, constructor chosen
+    p := dog();                                 // an object without `new`
+    l := list<string>();                        // ... of a generic instance
+    l.add("x");                                 // a function through a value
+    n : _int64 = d.fetch() + d.speak().size();  // calls on results of calls
+    i : _int64 = identity<_int64>(4);           // a generic function, type argument written
+    w : string = first_or<string>(l, "none");   // with a generic class as parameter
+    sh := new shelf();
+    sh.count = 3;                               // a setter
+    sh.count += 2;                              // getter, +, setter
+    sh.count++;
+    sh.items[0] = "y";                          // o[i] = v: list.put(0, "y")
+    if(sh.on_change != null) { sh.on_change(1); }   // a function value, may be null
+    k := new keeper<string>("kept");
+    owner := new pet("rex", 3);
+    owner.title() = "max";                      // an object a call gave back, changed through string.operator=
+    owner.title() += "!";                       // ... and through operator+=
+    (owner).name = "x";                         // parentheses around a place are still a place
+}
+
+def to_text(n: _int64) : string { return "" + n; }
+
+def operators() {
+    a : _int64 = 7;
+    b : decimal = 2.5;
+    c := a + b * 2 - a / 2;                     // decimal
+    k : _int64 = a % 3 + (a << 2) + (a & 1) + (a | 2) + (a ^ 3);
+    t : _int32 = a < 3;                         // a comparison is an _int32
+    z : _int8 = !a;                             // ! is an _int8
+    m := -a;
+    big : _int64 = 5000000000;
+    one : _int64 = 1;
+    sum : _int64 = big + one;                   // _int64 (doc D13)
+    text := "n = " + a + ", b = " + b;          // string.operator+ for each piece
+    tpl := "total: ${a + b} for $text";
+    x := new money(5) + new money(6);           // operator+ of the class
+    y := x + 3;                                 // the overload for a number
+    e : _int64 = x == y;                        // operator== of the class
+    neg := -x;                                  // operator-()
+    cents : _int64 = x[0];                      // operator[]
+    x += 4;                                     // operator+=
+    x++;                                        // operator++(step)
+    ++x;                                        // operator++()
+    q : money? = null;
+    gone : _int64 = q == null;                  // a null test, never operator==
+    same : _int8 = new dog() == new dog();      // the same object?
+    both : _int32 = a > 1 && b < 3 || false;
+    lit := 2 + 3;                               // a folded literal: an `int`
+    a += 2;
+    b -= 1;
+    a++;
+    --a;
+    flags := new _int64[3];
+    flags[1] += 2;
+    flags[2]++;
+    ages := { "ann" : 31, "bob" : 45 };         // dictionary<string, int>
+    names := { as <string, int> : };
+}

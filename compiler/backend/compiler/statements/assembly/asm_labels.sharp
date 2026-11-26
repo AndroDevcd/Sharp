@@ -1,0 +1,84 @@
+mod backend.compiler.statements.assembly;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.program,
+    backend.types.typed_tree.statements,
+    backend.compiler.context
+)
+
+/**
+ * THE LABELS OF AN `asm` BLOCK
+ *
+ *      asm {
+ *          .again:         defines `again` at this place
+ *          ...
+ *          jne @again      jumps there
+ *      }
+ *
+ * A label belongs to its block: it is defined once (E0921), and a jump may
+ * name only a label of the same block (E0922) - defined before or after the
+ * jump. The labels are collected first, so a jump forward finds its label.
+ * In the typed tree a label is its position in `bound_asm.labels`.
+ */
+
+/** the labels of the block, in order; E0921 for a second definition */
+def collect_labels(context: analysis_context, node: _int64, block: bound_asm) {
+    tree : syntax_tree = context.tree;
+    line : _int64 = tree.first_child!![node];
+    while(line >= 0) {
+        if(tree.kinds!![line] == N_ASM_LABEL) {
+            name := name_at(context, line);
+            if(label_index(block, name) >= 0) {
+                d := problem_at(context, "E0921", "the label `" + name + "` is defined twice in this asm block", line);
+                d.with_label("defined again");
+                d.with_related_place(place_of_node(context.unit, first_definition(context, node, name), "first defined here"));
+                d.with_note("a jump `@" + name + "` must have exactly one place to go to");
+                d.with_help("give one of the two another name");
+                report(context, d);
+            } else {
+                block.labels.add(name);
+            }
+        }
+        line = tree.next_sibling!![line];
+    }
+}
+
+/** the position of the label `name` in the block; -1 when there is none */
+def label_index(block: bound_asm, name: string) : _int64 {
+    for(i : _int64 = 0; i < block.labels.size(); i++) {
+        if(block.labels.at(i) == name) { return i; }
+    }
+    return 0 - 1;
+}
+
+/** the node of the first `.name:` of the block */
+def first_definition(context: analysis_context, node: _int64, name: string) : _int64 {
+    tree : syntax_tree = context.tree;
+    line : _int64 = tree.first_child!![node];
+    while(line >= 0) {
+        if(tree.kinds!![line] == N_ASM_LABEL) {
+            if(name_at(context, line) == name) { return line; }
+        }
+        line = tree.next_sibling!![line];
+    }
+    return node;
+}
+
+/** `@name`: the label's position; E0922 (and 0) when the block defines no such label */
+def label_operand(context: analysis_context, operand: _int64, block: bound_asm) : _int64 {
+    name := name_at(context, operand);
+    index : _int64 = label_index(block, name);
+    if(index >= 0) { return index; }
+
+    d := problem_at(context, "E0922", "this asm block has no label `" + name + "`", operand);
+    d.with_label("nowhere to jump to");
+    d.with_note("a jump goes to a label of its own block, defined as `." + name + ":` at the place to jump to");
+    suggestion := did_you_mean(closest_names(name, block.labels, 3));
+    if(sizeof(suggestion.data) > 0) { d.with_help(suggestion); }
+    else { d.with_help("define it: `." + name + ":` in front of the instruction to jump to"); }
+    report(context, d);
+    return 0;
+}

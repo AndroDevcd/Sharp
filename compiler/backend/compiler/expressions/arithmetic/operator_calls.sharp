@@ -1,0 +1,98 @@
+mod backend.compiler.expressions.arithmetic;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.names,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions.calls
+)
+
+/**
+ * OPERATORS ON OBJECTS: the class's operator functions
+ *
+ *      class money {
+ *          def operator+(other: money) : money { ... }
+ *          def operator==(other: money) : bool { ... }
+ *          def operator-() : money { ... }             unary: no parameter
+ *          def operator++() : money { ... }            prefix ++
+ *          def operator++(step: decimal) : money { ... } postfix ++: given 1
+ *      }
+ *
+ *      a + b       a.operator+(b)      the operator function of the LEFT operand's class,
+ *                                      chosen among its overloads by the right operand
+ *                                      (overload resolution, like any call)
+ *      -a          a.operator-()
+ *      "x" + n     new string("x").operator+(n): a text literal on the left becomes a string
+ *
+ * The result has the function's own result type: `t == "abc"` on a string
+ * is a `bool` OBJECT, `"a" + 1` a `string`. In the typed tree it is a
+ * bound_call written_as AS_OPERATOR.
+ *
+ *      C++ comparison: `compile_class_function_overload` in
+ *      compiler/expressions/expression.cpp.
+ */
+
+/** the operator functions called `name` ("operator+") an object of `owner` has, nearest class first */
+def operator_functions(context: analysis_context, owner: sharp_class, name: string) : list<sharp_function> {
+    // through the member lookup that remembers its answers per class: the
+    // same few operators are asked of the same few classes again and again
+    found := new lookup_result();
+    find_class_member(context.prog, owner, name, found);
+    if(found.kind == FOUND_FUNCTIONS) { return found.functions!!; }
+    return new list<sharp_function>();
+}
+
+/**
+ * The call of the operator function `name` on `on` with `arguments`; null
+ * when the class has no such function that takes them (the caller says what
+ * that means: "the same object" for `==`, E0511 otherwise). An ambiguous
+ * choice is reported here (E0503) and gives an error node.
+ */
+def call_operator(context: analysis_context, node: _int64, on: bound_expression, name: string,
+                  arguments: list<call_argument>) : bound_expression? {
+    if(on.type.kind != RT_CLASS || on.type.is_array == 1) { return null; }
+    owner : sharp_class = on.type.class_of!!;
+    functions := operator_functions(context, owner, name);
+    if(functions.size() == 0) { return null; }
+
+    result := resolve_overload(context, functions, arguments, null, owner);
+    if(result.tied.size() > 0) {
+        if(has_error_argument(arguments) == 0) { report_ambiguous(context, name, node, result.tied, arguments); }
+        return new bound_error(context.unit, node, context.session.types.error_type);
+    }
+    if(result.best == null) { return null; }
+    call := bind_call(context, result.best!!, on, arguments, node, node);
+    call.written_as = AS_OPERATOR;
+    return call;
+}
+
+/** a single operand as the argument list of an operator call */
+def one_argument(value: bound_expression) : list<call_argument> {
+    arguments := new list<call_argument>();
+    arguments.add(new call_argument(value, value.node));
+    return arguments;
+}
+
+/** "`money` has `operator+` for `money`, `_int64`": what the class does take, for E0511 */
+def operator_overloads_text(context: analysis_context, owner: sharp_class, name: string) : string {
+    functions := operator_functions(context, owner, name);
+    text := new string_builder("");
+    for(i : _int64 = 0; i < functions.size() && i < 8; i++) {
+        if(i > 0) { text.append(", "); }
+        function := functions.at(i);
+        if(function.parameters.size() == 0) { text.append("nothing"); }
+        else if(function.parameters.size() > 1) { text.append("" + function.parameters.size() + " parameters"); }
+        else if(function.parameters.at(0).value_type != null) { text.append("`" + function.parameters.at(0).value_type!!.to_text() + "`"); }
+    }
+    if(functions.size() > 8) { text.append(" ..."); }
+    return text.build();
+}

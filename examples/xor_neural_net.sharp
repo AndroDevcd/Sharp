@@ -1,196 +1,152 @@
 mod main;
 
-import std.math;
+import (
+    std.math
+)
 
+/**
+ * A small neural network that learns "exclusive or": 1 when its two inputs
+ * differ, 0 when they are the same. It is trained on 5000 random pairs and
+ * then asked the four questions.
+ *
+ * Classes, lists of objects, arrays of numbers and the math functions, in
+ * one program.
+ */
 alias list<neuron> as layer;
 
+// one wire from a neuron to a neuron of the next layer
 class connection {
-   weight : var;
-   delta : var;
+    weight : decimal;
+    last_change : decimal;
 }
 
 class neuron {
-    neuron(n_outputs: var, n_index: var) {
-       for(c := 0; c < n_outputs; ++c) {
-          weights.add(new connection());
-          weights.last().weight = rand();
-       }
+    static learning_rate : decimal = 0.35;
+    static momentum : decimal = 0.5;
 
-       index = n_index;
+    output : decimal;
+    gradient : decimal;
+    index : decimal;                                // its place in its layer
+    wires := new list<connection>();                // one to each neuron of the next layer
+
+    neuron(outputs: decimal, place: decimal) {
+        for(i : decimal = 0; i < outputs; i++) {
+            wire := new connection();
+            wire.weight = rand_unit();
+            wires.add(wire);
+        }
+        index = place;
     }
 
-    def feed_forward(prev_layer: layer) {
-       sum := 0;
-       foreach(neuron in prev_layer) {
-         sum += neuron.output * neuron.weights[index].weight;
-       }
-
-       output = activate(sum);
+    // its output from the layer before: the weighted sum, squeezed into -1 .. 1
+    def feed_forward(before: layer) {
+        sum : decimal = 0;
+        foreach(from in before) {
+            sum = sum + from.output * from.wires.at(index).weight;
+        }
+        output = tanh(sum);
     }
 
-    def activate(sum: var) : var {
-       return tanh(sum);
+    def slope(x: decimal) : decimal {
+        return 1.0 - x * x;
     }
 
-    def calc_derivative(x : var) : var {
-       return 1.0 - x * x;
+    def output_gradient(wanted: decimal) {
+        gradient = (wanted - output) * slope(output);
     }
 
-    def calc_output_gradients(target_val: var) {
-       delta := target_val - output;
-       m_gradient = delta * calc_derivative(output);
+    def hidden_gradient(next: layer) {
+        sum : decimal = 0;
+        for(n : decimal = 0; n < next.size() - 1; n++) {
+            sum = sum + wires.at(n).weight * next.at(n).gradient;
+        }
+        gradient = sum * slope(output);
     }
 
-    def calc_hidden_gradients(next_layer : layer) {
-       dow := sum_dow(next_layer);
-       m_gradient = dow * calc_derivative(output);
+    // move the weights that lead INTO this neuron a little towards a better answer
+    def learn(before: layer) {
+        foreach(from in before) {
+            wire := from.wires.at(index);
+            change : decimal = learning_rate * from.output * gradient + momentum * wire.last_change;
+            wire.last_change = change;
+            wire.weight = wire.weight + change;
+        }
     }
-
-    def sum_dow(next_layer: layer) : var {
-       sum := 0;
-       for(n := 0; n < next_layer.size() - 1; ++n) {
-          sum += weights[n].weight * next_layer[n].m_gradient;
-       }
-
-       return sum;
-    }
-
-    def update_input_weights(prev_layer: layer) {
-       foreach(neuron in prev_layer) {
-          old_delta_weight := neuron.weights[index].delta;
-
-          new_delta_weight :=
-              eta
-              * neuron.output
-              * m_gradient
-              + alpha
-              * old_delta_weight;
-          neuron.weights[index].delta = new_delta_weight;
-          neuron.weights[index].weight += new_delta_weight;
-       }
-    }
-
-    output : var;
-    weights := new list<connection>();
-    index : var;
-    m_gradient: var;
-    static eta : var = 0.35;
-    static alpha : var = 0.5;
 }
 
 class net {
-   net(topology: list<var>) {
-      layer_count := topology.size();
-      for(layer_num := 0; layer_num < layer_count; layer_num++) {
-         layers.add(new layer());
+    layers := new list<layer>();
 
-         num_outputs := layer_num == layer_count - 1 ? 0 : topology[layer_num + 1];
-         for(neuron_num := 0; neuron_num <= topology[layer_num]; ++neuron_num) {
-            layers.last().add(new neuron(num_outputs, neuron_num));
-         }
-
-         layers.last().last().output = 1;
-      }
-   }
-
-   def feed_forward(input_vals: list<var>) {
-      for(i := 0; i < input_vals.size(); i++) {
-         layers[0][i].output = input_vals[i];
-      }
-
-      for(layer_num := 1; layer_num < layers.size(); layer_num++) {
-        prev_layer := layers[layer_num - 1];
-
-        for(n := 0; n < layers[layer_num].size() - 1; n++) {
-           layers[layer_num][n].feed_forward(prev_layer);
+    // sizes: how many neurons each layer has; every layer gets one more that is always 1 (the bias)
+    net(sizes: decimal[]) {
+        for(l : decimal = 0; l < sizeof(sizes); l++) {
+            made := new layer();
+            outputs : decimal = 0;
+            if(l < sizeof(sizes) - 1) { outputs = sizes[l + 1]; }
+            for(n : decimal = 0; n <= sizes[l]; n++) {
+                made.add(new neuron(outputs, n));
+            }
+            made.last().output = 1;
+            layers.add(made);
         }
-      }
-   }
+    }
 
-   def back_prop(target_vals: list<var>) {
-       output_layer := layers.last();
-       m_error := 0;
+    def feed_forward(inputs: decimal[]) {
+        for(i : decimal = 0; i < sizeof(inputs); i++) {
+            layers.at(0).at(i).output = inputs[i];
+        }
+        for(l : decimal = 1; l < layers.size(); l++) {
+            before := layers.at(l - 1);
+            for(n : decimal = 0; n < layers.at(l).size() - 1; n++) {
+                layers.at(l).at(n).feed_forward(before);
+            }
+        }
+    }
 
-       for(n := 0; n < output_layer.size() - 1; ++n) {
-          delta := target_vals[n] - output_layer[n].output;
-          m_error += delta * delta;
-       }
+    def back_propagate(wanted: decimal[]) {
+        last := layers.last();
+        for(n : decimal = 0; n < last.size() - 1; n++) {
+            last.at(n).output_gradient(wanted[n]);
+        }
+        for(l : decimal = layers.size() - 2; l > 0; l--) {
+            hidden := layers.at(l);
+            for(n : decimal = 0; n < hidden.size(); n++) {
+                hidden.at(n).hidden_gradient(layers.at(l + 1));
+            }
+        }
+        for(l : decimal = layers.size() - 1; l > 0; l--) {
+            for(n : decimal = 0; n < layers.at(l).size() - 1; n++) {
+                layers.at(l).at(n).learn(layers.at(l - 1));
+            }
+        }
+    }
 
-       m_error /= output_layer.size() - 1;
-       m_error = sqrt(m_error);
-
-       m_recent_average_error =
-           (m_recent_average_error * m_recent_average_smoothing_factor + m_error)
-             / (m_recent_average_smoothing_factor + 1.0);
-
-       for(n := 0; n < output_layer.size() - 1; ++n) {
-          output_layer[n].calc_output_gradients(target_vals[n]);
-       }
-
-       for(layer_num := layers.size() - 2; layer_num > 0; --layer_num) {
-          hidden_layer := layers[layer_num];
-          next_layer := layers[layer_num + 1];
-
-          for(n := 0; n < hidden_layer.size(); ++n) {
-             hidden_layer[n].calc_hidden_gradients(next_layer);
-          }
-       }
-
-       for(layer_num := layers.size() - 1; layer_num > 0; --layer_num) {
-          layer := layers[layer_num];
-          prev_layer := layers[layer_num - 1];
-
-          for(n := 0; n < layer.size() - 1; ++n) {
-             layer[n].update_input_weights(prev_layer);
-          }
-       }
-   }
-
-   def get_results(result_vals: list<var>) {
-      result_vals.clear();
-      for(n := 0; n < layers.last().size() - 1; ++n) {
-         result_vals.add(layers.last()[n].output);
-      }
-   }
-
-   layers: list<layer> = new list<layer>();
-   m_error : var;
-   m_recent_average_error: var;
-  static  m_recent_average_smoothing_factor: var = 100.0;
+    def answer() : decimal {
+        return layers.last().at(0).output;
+    }
 }
 
 def main() {
-   set_seed(utc_mills_time() >> 4); // set random seed to current time in mills
-   neural_net := new net(new list<var>({ 2, 2, 1 }));
+    set_seed(7);                                    // the same training every run
+    brain := new net(new decimal[] { 2, 4, 1 });
 
-// train net
-   for(i := 5000; i >= 0; i--) {
-      input_data := new list<var>({ round(rand()), round(rand()) });
-      target_data := new list<var>({ input_data[0] ^ input_data[1] });
-      neural_net.feed_forward(input_data);
-      neural_net.back_prop(target_data);
-   }
+    for(round : decimal = 0; round < 5000; round++) {
+        a : decimal = rand_index(2);
+        b : decimal = rand_index(2);
+        brain.feed_forward(new decimal[] { a, b });
+        brain.back_propagate(new decimal[] { a != b ? 1 : 0 });
+    }
 
-   println("################ Exclusive or neural network ################");
-   println("Test Results:");
-
-   for(i := 0; i < 50; i++) {
-      input_data := new list<var>();
-      target_data := new list<var>();
-      result_vals := new list<var>();
-      n1 := round(rand());
-      n2 := round(rand());
-      t := n1 ^ n2;
-
-      target_data.add(t);
-      input_data.add(n1);
-      input_data.add(n2);
-      neural_net.feed_forward(input_data);
-      neural_net.get_results(result_vals);
-
-      println("\ntest #$i");
-      println("input data: $n1 ^ $n2");
-      println("target answer: $t");
-      println("ai result: ${round(abs(result_vals.get_elements()[0]))}");
-   }
+    println("exclusive or, as the network learned it:");
+    right : decimal = 0;
+    for(a : decimal = 0; a < 2; a++) {
+        for(b : decimal = 0; b < 2; b++) {
+            brain.feed_forward(new decimal[] { a, b });
+            said : decimal = brain.answer() > 0.5 ? 1 : 0;
+            wanted : decimal = a != b ? 1 : 0;
+            if(said == wanted) { right++; }
+            println("  " + a + " xor " + b + " = " + said);
+        }
+    }
+    println("" + right + " of 4 right");
 }

@@ -1,0 +1,60 @@
+mod std.guikit.core.util;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * num - small number helpers for layout code: num.larger(a, b), num.between(x, low, high) ...
+ *
+ * They work on plain `decimal` and `_int64` numbers on purpose. The library's
+ * std.math functions take and return `double` OBJECTS, and layout runs these
+ * thousands of times a frame - plain numbers make no garbage.
+ *
+ * They are functions of a CLASS rather than loose functions of the module so
+ * that a program which imports std.guikit.* does not find everyday words like
+ * `larger` and `between` suddenly taken in its own code.
+ */
+
+/** "As much room as you like": what a container passes when it does not limit a child (a column's height). */
+const UNBOUNDED : decimal = 10000000;
+
+stable class num {
+
+    /** the smaller of two numbers */
+    static def smaller(a: decimal, b: decimal) : decimal {
+        if(a < b) { return a; }
+        return b;
+    }
+
+    /** the larger of two numbers */
+    static def larger(a: decimal, b: decimal) : decimal {
+        if(a > b) { return a; }
+        return b;
+    }
+
+    /** `value` kept inside low .. high */
+    static def between(value: decimal, low: decimal, high: decimal) : decimal {
+        if(value < low) { return low; }
+        if(value > high) { return high; }
+        return value;
+    }
+
+    /** the whole number at or below `value` (3.7 -> 3, -3.2 -> -4) */
+    static def whole(value: decimal) : decimal {
+        cut : _int64 = value;               // drops the part after the point: toward 0
+        if(cut > value) { cut = cut - 1; }  // a negative number was cut upward: step back down
+        return cut;
+    }
+
+    /** the nearest whole number */
+    static def nearest(value: decimal) : decimal {
+        return whole(value + 0.5);
+    }
+
+    /** is this room limited at all? (see UNBOUNDED) */
+    static def is_bounded(room: decimal) : _int64 {
+        if(room < UNBOUNDED / 2) { return 1; }
+        return 0;
+    }
+}

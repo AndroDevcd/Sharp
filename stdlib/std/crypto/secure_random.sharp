@@ -1,0 +1,97 @@
+mod std.crypto;
+
+import ( std.c, std.io, std.data, platform )
+
+/**
+ * RANDOM NUMBERS NOBODY CAN GUESS
+ *
+ *      key := secure_random.bytes(32);         // 32 random bytes
+ *      id := secure_random.hex(16);            // 32 characters, 0 to 9 and a to f
+ *      token := secure_random.token(24);       // 32 characters that are safe in an address (letters, digits, - and _)
+ *      roll := secure_random.below(6) + 1;     // 1 to 6, each as likely as the others
+ *
+ * std's rand() and seeded_random are for games and simulations: fast, and
+ * the same seed gives the same numbers - so whoever sees a few of them can
+ * work out the rest. Keys, tokens, salts, session ids and passwords have to
+ * come from here: the operating system's own generator, which collects
+ * what cannot be predicted (the timing of the hardware) and is what the
+ * system's own encryption uses.
+ *
+ *      Windows     BCryptGenRandom (bcrypt.dll)
+ *      Linux       getrandom
+ *
+ * Throws illegal_state_exception when the system gives none (which does not
+ * happen on a working system).
+ *
+ *      Java comparison: java.security.SecureRandom; Python: secrets.token_bytes / token_urlsafe.
+ */
+class secure_random {
+    extern "windows:bcrypt" {
+        private static def BCryptGenRandom(algorithm: pointer, into: _int8[], count: c_uint, flags: c_uint) : c_int;
+    }
+    extern "unix:c" {
+        private static def getrandom(into: _int8[], count: c_size, flags: c_uint) : c_ssize;
+    }
+
+    static def bytes(count: _int64) : _int8[] {
+        if(count < 0) { throw new illegal_argument_exception("secure_random.bytes: the count cannot be negative"); }
+        made := new _int8[count];
+        if(count == 0) { return made; }
+        if(build.is_windows()) {
+            // 2: the system's preferred generator
+            status : _int64 = BCryptGenRandom(0, made, count, 2);
+            if(status != 0) { throw new illegal_state_exception("the system gave no random numbers (BCryptGenRandom said " + status + ")"); }
+            return made;
+        }
+        have : _int64 = 0;
+        while(have < count) {
+            // (the system hands out at most 256 bytes at a time without ever waiting)
+            want : _int64 = count - have;
+            if(want > 256) { want = 256; }
+            piece := new _int8[want];
+            got : _int64 = getrandom(piece, want, 0);
+            if(got <= 0) { throw new illegal_state_exception("the system gave no random numbers (getrandom said " + got + ")"); }
+            for(i : _int64 = 0; i < got; i++) { made[have + i] = piece[i]; }
+            have = have + got;
+        }
+        return made;
+    }
+
+    /** `count` random bytes written as 2 * count characters */
+    static def hex(count: _int64) : string {
+        return crypto.hex(bytes(count));
+    }
+
+    /** `count` random bytes as text that can stand in an address, a file name or a header as it is */
+    static def token(count: _int64) : string {
+        return base64.encode_url_bytes(bytes(count));
+    }
+
+    /**
+     * A whole number from 0 up to, not including, `limit` - each equally
+     * likely (numbers that would favour the low ones are thrown away).
+     */
+    static def below(limit: _int64) : _int64 {
+        if(limit < 1) { throw new illegal_argument_exception("secure_random.below: the limit has to be at least 1"); }
+        if(limit == 1) { return 0; }
+        range : _int64 = 0x1000000000000;           // 48 random bits
+        fair : _int64 = range - (range % limit);
+        while(true) {
+            raw : _int8[] = bytes(6);
+            value : _int64 = 0;
+            for(i : _int64 = 0; i < 6; i++) { value = (value << 8) | (raw[i] & 0xFF); }
+            if(value < fair) { return value % limit; }
+        }
+        return 0;
+    }
+
+    /** a random id in the usual form: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx (a version 4 UUID) */
+    static def uuid() : string {
+        raw : _int8[] = bytes(16);
+        raw[6] = (raw[6] & 0x0F) | 0x40;
+        raw[8] = (raw[8] & 0x3F) | 0x80;
+        text : string = crypto.hex(raw);
+        return io_strings.slice(text, 0, 8) + "-" + io_strings.slice(text, 8, 12) + "-" + io_strings.slice(text, 12, 16) + "-"
+             + io_strings.slice(text, 16, 20) + "-" + io_strings.slice(text, 20, 32);
+    }
+}

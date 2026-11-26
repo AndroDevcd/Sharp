@@ -1,0 +1,7 @@
+mod shop;
+
+/** one of two files called notes.sharp: for breakpoints by file and line */
+def shop_notes() : _int64 {
+    count : _int64 = 3;
+    return count;
+}

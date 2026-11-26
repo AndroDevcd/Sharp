@@ -1,0 +1,327 @@
+mod backend.postprocessor.inheritance;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * FUNCTIONS WITHOUT A BODY, AND THE FUNCTIONS THAT OVERRIDE THEM
+ * (the C++ compiler: postprocessor/delegate_processor.cpp, where a function
+ * without a body is called a "delegate")
+ *
+ *      interface printable { def show() : string; }        no body: a promise
+ *      class circle : printable {
+ *          override def show() : string { ... }            the promise kept
+ *      }
+ *
+ * A function declared without a body says "every class below me has this".
+ * It is found in interfaces, and in classes that leave a function to the
+ * classes that inherit from them. Two rules follow:
+ *
+ *   1. A class must define, with `override`, every function without a body of
+ *      its base class and of its interfaces.
+ *   2. A function marked `override` must have such a function to override:
+ *      the same name, the same parameter types, the same result.
+ *
+ * When both hold the two functions are linked, so later stages can go from
+ * one to the other:
+ *
+ *      sharp_function.overrides            show of circle  ->  show of printable
+ *      sharp_function.implementations      show of printable  ->  [ show of circle, ... ]
+ *
+ *      E0340   a function outside any class has no body (and is not `native`)
+ *      E0341   a class does not define functions it must define
+ *      E0342   `override` on a function that overrides nothing
+ *      E0343   the overriding function returns another type
+ *      E0344   the function is there, but not marked `override`
+ *      E0346   a function of an interface the class lists, declared again without a body
+ */
+def link_overrides(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        module := prog.module_list.at(i);
+        for(j : _int64 = 0; j < module.functions.size(); j++) {
+            report_if_bodiless_global(module.functions.at(j), problems);
+        }
+    }
+
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        declared := prog.all_classes.at(i);
+        if(declared.kind == D_CLASS) {
+            link_overrides_of(declared, problems);
+        }
+        // (an interface only adds to what its base interface asks for; an enum has no functions of its own)
+    }
+}
+
+/** a function with no body must be `native` (the runtime has it) or be in a class (a class below defines it) */
+def report_if_bodiless_global(declared: sharp_function, problems: list<diagnostic>) {
+    if(declared.has_body() || declared.has(FLAG_NATIVE)) { return; }
+    if(declared.extends != null) { return; }       // def string.shout(); - an extension function: E0374 (extension_functions.sharp)
+
+    problems.add(error_at_node("E0340", "function `" + declared.name + "` has no body", declared.unit, declared.node)
+        .with_label("declared, but never says what it does")
+        .with_note("only a function of a class or interface can be left without a body, for the classes below to define")
+        .with_help("give it a body:  def " + function_text(declared, null) + " { ... }")
+        .with_help("or, if the runtime provides it, mark it `native`"));
+}
+
+/**
+ * Is this a function that classes below must define?
+ *
+ * (Not a generic function: `def f<T>(x: T);` cannot be defined below - each
+ * call `f<int>(...)` makes its own copy of the function, and "the function
+ * the object's class has" is one entry per function, not one per T. It is
+ * refused where it is declared, E0345 in generic_functions.sharp.)
+ */
+def must_be_defined(declared: sharp_function) : _int64 {
+    return !declared.has_body() && !declared.has(FLAG_NATIVE) && !declared.is_generic();
+}
+
+/**
+ * A function a class inherits, with what is known about the place it comes from.
+ */
+class inherited_function {
+    function : sharp_function;
+    from : sharp_class;             // the class or interface that declares it
+    bindings : type_bindings?;      // what the type parameters of `from` stand for; null: not known
+    required : _int64;              // 1: the class must define it (rule 1)
+
+    inherited_function(function: sharp_function, from: sharp_class, bindings: type_bindings?, required: _int64) {
+        self->function = function;
+        self->from = from;
+        self->bindings = bindings;
+        self->required = required;
+    }
+}
+
+/**
+ * Every body-less function above `declared`: of its base classes and its
+ * interfaces, and of theirs, as far up as they go.
+ *
+ * `required` follows the C++ compiler: the functions of the DIRECT base class
+ * and of the class's own interfaces (with the interfaces those inherit from).
+ * What is further up the base chain was for the base class to define.
+ */
+def functions_to_override(declared: sharp_class) : list<inherited_function> {
+    found := new list<inherited_function>();
+    visited := new list<sharp_class>();
+    visited.add(declared);
+
+    if(declared.base_class != null) {
+        gather(declared.base_class!!, declared.base_bindings, 1, 0, found, visited);
+    }
+    for(i : _int64 = 0; i < declared.interfaces.size(); i++) {
+        listed := declared.interfaces.at(i);
+        if(is_visited(visited, listed) && is_listed_before(declared, i)) {
+            // `: comparable<int>, comparable<string>` - the same generic interface a second
+            // time, with other type arguments: its functions are asked for again, with those
+            add_body_less_functions(listed, declared.interface_bindings.at(i), 1, found);
+        } else {
+            gather(listed, declared.interface_bindings.at(i), 1, 1, found, visited);
+        }
+    }
+    return found;
+}
+
+/** is `wanted` among the classes already gone through? */
+def is_visited(visited: list<sharp_class>, wanted: sharp_class) : _int64 {
+    for(i : _int64 = 0; i < visited.size(); i++) {
+        if(visited.at(i) == wanted) { return 1; }
+    }
+    return 0;
+}
+
+/** does `declared` list the interface at `index` already earlier in its own list? */
+def is_listed_before(declared: sharp_class, index: _int64) : _int64 {
+    for(i : _int64 = 0; i < index; i++) {
+        if(declared.interfaces.at(i) == declared.interfaces.at(index)) { return 1; }
+    }
+    return 0;
+}
+
+/** the body-less functions `from` declares itself, added to `found` */
+def add_body_less_functions(from: sharp_class, bindings: type_bindings?, required: _int64, found: list<inherited_function>) {
+    for(i : _int64 = 0; i < from.functions.size(); i++) {
+        function := from.functions.at(i);
+        if(must_be_defined(function)) {
+            found.add(new inherited_function(function, from, bindings, required));
+        }
+    }
+}
+
+/**
+ * @param required          are the functions of `from` required of the class we gather for?
+ * @param through_interface 1: `from` was reached through an interface of the
+ *                          class, so what is above it is required as well
+ */
+def gather(from: sharp_class, bindings: type_bindings?, required: _int64, through_interface: _int64,
+           found: list<inherited_function>, visited: list<sharp_class>) {
+    if(is_visited(visited, from)) { return; }       // reached twice (two interfaces with one base): once is enough
+    visited.add(from);
+
+    add_body_less_functions(from, bindings, required, found);
+
+    // Further up, what the type parameters stand for is not followed (that
+    // needs the generics stage); null bindings make every comparison with a
+    // type parameter count as a match rather than as a mistake.
+    if(from.base_class != null) {
+        gather(from.base_class!!, null, through_interface, through_interface, found, visited);
+    }
+    for(i : _int64 = 0; i < from.interfaces.size(); i++) {
+        gather(from.interfaces.at(i), null, through_interface, through_interface, found, visited);
+    }
+}
+
+/**
+ * One class: every `override` of it is tied to the function it defines
+ * (E0342 - E0344 when there is none, the result differs or `override` is missing), and what the class
+ * is still asked to define is reported (E0341).
+ */
+def link_overrides_of(declared: sharp_class, problems: list<diagnostic>) {
+    inherited := functions_to_override(declared);
+    missing := new list<inherited_function>();
+
+    // ---- rule 1, and the links
+    for(i : _int64 = 0; i < inherited.size(); i++) {
+        wanted := inherited.at(i);
+        own := function_matching(declared, wanted);
+
+        if(own == null) {
+            if(wanted.required == 1) { missing.add(wanted); }
+            continue;
+        }
+
+        definition : sharp_function = own!!;
+        if(!definition.has_body() && !definition.has(FLAG_NATIVE)) {
+            // Declared again without a body. For a function of the base CLASS that
+            // leaves it to the classes below, as the base did. For a function of
+            // an interface the class lists itself it would turn the promise into
+            // a function of the class that nobody has to define: E0346.
+            if(wanted.required == 1 && wanted.from.kind == D_INTERFACE) {
+                report_interface_function_without_body(declared, definition, wanted, problems);
+            }
+            continue;
+        }
+
+        if(!definition.has(FLAG_OVERRIDE)) {
+            // Not required of this class (a class further up was the one that
+            // had to define it): a function of its own with the same name.
+            if(wanted.required == 0) { continue; }
+
+            problems.add(error_at_node("E0344", "`" + definition.name + "` defines a function of `" + wanted.from.name
+                                       + "` but is not marked `override`", definition.unit, definition.node)
+                .with_label("add `override` in front of this function")
+                .with_related_place(place_of_node(wanted.function.unit, wanted.function.node,
+                                                  "the function it defines is declared here"))
+                .with_note("`override` says that the function is meant to stand in for one from above; without it, a change to `"
+                           + wanted.from.name + "` could silently disconnect the two")
+                .with_help("write:  override def " + function_text(definition, null)));
+            continue;
+        }
+
+        if(!same_result(wanted.function, definition, wanted.bindings)) {
+            report_other_result(definition, wanted, problems);
+            continue;
+        }
+
+        if(definition.overrides == null) { definition.overrides = wanted.function; }
+        wanted.function.implementations.add(definition);
+    }
+
+    // A required function the class did write - marked `override` - but with other
+    // parameter types is ONE mistake: E0342 below says it overrides nothing and shows what
+    // is above. Listing it as missing as well (E0341) would tell the same mistake twice.
+    missing = not_attempted(declared, missing);
+    // (a class whose base was only ASSUMED after a mistake - `class x : a_class`,
+    // interfaces.sharp - is not asked for what that base requires: one mistake, one message)
+    if(missing.size() > 0 && declared.base_assumed == 0) {
+        report_missing(declared, missing, problems);
+    }
+
+    // ---- rule 2: every `override` found something
+    // (`class mixin<T> base T`: what is above is not known before an instance
+    // is made; override_families.sharp asks then)
+    if(declared.inherits_from_parameter == 1) { return; }
+    for(i : _int64 = 0; i < declared.functions.size(); i++) {
+        function := declared.functions.at(i);
+        if(function.is_generic()) { continue; }     // `override def f<T>`: E0345 (generic_functions.sharp)
+        if(function.has(FLAG_OVERRIDE) && function.overrides == null && !has_other_result(function, inherited)) {
+            report_overrides_nothing(declared, function, inherited, problems);
+        }
+    }
+}
+
+/**
+ * The function of `declared` with the name and the parameter types of
+ * `wanted`; null when it has none.
+ *
+ * A function whose parameters are CERTAINLY the wanted ones is preferred to
+ * one that only might fit (a type parameter nothing is known about matches
+ * anything, see type_compare.sharp). In
+ *
+ *      class both<A, B> : source<A>, source<B> {
+ *          override def take(x: A) { }
+ *          override def take(x: B) { }
+ *      }
+ *
+ * source<B> asks for take(B); take(A) "might" be it, take(B) is it.
+ */
+def function_matching(declared: sharp_class, wanted: inherited_function) : sharp_function? {
+    same_name := declared.members!!.find(wanted.function.name);
+    if(same_name == null) { return null; }
+
+    for(lenient : _int64 = 0; lenient <= 1; lenient++) {
+        for(i : _int64 = 0; i < same_name!!.size(); i++) {
+            candidate := same_name!!.at(i);
+            if(candidate.kind != D_FUNCTION || candidate.owner != declared) { continue; }
+
+            function : sharp_function = candidate as sharp_function;
+            if(same_parameters(wanted.function, function, wanted.bindings, lenient)) {
+                return function;
+            }
+        }
+    }
+    return null;
+}
+
+/** was `function` matched by name and parameters, and turned down for its result (E0343, reported already)? */
+def has_other_result(function: sharp_function, inherited: list<inherited_function>) : _int64 {
+    for(i : _int64 = 0; i < inherited.size(); i++) {
+        wanted := inherited.at(i);
+        if(wanted.function.name == function.name && same_parameters(wanted.function, function, wanted.bindings, 1)
+           && !same_result(wanted.function, function, wanted.bindings)) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// (the messages E0341 - E0343 and E0346: override_messages.sharp)
+
+/**
+ * The required functions the class did not even attempt: those it has no
+ * `override` function of the same name for. (`override def size_of(item: _int64)`
+ * where `size_of(item: string)` is required is an attempt, reported as E0342.)
+ * A class that attempts every one is marked as reported, so the exact check of
+ * stage 5 does not list them either.
+ */
+def not_attempted(declared: sharp_class, missing: list<inherited_function>) : list<inherited_function> {
+    kept := new list<inherited_function>();
+    attempted : _int64 = 0;
+    for(i : _int64 = 0; i < missing.size(); i++) {
+        wanted := missing.at(i);
+        tried : _int64 = 0;
+        for(j : _int64 = 0; j < declared.functions.size(); j++) {
+            own := declared.functions.at(j);
+            if(own.name == wanted.function.name && own.has(FLAG_OVERRIDE) && own.has_body()) { tried = 1; }
+        }
+        if(tried == 1) { attempted = 1; } else { kept.add(wanted); }
+    }
+    if(attempted == 1 && kept.size() == 0) { declared.missing_reported = 1; }
+    return kept;
+}

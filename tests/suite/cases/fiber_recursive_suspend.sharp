@@ -1,0 +1,61 @@
+mod main;
+
+import (
+    testing,
+    std.io.fiber
+)
+
+/**
+ * Formerly a known bug (runtime), fixed: a fiber that is switched out while one function is on
+ * its call stack more than once never continues. The program hangs with one
+ * thread at 100% cpu (interpreter) or crashes (JIT).
+ *
+ * WHERE
+ *   virtual_machine.cpp, main_vm_loop(): every time a thread picks a fiber up
+ *   again it walks the fiber's call stack from the bottom with
+ *       while(frame != task->current) frame = get_next_frame(frame);
+ *   and get_next_frame() looks a frame up BY FUNCTION: it returns the callee
+ *   of the FIRST frame that belongs to that function. With the same function
+ *   on the stack twice the walk comes back to the first occurrence and goes
+ *   round for ever. (The JIT uses the same lookup to rebuild compiled frames,
+ *   and then continues in the wrong frame.)
+ *
+ * WHAT IT MEANS
+ *   Any recursion, direct or through other functions, is unsafe as soon as
+ *   the fiber can be switched out inside it: delay(), a lock that is taken,
+ *   fiber.suspend(), or simply the end of its time slice while another fiber
+ *   is ready.
+ *
+ * WHAT std.io.coroutines DOES ABOUT IT
+ *   - the library itself never calls a function of its own recursively (job
+ *     trees are cancelled and finished with a work list, not by recursion)
+ *   - the scope functions that call a block in-line (coroutine_scope { },
+ *     supervisor_scope { }, run_blocking { }, with_timeout { }) each have
+ *     their own code path, so different ones can be nested in each other
+ *   - nesting one of them directly in ITSELF on the same fiber is refused
+ *     with an illegal_state_exception instead of hanging
+ *
+ * EXPECTED: prints "RESULT PASS".  ACTUAL: hangs after "going to sleep 3 calls deep".
+ *
+ * A fix in the runtime: walk the frames by index (0 .. callFramePtr) instead
+ * of searching for the function.
+ */
+
+depth_reached : decimal = 0;
+
+def descend(levels: decimal) {
+    if(levels == 0) {
+        println("going to sleep 3 calls deep");
+        delay(5);                   // the fiber is switched out here, with descend() on the stack three times
+        depth_reached = 1;
+        return;
+    }
+
+    descend(levels - 1);
+}
+
+def main(args: string[]) {
+    descend(2);
+    expect("the fiber continued after sleeping inside a recursive call", depth_reached, 1);
+    finish("lib_coroutines_recursive_suspend");
+}

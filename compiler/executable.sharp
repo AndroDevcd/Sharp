@@ -1,0 +1,162 @@
+mod main;
+
+import (
+    std.io,
+    configuration,
+    frontend.diagnostics,
+    backend.compiler.program,
+    backend.finalizer,
+    backend.types.program
+)
+
+/*
+ * FROM THE OPTIONS TO THE BACKEND: what the command line asked for, handed on
+ *
+ * The backend never reads `options` (configuration/): it is told what to do
+ * through small objects of its own, so that it can be used - and tested -
+ * without a command line. This file fills in those objects:
+ *
+ *      generate_executable             -o, -v, -target, -dbg, -eager, -listing, -ir, -obf, -O ...
+ *                                      -> a `generation_request` (backend/finalizer), then the
+ *                                      file is written and what happened is printed
+ *      warning_settings_from_options   -w, -w<kind>, -werror, -wextra, -wlib
+ *                                      -> `warning_settings` (backend/compiler/program)
+ *
+ *      C++ comparison: the C++ backend reads the global `options` wherever it
+ *      needs a switch (lib/grammar/settings/settings.h).
+ */
+
+/**
+ * Write the executable of an analysed program (backend/finalizer): the
+ * options of the command line become the request; what was generated, or why
+ * nothing was written, is printed. `written_to` is the path of the file
+ * (project.sharp, output_path). Returns 1 when the file was written.
+ */
+def generate_executable(analysed: analysed_program, files: list<string>, written_to: string) : _int64 {
+    request := new generation_request();
+    if(options.sni_folder_given) {
+        request.sni_folder = options.sni_folder;
+    } else if(options.compile_mode == compilation_mode.project_mode) {
+        // A PROJECT needs no -sni: when the program has native functions, their C++ files go
+        // into the project's own build folder, beside the executable - build/outputs/sni.
+        // (A project without native functions gets no such folder.)
+        request.sni_folder = options.project_dir + "/build/outputs/sni";
+        request.sni_only_when_native = 1;
+    }
+    // where the project's C libraries are (settings.json "c_libraries"), for the program's extern functions
+    if(options.c_library_places.size() > 0) { request.c_library_places = options.c_library_places; }
+    if(options.compile_mode == compilation_mode.project_mode) { request.project_folder = options.project_dir; }
+    request.output = written_to;
+    // the name in the manifest is the output's NAME as it was asked for, not the path it ends
+    // up at: the same program written into two folders is the same bytes
+    request.application = options.out;
+    request.version = options.version;
+    if(options.target_given) { request.target = options.target.ordinal as _int64; }
+    request.debug = options.debug_file ? 1 : 0;
+    request.eager = options.keep_everything ? 1 : 0;
+    request.listing = options.write_listing_file ? 1 : 0;
+    request.show_ir = options.show_ir ? 1 : 0;
+    request.rename_names = options.obfuscate_names ? 1 : 0;
+    request.optimizer.on = options.optimize ? 1 : 0;
+    request.optimizer.report = options.optimizer_report_wanted ? 1 : 0;
+    request.optimizer.trace = options.optimizer_trace;
+    foreach(name in options.left_out_optimizations) { request.optimizer.left_out.add(name); }
+    for(i := 0; i < files.size(); i++) { request.file_order.add(files.at(i)); }
+    request.inspected_file = options.inspected_file;
+
+    result := generate_program(analysed, request);
+    print_diagnostics(result.problems);
+    foreach(text in result.plain_errors) { print(text); }
+    if(options.show_timings) {
+        println("time: layout " + (result.layout_ms as _int64) + " ms, obfuscation " + (result.obfuscation_ms as _int64) + " ms, generation " + (result.generation_ms as _int64)
+                + " ms, optimizer " + (result.optimizer_ms as _int64) + " ms, bytecode " + (result.bytecode_ms as _int64) + " ms, write " + (result.write_ms as _int64) + " ms");
+    }
+    if(options.optimizer_report_wanted && result.optimized != null) { print(result.optimized!!.text(request.optimizer)); }
+    if(result.written == 0) {
+        println("code generation failed: " + result.error_count() + " error(s), no file was written");
+        return 0;
+    }
+    summary := "code generation: " + result.functions + " functions, " + result.classes + " classes, written to " + written_to;
+    if(result.renamed > 0) { summary = summary + "; " + result.renamed + " names obfuscated (listed in " + written_to + ".names)"; }
+    progress(summary);
+    if(result.native_groups > 0) {
+        progress("native interface: " + result.native_groups + " group(s) of native functions, C++ files written to " + request.sni_folder);
+        // a project builds the C++ too, when settings.json says where it is (native_build.sharp)
+        if(options.compile_mode == compilation_mode.project_mode && result.native_group_names != null) {
+            if(build_native_libraries(result.native_group_names!!, request.sni_folder) == 0) { return 0; }
+        }
+    }
+    if(options.compile_mode == compilation_mode.project_mode) { copy_c_libraries(written_to); }
+    return 1;
+}
+
+/** is this path one that starts at a drive or at the root (so not one inside the project)? */
+def is_absolute_place(place: string) : _int64 {
+    size : _int64 = sizeof(place.data);
+    if(size == 0) { return 0; }
+    first : _int64 = place.data!![0];
+    if(first == '/' || first == '\\') { return 1; }
+    if(size > 2 && place.data!![1] == ':') { return 1; }
+    return 0;
+}
+
+/**
+ * THE PROJECT'S C LIBRARIES GO WITH THE PROGRAM. settings.json may place a
+ * library of the `extern` blocks inside the project:
+ *
+ *      "c_libraries": { "sdl": { "windows": "libs/SDL2.dll", "linux": "libs/libSDL2.so" } }
+ *
+ * Every such file that is there - of every system: the output folder is the
+ * same on all of them - is copied to the same place beside the executable
+ * (build/outputs/libs/SDL2.dll). A running program looks beside itself first,
+ * so the output folder can be copied anywhere, to another machine too, and
+ * still finds its libraries. A place that is absolute, or a bare name the
+ * system finds itself, is not a file of the project and is left alone.
+ */
+def copy_c_libraries(written_to: string) {
+    places := options.c_library_places;
+    outputs := new file(written_to).parent();
+    if(outputs == null) { return; }
+    endings : string[] = { "", ".dll", ".so", ".dylib" };
+    for(i : _int64 = 0; i + 2 < places.size(); i = i + 3) {
+        place : string = places.at(i + 2);
+        if(is_absolute_place(place) == 1) { continue; }
+        // (as written, with the system's ending, and with `lib` in front of the file's name: what the VM tries)
+        cut : _int64 = 0 - 1;
+        for(k : _int64 = 0; k < sizeof(place.data); k++) {
+            if(place.data!![k] == '/') { cut = k; }
+        }
+        with_lib : string = "lib" + place;
+        if(cut >= 0) { with_lib = new string(place.data!!, 0, cut + 1) + "lib" + new string(place.data!!, cut + 1, sizeof(place.data)); }
+        for(j : _int64 = 0; j < 2 * sizeof(endings); j++) {
+            name : string = place + endings[j % sizeof(endings)];
+            if(j >= sizeof(endings)) { name = with_lib + endings[j % sizeof(endings)]; }
+            source := new file(options.project_dir + "/" + name);
+            if(!source.is_file()) { continue; }
+            target := new file(outputs!!.path + "/" + name);
+            // (again only when it is not there yet or is another file: by size and time)
+            if(target.is_file() && target.size() == source.size() && target.last_modified() >= source.last_modified()) { continue; }
+            if(target.parent() != null) { target.parent()!!.mkdirs(); }
+            bytes := source.read_bytes();
+            if(bytes == null) { continue; }
+            target.write_bytes(bytes!!);
+            progress("C library: " + name + " copied beside the program");
+        }
+    }
+}
+
+/**
+ * The warning switches of the command line as the backend applies them
+ * (backend/compiler/program/warning_options.sharp): -w, -w<kind>, -werror, -wextra.
+ */
+def warning_settings_from_options() : warning_settings {
+    settings := new warning_settings();
+    settings.enabled = options.warnings ? 1 : 0;
+    settings.as_errors = options.werrors ? 1 : 0;
+    settings.extra = options.extra_warnings ? 1 : 0;
+    settings.library = options.library_warnings ? 1 : 0;
+    for(i := 0; i < sizeof(warning_options); i++) {
+        settings.kinds[i] = warning_options[i] ? 1 : 0;
+    }
+    return settings;
+}

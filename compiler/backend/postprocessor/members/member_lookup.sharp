@@ -1,0 +1,187 @@
+mod backend.postprocessor.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics,
+    backend.postprocessor.generics,
+    backend.postprocessor.inheritance,
+    backend.postprocessor.names,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * FINDING A MEMBER OF A CLASS BY NAME - INHERITED ONES INCLUDED
+ *
+ *      class shape  { name : string;  def area() : decimal { ... }  def show() { ... } }
+ *      class circle base shape { radius : decimal;  def area(scale: decimal) : decimal { ... } }
+ *
+ *      find_member(circle, "radius")   the field radius of circle
+ *      find_member(circle, "name")     the field name of shape           (inherited)
+ *      find_member(circle, "area")     two functions: circle's first, then shape's
+ *
+ * This is the question every `value.name` and every plain name inside a
+ * class comes down to, so there is ONE function for it and every later
+ * stage calls it. (Textbook: the class is a scope, and its base class is the
+ * scope around it - a member lookup is a walk up that chain.)
+ *
+ * THE RULES
+ *   - The class itself is asked first, then its base class, and so on up to
+ *     `_object_`. Real classes only: the bases are the ones class_bases.sharp
+ *     worked out, so the members found have real types.
+ *   - A FIELD, an enum value, an alias or a class declared inside: the first
+ *     class on the way up that has ANYTHING of that name ends the search.
+ *     A field of a base class with the same name is shadowed.
+ *   - FUNCTIONS are collected all the way up, nearest class first, because
+ *     overloads may be spread over the chain. For each class its interfaces
+ *     are asked too (a body-less function of an interface can be called).
+ *     A function hides every function further up that takes exactly the
+ *     same parameters: the one it overrides, and also one it merely
+ *     repeats (`def area()` in circle and in shape - on a circle, `area()`
+ *     is circle's). So the list never holds two functions a call could not
+ *     choose between.
+ *   - Constructors and init blocks are not members in this sense: they are
+ *     never found by name on an object.
+ *
+ *      C++ comparison: resolve_field, resolve_alias, resolve_class with
+ *      `checkBase`, and locate_functions_with_name in dependency.cpp - four
+ *      walks up the base chain, one per kind of member. Here it is one.
+ */
+
+/** what a name means inside a class; see find_member */
+class found_member {
+    // a field, an enum value, an alias or a class - whichever the nearest class has; null when the name is none of them
+    declaration : sharp_declaration?;
+
+    // every function of that name, nearest class first; empty when there is none
+    functions := new list<sharp_function>();
+
+    // how many classes up the first hit was: 0 the class itself, 1 its base class ...
+    distance : _int64 = 0 - 1;
+
+    /** nothing of that name was found at all */
+    def is_empty() : _int64 {
+        return declaration == null && functions.size() == 0;
+    }
+
+    /** the declaration as a field, or null when the name is something else */
+    def field() : sharp_field? {
+        if(declaration != null && declaration!!.kind == D_FIELD) { return declaration as sharp_field; }
+        return null;
+    }
+}
+
+/** everything called `name` that an object of `declared` has (or the class itself, for static members) */
+def find_member(prog: sharp_program, declared: sharp_class, name: string) : found_member {
+    found := new found_member();
+    visited := new list<sharp_class>();
+    still_looking_for_a_value : _int64 = 1;
+
+    current : sharp_class? = declared;
+    for(distance : _int64 = 0; current != null && distance < 256; distance++) {
+        owner : sharp_class = current!!;
+        ensure_members(prog, owner);
+        link_families(prog, owner);     // (which function hides which is only known then)
+
+        same_name := owner.members!!.find(name);
+        if(same_name != null) {
+            had_any : _int64 = 0;
+            for(i : _int64 = 0; i < same_name!!.size(); i++) {
+                candidate := same_name!!.at(i);
+                if(candidate.kind == D_FUNCTION) {
+                    add_unless_hidden(found.functions, candidate as sharp_function);
+                    had_any = 1;
+                } else if(candidate.kind == D_FIELD || candidate.kind == D_ENUM_VALUE || candidate.kind == D_ALIAS
+                          || is_class_kind(candidate.kind)) {
+                    if(still_looking_for_a_value == 1 && found.declaration == null) { found.declaration = candidate; }
+                    had_any = 1;
+                }
+            }
+            if(had_any == 1) {
+                still_looking_for_a_value = 0;
+                if(found.distance < 0) { found.distance = distance; }
+            }
+        }
+
+        // the interfaces of this class: only functions live there
+        resolve_bases(prog, owner);
+        for(i : _int64 = 0; i < owner.interfaces.size(); i++) {
+            add_interface_functions(prog, owner.interfaces.at(i), name, found, visited);
+        }
+        current = owner.base_class;
+    }
+    return found;
+}
+
+/** the functions called `name` of an interface and of the interfaces it inherits from, each interface once */
+def add_interface_functions(prog: sharp_program, from: sharp_class, name: string, found: found_member,
+                            visited: list<sharp_class>) {
+    if(contains_class(visited, from)) { return; }
+    visited.add(from);
+
+    ensure_members(prog, from);
+    resolve_bases(prog, from);
+    same_name := from.members!!.find(name);
+    if(same_name != null) {
+        for(i : _int64 = 0; i < same_name!!.size(); i++) {
+            if(same_name!!.at(i).kind == D_FUNCTION) {
+                add_unless_hidden(found.functions, same_name!!.at(i) as sharp_function);
+            }
+        }
+    }
+
+    if(from.base_class != null && from.base_class!!.is_interface()) {
+        add_interface_functions(prog, from.base_class!!, name, found, visited);
+    }
+    for(i : _int64 = 0; i < from.interfaces.size(); i++) {
+        add_interface_functions(prog, from.interfaces.at(i), name, found, visited);
+    }
+}
+
+/**
+ * Add a function found further up - unless a function found nearer stands in
+ * for it: it overrides it, or it takes exactly the same parameters (the
+ * promise and its definition, or a function a class below declares again,
+ * are one function to a caller: the nearest).
+ *
+ * Two functions of ONE class never hide each other: they were checked to
+ * differ (duplicates.sharp, instance_duplicates.sharp), and a parameter type
+ * that could not be resolved must not make one of them disappear.
+ */
+def add_unless_hidden(functions: list<sharp_function>, candidate: sharp_function) {
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        nearer := functions.at(i);
+        if(nearer == candidate || nearer.overrides == candidate) { return; }
+        if(nearer.owner != candidate.owner && !nearer.is_generic() && !candidate.is_generic()
+           && same_resolved_parameters(nearer, candidate)) { return; }
+    }
+    functions.add(candidate);
+}
+
+/** the field called `name` of the class or the nearest class above that has one; null when the name is no field there */
+def find_field(prog: sharp_program, declared: sharp_class, name: string) : sharp_field? {
+    return find_member(prog, declared, name).field();
+}
+
+/** every function called `name` an object of the class has, nearest first */
+def find_functions(prog: sharp_program, declared: sharp_class, name: string) : list<sharp_function> {
+    return find_member(prog, declared, name).functions;
+}
+
+/**
+ * How many fields and functions a class has from the classes above it - the
+ * ones a lookup would find that it does not declare itself. (For the
+ * -declarations listing.)
+ */
+def count_inherited_members(prog: sharp_program, declared: sharp_class) : _int64 {
+    count : _int64 = 0;
+    current := real_base_of(prog, declared);
+    for(depth : _int64 = 0; current != null && depth < 256; depth++) {
+        ensure_members(prog, current!!);
+        count += current!!.fields.size() + current!!.functions.size();
+        current = real_base_of(prog, current!!);
+    }
+    return count;
+}

@@ -1,0 +1,151 @@
+mod std.util;
+
+/**
+ * @class either
+ *
+ * A value that is ONE of two types: a "left" of type L or a "right" of type
+ * R. By convention the right side is the good result and the left side the
+ * alternative (usually an error description), which makes `either`
+ * the complement of std#result: a result always has data and maybe an
+ * error, an either has exactly one of the two.
+ *
+ *     def parse_port(text: string): either<string, int> {
+ *         if(text.size() == 0) return either<string, int>.left("empty");
+ *         return either<string, int>.right(8080);
+ *     }
+ *
+ *     answer := parse_port("x");
+ *     if(answer.is_right()) use(answer.right_value());
+ *     else println(answer.left_value());
+ *
+ * An either never changes after it is made.
+ *
+ * LIMITATION: L and R must be object types (the two sides are stored in
+ * nullable fields), and neither side may hold null.
+ */
+class either<L, R> {
+    private left_item : L?;
+    private right_item : R?;
+    private holds_right : decimal = 0;
+
+    private either(left_item: L?, right_item: R?, holds_right: decimal) {
+        self->left_item = left_item;
+        self->right_item = right_item;
+        self->holds_right = holds_right;
+    }
+
+    /**
+     * An either holding a left value.
+     * Throws illegal_argument_exception when value is null.
+     */
+    static def left(value: L): either<L, R> {
+        if((value as object) == null)
+            throw new illegal_argument_exception("either.left: the value is null");
+        return new either<L, R>(value, null, 0);
+    }
+
+    /**
+     * An either holding a right value.
+     * Throws illegal_argument_exception when value is null.
+     */
+    static def right(value: R): either<L, R> {
+        if((value as object) == null)
+            throw new illegal_argument_exception("either.right: the value is null");
+        return new either<L, R>(null, value, 1);
+    }
+
+    /** true when the left side is held */
+    def is_left(): bool {
+        return holds_right == 0;
+    }
+
+    /** true when the right side is held */
+    def is_right(): bool {
+        return holds_right != 0;
+    }
+
+    /**
+     * The left value.
+     * Throws no_such_element_exception when this either holds a right value.
+     */
+    def left_value(): L {
+        if(holds_right)
+            throw new no_such_element_exception("either: this is a right value, there is no left value");
+        return left_item!!;
+    }
+
+    /**
+     * The right value.
+     * Throws no_such_element_exception when this either holds a left value.
+     */
+    def right_value(): R {
+        if(!holds_right)
+            throw new no_such_element_exception("either: this is a left value, there is no right value");
+        return right_item!!;
+    }
+
+    /** the left value, or `fallback` when this either holds a right value */
+    def left_or(fallback: L): L {
+        if(holds_right) return fallback;
+        return left_item!!;
+    }
+
+    /** the right value, or `fallback` when this either holds a left value */
+    def right_or(fallback: R): R {
+        if(!holds_right) return fallback;
+        return right_item!!;
+    }
+
+    /** the left value, or null when this either holds a right value */
+    def left_or_null(): L? {
+        return left_item;
+    }
+
+    /** the right value, or null when this either holds a left value */
+    def right_or_null(): R? {
+        return right_item;
+    }
+
+    /** the same value with the sides exchanged: left(x) becomes right(x) and the other way round */
+    def swap(): either<R, L> {
+        if(holds_right) return either<R, L>.left(right_item!!);
+        return either<R, L>.right(left_item!!);
+    }
+
+    /**
+     * Apply `transform` to the right value; a left value is passed through
+     * untouched (the function is not called).
+     */
+    def map_right(transform: (R)(R)): either<L, R> {
+        if(!holds_right) return self;
+        return either<L, R>.right(transform(right_item!!));
+    }
+
+    /**
+     * Apply `transform` to the left value; a right value is passed through
+     * untouched (the function is not called).
+     */
+    def map_left(transform: (L)(L)): either<L, R> {
+        if(holds_right) return self;
+        return either<L, R>.left(transform(left_item!!));
+    }
+
+    /** call `action` with the left value; does nothing for a right value */
+    def if_left(action: (L)()) {
+        if(!holds_right) {
+            action(left_item!!);
+        }
+    }
+
+    /** call `action` with the right value; does nothing for a left value */
+    def if_right(action: (R)()) {
+        if(holds_right) {
+            action(right_item!!);
+        }
+    }
+
+    /** the right value as an optional: empty when this either holds a left value */
+    def to_optional(): optional<R> {
+        return optional<R>.of_nullable(right_item);
+    }
+}

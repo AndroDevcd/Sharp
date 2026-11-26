@@ -1,0 +1,13 @@
+mod frontend.syntax.printing;
+
+/**
+ * PRINTING what the frontend produced (options for the compiler's own developers)
+ *
+ * The files of this package (module `frontend.syntax.printing`):
+ *
+ *      syntax_printer.sharp  the -parsetree option
+ *      syntax_stats.sharp    the -parsestats option
+ *      syntax_errors.sharp   prints the problems of one file
+ *
+ * This file is the package's front door: it only says what is where.
+ */

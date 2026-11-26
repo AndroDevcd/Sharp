@@ -1,0 +1,113 @@
+mod std.guikit.widgets.display;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * chip - a small rounded label: a tag ("work"), a filter you switch on and
+ * off, a choice among a few. Made with chip(...).
+ *
+ *      chip("work");                                   // just a tag
+ *      chip("urgent").selected(only_urgent.value);     // drawn filled while the value is not 0
+ *      chip("urgent") { only_urgent.value = 1 - only_urgent.value; }.selected(only_urgent.value);
+ *
+ * A chip does not keep "am I on" itself: like every widget here it shows what
+ * a state says, and the click changes the state.
+ * (Compose: AssistChip, FilterChip. Android: Chip.)
+ */
+stable class chip base widget : behavior, shows_words, on_or_off {
+    private words : string = "";
+    private chosen : _int64 = 0;
+
+    chip(caption: string) {
+        attach(self);
+        words = caption;
+    }
+
+    chip(caption: string, action: ()()) {
+        attach(self);
+        words = caption;
+        me.on_click = action;
+    }
+
+    /** drawn filled in the app's colour while `on` is not 0 */
+    def selected(on: _int64) : chip {
+        chosen = on;
+        return self;
+    }
+
+    override def kind() : string { return "chip"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
+    /** is it the chosen one? */
+    override def is_on() : bool { return chosen != 0; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        host := ui_host.current!!;
+        f : font = host.font_of(host.look.small_size);
+        me.content_w = f.width_of(words) + 22;
+        me.content_h = f.line_height + 10;
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        f : font = host.font_of(t.small_size);
+
+        fill : color = t.surface_high;
+        ink : color = t.text;
+        if(chosen != 0) {
+            fill = t.primary.with_alpha(60);
+            ink = t.primary;
+        }
+        p.rect(me.x, me.y, me.w, me.h, me.h / 2, fill);
+        if(me.on_click != null && me.hovered == 1) {
+            p.rect(me.x, me.y, me.w, me.h, me.h / 2, t.text.with_alpha(20));    // it can be clicked: show it
+        }
+        p.text(words, me.x + (me.w - f.width_of(words)) / 2, me.y + (me.h - f.line_height) / 2, f, ink);
+    }
+}
+
+/**
+ * badge - a small filled dot with a number in it: "3 unread". Made with
+ * badge(count). A count of 0 shows nothing and takes no room.
+ * (Compose: Badge.)
+ */
+stable class badge base widget : behavior, shows_words {
+    private words : string = "";
+
+    badge(count: _int64) {
+        attach(self);
+        words = "" + count;
+        if(count > 99) { words = "99+"; }
+        if(count <= 0) { me.shown = 0; }
+    }
+
+    override def kind() : string { return "badge"; }
+
+    /** the words it shows (asked by UI tests: behavior.sharp, WHAT A WIDGET TELLS ABOUT ITSELF) */
+    override def words_shown() : string { return words; }
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        host := ui_host.current!!;
+        f : font = host.font_of(host.look.small_size, 1);
+        me.content_h = f.line_height + 4;
+        me.content_w = num.larger(me.content_h, f.width_of(words) + 12);    // a circle for one digit, a pill for more
+    }
+
+    override def arrange() {
+    }
+
+    override def paint(p: painter) {
+        host := ui_host.current!!;
+        t : theme = host.look;
+        f : font = host.font_of(t.small_size, 1);
+        p.rect(me.x, me.y, me.w, me.h, me.h / 2, t.danger);
+        p.text(words, me.x + (me.w - f.width_of(words)) / 2, me.y + (me.h - f.line_height) / 2, f, t.on_primary);
+    }
+}

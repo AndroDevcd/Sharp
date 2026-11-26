@@ -1,0 +1,75 @@
+mod std.io.coroutines;
+
+/**
+ * async<t> - start a coroutine that computes a value; the result is a
+ * deferred<t>.
+ *
+ * USAGE
+ *     price := async<int>.start({ -> (int) return fetch_price(); });
+ *     stock := async<int>.start(warehouse, { w: object -> (int)
+ *         house := w as storage;                    // the state object, see THE CLOSURE RULE
+ *         return house.count();
+ *     });
+ *     println("worth ${price.await() * stock.await()}");
+ *
+ * The language has no generic functions, so `async` is a class whose static
+ * functions do the work: write the result type once, async<int>.start(...).
+ *
+ * The block runs on another fiber: THE CLOSURE RULE (builders.sharp) applies,
+ * no captured locals. The new coroutine is a child of the current coroutine
+ * or scope (of global_scope outside any), exactly like launch.
+ *
+ * FAILURES: the exception of the block is thrown by await(). As in Kotlin it
+ * ALSO cancels the parent scope, unless that is a supervisor (supervisor_scope,
+ * global_scope).
+ *
+ * `t` must be an object type: async<int>, not async<decimal>.
+ *
+ * Kotlin equivalent: async { }.  C++ equivalent: std::async on a fiber.
+ *
+ * No state, so nothing to lock.
+ */
+class async<t> {
+
+    /** Start a coroutine for `block`; does not suspend. Kotlin: async { } */
+    static def start(block: ()(t)) : deferred<t> {
+        work := new deferred<t>(block);
+        start_coroutine(work, null, null);
+        return work;
+    }
+
+    /** start() with a state object handed to the block: block(state) */
+    static def start(state: object?, block: (object)(t)) : deferred<t> {
+        work := new deferred<t>(state, block);
+        start_coroutine(work, null, null);
+        return work;
+    }
+
+    /** start() on a particular dispatcher. Kotlin: async(dispatcher) { } */
+    static def start_on(where: coroutine_dispatcher, block: ()(t)) : deferred<t> {
+        work := new deferred<t>(block);
+        start_coroutine(work, null, where);
+        return work;
+    }
+
+    /** start_on() with a state object */
+    static def start_on(where: coroutine_dispatcher, state: object?, block: (object)(t)) : deferred<t> {
+        work := new deferred<t>(state, block);
+        start_coroutine(work, null, where);
+        return work;
+    }
+
+    /** start() as a child of a coroutine_scope object. Kotlin: scope.async { } */
+    static def start_in(scope: coroutine_scope, block: ()(t)) : deferred<t> {
+        work := new deferred<t>(block);
+        start_coroutine(work, scope.get_job(), null);
+        return work;
+    }
+
+    /** start_in() with a state object */
+    static def start_in(scope: coroutine_scope, state: object?, block: (object)(t)) : deferred<t> {
+        work := new deferred<t>(state, block);
+        start_coroutine(work, scope.get_job(), null);
+        return work;
+    }
+}

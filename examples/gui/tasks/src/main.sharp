@@ -1,0 +1,585 @@
+mod app;
+
+import (
+    std.guikit.*,
+    std.time,
+    std.io.coroutines
+)
+
+/**
+ * TASKS  -  a task tracker that uses every part of the GUI library.
+ *
+ * THINGS TO TRY
+ *
+ *   the Tasks tab
+ *      +                   a sheet rises: a title (leave it empty and press Add - the form objects),
+ *                          notes in a text area, a date picker and a time picker
+ *      click a card        its notes grow open; "Details" opens the task's own screen
+ *      "mark done"         a chip you click; the badge counts what is still open
+ *      "Open only"         a filter chip: done tasks leave, the others glide up
+ *      swipe a card        left or right: it flies off and is deleted
+ *      HOLD a card         then drag: it lifts, the others step aside; let go to drop it there
+ *      scroll              with a few tasks more than fit: the cards trail apart while moving
+ *
+ *   a task's screen (Details)
+ *      the star            click it: it spins and grows - a shape, rotated and scaled
+ *      the notes           edit them in the text area; Save writes them back
+ *      Back / Escape       returns to the list, which is as you left it
+ *
+ *   the Settings tab
+ *      Light / Dark        the theme, remembered for next time
+ *      Sync now            two seconds of "work" on a background thread; the Tasks tab blurs
+ *                          while it runs, and the time it finished is shown
+ *
+ *   close the program and start it again: tasks, filter and theme are all still there
+ *
+ * HOW IT IS PUT TOGETHER (the pattern to copy)
+ *
+ *      task              plain data
+ *      tasks_model       THE LOGIC, shared by every screen: the list, the filter, sync, the form.
+ *                        Not one widget in it - it runs just as well with no window.
+ *      edit_model        the logic of ONE task's screen; it lives exactly as long as that screen
+ *      the routes        where the app can go
+ *      the screens       they READ the models' states and CALL the models' functions. Nothing else.
+ */
+
+// ============================================================================ data
+
+/** one task */
+class task {
+    id : _int64 = 0;                    // its own number: what tells one task from another when the list changes
+    title : string = "";
+    notes : string = "";
+    due : string = "";                  // when it is due, already as words
+    done : _int64 = 0;
+    starred : _int64 = 0;
+
+    task(words: string, due_words: string) {
+        title = words;
+        due = due_words;
+    }
+
+    /** the task as one piece of text, its parts separated by tabs: what is written to the file */
+    def to_text() : string {
+        return "" + id + "\t" + done + "\t" + starred + "\t" + due + "\t" + title + "\t" + notes;
+    }
+
+    /** the other way round: a task from the text to_text() made */
+    static def from_text(line: string) : task {
+        parts : list<string> = new list<string>();
+        start : _int64 = 0;
+        for(i : _int64 = 0; i < line.size(); i++) {
+            if(line.at(i).value == 9 && parts.size() < 5) {       // a tab; the notes (the last part) may hold more
+                parts.add(txt.slice(line, start, i));
+                start = i + 1;
+            }
+        }
+        parts.add(txt.slice(line, start, line.size()));
+
+        made := task("", "");
+        if(parts.size() == 6) {
+            made.id = number_of(parts.at(0));
+            if(parts.at(1) == "1") { made.done = 1; }
+            if(parts.at(2) == "1") { made.starred = 1; }
+            made.due = parts.at(3);
+            made.title = parts.at(4);
+            made.notes = parts.at(5);
+        }
+        return made;
+    }
+
+    /** a whole number from its digits ("42" -> 42) */
+    static def number_of(digits: string) : _int64 {
+        total : _int64 = 0;
+        for(i : _int64 = 0; i < digits.size(); i++) {
+            byte : _int64 = digits.at(i).value;
+            if(byte >= 48 && byte <= 57) { total = total * 10 + (byte - 48); }
+        }
+        return total;
+    }
+}
+
+// ============================================================================ the logic
+
+/** the logic every screen shares: asked for with shared_model_of<tasks_model>() */
+class tasks_model base view_model {
+    // ---- what is kept between runs
+    tasks := saved_list<task>("tasks", { t: task -> return t.to_text(); },
+                                       { line: string -> return task.from_text(line); });
+    only_open := saved("only_open", 0);         // the filter: 1 = hide what is done
+    next_id := saved("next_id", 1);             // the number the next new task gets
+    dark := saved("dark", 1);                   // the theme: 1 dark, 0 light
+
+    // ---- what is only for now
+    opened := gui.state(0);                     // the id of the task whose notes are open in the list (0: none)
+    syncing := gui.state(0);                    // 1 while the background work runs
+    last_sync := gui.state("not synced yet");
+
+    // ---- the "new task" sheet
+    adding := gui.state(0);
+    title := gui.state("");
+    notes := gui.state("");
+    due := gui.state_of<date>(date.today());
+    due_at := gui.state_of<time_of_day>(time_of_day.of(9, 0));
+    picking_date := gui.state(0);
+    picking_time := gui.state(0);
+    rules := form();
+
+    tasks_model() {
+        rules.require(title, "Give the task a title");
+        rules.at_most(title, 40, "Keep the title under 40 letters");
+    }
+
+    // ------------------------------------------------------------ reading
+
+    /** how many tasks are not done yet */
+    def open_count() : _int64 {
+        count : _int64 = 0;
+        for(i : _int64 = 0; i < tasks.size(); i++) {
+            if(tasks.at(i).done == 0) { count = count + 1; }
+        }
+        return count;
+    }
+
+    /** should this task be on the screen, with the filter as it is? */
+    def shows(t: task) : _int64 {
+        if(only_open.value == 1 && t.done == 1) { return 0; }
+        return 1;
+    }
+
+    /** the task with this number, or null when it has been deleted */
+    def find(id: _int64) : task? {
+        for(i : _int64 = 0; i < tasks.size(); i++) {
+            if(tasks.at(i).id == id) { return tasks.at(i); }
+        }
+        return null;
+    }
+
+    // ------------------------------------------------------------ changing
+
+    def switch_filter() {
+        only_open.value = 1 - only_open.value;
+    }
+
+    def toggle(t: task) {
+        t.done = 1 - t.done;
+        tasks.changed();                        // something INSIDE an item changed: say so
+    }
+
+    def star(t: task) {
+        t.starred = 1 - t.starred;
+        tasks.changed();
+    }
+
+    def set_notes(t: task, words: string) {
+        t.notes = new string(words);
+        tasks.changed();
+    }
+
+    def remove(t: task) {
+        tasks.remove(t);
+    }
+
+    /** open this task's notes in the list - or close them, if they are the ones that are open */
+    def open_or_close(t: task) {
+        if(opened.value == t.id) { opened.value = 0; }
+        else { opened.value = t.id; }
+    }
+
+    /**
+     * The card at place `from` ON THE SCREEN was dropped at place `to`. With
+     * the filter on, the screen shows fewer tasks than the list holds, so the
+     * places are first turned into places in the list.
+     */
+    def move_shown(from: _int64, to: _int64) {
+        tasks.move(list_place(from), list_place(to));
+    }
+
+    private def list_place(shown_place: _int64) : _int64 {
+        seen : _int64 = 0;
+        for(i : _int64 = 0; i < tasks.size(); i++) {
+            if(shows(tasks.at(i)) == 1) {
+                if(seen == shown_place) { return i; }
+                seen = seen + 1;
+            }
+        }
+        return tasks.size() - 1;
+    }
+
+    // ------------------------------------------------------------ the sheet
+
+    def start_adding() {
+        title.value = "";
+        notes.value = "";
+        rules.clear();
+        adding.value = 1;
+    }
+
+    def cancel_adding() {
+        adding.value = 0;
+    }
+
+    /** add what is in the sheet - if the form's rules pass; otherwise the sheet stays and shows what is wrong */
+    def add() {
+        if(rules.check() == 0) {
+            return;
+        }
+        made := task(new string(title.value), date_words(due.value) + ", " + time_words(due_at.value));
+        made.id = next_id.value;
+        made.notes = new string(notes.value);
+        next_id.value = next_id.value + 1;
+        tasks.add(made);
+        adding.value = 0;
+    }
+
+    // ------------------------------------------------------------ slow work
+
+    /**
+     * "Sync": two seconds of pretend work on an IO thread. The window stays
+     * alive the whole time; the result comes back to the main thread with
+     * on_main, the only place a state may be changed.
+     */
+    def sync() {
+        if(syncing.value == 1) {
+            return;
+        }
+        syncing.value = 1;
+        launch(dispatchers.io()) {
+            delay(2000);                                    // stands for: files, a server, a database
+            finished := time_words(time_of_day.now());
+            on_main {
+                syncing.value = 0;
+                last_sync.value = "synced at " + finished;
+            };
+        };
+    }
+}
+
+/**
+ * The logic of ONE task's screen: the notes as they are being edited. Asked
+ * for with model_of<edit_model>(), so each open task screen has its own, and
+ * it is dropped when that screen is closed.
+ */
+class edit_model base view_model {
+    notes := gui.state("");
+    loaded : _int64 = 0;
+
+    /** start from the task's own notes - once: after that the text is the user's */
+    def open(t: task) {
+        if(loaded == 0) {
+            loaded = 1;
+            notes.restore(new string(t.notes));
+        }
+    }
+}
+
+// ============================================================================ where the app can go
+
+class to_tasks base route { }
+class to_settings base route { }
+
+/** one task's own screen */
+class to_task base route {
+    id : _int64;
+    to_task(which: _int64) { id = which; }
+}
+
+// ============================================================================ the app: its screens, in one list
+
+class tasks_app base composable {
+    nav : navigator = navigator();
+    model := shared_model_of<tasks_model>();
+
+    tasks_app() {
+        // the theme that was saved is put on once the window is up
+        when_shown { use_saved_theme(); };
+    }
+
+    def use_saved_theme() {
+        if(model.dark.value == 0) { gui.use_theme(theme.light()); }
+    }
+
+    override def build() : element {
+        return column(modifier().fill()) {
+            screens(nav, to_tasks(), modifier().grow(1).fill_width()) {
+                tab<to_tasks>("Tasks")       { tasks_screen(nav); };
+                tab<to_settings>("Settings") { settings_screen(); };
+                screen<to_task>()            { task_screen(nav, it.id); };
+            };
+            nav_bar(nav);
+        };
+    }
+}
+
+// ============================================================================ the list of tasks
+
+class tasks_screen base composable {
+    nav : navigator;
+    model := shared_model_of<tasks_model>();
+
+    tasks_screen(n: navigator) {
+        nav = n;
+    }
+
+    override def build() : element {
+        t := gui.current_theme();
+
+        // while a sync runs, the list is blurred - one modifier, on the whole scrolling area
+        list_look := modifier().grow(1).fill_width();
+        if(model.syncing.value == 1) { list_look = list_look.blur(3); }
+
+        return stack(modifier().fill()) {
+            column(modifier().fill().padding(20)) {
+                row {
+                    text("Tasks").size(26).bold();
+                    badge(model.open_count());
+                    spacer();
+                    chip("Open only") { model.switch_filter(); }.selected(model.only_open.value);
+                }.gap(10).align(ALIGN_CENTER);
+
+                // one text, three looks
+                text(rich {
+                    bold("" + model.open_count());
+                    plain(" open of " + model.tasks.size() + "   ");
+                    if(model.syncing.value == 1) { colored("syncing...", t.primary); }
+                    else { quiet(model.last_sync.value); }
+                });
+
+                if(model.tasks.is_empty() == 1) {
+                    text("Nothing to do. Press + to add a task.").dim();
+                }
+
+                scroll(list_look) {
+                    column(modifier().fill_width().padding(0, 6)) {
+                        for(i : _int64 = 0; i < model.tasks.size(); i++) {
+                            one : task = model.tasks.at(i);
+                            if(model.shows(one) == 1) {
+                                task_card(one);
+                            }
+                        }
+                    }.gap(10).reorderable { from: _int64, to: _int64 -> model.move_shown(from, to); };
+                    // reorderable: hold a card to pick it up, drag it, let go. Cards glide to
+                    // their new places whenever the list changes, and a new one fades in.
+                }.scroll_feel(SCROLL_STAGGER);              // ... and trail a little behind while the list scrolls
+            }.gap(12);
+
+            fab("+") { model.start_adding(); };
+
+            new_task_sheet();
+
+            // after the sheet in the code = above it on the screen
+            date_picker(model.picking_date, model.due);
+            time_picker(model.picking_time, model.due_at);
+        };
+    }
+
+    /** one task in the list */
+    def task_card(one: task) {
+        t := gui.current_theme();
+
+        // the key says WHICH task this row is: with it, the row keeps its place in
+        // the animation when tasks are added, hidden or moved around it
+        swipe_to_dismiss(modifier().key("task" + one.id), { -> model.remove(one); }) {
+            card(modifier().fill_width().click { model.open_or_close(one); }) {
+                row(modifier().fill_width()) {
+                    if(one.starred == 1) {
+                        stack(modifier().size(18, 18).background(rgb(250, 210, 70), shape.star())) { };
+                    }
+                    text(one.title, modifier().grow(1)).bold();
+                    chip(done_words(one)) { model.toggle(one); }.selected(one.done);
+                }.gap(8).align(ALIGN_CENTER);
+                row { chip(one.due); };
+
+                // the notes grow open under the card's title, and shrink away again
+                animated_show(open_now(one)) {
+                    column(modifier().fill_width()) {
+                        text(notes_or_none(one)).dim().size(14);
+                        row(modifier().fill_width()) {
+                            spacer();
+                            button("Details") { nav.go(to_task(one.id)); }.plain();
+                        };
+                    }.gap(4);
+                };
+            };
+        }.behind("Delete");
+    }
+
+    def done_words(one: task) : string {
+        if(one.done == 1) { return "done"; }
+        return "mark done";
+    }
+
+    def open_now(one: task) : _int64 {
+        if(model.opened.value == one.id) { return 1; }
+        return 0;
+    }
+
+    def notes_or_none(one: task) : string {
+        if(one.notes.size() > 0) { return one.notes; }
+        return "No notes.";
+    }
+
+    /** the sheet that rises to add a task */
+    def new_task_sheet() {
+        sheet(model.adding) {
+            text("New task").size(20).bold();
+            text_field(model.title, modifier().fill_width())
+                .label("Title")
+                .hint("What needs doing?")
+                .error(model.rules.problem_of(model.title))
+                .helper("Shown on the task's card");
+            text_area(model.notes, modifier().fill_width().height(130))
+                .label("Notes")
+                .hint("Anything worth remembering")
+                .limit(300);
+            row {
+                text("Due").dim();
+                button(date_words(model.due.value)) { model.picking_date.value = 1; }.outline();
+                button(time_words(model.due_at.value)) { model.picking_time.value = 1; }.outline();
+            }.gap(8).align(ALIGN_CENTER);
+            row(modifier().fill_width()) {
+                spacer();
+                button("Cancel") { model.cancel_adding(); }.plain();
+                button("Add") { model.add(); };
+            }.gap(8);
+        };
+    }
+}
+
+// ============================================================================ one task's own screen
+
+class task_screen base composable {
+    nav : navigator;
+    id : _int64;
+    model := shared_model_of<tasks_model>();    // the app's logic
+    edit := model_of<edit_model>();             // this screen's own: gone when the screen is closed
+    spin := animated(0);                        // degrees the star is turned: set a target and it glides there
+
+    task_screen(n: navigator, which: _int64) {
+        nav = n;
+        id = which;
+    }
+
+    override def build() : element {
+        t := gui.current_theme();
+        found : task? = model.find(id);
+        if(found == null) {
+            // deleted while this screen was open (or just now, by its own Delete button)
+            return column(modifier().fill()) {
+                top_bar("Task", nav);
+                text("This task is gone.", modifier().padding(20)).dim();
+            };
+        }
+        one : task = found!!;
+        edit.open(one);
+
+        return column(modifier().fill()) {
+            top_bar("Task", nav);
+
+            column(modifier().fill().padding(20)) {
+                row {
+                    // a shape, turned and scaled - and clickable like anything else
+                    star_look := modifier().size(56, 56).rotate(spin.value).click { star_clicked(one); };
+                    if(one.starred == 1) { star_look = star_look.background(rgb(250, 210, 70), shape.star()).scale(1.15); }
+                    else { star_look = star_look.background(t.surface_high, shape.star()); }
+                    stack(star_look) { };
+
+                    column(modifier().grow(1)) {
+                        text(one.title).size(24).bold();
+                        text(rich {
+                            plain("Due ");
+                            bold(one.due);
+                            if(one.done == 1) { colored("   done", t.success); }
+                            else { quiet("   still open"); }
+                        });
+                    }.gap(4);
+                }.gap(16).align(ALIGN_CENTER);
+
+                text_area(edit.notes, modifier().fill_width().grow(1))
+                    .label("Notes")
+                    .hint("Nothing written yet");
+
+                row(modifier().fill_width()) {
+                    button("Delete") { model.remove(one); nav.back(); }.danger();
+                    spacer();
+                    button(done_words(one)) { model.toggle(one); }.outline();
+                    button("Save") { model.set_notes(one, edit.notes.value); gui.toast("Saved"); nav.back(); };
+                }.gap(8);
+            }.gap(16);
+        };
+    }
+
+    def star_clicked(one: task) {
+        model.star(one);
+        spin.go(spin.target() + 144, 0.6);      // two fifths of a turn: a star looks the same again
+    }
+
+    def done_words(one: task) : string {
+        if(one.done == 1) { return "Mark open"; }
+        return "Mark done";
+    }
+}
+
+// ============================================================================ settings
+
+class settings_screen base composable {
+    model := shared_model_of<tasks_model>();
+    shown_day := state_of<date>(date.today());
+
+    override def build() : element {
+        t := gui.current_theme();
+
+        return scroll(modifier().fill()) {
+            column(modifier().fill_width().padding(20)) {
+                text("Settings").size(26).bold();
+
+                card(modifier().fill_width()) {
+                    text("Theme").bold();
+                    row {
+                        chip("Dark") { set_dark(1); }.selected(model.dark.value);
+                        chip("Light") { set_dark(0); }.selected(1 - model.dark.value);
+                    }.gap(8);
+                    text("Remembered for the next time the program starts.").dim().size(13);
+                };
+
+                card(modifier().fill_width().animate_size()) {
+                    text("Sync").bold();
+                    text(rich {
+                        plain("Two seconds of pretend work on a ");
+                        bold("background thread");
+                        plain(". The window stays alive; look at the Tasks tab while it runs.");
+                    }, modifier().fill_width());
+                    row {
+                        button(sync_words()) { model.sync(); }.outline();
+                        text(model.last_sync.value).dim();
+                    }.gap(12).align(ALIGN_CENTER);
+                    // this card glides to its new height when the line below comes and goes
+                    if(model.syncing.value == 1) {
+                        text("Working ...", modifier().padding(8, 6).background(t.primary.with_alpha(40), shape.pill()));
+                    }
+                };
+
+                card(modifier().fill_width()) {
+                    text("A calendar, on a page of its own").bold();
+                    month_view(shown_day, modifier().fill_width());
+                    text("Chosen: " + date_words(shown_day.value)).dim();
+                };
+            }.gap(14);
+        };
+    }
+
+    def set_dark(on: _int64) {
+        model.dark.value = on;
+        if(on == 1) { gui.use_theme(theme.dark()); }
+        else { gui.use_theme(theme.light()); }
+    }
+
+    def sync_words() : string {
+        if(model.syncing.value == 1) { return "Syncing ..."; }
+        return "Sync now";
+    }
+}
+
+def main() {
+    gui.run("Sharp GUI - tasks", 540, 720, tasks_app());
+}

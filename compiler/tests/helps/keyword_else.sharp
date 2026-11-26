@@ -1,0 +1,11 @@
+// expect: E0400
+// help: else { ... }
+// replace: esle { n--; }
+// dots: n--;
+mod tests.helps;
+import (std, std.io);
+
+def main() {
+    n : _int64 = 0;
+    if(n == 0) { n++; } esle { n--; }
+}

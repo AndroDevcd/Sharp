@@ -1,0 +1,302 @@
+mod frontend.syntax.tree;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.diagnostics
+)
+
+/**
+ * WHAT THE PARSER CARRIES AROUND WHILE IT WORKS ON ONE FILE
+ *
+ *      the tokens of the file      (frontend/lexer)
+ *      `position`                  the token it is looking at
+ *      the tree it is building     (syntax_tree.sharp)
+ *      the errors it found         (frontend/diagnostics)
+ *
+ * Every grammar rule is a plain function that takes this object:
+ * parse_statement(p, parent), parse_expression(p), ... (parse_*.sharp). The
+ * functions here are the handful of small steps all of them are made of:
+ *
+ *      p.kind()            what is the current token?
+ *      p.at(K_IF)          is it this one?
+ *      p.peek(1)           what is the token after it?
+ *      p.advance()         step over it
+ *      p.accept(P_COMMA)   step over it IF it is this one; says whether it was
+ *      p.expect(P_RPAREN, "`)`")   step over it, or report "expected `)`"
+ *
+ * The parser never looks at the text of a token, only at its kind. This is the
+ * textbook "predictive" parser: the current token (sometimes one or two after
+ * it) decides which rule applies, and nothing is ever re-read.
+ *
+ * ERRORS
+ * A mistake in the source produces a diagnostic and parsing goes on, so one
+ * run reports every mistake in the file. Two things keep one mistake from
+ * turning into twenty messages:
+ *   - only the first error at a given token is recorded
+ *   - after an error in a statement or a declaration the list it is in skips
+ *     ahead to where the next one starts (`recovering`, and
+ *     skip_to_statement_end in parse_statements.sharp). Textbook name:
+ *     "panic mode" recovery.
+ *
+ * WHERE AN ERROR POINTS
+ * "Something is missing" is reported where it should have BEEN, right after
+ * the last thing that was fine - not at whatever happens to come next, which
+ * is often on another line:
+ *
+ *      x = x * by          <- expected `;` here
+ *      y = y * by;            (not here)
+ *
+ * "Something is wrong" is reported at the wrong thing itself.
+ */
+/**
+ * THE NESTING LIMIT OF THE PARSER: how many statements and expressions may
+ * be open inside one another - `if(a) { if(b) { ... } }`, `((((x))))`,
+ * `f(g(h(...)))`. 256 levels; a file that goes deeper gets E0103.
+ *
+ * Why a number, when the stack running out already stops the parser: how
+ * deep the stack reaches depends on how the COMPILER ITSELF was compiled
+ * (the compiler built by the C++ compiler needs about half the stack per
+ * level that the compiler built by itself needs) and on the stack the
+ * runtime was started with (`sharp -istack`). A limit that is counted is the
+ * same in every build: with enough stack, every build of this compiler
+ * accepts and refuses exactly the same files (tests/selfhost.sh checks it).
+ * With the runtime's default stack the stack still runs out first, and the
+ * parser says so with the same message.
+ *
+ *      C++ comparison: the C++ compiler has no limit of its own; its stack
+ *      holds about 300 levels. Clang's -fbracket-depth (256) is this idea.
+ */
+const PARSER_NESTING_LIMIT : _int64 = 256;
+
+class parse_state {
+    file : string;                  // its name, for the messages
+    source : _int8[];               // the characters of the file
+    table : token_table;            // its tokens
+    kinds : _uint8[];               // table.kinds, kept here because it is read constantly
+    count : _int64;                 // how many tokens
+    position : _int64 = 0;          // the current token
+    depth : _int64 = 0;             // how many statements and expressions the parser is inside of right now
+                                    // (parse_statement, parse_expression; PARSER_NESTING_LIMIT)
+
+    tree : syntax_tree;
+    errors : list<diagnostic>;
+    error_count : _int64 = 0;       // errors.size() as a plain number
+    last_error_token : _int64 = 0 - 1;
+    last_function : _int64 = 0 - 1;     // the N_FUNCTION node parse_function made last (a native block adds its library to it)
+
+    // 1 from the moment a mistake is found until the statement or declaration
+    // it is in has been skipped. The INNERMOST list that sees it does the
+    // skipping and clears it; the lists around that one then see 0 and carry
+    // on normally. (Without it every level skipped once more, and one mistake
+    // inside a function swallowed the function after it.)
+    recovering : _int64 = 0;
+
+    // 1 after a string that was never closed. Such a string runs to the end of
+    // its line and takes the `;` (and everything else) with it, so the
+    // statement it is in ENDS with that line: nothing more is expected of it,
+    // and the next line is a new statement. Without this, one missing quote
+    // also produced "expected `;`" and hid the mistakes of the next line.
+    line_lost : _int64 = 0;
+
+    // `>>` closes two generic lists at once: list<list<int>>. When the first
+    // `>` of such a token has been used and the second is still to come, this
+    // is 1 (see close_generic in parse_types.sharp).
+    half_shift : _int64 = 0;
+
+    parse_state(file: string, source: _int8[], table: token_table) {
+        self->file = file;
+        self->source = source;
+        self->table = table;
+        self->kinds = table.kinds!!;
+        self->count = table.count;
+        self->tree = new syntax_tree(table.count);      // about one node per token
+        self->errors = new list<diagnostic>();
+    }
+
+    /** the kind of the current token; T_EOF past the last one */
+    def kind() : _int64 {
+        if(position >= count) { return T_EOF; }
+        return kinds[position];
+    }
+
+    /** the kind of the token `ahead` tokens after the current one */
+    def peek(ahead: _int64) : _int64 {
+        if(position + ahead >= count) { return T_EOF; }
+        return kinds[position + ahead];
+    }
+
+    def at(wanted: _int64) : _int64 {
+        if(position >= count) { return wanted == T_EOF; }
+        return kinds[position] == wanted;
+    }
+
+    def at_end() : _int64 {
+        return position >= count;
+    }
+
+    def advance() {
+        if(position < count) { position++; }
+    }
+
+    /** step over the current token if it is `wanted` */
+    def accept(wanted: _int64) : _int64 {
+        if(position < count && kinds[position] == wanted) {
+            position++;
+            return 1;
+        }
+        return 0;
+    }
+
+    /**
+     * Step over the current token, which must be `wanted`; otherwise report
+     * "expected <what>" and stay where we are.
+     * @return 1 when it was there
+     */
+    def expect(wanted: _int64, what: string) : _int64 {
+        if(position < count && kinds[position] == wanted) {
+            position++;
+            return 1;
+        }
+        missing(wanted, what);
+        return 0;
+    }
+
+    /**
+     * expect() for the bracket that closes something. When it is missing the
+     * message also shows where the thing was OPENED - with nested braces that
+     * is usually the line that needs looking at.
+     *
+     * @param opener  the token of the opening bracket
+     */
+    def expect_closing(wanted: _int64, what: string, opener: _int64) : _int64 {
+        if(position < count && kinds[position] == wanted) {
+            position++;
+            return 1;
+        }
+
+        d := missing(wanted, what);
+        if(opener >= 0 && opener < count) {
+            d.with_related(start_of(opener), end_of(opener), "this one is never closed");
+        }
+        return 0;
+    }
+
+    /** the diagnostic for "`what` should be here and is not" */
+    def missing(wanted: _int64, what: string) : diagnostic {
+        if(line_lost == 1 || recovering == 1) {
+            // This statement already has an error. What is "missing" now is
+            // almost always a consequence of it - the `)` after a value that
+            // was not there, the `;` after a string that was never closed -
+            // and saying so would only bury the real message. (The diagnostic
+            // is made, so the caller can add to it, but it is not recorded.)
+            recovering = 1;
+            return new_error("E0101", "expected " + what, file, source, table, 0, 0);
+        }
+
+        // punctuation that ENDS something belongs right after what came
+        // before it; anything else is reported at the token that is there instead
+        ends_something : _int64 = wanted == P_SEMICOLON || wanted == P_RPAREN || wanted == P_RBRACKET
+                || wanted == P_RBRACE || wanted == P_COMMA;
+
+        d : diagnostic? = null;
+        if(ends_something == 1 && position > 0) {
+            // (it is about the token it comes AFTER: a different mistake at the
+            //  token that follows must still be reported)
+            after : _int64 = end_of(position - 1);
+            d = report_at(position - 1, "E0101", "expected " + what, after, after + 1);
+            d!!.with_label("it belongs here");
+        } else {
+            d = report("E0101", "expected " + what + ", found " + describe_current());
+            d!!.with_label("expected " + what);
+        }
+
+        // the most common reason a NAME is "missing": the word used is reserved
+        if(wanted == T_IDENTIFIER && kind() >= T_KEYWORD) {
+            word := current_text();
+            d!!.with_note("`" + word + "` is a word the language reserves for itself, so it cannot be used as a name");
+            d!!.with_help("pick another name, for example `" + word + "_`");
+        }
+        return d!!;
+    }
+
+    /** report a mistake at the current token */
+    def error(message: string) : diagnostic {
+        return report("E0100", message);
+    }
+
+    /** a diagnostic about the current token (the whole token is marked) */
+    def report(code: string, message: string) : diagnostic {
+        return report_at(position, code, message, start_of(position), end_of(position));
+    }
+
+    /**
+     * Record a diagnostic about the characters from..to. Only the first one
+     * for a given token is kept; a later one is still returned, so the caller
+     * can go on adding notes to it, but it is not shown.
+     */
+    def report_at(token: _int64, code: string, message: string, from: _int64, to: _int64) : diagnostic {
+        d := new_error(code, message, file, source, table, from, to);
+        recovering = 1;
+
+        if(token != last_error_token) {
+            last_error_token = token;
+            error_count++;
+            errors.add(d);
+        }
+        return d;
+    }
+
+    /** where token `index` starts in the source (the end of the file for a token past the last) */
+    def start_of(index: _int64) : _int64 {
+        if(index >= count) { return sizeof(source); }
+        return table.starts!![index];
+    }
+
+    /** one past the last character of token `index` */
+    def end_of(index: _int64) : _int64 {
+        if(index >= count) { return sizeof(source) + 1; }
+        return table.ends!![index];
+    }
+
+    /** the characters of the current token ("" at the end of the file) */
+    def current_text() : string {
+        if(position >= count) { return ""; }
+        return token_text(source, table, position);
+    }
+
+    /** the current token as a message would name it: `while`, the name `x`, the end of the file */
+    def describe_current() : string {
+        if(position >= count) { return "the end of the file"; }
+        return "`" + current_text() + "`";
+    }
+
+    /** are tokens `first` and `second` on the same source line? */
+    def same_line(first: _int64, second: _int64) : _int64 {
+        if(first < 0 || second >= count) { return 0; }
+        starts : _int32[] = table.starts!!;
+        return line_of(table, starts[first]) == line_of(table, starts[second]);
+    }
+
+    /** a new node at the current token */
+    def node(kind: _int64) : _int64 {
+        return tree.add(kind, position);
+    }
+
+    /** a new node at the current token, already the last child of `parent` */
+    def child(parent: _int64, kind: _int64) : _int64 {
+        return tree.add_child(parent, kind, position);
+    }
+}
+
+/** is this the kind of a keyword that names a built-in type? (decimal, object, bool, _int8 ...) */
+def is_native_type(kind: _int64) : _int64 {
+    return kind == K_DECIMAL || kind == K_OBJECT || kind == K_BOOL || (kind >= K_INT8 && kind <= K_UINT64);
+}
+
+/** public, private, static, ... : the words that may stand in front of a declaration */
+def is_modifier(kind: _int64) : _int64 {
+    return kind == K_PUBLIC || kind == K_PRIVATE || kind == K_PROTECTED || kind == K_STATIC
+        || kind == K_LOCAL || kind == K_CONST || kind == K_EXT || kind == K_STABLE
+        || kind == K_NATIVE || kind == K_EXCUSE || kind == K_OVERRIDE;
+}

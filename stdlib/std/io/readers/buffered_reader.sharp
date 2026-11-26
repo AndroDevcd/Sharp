@@ -1,0 +1,272 @@
+mod std.io;
+
+/**
+ * Puts extras on top of any text_reader: stepping back, line and column
+ * counting, and reading in words and up to a given character - the things a
+ * hand written parser needs.
+ *
+ *     input := new buffered_reader(new file_reader("points.txt"));
+ *     while(input.skip_whitespace() && input.has_more()) {
+ *         x := io_strings.parse_number(input.read_word());
+ *         y := io_strings.parse_number(input.read_word());
+ *         ...
+ *     }
+ *     input.close();
+ *
+ * Characters that were read can be given back with unread(); any number of
+ * them, in any order - they are read again, last given back first. That is
+ * what makes peeking and "read until" work on readers that cannot go back
+ * themselves.
+ *
+ * line() and column() say where the next character is, counting from 1.
+ *
+ * Closing this reader closes the reader underneath. Not thread safe.
+ */
+class buffered_reader : text_reader, loopable<string> {
+    private source : text_reader;
+    /** characters given back with unread(), used as a stack: the last element is read next */
+    private pushed : _int8[];
+    private pushed_count : decimal = 0;
+
+    private line_number : decimal = 1;
+    private column_number : decimal = 1;
+    /** the last character taken was "\r": a "\n" that follows belongs to the same line end */
+    private after_return : decimal = 0;
+    private closed : decimal = 0;
+
+    /** a buffered reader that takes its characters from `source` */
+    buffered_reader(source: text_reader) {
+        self->source = source;
+        pushed = new _int8[16];
+    }
+
+    private def check_open() {
+        if(closed) {
+            throw new io_exception("the reader is closed");
+        }
+    }
+
+    /** the next character from the pushed-back ones or the source, without any counting */
+    private def raw_read() : decimal {
+        if(pushed_count > 0) {
+            pushed_count--;
+            return pushed[pushed_count] & 0xff;
+        }
+        return source.read_char();
+    }
+
+    /** the next character (0..255), or -1 at the end. Throws io_exception when closed. */
+    override def read_char() : decimal {
+        check_open();
+        ch : decimal = raw_read();
+        if(ch < 0) {
+            return ch;
+        }
+
+        if(ch == '\n') {
+            if(!after_return) {
+                line_number++;
+            }
+            column_number = 1;
+            after_return = 0;
+        } else if(ch == '\r') {
+            line_number++;
+            column_number = 1;
+            after_return = 1;
+        } else {
+            column_number++;
+            after_return = 0;
+        }
+        return ch;
+    }
+
+    /** the next character without taking it, or -1 at the end. Throws io_exception when closed. */
+    override def peek_char() : decimal {
+        check_open();
+        if(pushed_count > 0) {
+            return pushed[pushed_count - 1] & 0xff;
+        }
+        return source.peek_char();
+    }
+
+    /**
+     * Give the character `ch` back: the next read_char() returns it. May be
+     * called several times in a row; the characters come back in reverse
+     * order, so to give back "ab" call unread('b') and then unread('a').
+     *
+     * The line and column counters are not turned back: after giving back a
+     * line end they are ahead until it is read again.
+     * Throws io_exception when closed.
+     */
+    def unread(ch: decimal) {
+        check_open();
+        if(pushed_count >= sizeof(pushed)) {
+            bigger := new _int8[sizeof(pushed) * 2];
+            memcopy(pushed, bigger, 0, 0, pushed_count);
+            pushed = bigger;
+        }
+        pushed[pushed_count++] = ch;
+        if(ch != '\n' && ch != '\r' && column_number > 1) {
+            column_number--;
+        }
+    }
+
+    /**
+     * The text up to the next line end ("\n", "\r\n" or "\r") without the
+     * line end; the line end is taken too. null at the end of the text.
+     * Throws io_exception when closed.
+     */
+    override def read_line() : string? {
+        check_open();
+        if(peek_char() < 0) {
+            return null;
+        }
+
+        buf := new char_buffer(80);
+        ch : decimal = read_char();
+        while(ch >= 0 && ch != '\n' && ch != '\r') {
+            buf.append_char(ch);
+            ch = read_char();
+        }
+        if(ch == '\r' && peek_char() == '\n') {
+            read_char();
+        }
+        return buf.build();
+    }
+
+    /** everything that has not been read yet ("" at the end). Throws io_exception when closed. */
+    override def read_all() : string {
+        check_open();
+        buf := new char_buffer(256);
+        ch : decimal = read_char();
+        while(ch >= 0) {
+            buf.append_char(ch);
+            ch = read_char();
+        }
+        return buf.build();
+    }
+
+    /** true when there is at least one more character. Throws io_exception when closed. */
+    override def has_more() : bool {
+        check_open();
+        return peek_char() >= 0;
+    }
+
+    /**
+     * Step over spaces, tabs and line ends. Always returns true, so it can
+     * be put in front of another condition:
+     * `while(r.skip_whitespace() && r.has_more())`.
+     * Throws io_exception when closed.
+     */
+    def skip_whitespace() : bool {
+        check_open();
+        ch : decimal = peek_char();
+        while(ch >= 0 && character.is_whitespace(ch)) {
+            read_char();
+            ch = peek_char();
+        }
+        return true;
+    }
+
+    /**
+     * The next word: white space is skipped, then everything up to the next
+     * white space (or the end) is returned. "" when only white space or
+     * nothing is left. Throws io_exception when closed.
+     */
+    def read_word() : string {
+        skip_whitespace();
+        buf := new char_buffer(32);
+        ch : decimal = peek_char();
+        while(ch >= 0 && !character.is_whitespace(ch)) {
+            buf.append_char(read_char());
+            ch = peek_char();
+        }
+        return buf.build();
+    }
+
+    /**
+     * The text up to the next character `stop`, which is taken as well but
+     * not returned. When `stop` does not come any more the rest of the text
+     * is returned. Throws io_exception when closed.
+     */
+    def read_until(stop: decimal) : string {
+        check_open();
+        buf := new char_buffer(64);
+        ch : decimal = read_char();
+        while(ch >= 0 && ch != stop) {
+            buf.append_char(ch);
+            ch = read_char();
+        }
+        return buf.build();
+    }
+
+    /**
+     * The next `length` characters - fewer when the text ends before that.
+     * Throws illegal_argument_exception for a negative length and
+     * io_exception when closed.
+     */
+    def read(length: decimal) : string {
+        check_open();
+        if(length < 0) {
+            throw new illegal_argument_exception("read: negative length");
+        }
+        buf := new char_buffer(length);
+        for(i : decimal = 0; i < length; i++) {
+            ch : decimal = read_char();
+            if(ch < 0) {
+                break;
+            }
+            buf.append_char(ch);
+        }
+        return buf.build();
+    }
+
+    /** the number of the line the next character is on, counting from 1 */
+    def line() : decimal {
+        return line_number;
+    }
+
+    /** the place of the next character within its line, counting from 1 */
+    def column() : decimal {
+        return column_number;
+    }
+
+    /**
+     * All lines that have not been read yet, which reads the text to its
+     * end. An empty list at the end. Throws io_exception when closed.
+     */
+    def read_lines() : list<string> {
+        lines := new list<string>();
+        line := read_line();
+        while(!io_strings.is_null(line)) {
+            lines.add(line!!);
+            line = read_line();
+        }
+        return lines;
+    }
+
+    /**
+     * Makes `foreach(line in reader)` work: the remaining lines as an
+     * array (null when there are none). Reads the text to its end.
+     */
+    override def get_elements() : string[]? {
+        lines := read_lines();
+        count : decimal = lines.size();
+        if(count == 0) {
+            return null;
+        }
+        result := new string[count];
+        for(i : decimal = 0; i < count; i++) {
+            result[i] = lines.at(i);
+        }
+        return result;
+    }
+
+    /** close this reader and the reader underneath; reading afterwards throws io_exception. Closing twice is fine. */
+    override def close() {
+        if(!closed) {
+            closed = 1;
+            source.close();
+        }
+    }
+}

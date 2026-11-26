@@ -1,0 +1,239 @@
+mod main;
+
+import ( std.c, std.io, platform )
+
+/**
+ * C structs from Sharp: a class based on c_struct handed to C by value and by
+ * pointer, filled by C, returned by C - against tests/cffi/c_test_functions.c.
+ *
+ *      sharp structs <folder of the test library>
+ *
+ * Prints one line per check that fails and, last, STRUCTS: PASS (n checks).
+ */
+
+class rect16 base c_struct { x : c_int; y : c_int; w : c_int; h : c_int; }
+class vec2 base c_struct { x : c_float; y : c_float; }
+class color4 base c_struct { r : c_uchar; g : c_uchar; b : c_uchar; a : c_uchar; }
+class dvec2 base c_struct { x : c_double; y : c_double; }
+class mixed_id base c_struct { a : _int64; b : c_double; }
+class mixed_di base c_struct { a : c_double; b : c_int; }
+class big24 base c_struct { a : _int64; b : _int64; c : _int64; }
+class vec3 base c_struct { x : c_float; y : c_float; z : c_float; }
+class vec4 base c_struct { x : c_float; y : c_float; z : c_float; w : c_float; }
+class dvec4 base c_struct { a : c_double; b : c_double; c : c_double; d : c_double; }
+class pad16 base c_struct { a : c_char; b : _int64; }
+class small4 base c_struct { a : c_short; b : c_char; }
+class tiny3 base c_struct { a : c_char; b : c_char; c : c_char; }
+class odd8 base c_struct { a : c_int; b : c_char; }
+class nested12 base c_struct { at : vec2; tint : color4; }
+class if8 base c_struct { a : c_int; b : c_float; }
+class fid16 base c_struct { a : c_float; b : c_int; c : c_double; }
+// an array member, and the size C has for the struct (checked when a function that uses it is linked)
+class record32 base c_struct {
+    static const c_bytes : _int64 = 32;
+    name : c_char[] = new c_char[20];
+    n : c_int;
+    v : c_double;
+}
+class block160 base c_struct { values : c_int[] = new c_int[40]; }
+// declared a size it does not have: every function that takes it is refused
+class wrong_size base c_struct {
+    static const c_bytes : _int64 = 24;
+    x : c_int; y : c_int; w : c_int; h : c_int;
+}
+
+extern "c_test" {
+    // by value
+    def take_rect16(v: rect16) : c_double;
+    def take_vec2(v: vec2) : c_double;
+    def take_color4(v: color4) : c_double;
+    def take_dvec2(v: dvec2) : c_double;
+    def take_mixed_id(v: mixed_id) : c_double;
+    def take_mixed_di(v: mixed_di) : c_double;
+    def take_big24(v: big24) : c_double;
+    def take_vec3(v: vec3) : c_double;
+    def take_vec4(v: vec4) : c_double;
+    def take_dvec4(v: dvec4) : c_double;
+    def take_pad16(v: pad16) : c_double;
+    def take_small4(v: small4) : c_double;
+    def take_tiny3(v: tiny3) : c_double;
+    def take_odd8(v: odd8) : c_double;
+    def take_nested12(v: nested12) : c_double;
+    def take_if8(v: if8) : c_double;
+    def take_fid16(v: fid16) : c_double;
+    def after_many(a: c_int, b: c_int, c: c_int, d: c_int, e: c_int, r: rect16, v: vec2, x: c_double, g: big24, col: color4, f: c_float) : c_double;
+    // a struct out
+    def make_rect16(seed: c_int) : rect16;
+    def make_vec2(seed: c_int) : vec2;
+    def make_color4(seed: c_int) : color4;
+    def make_dvec2(seed: c_int) : dvec2;
+    def make_mixed_id(seed: c_int) : mixed_id;
+    def make_mixed_di(seed: c_int) : mixed_di;
+    def make_big24(seed: c_int) : big24;
+    def make_vec3(seed: c_int) : vec3;
+    def make_vec4(seed: c_int) : vec4;
+    def make_dvec4(seed: c_int) : dvec4;
+    def make_pad16(seed: c_int) : pad16;
+    def make_small4(seed: c_int) : small4;
+    def make_tiny3(seed: c_int) : tiny3;
+    def make_odd8(seed: c_int) : odd8;
+    def make_nested12(seed: c_int) : nested12;
+    def make_if8(seed: c_int) : if8;
+    def make_fid16(seed: c_int) : fid16;
+    def scale_big24(v: big24, by: c_int, add: c_double) : big24;
+    def add_vec2(a: vec2, b: vec2) : vec2;
+    def changes_its_copy_of(g: big24) : c_double;
+    // by pointer
+    def fill_rect(into: rect16?, first: c_int);
+    def read_rect(from: rect16?) : c_double;
+    def read_rect_or(from: rect16?, otherwise: c_double) : c_double;
+    def same_rect(r: rect16?) : rect16?;
+    def take_record32(v: record32) : c_double;
+    def make_record32(seed: c_int) : record32;
+    def take_block160(v: block160) : c_double;
+    def make_block160(seed: c_int) : block160;
+    def take_rect16(v: wrong_size) : c_double;
+}
+
+checks : _int64 = 0;
+failures : _int64 = 0;
+
+def same(name: string, got: decimal, want: decimal) {
+    checks++;
+    if(got != want) {
+        failures++;
+        println("FAIL  " + name + ": got " + got + ", expected " + want);
+    }
+}
+
+def main(args: string[]) {
+    folder : string = ".";
+    if(sizeof(args) > 0) { folder = args[0]; }
+    c_library("c_test", folder + "/c_test");
+    // (no c_check_libraries() here: one struct below is declared with a wrong size on purpose)
+
+    // ---- each struct: C makes one, Sharp reads its fields; Sharp hands it back, C reads it
+    r := make_rect16(5);
+    same("make_rect16 fields", r.x * 1000 + r.y * 100 + r.w * 10 + r.h, 5000 + 600 + 70 + 8);
+    same("take_rect16", take_rect16(r), 5 + 12 + 21 + 32);
+
+    v := make_vec2(5);
+    same("make_vec2 fields", v.x + v.y, 5.5 + 6.25);
+    same("take_vec2", take_vec2(v), 5.5 + 12.5);
+
+    col := make_color4(250);
+    same("make_color4 fields", col.r * 1000000 + col.g * 10000 + col.b * 100 + col.a, 250000000 + 2510000 + 25200 + 253);
+    same("take_color4", take_color4(col), 250 + 502 + 756 + 1012);
+
+    d2 := make_dvec2(5);
+    same("take_dvec2", take_dvec2(d2), 5.5 + 12.5);
+    mi := make_mixed_id(5);
+    same("make_mixed_id fields", mi.a + mi.b, 5000000035 + 5.75);
+    same("take_mixed_id", take_mixed_id(mi), 5000000035 + 11.5);
+    md := make_mixed_di(5);
+    same("take_mixed_di", take_mixed_di(md), 5.75 + 30);
+    big := make_big24(5);
+    same("make_big24 fields", big.a + big.b + big.c, 5 + 20000000000 - 5);
+    same("take_big24", take_big24(big), 5 + 40000000000 - 15);
+    v3 := make_vec3(5);
+    same("take_vec3", take_vec3(v3), 5.5 + 13 + 22.5);
+    v4 := make_vec4(5);
+    same("take_vec4", take_vec4(v4), 5.5 + 13 + 22.5 + 34);
+    d4 := make_dvec4(5);
+    same("take_dvec4", take_dvec4(d4), 5.5 + 13 + 22.5 + 34);
+    p16 := make_pad16(5);
+    same("make_pad16 fields", p16.a + p16.b, 0 - 5 + 25000000000);
+    same("take_pad16", take_pad16(p16), 0 - 5 + 50000000000);
+    s4 := make_small4(5);
+    same("make_small4 fields", s4.a + s4.b, 500 - 5);
+    same("take_small4", take_small4(s4), 500 - 10);
+    t3 := make_tiny3(5);
+    same("take_tiny3", take_tiny3(t3), 5 - 10 + 18);
+    o8 := make_odd8(5);
+    same("take_odd8", take_odd8(o8), 500000 - 10);
+    n12 := make_nested12(5);
+    same("make_nested12 fields", n12.at.x + n12.at.y + n12.tint.r + n12.tint.a, 5.5 + 6.25 + 12 + 15);
+    same("take_nested12", take_nested12(n12), 5.5 + 12.5 + 36 + 52 + 70 + 90);
+    i8 := make_if8(5);
+    same("take_if8", take_if8(i8), 35 + 11);
+    f16 := make_fid16(5);
+    same("take_fid16", take_fid16(f16), 5.5 + 90 + 15.75);
+
+    // ---- a struct made in Sharp
+    mine := new rect16();
+    mine.x = 1; mine.y = 2; mine.w = 3; mine.h = 4;
+    same("a struct made in Sharp", take_rect16(mine), 1 + 4 + 9 + 16);
+    mine.h = 0 - 4;
+    same("... with a negative member", take_rect16(mine), 1 + 4 + 9 - 16);
+
+    // ---- structs among other arguments, and after the registers have run out
+    same("after_many", after_many(1, 2, 3, 4, 5, make_rect16(3), make_vec2(4), 8.5, make_big24(5), make_color4(6), 11.25),
+         1 + 4 + 9 + 16 + 25 + 6 * (3 + 8 + 15 + 24) + 7 * (4.5 + 10.5) + 68 + 9 * (5 + 40000000000 - 15) + 10 * (6 + 14 + 24 + 36) + 123.75);
+
+    // ---- a struct in and a struct out
+    scaled := scale_big24(big, 3, 1000.5);
+    same("scale_big24", scaled.a + scaled.b + scaled.c, 15 + 60000001000 - 8);
+    sum := add_vec2(make_vec2(1), make_vec2(2));
+    same("add_vec2", sum.x + sum.y, 4 + 5.5);
+    same("a struct by value is C's own copy", big.a + big.b + big.c, 5 + 20000000000 - 5);
+
+    // ---- by pointer: C fills the object, C reads the object, null is NULL
+    filled := new rect16();
+    fill_rect(filled, 7);
+    same("C filled the object", filled.x * 1000 + filled.y * 100 + filled.w * 10 + filled.h, 7000 + 800 + 90 + 10);
+    same("C read the object", read_rect(filled), 7 + 16 + 27 + 40);
+    nothing : rect16? = null;
+    same("null is NULL", read_rect_or(nothing, 0 - 1), 0 - 1);
+    same("... and an object is not", read_rect_or(filled, 0 - 1), 7 + 16 + 27 + 40);
+    back := same_rect(filled);
+    checks++;
+    if(back == null) { failures++; println("FAIL  a pointer to a struct came back as null"); }
+    else { same("a struct through a returned pointer", back!!.x + back!!.h, 17); }
+    checks++;
+    if(same_rect(nothing) != null) { failures++; println("FAIL  NULL did not come back as null"); }
+
+    // ---- array members
+    rec := make_record32(3);
+    checks++;
+    if(rec.name == null || sizeof(rec.name) != 20) { failures++; println("FAIL  the array member of a struct C returned is not an array of 20"); }
+    else {
+        same("an array member C filled: its first item", rec.name[0], 'd');     // 'a' + 3
+        same("... and its second", rec.name[1], 'e');
+        same("... the rest of the struct", rec.n + rec.v, 3 + 3.125);
+    }
+    same("C reads the array member", take_record32(rec), 6 + 'd' + 6 + 9.375);
+    made := new record32();
+    made.name[0] = 'h'; made.name[1] = 'i';
+    made.n = 5; made.v = 2;
+    same("... of a struct made in Sharp", take_record32(made), 2 + 'h' + 10 + 6);
+    blocks := make_block160(2);
+    same("forty items back", blocks.values[0] + blocks.values[39], 2 + 80);
+    blocks.values[39] = 1;
+    expected : decimal = 0;
+    for(i : _int64 = 0; i < 39; i++) { expected = expected + (i + 1) * (2 * (i + 1)); }
+    same("forty items in", take_block160(blocks), expected + 40);
+
+    // ---- a struct declared with a size it does not have
+    try {
+        take_rect16(new wrong_size());
+        failures++;
+        println("FAIL  a struct declared 24 bytes that is 16 was accepted");
+    } catch(problem: unsatisfied_link_error) {
+        checks++;
+        message : string = problem.get_message();
+        if(!message.contains("16 bytes") || !message.contains("24")) { failures++; println("FAIL  the message does not name both sizes: " + message); }
+    }
+
+    // ---- a struct by value cannot be null
+    try {
+        gone : rect16? = null;
+        take_rect16(gone!!);
+        failures++;
+        println("FAIL  a null struct was handed over by value");
+    } catch(problem: nullptr_exception) {
+        checks++;
+    }
+
+    if(failures == 0) { println("STRUCTS: PASS (" + checks + " checks)"); }
+    else { println("STRUCTS: FAIL (" + failures + " of " + checks + " checks failed)"); }
+}

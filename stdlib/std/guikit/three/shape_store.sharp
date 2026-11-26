@@ -1,0 +1,43 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.guikit.*
+)
+
+/**
+ * shape_store - one copy of every shape the words make.
+ *
+ * A screen is built again whenever its state changes, and every build runs
+ * cube(1), sphere(0.5) ... again. The THINGS are new each time (they are a few
+ * numbers); the SHAPE on the graphics card is not: the words ask here first,
+ * by a name that says exactly which shape ("cube 1 1 1").
+ */
+stable class shape_store {
+    private static names : list<string> = new list<string>();
+    private static models : list<long> = new list<long>();
+
+    /** the model kept under this name (0: none yet) */
+    static def find(name: string) : _int64 {
+        count : _int64 = names.size();
+        for(i : _int64 = 0; i < count; i++) {
+            if(names.at(i) == name) { return models.at(i).value; }
+        }
+        return 0;
+    }
+
+    /** put a mesh on the graphics card and keep its model under this name; gives the model */
+    static def keep(name: string, shape: mesh) : _int64 {
+        id : _int64 = shape.ready();
+        names.add(name);
+        models.add(new long(id));
+        return id;
+    }
+
+    /** a new thing that shows this model */
+    static def thing_of(id: _int64) : thing {
+        made := new thing();
+        made.model = id;
+        return made;
+    }
+}

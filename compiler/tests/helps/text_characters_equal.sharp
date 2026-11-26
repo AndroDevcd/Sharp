@@ -1,0 +1,16 @@
+// expect: E0511
+// help: w == p.first
+// replace: p.first == w
+mod tests.helps;
+import (std, std.io);
+
+/** a word kept as plain characters, the way a text literal is */
+class kept_word {
+    first : _int8[] = "the";
+}
+
+def main() {
+    p := new kept_word();
+    w : string = "the";
+    if(p.first == w) { println("found"); }
+}

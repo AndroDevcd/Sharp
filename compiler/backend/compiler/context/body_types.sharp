@@ -1,0 +1,148 @@
+mod backend.compiler.context;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.preprocessor,
+    backend.postprocessor.names,
+    backend.postprocessor.generics
+)
+
+/**
+ * TYPES WRITTEN INSIDE A BODY
+ *
+ *      items := new list<T>();     x as shape      e is circle     n : box<string>;
+ *
+ * The declarations stage made a written type (sharp_type) for every type in
+ * a DECLARATION. Types inside function bodies and field values are still
+ * only tree nodes. This file turns such a node into a resolved type in two
+ * steps, the same two every declared type went through:
+ *
+ *   1. `written_type_at`: make the sharp_type and look its names up, with the
+ *      lookup rules of the type-names stage (type parameters of the function,
+ *      the enclosing classes, the file's module, its imports). This depends
+ *      only on WHERE the type is written, so it is done once per tree node
+ *      and kept in `sharp_file.body_types` - an array beside the tree, the
+ *      tree itself is never touched.
+ *   2. `resolve_type_at`: resolve it under the context's environment. Inside
+ *      list<string> the `T` of `new list<T>()` is `string`, and this is the
+ *      moment the instance list<string> is made if it did not exist: generic
+ *      classes are instantiated lazily, also from bodies.
+ *
+ * An unknown type name in a body was already reported by the type-names
+ * stage (it checks every type name of the tree), so nothing is reported for
+ * it here: the type simply becomes the error type.
+ *
+ * A LOCAL alias (`alias list<int> as numbers;` in a block) is looked for
+ * first, in the scope chain; it answers with a resolved type directly.
+ *
+ *      C++ comparison: `resolve()` in dependency/dependency.cpp, called
+ *      wherever a body names a type; the old compiler re-reads the tree for
+ *      every instance.
+ */
+
+/** step 1: the written type of an N_TYPE node in a body, with its names looked up; made once per node */
+def written_type_at(context: analysis_context, type_node: _int64) : sharp_type {
+    file : sharp_file = context.file;
+    if(file.body_types == null) { file.body_types = new sharp_type[context.tree.count]; }
+    known := file.body_types!![type_node];
+    if(known != null) { return known!!; }
+
+    written := make_type(context.unit, type_node);
+    tie_names_of(context, written);
+    file.body_types!![type_node] = written;
+    return written;
+}
+
+/** look up every name in a written type (the name itself, its type arguments, the parts of a function type) */
+def tie_names_of(context: analysis_context, written: sharp_type) {
+    if(written.form == TYPE_NAMED) {
+        name_node : _int64 = name_node_of(written);
+        if(name_node >= 0 && written.declaration == null) {
+            written.declaration = resolve_type_name(context.prog, context.file, name_node, null, 1, blueprint_function_of(context));
+            give_local_alias_its_target(context, written);
+        }
+        for(i : _int64 = 0; i < written.arguments.size(); i++) { tie_names_of(context, written.arguments.at(i)); }
+    } else if(written.form == TYPE_FUNCTION) {
+        for(i : _int64 = 0; i < written.parameters.size(); i++) { tie_names_of(context, written.parameters.at(i)); }
+        if(written.result != null) { tie_names_of(context, written.result!!); }
+    }
+}
+
+/**
+ * A local alias found INSIDE a type (`list<s>` after `alias string as s;`).
+ * The type-names stage answers such a name with a stand-in alias that has
+ * no target (it has no scopes, only the knowledge that an alias of that
+ * name is written earlier in a block around). Here the stand-in gets the
+ * type its `alias` statement writes, so resolving `list<s>` looks through
+ * it like through any alias. (A local alias written as the WHOLE type is
+ * answered from the scope chain, `local_alias_type_at`.)
+ */
+def give_local_alias_its_target(context: analysis_context, written: sharp_type) {
+    if(written.declaration == null || written.declaration!!.kind != D_ALIAS) { return; }
+    declared : sharp_declaration = written.declaration!!;
+    stand_in := declared as sharp_alias;
+    if(stand_in.target != null || stand_in.owner != null) { return; }
+    if(stand_in.unit != context.unit || context.tree.kinds!![stand_in.node] != N_ALIAS) { return; }
+    target_node : _int64 = context.tree.child_of_kind(stand_in.node, N_TYPE);
+    if(target_node < 0) { return; }
+    stand_in.target = written_type_at(context, target_node);
+}
+
+/**
+ * The function whose type parameters a type name may mean. For an instance
+ * of a generic function that is the function as written: its `T` objects are
+ * the ones the environment has answers for.
+ *
+ * Inside a lambda it is the function the lambda is written in (however many
+ * lambdas deep): a lambda has no type parameters of its own, and the `T` in
+ *
+ *      def checker<T>() : (animal)(bool) { return { a: animal -> return a is T; }; }
+ *
+ * is the T of `checker`. (Asked of the lambda itself, the name found the T of
+ * the INSTANCE - checker<dog>'s own copy - which the environment has no
+ * answer for: the type stayed `T` and the generator had no code for it.)
+ */
+def blueprint_function_of(context: analysis_context) : sharp_function? {
+    if(context.function == null) { return null; }
+    function : sharp_function = context.function!!;
+    while(function.is_lambda == 1 && function.enclosing != null) { function = function.enclosing!!; }
+    if(function.blueprint != null) { return function.blueprint; }
+    return function;
+}
+
+/** step 2: the resolved type of an N_TYPE node in a body, under the context's environment */
+def resolve_type_at(context: analysis_context, type_node: _int64) : resolved_type {
+    if(context.alias_count > 0) {
+        through_alias := local_alias_type_at(context, type_node);
+        if(through_alias != null) { return through_alias!!; }
+    }
+    written := written_type_at(context, type_node);
+    return resolve_written_type(context.prog, written, context.environment, context.session.problems);
+}
+
+/**
+ * When the type at this node is a single name that a local alias of the
+ * scope chain has: the alias's type, with the `[]` and `?` written here.
+ */
+def local_alias_type_at(context: analysis_context, type_node: _int64) : resolved_type? {
+    tree : syntax_tree = context.tree;
+    name_node : _int64 = tree.child_of_kind(type_node, N_TYPE_NAME);
+    if(name_node < 0 || context.scope == null) { return null; }
+    part : _int64 = tree.first_child!![name_node];
+    if(part < 0 || tree.kinds!![part] != N_TYPE_PART || tree.next_sibling!![part] >= 0) { return null; }
+
+    found := context.scope!!.find_alias(name_at(context, part));
+    if(found == null) { return null; }
+    type : resolved_type = found!!;
+    is_array : _int64 = tree.child_of_kind(type_node, N_ARRAY_SUFFIX) >= 0;
+    is_nullable : _int64 = tree.child_of_kind(type_node, N_NULLABLE) >= 0;
+    if(is_array == 0 && is_nullable == 0) { return type; }
+    return type.with_marks(is_array == 1 || type.is_array == 1, is_nullable == 1 || type.is_nullable == 1, type.has_nullable_items);
+}

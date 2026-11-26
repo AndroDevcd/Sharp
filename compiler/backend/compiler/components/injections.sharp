@@ -1,0 +1,84 @@
+mod backend.compiler.components;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.compiler.context
+)
+
+/**
+ * `inject`: A FIELD OR VARIABLE FILLED FROM A COMPONENT
+ *
+ *      class service {
+ *          inject db : database;               from the definition that provides a `database`
+ *          inject(app) helper : worker;        ... looked for in the component `app` only
+ *          static inject shared : logger;      a static field: filled once
+ *      }
+ *      inject settings : config;               a global
+ *      def run() { inject log : logger; }      a local
+ *
+ * An injected declaration has a type and no value: its value is what
+ * `get<type>()` - or `get<type>(component)` - would give, taken when the
+ * object is set up (a field), when the program starts (a global), or when
+ * the statement is reached (a local). It is found by TYPE among the
+ * definitions without a name; an `inject` cannot ask by name.
+ *
+ * The definition found is recorded on the declaration (`injected_from`);
+ * the initialisation lists then hold the field like one with a value
+ * (initializers/initializers.sharp).
+ *
+ *      E0906   no definition provides the type (E0909: the component named does not exist)
+ *
+ * That an injected declaration has no value as well is checked where it is
+ * declared (E0378 for fields, E0617 for locals).
+ *
+ *      C++ comparison: `compile_field_injection_request` in
+ *      compiler/field_compiler.cpp ("cannot inject field ..., no type found in components").
+ */
+
+/** every injected field and global of the program (the pass after the bodies: every definition is known) */
+def resolve_injected_fields(session: analysis_session) {
+    prog : sharp_program = session.prog;
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        fields := prog.module_list.at(i).fields;
+        for(j : _int64 = 0; j < fields.size(); j++) { resolve_injected_field(session, fields.at(j)); }
+    }
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) { resolve_injected_fields_of(session, prog.all_classes.at(i)); }
+    for(i : _int64 = 0; i < prog.generic_instances.size(); i++) { resolve_injected_fields_of(session, prog.generic_instances.at(i)); }
+}
+
+/** the injected fields of one class whose bodies were analysed (a generic class as written has none that mean anything yet) */
+def resolve_injected_fields_of(session: analysis_session, declared: sharp_class) {
+    if(declared.bodies_analysed == 0 || declared.is_open() || declared.failed_constraint >= 0 || declared.inside_refused_instance == 1) { return; }
+    for(i : _int64 = 0; i < declared.fields.size(); i++) { resolve_injected_field(session, declared.fields.at(i)); }
+}
+
+/** one field: when it is injected, the definition that fills it */
+def resolve_injected_field(session: analysis_session, field: sharp_field) {
+    if(field.inject_node < 0 || field.injected_from != null || field.value_type == null) { return; }
+    if(field.has_initializer()) { return; }         // E0378 was reported: it keeps its value
+    file := session.prog.file_of(field.unit);
+    if(file == null) { return; }
+    context := new analysis_context(session, file!!);
+    context.class_of = field.owner;
+    context.is_static = 1;
+    field.injected_from = definition_to_inject(context, field.value_type!!, field.inject_node);
+}
+
+/**
+ * The definition an `inject` of type `type` receives; null when none does
+ * (reported). `inject_node` is the N_INJECT: its N_NAME child, when there is
+ * one, is the component to look in.
+ */
+def definition_to_inject(context: analysis_context, type: resolved_type, inject_node: _int64) : type_definition? {
+    if(type.kind == RT_ERROR) { return null; }
+    request := new component_request(context.unit, inject_node);
+    request.type = type;
+    component_node : _int64 = context.tree.child_of_kind(inject_node, N_NAME);
+    if(component_node >= 0) { request.component_name = name_at(context, component_node); }
+    if(context.definition != null) { request.inside = context.definition!!.owner; }
+    return settle_request(context, request, "E0906");
+}

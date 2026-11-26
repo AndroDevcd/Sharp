@@ -1,0 +1,176 @@
+mod std.io.fiber;
+
+/**
+ * wait_queue - the fibers waiting for one resource, first come first served.
+ *
+ * USAGE
+ *     waiters := new wait_queue();          // a field of the resource
+ *
+ *     lock(lk) { waiters.add(w); }          // the fiber that has to wait
+ *     w.park();
+ *
+ *     lock(lk) {                            // the fiber that frees the resource
+ *         w := waiters.pop_waiting(waiter.RESUMED);
+ *     }
+ *     if(w != null) w.unpark();
+ *
+ * It is a doubly linked list threaded through the waiters themselves
+ * (waiter.next / prev / queue), so add, pop and remove are O(1) and nothing is
+ * allocated. C++ equivalent: an intrusive std::list<waiter*>. Java equivalent:
+ * the CLH queue inside AbstractQueuedSynchronizer, without the lock-free part.
+ *
+ * LOCKING DISCIPLINE
+ *   A wait_queue has NO lock of its own. Every method must be called while
+ *   holding the lock of the resource that owns the queue, and that must be the
+ *   same lock the queued waiters were created with (waiter.guard), because
+ *   pop_waiting() claims waiters and a claim is only legal under their guard.
+ *
+ * Nothing in this class suspends, and nothing is a cancellation point.
+ */
+class wait_queue {
+
+    private head : waiter?;
+    private tail : waiter?;
+    private count : decimal = 0;
+
+    wait_queue() {}
+
+    /** number of waiters in the queue (claimed ones that were not removed yet included) */
+    def size() : decimal {
+        return count;
+    }
+
+    /** true when no waiter is queued */
+    def is_empty() : bool {
+        return count == 0;
+    }
+
+    /** the waiter that would be popped next, or null. It stays in the queue. */
+    def peek() : waiter? {
+        return head;
+    }
+
+    /**
+     * Append a waiter. It must not be in any queue.
+     * @throws illegal_state_exception when the waiter is already queued somewhere
+     */
+    def add(w: waiter) {
+        if(w.queue != null) {
+            throw new illegal_state_exception("waiter is already in a wait_queue");
+        }
+
+        w.queue = self;
+        w.next = null;
+        w.prev = tail;
+
+        if(tail == null) {
+            head = w;
+        } else {
+            tail!!.next = w;
+        }
+
+        tail = w;
+        count++;
+    }
+
+    /** Take the oldest waiter out of the queue whatever its state is. Null when the queue is empty. */
+    def pop() : waiter? {
+        w := head;
+        if(w != null) {
+            unlink(w!!);
+        }
+
+        return w;
+    }
+
+    /**
+     * Take the oldest waiter that is still waiting out of the queue and claim
+     * it with waiter.resume(new_state). Waiters that were claimed before (timed
+     * out or cancelled and not removed yet) are dropped on the way.
+     *
+     * @return the claimed waiter - the caller MUST call unpark() on it after
+     *         releasing the lock - or null when nobody is waiting.
+     */
+    def pop_waiting(new_state: decimal) : waiter? {
+        for( ;; ) {
+            w := head;
+            if(w == null) {
+                return null;
+            }
+
+            unlink(w!!);
+            if(w!!.resume(new_state)) {
+                return w;
+            }
+        }
+
+        return null;
+    }
+
+    /** pop_waiting() that also hands `value` to the waiter (waiter.item) */
+    def pop_waiting_with(new_state: decimal, value: object?) : waiter? {
+        for( ;; ) {
+            w := head;
+            if(w == null) {
+                return null;
+            }
+
+            unlink(w!!);
+            if(w!!.resume_with(new_state, value)) {
+                return w;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Take `w` out of the queue if it is in THIS queue; does nothing otherwise
+     * (it was popped already, or never added). This is what a fiber calls after
+     * its wait ended with CANCELLED or TIMED_OUT.
+     */
+    def remove(w: waiter) {
+        if(w.queue == self) {
+            unlink(w);
+        }
+    }
+
+    /** Empty the queue without claiming anybody. */
+    def clear() {
+        w := head;
+        while(w != null) {
+            following := w!!.next;
+            w!!.next = null;
+            w!!.prev = null;
+            w!!.queue = null;
+            w = following;
+        }
+
+        head = null;
+        tail = null;
+        count = 0;
+    }
+
+    /** cut a waiter that is known to be in this queue out of the list */
+    private def unlink(w: waiter) {
+        before := w.prev;
+        after := w.next;
+
+        if(before == null) {
+            head = after;
+        } else {
+            before!!.next = after;
+        }
+
+        if(after == null) {
+            tail = before;
+        } else {
+            after!!.prev = before;
+        }
+
+        w.next = null;
+        w.prev = null;
+        w.queue = null;
+        count--;
+    }
+}

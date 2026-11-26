@@ -1,0 +1,225 @@
+mod backend.compiler.expressions.arithmetic;
+
+import (
+    std.io,
+    std.math,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context
+)
+
+/**
+ * CONSTANT FOLDING: working out `2 + 3` while compiling
+ *
+ * When both operands of an operator are numbers the compiler knows, so is
+ * the result. It is computed exactly as the VM would compute it - 64-bit
+ * whole numbers that wrap around, doubles - and kept in
+ * `bound_expression.constant` (doc/backend.md 6.3).
+ *
+ * Two LITERALS give a literal again, with the type the C++ compiler gives it
+ * (checked: `x := 1 < 2;` makes x a `double`, `"" + (1 < 2)` prints
+ * 1.0000000000000000):
+ *
+ *      operator                            on two literals gives
+ *      ----------------------------------  ----------------------------------------------
+ *      + - * /  (no decimal literal)       a whole-number literal: 2 + 3 is the literal 5, 7 / 2 the literal 3
+ *      % & | ^ << >> && ||                 a whole-number literal
+ *      + - * /  (a decimal literal)        a decimal literal: 7 / 2.0 is 3.5
+ *      ** == != < > <= >=                  a decimal literal: 2 ** 3 is 8.0, 1 < 2 is 1.0
+ *
+ * A whole-number literal result is an `_int32` when it fits 32 bits and an
+ * `_int64` otherwise, like a literal written out. Operands that are
+ * constants but not literals (a converted literal) are folded too, but the
+ * result is an ordinary value of the type the operator gives (7.8.1).
+ *
+ *      E0427   `x % 0`: the remainder of a division by constant zero
+ *      W1044   `x / 0`: a division by a constant whole-number zero (the result is infinity, or not a number)
+ *
+ *      C++ comparison: `compile_binary_integer_expression` in
+ *      binary/binary_expression.cpp; unary_expression.cpp for `-` and `!`.
+ */
+
+/** is the value a literal number (not text)? */
+def is_number_literal(value: bound_expression) : _int64 {
+    literal : _int64 = value.literal;
+    return (literal == LIT_INTEGER || literal == LIT_DECIMAL || literal == LIT_CHAR || literal == LIT_BOOL)
+        && value.constant != null;
+}
+
+/** the constant as a whole number (a decimal is cut down) */
+def whole_of(value: constant_value) : _int64 {
+    if(value.kind == CONST_DECIMAL) { return value.number as _int64; }
+    return value.integer;
+}
+
+/** the constant as a decimal */
+def decimal_of(value: constant_value) : decimal {
+    if(value.kind == CONST_DECIMAL) { return value.number; }
+    return value.integer;
+}
+
+/**
+ * Two literals under `operation`: the result as a literal node of the type
+ * the table above gives. Null when the operation is not folded (`x % 0`,
+ * which is reported).
+ */
+def fold_literals(context: analysis_context, node: _int64, operation: _int64, left: bound_expression,
+                  right: bound_expression) : bound_expression? {
+    types : type_table = context.session.types;
+    a : constant_value = left.constant!!;
+    b : constant_value = right.constant!!;
+    any_decimal : _int64 = left.literal == LIT_DECIMAL || right.literal == LIT_DECIMAL;
+
+    // the answer is true or false: a comparison, && and ||, and & | ^ of two bools
+    if(is_comparison(operation) || operation == P_ANDAND || operation == P_OROR || left.type.is_boolean()) {
+        if(any_decimal == 1 && is_comparison(operation)) {
+            return bool_literal(context, node, decimal_result(operation, decimal_of(a), decimal_of(b)) != 0);
+        }
+        return bool_literal(context, node, whole_result(operation, whole_of(a), whole_of(b)));
+    }
+    if((operation == P_PLUS || operation == P_MINUS || operation == P_STAR || operation == P_SLASH) && any_decimal == 0) {
+        return whole_literal(context, node, whole_result(operation, whole_of(a), whole_of(b)));
+    }
+    if(is_whole_operation(operation)) {
+        if(operation == P_PERCENT && whole_of(b) == 0) {
+            report_remainder_by_zero(context, right);
+            return null;
+        }
+        return whole_literal(context, node, whole_result(operation, whole_of(a), whole_of(b)));
+    }
+    return new bound_literal(context.unit, node, types.decimal_type,
+                             decimal_constant(decimal_result(operation, decimal_of(a), decimal_of(b))), LIT_DECIMAL);
+}
+
+/** a `bool` literal made by folding: false for 0, true for anything else */
+def bool_literal(context: analysis_context, node: _int64, value: _int64) : bound_expression {
+    truth : _int64 = 0;
+    if(value != 0) { truth = 1; }
+    return new bound_literal(context.unit, node, context.session.types.bool_type, integer_constant(truth), LIT_BOOL);
+}
+
+/** a whole-number literal made by folding: _int32 when it fits, _int64 otherwise */
+def whole_literal(context: analysis_context, node: _int64, value: _int64) : bound_expression {
+    type : resolved_type = context.session.types.int32;
+    if(value > 2147483647 || value < 0 - 2147483648) { type = context.session.types.int64; }
+    return new bound_literal(context.unit, node, type, integer_constant(value), LIT_INTEGER);
+}
+
+/** % & | ^ << >> && ||: always worked out on whole numbers */
+def is_whole_operation(operation: _int64) : _int64 {
+    return operation == P_PERCENT || operation == P_AND || operation == P_OR || operation == P_XOR || operation == P_SHL
+        || operation == P_SHR || operation == P_ANDAND || operation == P_OROR;
+}
+
+/** is it a comparison: == != < > <= >= ? */
+def is_comparison(operation: _int64) : _int64 {
+    return operation == P_EQEQ || operation == P_NOTEQ || operation == P_LESS || operation == P_GREATER
+        || operation == P_LTE || operation == P_GTE;
+}
+
+/** an operation on two whole numbers, as the VM does it */
+def whole_result(operation: _int64, a: _int64, b: _int64) : _int64 {
+    if(operation == P_PLUS) { return a + b; }
+    if(operation == P_MINUS) { return a - b; }
+    if(operation == P_STAR) { return a * b; }
+    if(operation == P_PERCENT) { return a % b; }
+    if(operation == P_AND) { return a & b; }
+    if(operation == P_OR) { return a | b; }
+    if(operation == P_XOR) { return a ^ b; }
+    if(operation == P_SHL) { return a << b; }
+    if(operation == P_SHR) { return a >> b; }
+    if(operation == P_ANDAND) { return a != 0 && b != 0; }
+    if(operation == P_OROR) { return a != 0 || b != 0; }
+    if(operation == P_SLASH) {
+        // toward zero, as the VM divides (-7 / 2 is -3). Written with `%` so that it is exact
+        // whichever way the compiler that builds this one divides.
+        if(b == 0) { return 0; }
+        if(b == 0 - 1) { return 0 - a; }
+        quotient : _int64 = (a - a % b) / b;
+        return quotient;
+    }
+    return truth_of(operation, a, b);
+}
+
+/** a comparison of two whole numbers: 1 or 0 */
+def truth_of(operation: _int64, a: _int64, b: _int64) : _int64 {
+    if(operation == P_EQEQ) { return a == b; }
+    if(operation == P_NOTEQ) { return a != b; }
+    if(operation == P_LESS) { return a < b; }
+    if(operation == P_GREATER) { return a > b; }
+    if(operation == P_LTE) { return a <= b; }
+    if(operation == P_GTE) { return a >= b; }
+    return 0;
+}
+
+/** an operation on two decimals; a comparison gives 1.0 or 0.0 */
+def decimal_result(operation: _int64, a: decimal, b: decimal) : decimal {
+    if(operation == P_PLUS) { return a + b; }
+    if(operation == P_MINUS) { return a - b; }
+    if(operation == P_STAR) { return a * b; }
+    if(operation == P_SLASH) { return a / b; }
+    if(operation == P_EXPONENT) { return pow(a, b); }
+    if(operation == P_EQEQ) { return a == b; }
+    if(operation == P_NOTEQ) { return a != b; }
+    if(operation == P_LESS) { return a < b; }
+    if(operation == P_GREATER) { return a > b; }
+    if(operation == P_LTE) { return a <= b; }
+    if(operation == P_GTE) { return a >= b; }
+    return 0;
+}
+
+/**
+ * The constant of `left op right` when both are known but not both
+ * literals: computed in the kind the operation is worked out in. Null when
+ * either is not known.
+ */
+def folded_constant(operation: _int64, left: bound_expression, right: bound_expression, operands: _int64) : constant_value? {
+    if(left.constant == null || right.constant == null) { return null; }
+    if(left.constant!!.kind == CONST_TEXT || right.constant!!.kind == CONST_TEXT) { return null; }
+    if(operands == OPERANDS_DECIMAL) {
+        result : decimal = decimal_result(operation, decimal_of(left.constant!!), decimal_of(right.constant!!));
+        if(is_comparison(operation)) { return integer_constant(result as _int64); }
+        return decimal_constant(result);
+    }
+    if((operation == P_PERCENT || operation == P_SLASH) && whole_of(right.constant!!) == 0) { return null; }
+    return integer_constant(whole_result(operation, whole_of(left.constant!!), whole_of(right.constant!!)));
+}
+
+/** is the value a whole-number zero the compiler knows (`0`, `1 - 1`; not `0.0`)? */
+def is_whole_zero(value: bound_expression) : _int64 {
+    return value.constant != null && value.constant!!.kind == CONST_INTEGER && value.constant!!.integer == 0;
+}
+
+/** E0427 */
+def report_remainder_by_zero(context: analysis_context, right: bound_expression) {
+    d := problem_over(context, "E0427", "the remainder of a division by zero", right.node);
+    d.with_label("this is 0");
+    d.with_note("`x % 0` has no value: there is no remainder of a division by zero");
+    report(context, d);
+}
+
+/**
+ * W1044: `x / 0` with a WHOLE-NUMBER zero the compiler knows.
+ *
+ * Two whole numbers: the program stops there with invalid_operation_exception
+ * when it runs (7.8.1). A decimal divided by zero does not stop the program:
+ * the VM gives infinity (`4.5 / 0`), minus infinity, or "not a number". `%` by
+ * zero, which has no value at all, is the error E0427. A constant zero divisor
+ * is nearly always a slip, so it is a warning here.
+ *
+ * A zero written as a decimal (`1.0 / 0.0`, `0.0 / 0.0`) is left alone: that
+ * is how infinity and NaN are written on purpose (std.math, byte_buffer).
+ * `x /= 0` is the same division (assignment/compound_assignment.sharp).
+ */
+def warn_division_by_zero(context: analysis_context, right: bound_expression) {
+    d := problem_over(context, "W1044", "a division by zero", right.node);
+    d.with_label("this is 0");
+    d.with_note("a whole number divided by zero stops the program with invalid_operation_exception; a decimal divided by zero is infinity");
+    d.with_help("divide by the value you meant, or test the divisor first: `if(divisor != 0) { ... }`");
+    report(context, d);
+}

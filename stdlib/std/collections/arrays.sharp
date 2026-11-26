@@ -1,0 +1,260 @@
+mod std.collections;
+
+/**
+ * @class arrays
+ *
+ * Static helpers for arrays of OBJECTS (int[], string[], my_class[], ...):
+ * sorting, searching, copying, comparing. Nothing here needs an instance;
+ * name the element type and call the function:
+ *
+ *     words := new string[] { "pear", "fig", "apple" };
+ *     arrays<string>.sort(words, { a: string, b: string -> (decimal) return a.size() - b.size(); });
+ *     arrays<string>.index_of(words, "fig");        // 0
+ *
+ * For arrays of native numbers (decimal[]) use `var_arrays` instead.
+ *
+ * Ordering is always given as a comparison function:
+ *
+ *     compare(a, b) < 0     a sorts before b
+ *     compare(a, b) == 0    a and b sort the same
+ *     compare(a, b) > 0     a sorts after b
+ *
+ * Equality (index_of, contains, equals, count) uses `==`: numbers and
+ * strings compare by value, other objects by identity.
+ */
+class arrays<T> {
+
+    /**
+     * Sort an array in place, ascending according to `compare`. Always
+     * O(n log n) comparisons, and STABLE: elements that compare as equal
+     * keep the order they had (the merge sort of list: list.sort_array).
+     */
+    static def sort(items: T[], compare: (T, T)(decimal)) {
+        list<T>.sort_array(items, sizeof(items), compare);
+    }
+
+    /** A sorted copy of an array; the array itself is not changed. O(n log n), stable. */
+    static def sorted(items: T[], compare: (T, T)(decimal)) : T[] {
+        result := copy_of(items, sizeof(items));
+        sort(result, compare);
+        return result;
+    }
+
+    /** true when no element sorts before the one in front of it (also for empty and 1 element arrays). O(n). */
+    static def is_sorted(items: T[], compare: (T, T)(decimal)) : bool {
+        for(i : decimal = 1; i < sizeof(items); i++) {
+            if(compare(items[i - 1], items[i]) > 0) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Find `key` in an array that is SORTED according to `compare`, by
+     * halving the search range. O(log n).
+     *
+     * @return the index of an element that compares equal to `key`. When
+     *         there is none: -(insertion point) - 1, where the insertion
+     *         point is the index the key would have to be inserted at to
+     *         keep the array sorted. The result is therefore >= 0 exactly
+     *         when the key was found.
+     */
+    static def binary_search(items: T[], key: T, compare: (T, T)(decimal)) : decimal {
+        low : decimal = 0;
+        high : decimal = sizeof(items) - 1;
+        while(low <= high) {
+            middle : decimal = (low + high) >> 1;
+            order : decimal = compare(items[middle], key);
+            if(order == 0) return middle;
+            if(order < 0) low = middle + 1;
+            else high = middle - 1;
+        }
+        return 0 - low - 1;
+    }
+
+    /** Reverse the order of the elements in place. O(n). */
+    static def reverse(items: T[]) {
+        low : decimal = 0;
+        high : decimal = sizeof(items) - 1;
+        while(low < high) {
+            held := items[low];
+            items[low] = items[high];
+            items[high] = held;
+            low++;
+            high--;
+        }
+    }
+
+    /** A new array with the elements in reverse order. O(n). */
+    static def reversed(items: T[]) : T[] {
+        n : decimal = sizeof(items);
+        result := new T[n];
+        for(i : decimal = 0; i < n; i++)
+            result[i] = items[n - 1 - i];
+        return result;
+    }
+
+    /**
+     * Exchange the elements at two positions.
+     *
+     * @throws out_of_bounds_exception when a position is outside the array
+     */
+    static def swap(items: T[], first: int, second: int) {
+        n : decimal = sizeof(items);
+        if(first.value < 0 || first.value >= n || second.value < 0 || second.value >= n)
+            throw new out_of_bounds_exception("arrays.swap: index $first or $second is outside the array");
+        held := items[first.value];
+        items[first.value] = items[second.value];
+        items[second.value] = held;
+    }
+
+    /** Store the same object in every slot of the array. O(n). */
+    static def fill(items: T[], value: T) {
+        for(i : decimal = 0; i < sizeof(items); i++)
+            items[i] = value;
+    }
+
+    /**
+     * A new array of length `new_length` that starts with the elements of
+     * `items`. A shorter length cuts elements off the end; a longer length
+     * leaves the extra slots empty (null). O(new_length).
+     *
+     * @throws illegal_argument_exception when new_length is negative
+     */
+    static def copy_of(items: T[], new_length: int) : T[] {
+        if(new_length.value < 0)
+            throw new illegal_argument_exception("arrays.copy_of: negative length $new_length");
+
+        result := new T[new_length.value];
+        n : decimal = sizeof(items);
+        if(new_length.value < n) n = new_length.value;
+        for(i : decimal = 0; i < n; i++)
+            result[i] = items[i];
+        return result;
+    }
+
+    /**
+     * A new array with the elements items[from] .. items[to - 1].
+     *
+     * @throws out_of_bounds_exception when from < 0, to > length or from > to
+     */
+    static def copy_of_range(items: T[], from: int, to: int) : T[] {
+        if(from.value < 0 || to.value > sizeof(items) || from.value > to.value)
+            throw new out_of_bounds_exception("arrays.copy_of_range: range $from..$to is outside the array");
+
+        result := new T[to.value - from.value];
+        for(i : decimal = from.value; i < to.value; i++)
+            result[i - from.value] = items[i];
+        return result;
+    }
+
+    /** A new array with the elements of `first` followed by the elements of `second`. O(n + m). */
+    static def concat(first: T[], second: T[]) : T[] {
+        n : decimal = sizeof(first);
+        m : decimal = sizeof(second);
+        result := new T[n + m];
+        for(i : decimal = 0; i < n; i++)
+            result[i] = first[i];
+        for(i : decimal = 0; i < m; i++)
+            result[n + i] = second[i];
+        return result;
+    }
+
+    /** Index of the first element that equals `element`, or -1. O(n). */
+    static def index_of(items: T[], element: T) : decimal {
+        for(i : decimal = 0; i < sizeof(items); i++) {
+            if(items[i] == element) return i;
+        }
+        return -1;
+    }
+
+    /** Index of the last element that equals `element`, or -1. O(n). */
+    static def last_index_of(items: T[], element: T) : decimal {
+        for(i : decimal = sizeof(items) - 1; i >= 0; i--) {
+            if(items[i] == element) return i;
+        }
+        return -1;
+    }
+
+    /** true when an element equals `element`. O(n). */
+    static def contains(items: T[], element: T) : bool {
+        return index_of(items, element) >= 0;
+    }
+
+    /** How many elements equal `element`. O(n). */
+    static def count(items: T[], element: T) : decimal {
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(items); i++) {
+            if(items[i] == element) total++;
+        }
+        return total;
+    }
+
+    /**
+     * The element that sorts first according to `compare` (the first of
+     * them when several tie). O(n).
+     *
+     * @throws illegal_argument_exception when the array is empty
+     */
+    static def min(items: T[], compare: (T, T)(decimal)) : T {
+        if(sizeof(items) == 0)
+            throw new illegal_argument_exception("arrays.min: the array is empty");
+        best := items[0];
+        for(i : decimal = 1; i < sizeof(items); i++) {
+            if(compare(items[i], best) < 0) best = items[i];
+        }
+        return best;
+    }
+
+    /**
+     * The element that sorts last according to `compare` (the first of them
+     * when several tie). O(n).
+     *
+     * @throws illegal_argument_exception when the array is empty
+     */
+    static def max(items: T[], compare: (T, T)(decimal)) : T {
+        if(sizeof(items) == 0)
+            throw new illegal_argument_exception("arrays.max: the array is empty");
+        best := items[0];
+        for(i : decimal = 1; i < sizeof(items); i++) {
+            if(compare(items[i], best) > 0) best = items[i];
+        }
+        return best;
+    }
+
+    /**
+     * Add up a number taken from every element:
+     * arrays<int>.sum_of(numbers, { n: int -> (decimal) return n.value; }). O(n).
+     */
+    static def sum_of(items: T[], selector: (T)(decimal)) : decimal {
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(items); i++)
+            total += selector(items[i]);
+        return total;
+    }
+
+    /** true when both arrays have the same length and equal elements at every position. O(n). */
+    static def equals(first: T[], second: T[]) : bool {
+        if(sizeof(first) != sizeof(second)) return false;
+        for(i : decimal = 0; i < sizeof(first); i++) {
+            if(first[i] != second[i]) return false;
+        }
+        return true;
+    }
+
+    /** A new `list` with the elements of the array, in the same order. O(n). */
+    static def to_list(items: T[]) : list<T> {
+        result := new list<T>();
+        for(i : decimal = 0; i < sizeof(items); i++)
+            result.add(items[i]);
+        return result;
+    }
+
+    /** A new array with the elements of a `list`, in the same order (length 0 for an empty list). O(n). */
+    static def from_list(items: list<T>) : T[] {
+        n : decimal = items.size();
+        result := new T[n];
+        for(i : decimal = 0; i < n; i++)
+            result[i] = items.at(i);
+        return result;
+    }
+}

@@ -1,0 +1,115 @@
+mod std.guikit.widgets.input;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * form - the rules a set of fields must pass before something is saved, and
+ * what to tell the user when they do not.
+ *
+ *      class new_task_model base view_model {          // (or any class: the form is plain logic)
+ *          title    := state("");
+ *          estimate := state("");
+ *          rules    := form();
+ *
+ *          new_task_model() {
+ *              rules.require(title, "Give the task a title");
+ *              rules.rule(estimate, "A number above 0") { v: string -> return is_positive(v); };
+ *          }
+ *
+ *          def save() {
+ *              if(rules.check() == 1) { ... }          // all fine: go ahead
+ *          }
+ *      }
+ *
+ *      // the screen only shows what the form found:
+ *      text_field(model.title).label("Title").error(model.rules.problem_of(model.title));
+ *
+ * check() runs every rule and remembers, per field, the message of the first
+ * rule it broke. problem_of(field) gives that message ("" when the field is
+ * fine) - and because it reads a state, the screen shows the red text the
+ * moment check() ran, and loses it again when a later check() passes.
+ *
+ * Nothing is shown before the first check(): a form that is red before the
+ * user typed anything is rude.
+ * (Android: TextInputLayout.setError driven from a ViewModel. Compose: the
+ * same, with isError / supportingText.)
+ */
+stable class form {
+    private rules : list<form_rule> = new list<form_rule>();
+    private checked : state<_int64> = new state<_int64>(0);     // bumped by every check(): what the screen watches
+
+    /** this field must not be empty (spaces alone do not count) */
+    def require(field: state<string>, message: string) : form {
+        rules.add(new form_rule(field, message, { v: string -> return 1 - txt.is_blank(v); }));
+        return self;
+    }
+
+    /** this field must pass `passes` (it gives 1 when the text is fine) */
+    def rule(field: state<string>, message: string, passes: (string)(_int64)) : form {
+        rules.add(new form_rule(field, message, passes));
+        return self;
+    }
+
+    /** this field must not be longer than `letters` */
+    def at_most(field: state<string>, letters: _int64, message: string) : form {
+        rules.add(new form_rule(field, message, { v: string ->
+            if(txt.letters(v, v.size()) <= letters) { return 1; }
+            return 0;
+        }));
+        return self;
+    }
+
+    /** run every rule. Gives 1 when all passed, 0 when at least one field has a problem. */
+    def check() : _int64 {
+        fine : _int64 = 1;
+        count : _int64 = rules.size();
+        for(i : _int64 = 0; i < count; i++) {
+            one : form_rule = rules.at(i);
+            one.broken = 0;
+            if(one.passes(one.field.peek()) == 0) {
+                one.broken = 1;
+                fine = 0;
+            }
+        }
+        checked.value = checked.peek() + 1;         // whoever showed a problem is built again
+        return fine;
+    }
+
+    /** the message of the first rule this field broke at the last check(); "" when it is fine */
+    def problem_of(field: state<string>) : string {
+        seen : _int64 = checked.value;              // read: the screen is rebuilt after the next check()
+        count : _int64 = rules.size();
+        for(i : _int64 = 0; i < count; i++) {
+            one : form_rule = rules.at(i);
+            if(one.broken == 1 && one.field == field) {
+                return one.message;
+            }
+        }
+        return "";
+    }
+
+    /** forget what the last check() found (when a sheet or dialog with the form is opened afresh) */
+    def clear() {
+        count : _int64 = rules.size();
+        for(i : _int64 = 0; i < count; i++) {
+            rules.at(i).broken = 0;
+        }
+        checked.value = checked.peek() + 1;
+    }
+}
+
+/** one rule of a form: this field, this test, this message when the test fails */
+local stable class form_rule {
+    field : state<string>;
+    message : string = "";
+    passes : (string)(_int64);
+    broken : _int64 = 0;                // 1: the last check() found this rule broken
+
+    form_rule(target: state<string>, words: string, test: (string)(_int64)) {
+        field = target;
+        message = words;
+        passes = test;
+    }
+}

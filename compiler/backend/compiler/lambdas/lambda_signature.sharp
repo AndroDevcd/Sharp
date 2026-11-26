@@ -1,0 +1,282 @@
+mod backend.compiler.lambdas;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions
+)
+
+/**
+ * THE TYPE OF A LAMBDA: what is written, completed by what is expected
+ *
+ * A lambda is analysed against the function type EXPECTED where it stands -
+ * the parameter it is passed to (after overload resolution), the variable or
+ * field it is the value of, the function it is returned from:
+ *
+ *                              with an expected type (p...)(r)          without one (`f := { ... };`)
+ *      number of parameters    must be the same (E0801)                  as written
+ *      a parameter with a type the same as expected (E0802)              as written
+ *      a parameter without     the expected type                         E0800: nothing says what it is
+ *      the result, written     the same as `r` (E0803)                   as written
+ *      the result, not written `r`                                       worked out from the body
+ *                                                                        (lambda_body.sharp) [D11]
+ *
+ * The form without an arrow (`xs.each { println(it); }`) takes its
+ * parameters entirely from the expected type: none when it has none, one
+ * hidden parameter called `it` when it has exactly one, and E0801 when it
+ * has more (they need names).
+ *
+ * "The same" lets the expected side have a `?` the lambda's does not: a
+ * lambda written `{ s: string -> ... }` may be handed where `(string?)(...)`
+ * is expected, as in the C++ compiler, whose comparison lets the receiving
+ * side be nullable (conversions/implicit_conversion.sharp, function_types_fit).
+ *
+ *      C++ comparison: `fully_qualify_function` in types/sharp_function.cpp
+ *      copies the expected types into the untyped places; a lambda that does
+ *      not fit is "cannot assign field `f` ... as types do not match" or
+ *      "could not resolve symbol `apply(@anonymous_fun(any, any): any)`".
+ */
+class lambda_signature {
+    names : list<string>;
+    nodes : _int64[];                           // where each parameter is written (the lambda itself for `it`)
+    types : list<resolved_type>;
+    hidden_it : _int64 = 0;                     // 1: the one parameter is the `it` nobody wrote
+    result : resolved_type?;                    // null: to be worked out from the body
+    mismatch : _int64 = 0;                      // 1: it does not fit the expected type (reported)
+
+    lambda_signature(count: _int64) {
+        names = new list<string>();
+        nodes = new _int64[count];
+        types = new list<resolved_type>();
+    }
+}
+
+/**
+ * The parameters and result of the lambda `form`, given the function type
+ * `expected` (null: nothing is expected). Reports E0800 - E0803.
+ *
+ * @param as_argument  1: the lambda is an argument of a call; a written result
+ *        other than the expected one is then not E0803 but W1029, reported
+ *        when the value is passed (lambdas.sharp, `loosely_converted`)
+ */
+def lambda_signature_of(context: analysis_context, form: lambda_form, expected: resolved_type?, as_argument: _int64) : lambda_signature {
+    error_type : resolved_type = context.session.types.error_type;
+    if(form.has_arrow == 0) { return signature_without_arrow(context, form, expected); }
+
+    count : _int64 = form.names.size();
+    made := new lambda_signature(count);
+    expected_count : _int64 = 0 - 1;
+    if(expected != null) { expected_count = expected!!.parameters!!.size(); }
+    if(expected != null && expected_count != count) {
+        report_parameter_count(context, form, expected!!);
+        made.mismatch = 1;
+    }
+
+    for(i : _int64 = 0; i < count; i++) {
+        made.names.add(form.names.at(i));
+        made.nodes[i] = form.name_nodes[i];
+        wanted : resolved_type? = null;
+        if(expected != null && i < expected_count) { wanted = expected!!.parameters!!.at(i); }
+
+        if(form.is_typed[i] == 1) {
+            written : resolved_type = form.written_types.at(i);
+            if(wanted != null && made.mismatch == 0 && written.kind != RT_ERROR && wanted!!.kind != RT_ERROR
+               && !same_or_nullable_of(written, wanted!!)) {
+                report_parameter_type(context, form, i, written, wanted!!);
+                made.mismatch = 1;
+            }
+            made.types.add(written);
+        } else if(wanted != null) {
+            made.types.add(wanted!!);
+        } else {
+            if(expected == null) { report_untyped_parameter(context, form, i); }
+            made.types.add(error_type);
+        }
+    }
+
+    if(form.has_result == 1) {
+        made.result = form.result;
+        if(expected != null && made.mismatch == 0 && as_argument == 0) {
+            // (an argument: only the parameters are compared - W1029 when the call is bound)
+            wanted_result : resolved_type = expected!!.result!!;
+            if(form.result!!.kind != RT_ERROR && wanted_result.kind != RT_ERROR && !same_or_nullable_of(form.result!!, wanted_result)) {
+                report_result_type(context, form, form.result!!, wanted_result);
+                made.mismatch = 1;
+            }
+        }
+    } else if(expected != null && made.mismatch == 0) {
+        // (when the lambda was just reported as not fitting the expected type, its result is
+        // worked out from its own returns: checking them against that type would only tell
+        // the same mistake again - one mistake, one message)
+        made.result = expected!!.result;
+    }
+    return made;
+}
+
+/** `{ println(it); }`: everything comes from the expected type */
+def signature_without_arrow(context: analysis_context, form: lambda_form, expected: resolved_type?) : lambda_signature {
+    if(expected == null) {
+        report_nothing_expected(context, form);
+        made := new lambda_signature(1);
+        made.mismatch = 1;
+        made.names.add("it");               // so that a use of `it` inside is not a second message
+        made.nodes[0] = form.node;
+        made.types.add(context.session.types.error_type);
+        made.hidden_it = 1;
+        return made;
+    }
+    count : _int64 = expected!!.parameters!!.size();
+    if(count > 1) {
+        report_needs_names(context, form, expected!!);
+        made := new lambda_signature(1);
+        made.mismatch = 1;
+        made.names.add("it");               // so that a use of `it` inside is not a second message
+        made.nodes[0] = form.node;
+        made.types.add(context.session.types.error_type);
+        made.hidden_it = 1;
+        if(form.has_result == 1) { made.result = form.result; }     // (otherwise worked out from its returns)
+        return made;
+    }
+    made := new lambda_signature(count);
+    if(count == 1) {
+        made.names.add("it");
+        made.nodes[0] = form.node;
+        made.types.add(expected!!.parameters!!.at(0));
+        made.hidden_it = 1;
+    }
+    made.result = expected!!.result;
+    if(form.has_result == 1) { made.result = form.result; }
+    return made;
+}
+
+/** E0801: `{ x, y -> ... }` where one parameter is expected */
+def report_parameter_count(context: analysis_context, form: lambda_form, expected: resolved_type) {
+    count : _int64 = form.names.size();
+    expected_count : _int64 = expected.parameters!!.size();
+    d := problem_at(context, "E0801", "this lambda takes " + count_words(count, "parameter") + ", but `"
+                    + expected.to_text() + "` takes " + count_words(expected_count, "parameter"), form.node);
+    d.with_label("written with " + count_words(count, "parameter"));
+    d.with_note("a lambda is called by whoever it is handed to, with the arguments its function type lists");
+    d.with_help("write it as `{ " + parameter_list_for(expected) + " -> ... }`");
+    report(context, d);
+}
+
+/** E0801 for the form without an arrow: several values are passed, and they need names */
+def report_needs_names(context: analysis_context, form: lambda_form, expected: resolved_type) {
+    d := problem_at(context, "E0801", "this lambda is handed " + count_words(expected.parameters!!.size(), "value")
+                    + " (`" + expected.to_text() + "`), but it is written without parameters", form.node);
+    d.with_label("no `->`: only one value can be called `it`");
+    d.with_note("a lambda written without `->` has `it` when its function type has ONE parameter, and nothing else");
+    d.with_help("name the parameters: `{ " + parameter_list_for(expected) + " -> ... }`");
+    report(context, d);
+}
+
+/** E0802: a written parameter type that is not the one the function type passes */
+def report_parameter_type(context: analysis_context, form: lambda_form, position: _int64, written: resolved_type, wanted: resolved_type) {
+    node : _int64 = form.name_nodes[position];
+    d := problem_over(context, "E0802", "the parameter `" + form.names.at(position) + "` is written `" + written.to_text()
+                      + "`, but the function type passes a `" + wanted.to_text() + "` there", node);
+    d.with_label("`" + wanted.to_text() + "` is expected");
+    d.with_note("a lambda's parameters must be exactly the types its function type lists; there is no conversion on the way in");
+    d.with_help("write `" + form.names.at(position) + ": " + wanted.to_text() + "`, or leave the type out and it is taken from the function type");
+    report(context, d);
+}
+
+/** E0803: a written result type that is not the expected one */
+def report_result_type(context: analysis_context, form: lambda_form, written: resolved_type, wanted: resolved_type) {
+    node : _int64 = form.result_node;
+    if(node < 0) { node = form.node; }
+    d := problem_over(context, "E0803", "this lambda returns `" + written.to_text() + "`, but `" + wanted.to_text()
+                      + "` is expected", node);
+    d.with_label("the result written here");
+    d.with_note("the result of a lambda must be exactly what its function type says");
+    if(wanted.kind == RT_NIL) { d.with_help("write `(nil)`, or leave the result out"); }
+    else { d.with_help("write `(" + wanted.to_text() + ")`, or leave the result out and it is taken from the function type"); }
+    report(context, d);
+}
+
+/** E0800: an untyped parameter and nothing that says its type */
+def report_untyped_parameter(context: analysis_context, form: lambda_form, position: _int64) {
+    name := form.names.at(position);
+    d := problem_at(context, "E0800", "the type of the lambda parameter `" + name + "` is not known", form.name_nodes[position]);
+    d.with_label("no type written, and nothing here expects a function type");
+    d.with_note("a parameter without a type takes it from where the lambda is used - a parameter or variable of a function type; here there is none");
+    d.with_help("write its type: `" + name + ": <type>`, or give the variable a function type: `f : (<type>)(<result>) = { ... };`");
+    report(context, d);
+}
+
+/** E0800 for the form without an arrow, where nothing is expected */
+def report_nothing_expected(context: analysis_context, form: lambda_form) {
+    d := problem_at(context, "E0800", "nothing says what this lambda's parameters are", form.node);
+    d.with_label("written without `->`, and not handed to a function type");
+    d.with_note("a lambda written without `->` takes its parameters from the function it is passed to");
+    d.with_help("write them out: `{ x: <type> -> ... }`, or `{ -> ... }` for none");
+    report(context, d);
+}
+
+/**
+ * A lambda written fully typed in place (`apply({ x: string -> (decimal) ... }, 9)`)
+ * that the one function it is passed to cannot take: the lambda rule's own
+ * message, at the part of the lambda that is wrong - E0801 for the count,
+ * E0802 at the parameter with the other type. Returns 1 when it reported,
+ * 0 when the parameters fit (a result that differs is the caller's to say).
+ *
+ * @param receiver  "`apply`": who passes the arguments, for the message
+ */
+def report_written_lambda_against(context: analysis_context, lambda: bound_lambda, wanted: resolved_type, receiver: string) : _int64 {
+    function : sharp_function = lambda.function;
+    count : _int64 = function.parameters.size();
+    expected_count : _int64 = wanted.parameters!!.size();
+    if(count != expected_count) {
+        d := problem_at(context, "E0801", "this lambda takes " + count_words(count, "parameter") + ", but " + receiver
+                        + " passes " + count_words(expected_count, "value") + " (`" + wanted.to_text() + "`)", lambda.node);
+        d.with_label("written with " + count_words(count, "parameter"));
+        d.with_note("a lambda is called by whoever it is handed to, with the arguments its function type lists");
+        d.with_help("write it as `{ " + parameter_list_for(wanted) + " -> ... }`");
+        report(context, d);
+        return 1;
+    }
+    for(i : _int64 = 0; i < count; i++) {
+        parameter := function.parameters.at(i);
+        written : resolved_type? = parameter.value_type;
+        passed : resolved_type = wanted.parameters!!.at(i);
+        if(written == null || written!!.kind == RT_ERROR || passed.kind == RT_ERROR || same_or_nullable_of(written!!, passed)) { continue; }
+        d := problem_over(context, "E0802", "the parameter `" + parameter.name + "` is written `" + written!!.to_text()
+                          + "`, but " + receiver + " passes a `" + passed.to_text() + "` there", parameter.node);
+        d.with_label("`" + passed.to_text() + "` is expected");
+        d.with_note("a lambda's parameters must be exactly the types its function type lists; there is no conversion on the way in");
+        d.with_help("write `" + parameter.name + ": " + passed.to_text() + "`, or leave the type out and it is taken from the function type");
+        report(context, d);
+        return 1;
+    }
+    return 0;
+}
+
+/** "1 parameter", "2 parameters" */
+def count_words(count: _int64, word: string) : string {
+    if(count == 1) { return "1 " + word; }
+    return "" + count + " " + word + "s";
+}
+
+/** "a: int, b: string": parameters to write for a function type */
+def parameter_list_for(expected: resolved_type) : string {
+    text := new string_builder("");
+    for(i : _int64 = 0; i < expected.parameters!!.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        text.append(parameter_letter(i));
+        text.append(": " + expected.parameters!!.at(i).to_text());
+    }
+    return text.build();
+}
+
+/** a, b, c, d, then p5, p6 ...: names for the parameters of a suggested lambda */
+def parameter_letter(position: _int64) : string {
+    if(position == 0) { return "a"; }
+    if(position == 1) { return "b"; }
+    if(position == 2) { return "c"; }
+    if(position == 3) { return "d"; }
+    return "p" + (position + 1);
+}

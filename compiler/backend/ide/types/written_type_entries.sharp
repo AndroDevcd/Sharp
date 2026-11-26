@@ -1,0 +1,137 @@
+mod backend.ide.types;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system
+)
+
+/**
+ * A WRITTEN TYPE -> ITS ID
+ *
+ * Declarations use the type as the programmer WROTE it: a field `item : T?`
+ * of a generic class keeps its `T`, so that the plugin can put the receiver's
+ * type argument in when it shows the member of `box<string>`.
+ *
+ * Where each part of the entry comes from (`sharp_type`, sharp_type.sharp):
+ *
+ *      text        to_text()                          `list<string>?`
+ *      class       look_through(type).declaration     follows an alias to the class it stands for
+ *      args        the arguments of that type         recursively their ids
+ *      array       is_array (also through an alias)   `element` is the type without the `[]`
+ *      nullable    is_nullable (also through an alias)
+ *      param       the declaration is a type parameter
+ *      function    form == TYPE_FUNCTION
+ *
+ * A name that was not found (`declaration == null`) and the type of
+ * "returns nothing" have no entry: the id is -1.
+ *
+ * SPEED. A member is described in a few thousand places and the same few
+ * hundred types come up again and again. Building a type's text and its entry
+ * to look them up costs some 300 objects; so a type is found again by NUMBERS
+ * wherever that can be done, without making a single object
+ * (`int_table.sharp`):
+ *
+ *      string, T?, int[]           by the declaration it names (its file and node) and its marks
+ *      list<T>, hash_map<k, v>?    by the same, and the ids of its one or two type arguments
+ *
+ * Only a type seen for the first time, one with more than two arguments, or a
+ * function type builds its text and its entry. (On the standard library that
+ * is 400 of 10,700 questions.)
+ */
+def written_type_id(types: ide_types, type: sharp_type?) : _int64 {
+    if(type == null) { return 0 - 1; }
+    t : sharp_type = type!!;
+    if(t.form == TYPE_NIL) { return 0 - 1; }
+    if(t.form == TYPE_NAMED && t.declaration == null) { return 0 - 1; }
+
+    quick : _int64 = 0;         // 1: this type can be found by number (and `quick_key` says which); 2: in the table of generic types
+    quick_key : _int64 = 0;
+    argument_count : _int64 = t.arguments.size();
+    marks : _int64 = t.is_array + 2 * t.is_nullable + 4 * t.has_nullable_items;
+    if(argument_count == 0 && (t.form == TYPE_NAMED || t.form == TYPE_NATIVE)) {
+        if(t.form == TYPE_NAMED) {
+            named : sharp_declaration = t.declaration!!;
+            quick_key = (types.files.index_of(named.unit) * 16777216 + named.node) * 8 + marks;
+        } else {
+            quick_key = (0 - 1 - t.native_kind) * 8 + marks;
+        }
+        quick = 1;
+        found : _int64 = types.simple.find(quick_key);
+        if(found != 0 - 2) { return found; }
+    } else if(argument_count <= 2 && t.form == TYPE_NAMED) {
+        // list<T>, hash_map<k, v>: the number is made of the class and the ids of the arguments.
+        // Each part has its own room in the number - 10 bits for the file, 24 for the node, 3 for
+        // the marks, 12 for each argument id (plus one, so that "no second argument" is 0) - and a
+        // type whose parts do not fit goes the long way below.
+        generic_class : sharp_declaration = t.declaration!!;
+        class_file : _int64 = types.files.index_of(generic_class.unit);
+        first : _int64 = written_type_id(types, t.arguments.at(0));
+        second : _int64 = 0 - 1;
+        if(argument_count == 2) { second = written_type_id(types, t.arguments.at(1)); }
+        if(class_file < 1024 && generic_class.node < 16777216 && first >= 0 && first < 4095 && second < 4095
+           && (argument_count == 1 || second >= 0)) {
+            quick_key = (((class_file * 16777216 + generic_class.node) * 8 + marks) * 4096 + (first + 1)) * 4096 + (second + 1);
+            quick = 2;
+            found : _int64 = types.generic.find(quick_key);
+            if(found != 0 - 2) { return found; }
+        }
+    }
+
+    seen := look_through(t, null);
+    target : sharp_type = seen.type;
+
+    class_id : string = "";
+    is_parameter : _int64 = 0;
+    if(target.form == TYPE_NAMED && target.declaration != null) {
+        declared : sharp_declaration = target.declaration!!;
+        if(declared.kind == D_CLASS || declared.kind == D_INTERFACE || declared.kind == D_ENUM) {
+            class_id = (declared as sharp_class).written.full_name();
+        } else if(declared.kind == D_TYPE_PARAMETER) {
+            is_parameter = 1;
+        }
+    }
+
+    args_text : string = "";
+    for(i : _int64 = 0; i < target.arguments.size(); i++) {
+        args_text = join_ids(args_text, written_type_id(types, target.arguments.at(i)));
+    }
+
+    is_function : _int64 = 0;
+    if(target.form == TYPE_FUNCTION) { is_function = 1; }
+
+    text : string = t.to_text();
+    element : _int64 = 0 - 1;
+    if(seen.is_array == 1) {
+        // the item type: the same entry without the `[]` (text, flags of the items). When the `[]` is
+        // not written here but comes from an alias (`alias string[] as words`, then `w : words`), the
+        // text to take it off is the alias's target: the items of `words` are `string`, not `words`.
+        item_nullable : _int64 = t.has_nullable_items;
+        array_text : string = text;
+        if(target != t) { array_text = target.to_text(); }
+        item_text : string = text_without_array_marks(array_text, item_nullable);
+        element = types.intern(entry_text(types, item_text, class_id, args_text, 0, 0 - 1, item_nullable, is_parameter, is_function),
+                               item_text);
+    }
+
+    id : _int64 = types.intern(entry_text(types, text, class_id, args_text, seen.is_array, element, seen.is_nullable,
+                                         is_parameter, is_function), text);
+    if(quick == 1) { types.simple.add(quick_key, id); }
+    if(quick == 2) { types.generic.add(quick_key, id); }
+    return id;
+}
+
+/**
+ * "string[]?" -> "string": what an array type's items are called. The marks
+ * at the end of a type's text are `[]`, then `?` (the array may be null) and
+ * `?` (its items may be null); the items keep only the last one.
+ */
+def text_without_array_marks(text: string, items_nullable: _int64) : string {
+    data : _int8[]? = text.data;
+    end : _int64 = sizeof(data);
+    while(end > 0 && data!![end - 1] == '?') { end--; }
+    if(end >= 2 && data!![end - 1] == ']' && data!![end - 2] == '[') { end = end - 2; }
+    result : string = new string(data!!, 0, end);
+    if(items_nullable == 1) { result = result + "?"; }
+    return result;
+}

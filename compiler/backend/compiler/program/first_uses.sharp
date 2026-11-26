@@ -1,0 +1,147 @@
+mod backend.compiler.program;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements
+)
+
+/**
+ * THE FIRST THING A PIECE OF CODE DOES WITH EACH FIELD OF ITS OBJECT
+ *
+ *      holder(n: _int64) {
+ *          println(count);         count: READ first
+ *          item = new node();      item:  WRITTEN first
+ *          count = n;              (count was read before: it stays READ)
+ *      }                           other: not used at all
+ *
+ * required_values.sharp asks, for every field that must be given a value,
+ * whether a constructor (or an init block) assigns it before anything reads
+ * it. This file answers for ALL the fields asked about in ONE walk over the
+ * code: a `first_uses` holds the fields and, beside each, what was seen
+ * first. (Walking the constructor once per field made the check the slowest
+ * part of the whole-program pass on a program with many fields.)
+ *
+ * The order is the order the code is written in, branches included - the
+ * C++ compiler's rule (D82), not a flow analysis:
+ *
+ *   - a statement: its expressions, then the statements inside it;
+ *   - `item = v`: `v` is evaluated first, then the field is stored;
+ *   - any other mention of the field OF THIS OBJECT (`item`, `self->item`,
+ *     `item.n`, `item += 1`) reads it; `other.item` is another object's;
+ *   - a lambda is skipped: its body runs later, when it is called.
+ *
+ *      C++ comparison: finalizer/optimization/initialization_validator.cpp
+ *      (the first `dependency` on the field in the function's code).
+ */
+const FIRST_NOTHING : _int64 = 0;   // the field is not used at all
+const FIRST_WRITE   : _int64 = 1;   // assigned before anything reads it
+const FIRST_READ    : _int64 = 2;   // read before anything assigns it
+
+class first_uses {
+    fields : list<sharp_field>;     // the fields asked about
+    states : _int64[];              // per field: FIRST_...
+
+    first_uses(fields: list<sharp_field>) {
+        self->fields = fields;
+        states = new _int64[fields.size()];
+    }
+
+    /** what was seen first for the field (FIRST_NOTHING for one not asked about) */
+    def state_of(field: sharp_field) : _int64 {
+        for(i : _int64 = 0; i < fields.size(); i++) {
+            if(fields.at(i) == field) { return states[i]; }
+        }
+        return FIRST_NOTHING;
+    }
+
+    /** the field is read or written here: remembered when it is the first time */
+    def see(field: sharp_field, how: _int64) {
+        for(i : _int64 = 0; i < fields.size(); i++) {
+            if(fields.at(i) == field) {
+                if(states[i] == FIRST_NOTHING) { states[i] = how; }
+                return;
+            }
+        }
+    }
+}
+
+/** the first uses in a constructor or init block: its base call, then its body */
+def note_first_uses_in_function(function: sharp_function, uses: first_uses) {
+    if(function.bound_base_call != null) { note_first_uses_in_expression(function.bound_base_call!!, uses); }
+    if(function.bound_body != null) { note_first_uses_in_statement(function.bound_body!!, uses); }
+}
+
+/**
+ * A statement: its expressions, then the statements inside it. Both walks
+ * below keep the work still to do on a list of their own (a stack) instead
+ * of calling themselves for each part: a chain of a thousand `else if`s or a
+ * sum of a thousand terms is a tree a thousand levels deep, more than the
+ * VM's stack holds.
+ */
+def note_first_uses_in_statement(statement: bound_statement, uses: first_uses) {
+    waiting := new list<bound_statement>();         // what is still to be visited, the next one last
+    expressions := new list<bound_expression>();
+    inside := new list<bound_statement>();
+    waiting.add(statement);
+    while(waiting.size() > 0) {
+        next : bound_statement = waiting.pop_last();
+        expressions.clear();
+        inside.clear();
+        statement_parts(next, expressions, inside);
+        for(i : _int64 = 0; i < expressions.size(); i++) { note_first_uses_in_expression(expressions.at(i), uses); }
+        for(i : _int64 = inside.size() - 1; i >= 0; i--) { waiting.add(inside.at(i)); }
+    }
+}
+
+/** an expression, in the order it is evaluated */
+def note_first_uses_in_expression(expression: bound_expression, uses: first_uses) {
+    waiting := new list<bound_expression>();        // what is still to be visited, the next one last
+    parts := new list<bound_expression>();
+    waiting.add(expression);
+    while(waiting.size() > 0) {
+        next : bound_expression = waiting.pop_last();
+        if(next.kind == BX_LAMBDA) { continue; }        // its body runs later, when it is called
+
+        if(next.kind == BX_ASSIGN) {
+            assign := next as bound_assign;
+            target := field_of_this_object(assign.target);
+            if(assign.operation == 0 && target != null) {
+                // (the one place that calls itself: once per `a = b = c`, never deep)
+                note_first_uses_in_expression(assign.value, uses);      // the value first ...
+                uses.see(target!!, FIRST_WRITE);                        // ... then the store
+                continue;
+            }
+        }
+
+        read := field_of_this_object(next);
+        if(read != null) {
+            uses.see(read!!, FIRST_READ);
+            continue;
+        }
+        if(next.kind == BX_WITH) {
+            // its value, then its blocks: statements, walked as such (once per `with`, never deep)
+            held := next as bound_with;
+            note_first_uses_in_expression(held.subject, uses);
+            note_first_uses_in_statement(held.then_part, uses);
+            if(held.else_part != null) { note_first_uses_in_statement(held.else_part!!, uses); }
+            continue;
+        }
+        parts.clear();
+        add_parts(next, parts);
+        for(i : _int64 = parts.size() - 1; i >= 0; i--) { waiting.add(parts.at(i)); }
+    }
+}
+
+/**
+ * The field, when the expression is a field of the object being made (or a
+ * static field named without an object): `item`, `self->item`. Null for
+ * anything else, a field of another object (`other.item`) included.
+ */
+def field_of_this_object(expression: bound_expression) : sharp_field? {
+    if(expression.kind != BX_FIELD) { return null; }
+    read := expression as bound_field;
+    if(read.on != null && read.on!!.kind != BX_SELF) { return null; }
+    return read.field;
+}

@@ -1,0 +1,180 @@
+mod std.io.coroutines;
+
+import ( std.io )
+
+/**
+ * dispatchers - the ready made coroutine dispatchers.
+ *
+ * USAGE
+ *     launch_on(dispatchers.default_pool(), { -> crunch(); });     // in parallel, on the worker threads
+ *     launch_on(dispatchers.current_thread(), { -> step(); });     // on this thread, when it is free
+ *     db := dispatchers.single_thread("db");                       // a thread of its own
+ *
+ *     which one a coroutine gets when you do not say:
+ *       launch { } at top level (global_scope)        default_pool()
+ *       launch { } inside run_blocking { }            the thread that called run_blocking
+ *       launch { } inside another coroutine           the same as that coroutine
+ *
+ * Kotlin equivalent: kotlinx.coroutines.Dispatchers
+ *     Dispatchers.Default      -> default_pool()
+ *     Dispatchers.IO           -> io()
+ *     Dispatchers.Unconfined   -> unconfined()   (see there for the difference)
+ *     newSingleThreadContext   -> single_thread(name)
+ *     the runBlocking loop     -> current_thread()
+ * There is no Dispatchers.Main: use current_thread() on the thread you mean.
+ *
+ * LOCKING DISCIPLINE: `guard` protects pool, loose, timer_thread and
+ * wanted_parallelism (each dispatcher is created once, on first use).
+ */
+class dispatchers {
+
+    private static guard : object = new _object_();
+    private static pool : pool_dispatcher?;
+    private static loose : unconfined_dispatcher?;
+    private static timer_thread : thread_dispatcher?;
+    private static wanted_parallelism : decimal = 0;
+    private static io_pool : pool_dispatcher?;
+
+    /**
+     * The shared pool of worker threads: coroutines run in parallel on
+     * whichever thread is free. The threads are started with the first
+     * coroutine. Kotlin: Dispatchers.Default
+     */
+    static def default_pool() : coroutine_dispatcher {
+        return shared_pool();
+    }
+
+    /** the default pool as its own class, for get_parallelism() and is_started() */
+    static def shared_pool() : pool_dispatcher {
+        result : pool_dispatcher? = null;
+        lock(guard) {
+            if(pool == null) {
+                pool = new pool_dispatcher(wanted_parallelism);
+            }
+            result = pool;
+        }
+        return result!!;
+    }
+
+    /**
+     * Set the number of worker threads of the default pool. Call it before the
+     * first coroutine is started on the pool, afterwards it has no effect.
+     * @return true when the value was taken
+     */
+    static def set_parallelism(threads: decimal) : bool {
+        if(threads < 1) {
+            return false;
+        }
+
+        existing : pool_dispatcher? = null;
+        lock(guard) {
+            if(pool == null) {
+                wanted_parallelism = threads;
+            } else {
+                existing = pool;
+            }
+        }
+
+        if(existing != null) {
+            return existing!!.set_parallelism(threads);
+        }
+        return true;
+    }
+
+    /**
+     * Not tied to any thread and without worker threads of its own: the
+     * coroutine runs on whichever thread happens to be free, typically the
+     * thread of its creator the next time that thread waits.
+     * Kotlin's Dispatchers.Unconfined starts the coroutine inside the caller
+     * until its first suspension; a fiber cannot do that, so here it starts
+     * like any other coroutine.
+     */
+    /**
+     * A pool of threads kept for work that WAITS: reading and writing files,
+     * talking to a network, asking a database. Such work spends its time
+     * blocked, doing nothing, and on the default pool it would hold up the
+     * workers that are meant for computing. Here it has threads of its own
+     * (eight), started with the first coroutine that uses them.
+     *
+     *     launch_on(dispatchers.io(), { -> text := file_utils.read_text("big.txt"); });
+     *
+     * It is there in every program - with a window or without.
+     * Kotlin: Dispatchers.IO
+     */
+    static def io() : coroutine_dispatcher {
+        result : pool_dispatcher? = null;
+        lock(guard) {
+            if(io_pool == null) {
+                io_pool = new pool_dispatcher(8);
+            }
+            result = io_pool;
+        }
+        return result!!;
+    }
+
+    static def unconfined() : coroutine_dispatcher {
+        result : unconfined_dispatcher? = null;
+        lock(guard) {
+            if(loose == null) {
+                loose = new unconfined_dispatcher();
+            }
+            result = loose;
+        }
+        return result!!;
+    }
+
+    /**
+     * Coroutines run on the thread that calls this function, whenever that
+     * thread is free (its current fiber is suspended). This is what
+     * run_blocking { } gives its children.
+     */
+    static def current_thread() : coroutine_dispatcher {
+        return new thread_dispatcher(thread.current());
+    }
+
+    /** Coroutines run on `target`. */
+    static def on_thread(target: thread) : coroutine_dispatcher {
+        return new thread_dispatcher(target);
+    }
+
+    /**
+     * Starts a new thread called `name` and returns a dispatcher that runs
+     * every coroutine on it. Call close() on the result when you are done.
+     * Kotlin: newSingleThreadContext(name)
+     */
+    static def single_thread(name: string) : thread_dispatcher {
+        return new thread_dispatcher(name);
+    }
+
+    /**
+     * The thread the timers of with_timeout { } run on. One thread for the
+     * whole program, started with the first timeout: a time limit has to fire
+     * even when every other thread is busy.
+     */
+    static def timers() : coroutine_dispatcher {
+        result : thread_dispatcher? = null;
+        lock(guard) {
+            result = timer_thread;
+        }
+
+        if(result == null) {
+            // created outside the lock (starting a thread takes a while); if two
+            // fibers race here the thread that lost is closed again
+            created := new thread_dispatcher("coroutine-timers");
+            surplus : decimal = 0;
+            lock(guard) {
+                if(timer_thread == null) {
+                    timer_thread = created;
+                } else {
+                    surplus = 1;
+                }
+                result = timer_thread;
+            }
+
+            if(surplus != 0) {
+                created.close();
+            }
+        }
+        return result!!;
+    }
+}

@@ -1,0 +1,140 @@
+mod main;
+
+import ( std.testing, std.di, std.io )
+
+/**
+ * MOCKS (std.testing): mock<t>(), given { }, verify { } and provide<t>() { }.
+ *
+ * The words for mocks only work inside a `tests("...") { ... }` group - in
+ * one of its tests, or beside them as set-up. In the program's own code they
+ * are refused, so a running program never gets a stand-in that answers 0 and
+ * "" by mistake. provide<t>() is narrower still: inside one test.
+ */
+
+interface note_store {
+    def load() : list<string>;
+    def save(note: string);
+    def remove(note: string) : _int64;
+    def title() : string;
+}
+
+// functions that give back number OBJECTS: returns(4) must reach them as one
+interface gauge {
+    def level() : int;
+    def total() : long;
+    def reading() : int?;
+}
+
+interface clock {
+    def now() : string;
+}
+
+class system_clock : clock {
+    override def now() : string { return "the real time"; }
+}
+
+component program {
+    factory { replaceable<clock>() { return system_clock(); } }
+}
+
+class greeter {
+    inject time : clock;
+    def words() : string { return "it is " + time.now(); }
+}
+
+class fixed_clock : clock {
+    override def now() : string { return "09:30"; }
+}
+
+def one_note() : list<string> {
+    made := new list<string>();
+    made.add("milk");
+    return made;
+}
+
+/** what the framework says when `block` is refused ("" when it is not) */
+def refusal_of(block: ()()) : string {
+    try { block(); } catch(e: illegal_state_exception) { return e.get_message(); }
+    return "";
+}
+
+def main(args: string[]) {
+    show_only_failures();
+
+    // outside a group of tests: refused. Said here, checked in the first tests
+    outside_mock : string = refusal_of() { mock<note_store>(); };
+    outside_given : string = refusal_of() { given { one_note(); }.returns(1); };
+    outside_verify : string = refusal_of() { verify { one_note(); }.once(); };
+    outside_provide : string = refusal_of() { provide<clock>() { return new fixed_clock(); }; };
+
+    tests("lib_testing_mocks") {
+        beside := mock<note_store>();                   // beside the tests, as set-up: allowed
+        beside_provide : string = refusal_of() { provide<clock>() { return new fixed_clock(); }; };
+
+        test("mock<t>() is refused outside a group of tests") {
+            expect(outside_mock).should_contain("`mock<...>()` only works inside `tests(");
+        };
+        test("given { } is refused outside a group of tests") {
+            expect(outside_given).should_contain("`given { ... }` only works inside `tests(");
+        };
+        test("verify { } is refused outside a group of tests") {
+            expect(outside_verify).should_contain("`verify { ... }` only works inside `tests(");
+        };
+        test("provide is refused outside a test: in the program, and beside the tests") {
+            expect(outside_provide).should_contain("only works inside a `test(");
+            expect(beside_provide).should_contain("only works inside a `test(");
+        };
+
+        test("a mock made beside the tests works inside them") {
+            beside.save("milk");
+            verify { beside.save("milk"); }.once();
+        };
+
+        test("nothing set up: harmless answers, and the calls are remembered") {
+            store := mock<note_store>();
+            expect(store.load().size()).should_be(0);
+            expect(store.remove("x")).should_be(0);
+            expect(store.title()).should_be("");
+            expect(store.story()).should_be("load(), remove(\"x\"), title()");
+        };
+
+        test("given sets up a call, verify counts calls") {
+            store := mock<note_store>();
+            given { store.load(); }.returns(one_note());
+            given { store.remove(any_text()); }.returns(7);
+            expect(store.load().size()).should_be(1);
+            expect(store.remove("whatever")).should_be(7);
+            verify { store.load(); }.once();
+            verify { store.save(any_text()); }.never();
+        };
+
+        test("a function that gives back a number object takes returns(<a number>)") {
+            dial := mock<gauge>();
+            expect(dial.level().value).should_be(0);
+            expect(dial.reading() == null).should_be(true);
+            given { dial.level(); }.returns(4);
+            given { dial.total(); }.returns(5000000000);
+            given { dial.reading(); }.returns(9);
+            expect(dial.level().value).should_be(4);
+            expect(dial.total().value).should_be(5000000000);
+            expect(dial.reading()!!.value).should_be(9);
+        };
+
+        test("provide puts a stand-in where the program asks for one") {
+            provide<clock>() { return new fixed_clock(); };
+            expect(new greeter().words()).should_be("it is 09:30");
+        };
+
+        test("...and the stand-in ends with its test") {
+            expect(new greeter().words()).should_be("it is the real time");
+        };
+    };
+
+    after_mock : string = refusal_of() { mock<note_store>(); };
+    tests("lib_testing_mocks, after the group") {
+        test("once the group has ended a mock is refused again") {
+            expect(after_mock).should_contain("only works inside `tests(");
+        };
+    };
+    finish_tests("lib_testing_mocks");
+}

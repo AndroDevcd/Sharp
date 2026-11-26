@@ -1,0 +1,279 @@
+mod backend.optimizer.passes.registers;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * SLOT PACKING: values that are never alive at the same time share one slot of the frame
+ *
+ * The generator hands every value a slot, and the passes before this one add
+ * more (the slots of inlined bodies, one slot per field of a removed box) and
+ * leave many behind that nothing uses any more (a copy that was propagated
+ * away). The frame keeps its size all the same: a function that needed 14
+ * slots as generated had 34 after `-O`. On this VM the size of a frame is how
+ * deep a program can recurse - all the frames of a fiber share 4096 slots
+ * (doc/codegen.md 11.8) - so optimized code ran out of stack sooner than the
+ * code it was made from.
+ *
+ * This pass gives the slots new numbers so that the frame is as small as it
+ * can easily be made:
+ *
+ *      int_constant %7, 1                  int_constant %2, 1
+ *      int_binary add %8, %1, %7   ->      int_binary add %2, %1, %2       %7 is last read where %8 is
+ *      return_value %8                     return_value %2                 written: one slot. A frame of 3, not 9
+ *
+ * HOW. Two slots INTERFERE when one is written while the other still holds a
+ * value somebody will read (it is live: analysis/liveness.sharp); slots that
+ * do not interfere can be the same slot. Finding the new numbers is the
+ * textbook "graph colouring" of register allocation (the dragon book, 8.8;
+ * Chaitin), done the greedy way: slot after slot, each takes the lowest
+ * number none of the slots it interferes with has taken.
+ *
+ * The rules that keep it right:
+ *
+ *  - a slot keeps its KIND (integer, decimal, reference): only slots of the
+ *    same kind share, so nobody ever reads a reference as a number;
+ *  - `self` and the parameters stay where the caller puts them. A parameter
+ *    counts as written on entry, so a slot that is read before the function
+ *    writes it (it holds the VM's zero) never shares with one;
+ *  - the slot the VM writes when it enters a `catch` or a `finally` counts as
+ *    written at the top of that handler; its new number is put into the try
+ *    record too, and a finally's slot never gets a number that ends in the
+ *    byte 05 (a VM bug: doc/codegen.md 11.1);
+ *  - inside a `try` a handler may be entered at any instruction that can
+ *    raise: the liveness already says so (everything a handler reads is live
+ *    there);
+ *  - a slot nothing reads or writes any more gets no number at all.
+ *
+ * It runs after every pass that changes code and before the register
+ * hand-off, which describes the final instructions. A function with an `asm`
+ * block is not optimized at all, so no slot is named by hand here.
+ *
+ *      C++ comparison: none. The C++ generator keeps the values on the way in
+ *      registers and on the operand stack, so its frames hold the locals only.
+ */
+
+/** give the slots of the function new, fewer numbers; returns how many slots the frame lost */
+def pack_slots(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    slots : _int64 = code.slot_count();
+    if(slots <= analyses.parameters) { return 0; }
+
+    packing := new slot_packing(analyses);
+    packing.find_interference();
+    packing.choose_numbers();
+    if(packing.numbers_used >= slots) { return 0; }       // nothing gained: the code stays as it is
+    packing.renumber();
+    // (the graph too is made again, not only the liveness: it remembers the slot each handler
+    //  is entered with, and that slot has a new number now)
+    analyses.changed();
+    return slots - packing.numbers_used;
+}
+
+/** the work of packing one function: who interferes with whom, and the new number of every slot */
+class slot_packing {
+    analyses : function_analyses;
+    code : ir_function;
+    slots : _int64;
+    parameters : _int64;
+    written_while_live : set_table;     // [slot]: the slots that were live right after a write of this one
+    is_used : _int64[];                 // per slot: 1 when an instruction or a try record names it
+    is_finally_slot : _int64[];         // per slot: 1 for the slot a finally's exception is stored into
+    new_number : _int64[];              // per slot: its number in the packed frame, -1 for a slot nothing uses
+    numbers_used : _int64 = 0;          // the size of the packed frame
+    kind_of_number : number_list;       // per new number: the kind of the slots that share it
+    sharing : set_table;                // [new number]: the old slots that share it
+    blocked : set_table;                // [new number]: every slot that was live after a write of one of those
+
+    slot_packing(analyses: function_analyses) {
+        self->analyses = analyses;
+        code = analyses.code;
+        slots = code.slot_count();
+        parameters = analyses.parameters;
+        written_while_live = new set_table(slots, slots);
+        is_used = new _int64[slots + 1];
+        is_finally_slot = new _int64[slots + 1];
+        new_number = new _int64[slots + 1];
+        kind_of_number = new number_list();
+        sharing = new set_table(slots + 1, slots);
+        blocked = new set_table(slots + 1, slots);
+    }
+
+    /**
+     * Fill `written_while_live`: walk every block backwards with the set of
+     * live slots (as liveness.sharp does), and at each write note what is live
+     * right after it.
+     */
+    def find_interference() {
+        graph := analyses.graph();
+        live := analyses.live();
+        walking := new slot_set(slots);
+        for(b : _int64 = 0; b < graph.block_count(); b++) {
+            live.load_out(b, walking);
+            into_handlers := live.live_into_handlers(b);
+            for(i : _int64 = graph.ends[b] - 1; i >= graph.starts[b]; i--) {
+                made := code.instructions.at(i);
+                written : _int64 = slot_written(made);
+                if(written >= 0) {
+                    written_while_live.add_set(written, walking);
+                    is_used[written] = 1;
+                }
+                k : _int64 = 0;
+                read : _int64 = slot_read(made, 0);
+                while(read >= 0) {
+                    is_used[read] = 1;
+                    k++;
+                    read = slot_read(made, k);
+                }
+                step_back(made, walking, into_handlers);
+            }
+            // `walking` is now what is live at the top of the block. The VM writes a handler's
+            // slot as it enters the handler ...
+            entered_with : _int64 = graph.entry_slot[b];
+            if(entered_with >= 0) {
+                written_while_live.add_set(entered_with, walking);
+                is_used[entered_with] = 1;
+            }
+            // ... and the caller writes `self` and the parameters as the function begins
+            if(b == 0) {
+                for(p : _int64 = 0; p < parameters && p < slots; p++) { written_while_live.add_set(p, walking); }
+            }
+        }
+        for(t : _int64 = 0; t < code.tries.size(); t++) {
+            region := code.tries.at(t);
+            for(h : _int64 = 0; h < region.catch_slots.count; h++) {
+                if(region.catch_slots.at(h) >= 0) { is_used[region.catch_slots.at(h)] = 1; }
+            }
+            if(region.has_finally == 1 && region.finally_slot >= 0) {
+                is_used[region.finally_slot] = 1;
+                is_finally_slot[region.finally_slot] = 1;
+            }
+        }
+    }
+
+    /** the greedy colouring: every slot, in order, takes the lowest number it may share */
+    def choose_numbers() {
+        for(s : _int64 = 0; s < slots; s++) {
+            kind : _int64 = code.slot_kinds.at(s);
+            if(s < parameters) {
+                // `self` and the parameters keep their numbers (they are the first slots, so
+                // number s has not been handed to anyone yet)
+                kind_of_number.add(kind);
+                numbers_used++;
+                take(s, s);
+                continue;
+            }
+            if(is_used[s] == 0) {
+                new_number[s] = 0 - 1;
+                continue;
+            }
+            chosen : _int64 = 0 - 1;
+            for(n : _int64 = 0; n < numbers_used && chosen < 0; n++) {
+                if(may_share(s, kind, n)) { chosen = n; }
+            }
+            while(chosen < 0) {
+                // a number of its own (one a finally's slot may not have is left for others)
+                kind_of_number.add(kind);
+                numbers_used++;
+                if(may_share(s, kind, numbers_used - 1)) { chosen = numbers_used - 1; }
+            }
+            take(s, chosen);
+        }
+    }
+
+    /** may slot `s` have the number `n`: the same kind, and it interferes with none of the slots that have it */
+    def may_share(s: _int64, kind: _int64, n: _int64) : _int64 {
+        if(kind_of_number.at(n) != kind) { return 0; }
+        if(is_finally_slot[s] == 1 && (n & 0xff) == 5) { return 0; }
+        // one of them was live after a write of `s`, or `s` was live after a write of one of them
+        if(written_while_live.rows_meet(s, sharing, n)) { return 0; }
+        return blocked.has(n, s) == 0;
+    }
+
+    /** slot `s` gets the number `n` */
+    def take(s: _int64, n: _int64) {
+        new_number[s] = n;
+        sharing.add(n, s);
+        blocked.add_row(n, written_while_live, s);
+    }
+
+    /** write the new numbers into every instruction and every try record; the frame gets its new size */
+    def renumber() {
+        total : _int64 = code.instructions.size();
+        for(i : _int64 = 0; i < total; i++) {
+            made := code.instructions.at(i);
+            if(slot_written(made) >= 0) { made.target = new_number[made.target]; }
+            k : _int64 = 0;
+            read : _int64 = slot_read(made, 0);
+            while(read >= 0) {
+                replace_slot_read(made, k, new_number[read]);
+                k++;
+                read = slot_read(made, k);
+            }
+        }
+        for(t : _int64 = 0; t < code.tries.size(); t++) {
+            region := code.tries.at(t);
+            for(h : _int64 = 0; h < region.catch_slots.count; h++) {
+                if(region.catch_slots.at(h) >= 0) { region.catch_slots.replace(h, new_number[region.catch_slots.at(h)]); }
+            }
+            if(region.has_finally == 1 && region.finally_slot >= 0) { region.finally_slot = new_number[region.finally_slot]; }
+        }
+        code.slot_kinds = kind_of_number;
+        if(code.fixed_slots > numbers_used) { code.fixed_slots = numbers_used; }
+    }
+}
+
+/**
+ * A TABLE OF SLOT SETS: `rows` sets of the same size in one array, a bit per
+ * slot (slot_set.sharp explains the bits). The packing needs a set per slot
+ * and three per function would be three objects per slot; this is one array.
+ */
+class set_table {
+    width : _int64;                 // words per row
+    words : _int64[];               // [row * width + word]
+
+    set_table(rows: _int64, slots: _int64) {
+        width = (slots / 64) + 1;
+        words = new _int64[rows * width + 1];
+    }
+
+    /** the bit of `slot` inside its word */
+    def bit_of(slot: _int64) : _int64 {
+        one : _int64 = 1;
+        return one << (slot % 64);
+    }
+
+    /** put `slot` into the set of `row` */
+    def add(row: _int64, slot: _int64) {
+        at : _int64 = row * width + slot / 64;
+        words[at] = words[at] | bit_of(slot);
+    }
+
+    /** is `slot` in the set of `row`? */
+    def has(row: _int64, slot: _int64) : _int64 {
+        return (words[row * width + slot / 64] & bit_of(slot)) != 0;
+    }
+
+    /** every slot of the set `slots` put into the set of `row` */
+    def add_set(row: _int64, slots: slot_set) {
+        slots.add_into_row(words, row * width);
+    }
+
+    /** every slot of row `other_row` of the table `other` put into the set of `row` */
+    def add_row(row: _int64, other: set_table, other_row: _int64) {
+        for(i : _int64 = 0; i < width; i++) {
+            words[row * width + i] = words[row * width + i] | other.words[other_row * width + i];
+        }
+    }
+
+    /** do the set of `row` and row `other_row` of the table `other` have a slot in common? */
+    def rows_meet(row: _int64, other: set_table, other_row: _int64) : _int64 {
+        for(i : _int64 = 0; i < width; i++) {
+            if((words[row * width + i] & other.words[other_row * width + i]) != 0) { return 1; }
+        }
+        return 0;
+    }
+}

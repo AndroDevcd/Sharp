@@ -1,0 +1,166 @@
+mod generic_forms;
+
+import ( std.io )
+import ( std.io, std.collections ) as tools;
+
+/*
+ * Stage 5 (generics and members): every correct way to declare and use a
+ * generic class. Nothing here may be reported as an error.
+ */
+
+interface comparable_to<T> {
+    def compare(other: T) : int;
+}
+
+interface described {
+    def describe() : string;
+}
+
+class shape : described {
+    name : string = "";
+    override def describe() : string { return name; }
+}
+
+class circle base shape {
+    radius : decimal = 1;
+}
+
+// ---- a generic class that uses its type parameter in every position
+class box<T> {
+    item : T;
+    items : T[]?;
+    next : box<T>?;                     // a class that uses itself with its own parameter
+    static made : _int64 = 0;           // one per instance of the class
+
+    box(first: T) { item = first; }
+
+    def held() : T { return item; }
+    def me() : box { return self; }     // its own name without arguments: this instance
+    def wrap() : list<T> { return new list<T>(); }
+    def each(visit: (T)(nil)) { }
+    def pick<R>(choose: (T)(R)) : R { return choose(item); }   // a generic function inside a generic class
+
+    class slot {                        // a class inside a generic class: one per instance
+        held : T;
+        owner : box<T>?;
+        other : slot?;
+    }
+
+    class pairing<U> {                  // a generic class inside a generic class
+        left : T;
+        right : U;
+    }
+
+    enum state { empty, full }
+
+    alias list<T> as items_of;          // an alias that mentions the type parameter
+    all : items_of?;
+    where : slot?;
+    both : pairing<string>?;
+    now : state?;
+}
+
+// a class that only holds its T can take an array or a nullable type as T
+class cell<T> { value : T; }
+
+// ---- constraints, a generic base class, a generic interface with the class itself as argument
+class shape_box<S base shape> base box<S> : comparable_to<shape_box<S> > {
+    override def compare(other: shape_box<S>) : int { return 0; }
+}
+
+class pair_of<A, B base list<A> > {
+    first : A;
+    rest : B?;
+}
+
+// ---- an ordinary class below a generic one, and one that implements a generic interface
+class numbers base cell<_int64> { }     // a plain number as type argument: `value` is a number field there
+
+class money : comparable_to<money> {
+    amount : decimal = 0;
+    override def compare(other: money) : int { return 0; }
+}
+
+// two levels up: holder defines what comparable_to asks for, with its own T
+class holder<T> : comparable_to<T> {
+    override def compare(other: T) : int { return 0; }
+}
+class text_holder base holder<string> { }
+
+// ---- an interface that inherits a generic interface
+interface ordered<T> base comparable_to<T> {
+    def before(other: T) : int;
+}
+class version : ordered<version> {
+    override def compare(other: version) : int { return 0; }
+    override def before(other: version) : int { return 0; }
+}
+
+// ---- the same generic interface twice, with different type arguments: two interfaces
+class two_ways : comparable_to<int>, comparable_to<string> {
+    override def compare(other: int) : int { return 0; }
+    override def compare(other: string) : int { return 0; }
+}
+class either_way<A, B> : comparable_to<A>, comparable_to<B> {
+    override def compare(other: A) : int { return 0; }
+    override def compare(other: B) : int { return 0; }
+    def put(value: A) { }
+    def put(value: B) { }               // two functions, as long as A and B differ
+}
+both_ways : either_way<int, string>?;
+
+// ---- a type parameter as the base class, or as an interface ("mixin")
+class named_thing {
+    name : string = "";
+    def label() : string;
+}
+class counted<T> base T {
+    count : _int64 = 0;
+    override def label() : string { return ""; }       // overrides what T has: known per instance
+}
+class also<T> : T {
+    override def describe() : string { return ""; }
+}
+counted_names : counted<named_thing>?;
+also_described : also<described>?;
+class deeper base counted<named_thing> { }
+
+// an override whose result is the promised type without its `?`
+interface finder<T> { def find() : T?; }
+class always_finds<T> : finder<T> {
+    override def find() : T { return found; }
+    found : T;
+}
+finds_text : always_finds<string>?;
+
+// ---- uses: aliases, nesting, arrays, nullable items, function types, a module group
+alias box<string> as text_box;
+alias text_box as same_box;
+
+a : box<string>?;
+b : text_box?;                          // the same class as `a`
+c : same_box[]?;
+d : shape_box<circle>?;
+e : box<box<string> >?;                 // type arguments that are generic themselves
+f : (box<int>, string)(decimal)?;
+g : cell<string[]>?;
+h : string[]??;                         // an array whose items may be null
+i : cell<shape?>?;
+j : tools#file?;
+k : pair_of<int, list<int> >?;
+l : dictionary<string, list<circle> >?;
+m : box<(int)(string)>?;
+
+// ---- mutate: members added to the blueprint are in every instance
+mutate box {
+    extra : T[]?;
+    def twice() : T[] { return new T[2]; }
+}
+
+// ---- generic functions
+def largest<T>(x: T, y: T) : T { return x; }
+def largest<T, U>(x: T, y: U) : T { return x; }     // another NUMBER of type parameters: a different blueprint
+def keys_of<K base _object_, V base _object_>(map: hash_map<K, V>) : list<K> { return map.keys(); }
+
+def main() {
+}

@@ -1,0 +1,162 @@
+mod app;
+
+import ( std.testing )
+
+/**
+ * CHECKS OF THE MOCK FEATURE ITSELF - every rule of mock<T>(), given { } and
+ * verify { }, one test each: the defaults, arguments, "any", counting,
+ * throwing, and what the framework says when it is used wrongly.
+ * (For an introduction read examples/testing/mocks first.)
+ */
+
+interface note_store {
+    def load() : list<string>;
+    def save(note: string);
+    def remove(note: string) : _int64;
+    def title() : string;
+    def find(note: string, from: _int64) : note_store?;
+    def owner() : note_store;
+}
+
+def one_note() : list<string> {
+    made := new list<string>();
+    made.add("milk");
+    return made;
+}
+
+/** what the framework says when `block` is refused ("" when it is not) */
+def refusal_of(block: ()()) : string {
+    try { block(); } catch(e: illegal_state_exception) { return e.get_message(); }
+    return "";
+}
+
+def main() {
+    // outside a group of tests the words for mocks are refused: said here, checked in the first test
+    outside_mock : string = refusal_of() { mock<note_store>(); };
+    outside_given : string = refusal_of() { given { one_note(); }.returns(1); };
+    outside_verify : string = refusal_of() { verify { one_note(); }.once(); };
+
+    tests("the mock runtime") {
+        beside := mock<note_store>();                   // beside the tests, as set-up: allowed
+
+        test("mock, given and verify are refused outside a group of tests") {
+            expect(outside_mock).should_contain("`mock<...>()` only works inside `tests(");
+            expect(outside_given).should_contain("`given { ... }` only works inside `tests(");
+            expect(outside_verify).should_contain("`verify { ... }` only works inside `tests(");
+        };
+
+        test("a mock made beside the tests works inside them") {
+            beside.save("milk");
+            verify { beside.save("milk"); }.once();
+        };
+
+        test("nothing set up: harmless defaults, and the calls are remembered") {
+            store := mock<note_store>();
+            expect(store.load().size()).should_be(0);
+            expect(store.remove("x")).should_be(0);
+            expect(store.title()).should_be("");
+            expect_null(store.find("x", 1));
+            store.save("milk");
+            expect(store.story()).should_be("load(), remove(\"x\"), title(), find(\"x\", 1), save(\"milk\")");
+        };
+
+        test("given sets up one call; arguments matter") {
+            store := mock<note_store>();
+            given { store.load(); }.returns(one_note());
+            given { store.remove("milk"); }.returns(1);
+            given { store.title(); }.returns("My notes");
+
+            expect(store.load().size()).should_be(1);
+            expect(store.remove("milk")).should_be(1);
+            expect(store.remove("bread")).should_be(0);
+            expect(store.title()).should_be("My notes");
+        };
+
+        test("any_text, any_number and with_any_arguments") {
+            store := mock<note_store>();
+            given { store.remove(any_text()); }.returns(7);
+            expect(store.remove("whatever")).should_be(7);
+
+            other := mock<note_store>();
+            given { store.find(any_text(), any_number()); }.returns(other);
+            expect_same(store.find("a", 3), other);
+
+            given { store.find("z", 0); }.with_any_arguments().returns(null);
+            expect_null(store.find("a", 3));
+        };
+
+        test("verify counts calls") {
+            store := mock<note_store>();
+            store.save("milk");
+            store.save("milk");
+            store.save("bread");
+
+            verify { store.save("milk"); }.times(2);
+            verify { store.save("bread"); }.once();
+            verify { store.save("eggs"); }.never();
+            verify { store.save(any_text()); }.at_least(3);
+            verify { store.load(); }.never();
+            verify_nothing_else(store);
+        };
+
+        test("throws") {
+            store := mock<note_store>();
+            given { store.load(); }.throws(new illegal_state_exception("disk is full"));
+            expect_throws<illegal_state_exception>() { store.load(); };
+        };
+
+        test("a function with no harmless default says what to write") {
+            store := mock<note_store>();
+            said : string = "";
+            try { store.owner(); } catch(e: test_failure) { said = e.get_message(); }
+            expect(said).should_contain("given { the_mock.owner(...); }");
+
+            // ... and can still be set up and verified
+            given { store.owner(); }.returns(store);
+            expect_same(store.owner(), store);
+            verify { store.owner(); }.times(2);
+        };
+
+        test("two calls in one given are refused, and listed") {
+            store := mock<note_store>();
+            said : string = "";
+            try {
+                given { store.load(); store.save("x"); }.returns(1);
+            } catch(e: illegal_state_exception) { said = e.get_message(); }
+            expect(said).should_contain("ONE call");
+            expect(said).should_contain("save(\"x\")");
+        };
+
+        test("a given with no mock call is refused") {
+            said : string = "";
+            try { given { one_note(); }.returns(1); } catch(e: illegal_state_exception) { said = e.get_message(); }
+            expect(said).should_contain("did not call a mock");
+        };
+
+        test("a verify that does not hold shows the story") {
+            store := mock<note_store>();
+            store.save("a");
+            said : string = "";
+            try { verify { store.save("a"); }.times(2); } catch(e: test_failure) { said = e.get_message(); }
+            expect(said).should_contain("save(\"a\") to be called 2 time(s)");
+            expect(said).should_contain("called 1 time(s)");
+        };
+
+        test("verify_nothing_else names what was not covered") {
+            store := mock<note_store>();
+            store.save("a");
+            store.load();
+            verify { store.save("a"); }.once();
+            said : string = "";
+            try { verify_nothing_else(store); } catch(e: test_failure) { said = e.get_message(); }
+            expect(said).should_contain("load()");
+        };
+
+        test("a chain on the result is still one call") {
+            store := mock<note_store>();
+            given { store.load().size(); }.returns(one_note());
+            expect(store.load().size()).should_be(1);
+        };
+    };
+    finish_tests();
+}

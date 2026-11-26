@@ -1,0 +1,111 @@
+mod main;
+
+// output:
+// cfg
+// cfg
+// cfg 1
+// cfg
+// db main
+// front -> back
+// printed note
+// worker
+// one scheduler
+
+/*
+ * Component definitions that depend on each other in a CHAIN, written in
+ * dependency order (backend.md 7.20, components/definitions.sharp "analysed
+ * too early"). Searching for the config of `repository` looks at every
+ * definition and so starts the analysis of `service`, whose own `get()` asks
+ * for the repository still in progress. That is not a circle: `service`
+ * needs `repository`, `repository` needs `config`, `config` needs nothing.
+ * It used to be refused with E0908.
+ *
+ * Not checked against the C++ compiler: it dies with SIGSEGV on every one of
+ * these shapes.
+ *
+ *      three levels asked by the type the constructor takes; the middle asked
+ *      with `get<t>()` in main; a `single` at the end of a chain, made once
+ *      although asked twice (its constructor counts: 1); the first asked; a
+ *      chain of four in another component; and a pair in the other order
+ *
+ * LAMBDAS in definitions (the verifier of the completeness stage):
+ *      - the last link of a chain has a lambda with a `get`. Its definition is
+ *        analysed twice (put back, then afresh); the lambda of the dropped
+ *        analysis must leave the program with it (it used to stay, with a `get`
+ *        that had no answer: E0991 "no type, and no message");
+ *      - two definitions that need each other, one of them only inside a
+ *        lambda: the lambda asks when it is CALLED, so that is no circle.
+ */
+class config { name : string = "cfg"; }
+class repository { cfg : config; repository(c: config) { cfg = c; } }
+class service { repo : repository; service(r: repository) { repo = r; } }
+
+component app {
+    single { new config() }
+    single { new repository(get()) }
+    factory { new service(get()) }
+}
+
+class settings { n : _int64 = 0; }
+class service2 { s : settings; service2(s: settings) { self->s = s; s.n++; } }
+
+component second {
+    single { new settings() }
+    single { new service2(get()) }
+}
+
+class name_source { text : string = "main"; }
+class database { name : string; database(n: name_source) { name = "db " + n.text; } }
+class store { db : database; store(d: database) { db = d; } }
+class api { st : store; api(s: store) { st = s; } }
+
+component fourth {
+    single { new name_source() }
+    single { new database(get()) }
+    factory { new store(get()) }
+    factory { new api(get()) }
+}
+
+class back { word : string = "back"; }
+class front { b : back; front(b: back) { self->b = b; } }
+
+component pair_late_first {
+    factory { new front(get()) }
+    single { new back() }
+}
+
+class note { text : string = "note"; }
+class reader { n : note; reader(x: note) { n = x; } }
+class printer { line : ()(string); printer(l: ()(string)) { line = l; } }
+
+component with_lambdas {
+    single { new note() }
+    single { new reader(get()) }
+    factory { new printer({ -> (string) r : reader = get<reader>(); return "printed " + r.n.text; }) }
+}
+
+class scheduler { next : ()(string); scheduler(n: ()(string)) { next = n; } }
+class worker { s : scheduler; name : string = "worker"; worker(x: scheduler) { s = x; } }
+
+component lazy_pair {
+    single { new scheduler({ -> (string) w : worker = get<worker>(); return w.name; }) }
+    single { new worker(get()) }
+}
+
+def main() {
+    s := get<service>();
+    println(s.repo.cfg.name);
+    println(get<repository>().cfg.name);
+    first := get<service2>();
+    again := get<service2>();
+    println("cfg " + again.s.n);
+    println(get<config>().name);
+    println(get<api>().st.db.name);
+    println("front -> " + get<front>().b.word);
+    pr : printer = get<printer>();
+    println(pr.line());
+    sch : scheduler = get<scheduler>();
+    println(sch.next());
+    wk : worker = get<worker>();
+    println(wk.s == sch ? "one scheduler" : "two schedulers");
+}

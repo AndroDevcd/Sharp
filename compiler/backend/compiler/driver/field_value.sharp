@@ -1,0 +1,79 @@
+mod backend.compiler.driver;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * THE VALUE OF A FIELD OR GLOBAL VARIABLE
+ *
+ *      count : _int64 = 0;         the value must convert to the type
+ *      names := new list<string>();the type IS the type of the value
+ *      limit : _int64;             nothing to analyse
+ *
+ * The value is analysed in a context of its own: there are no local
+ * variables, and there is a `self` exactly when the field is an instance
+ * field (`w : _int64 = self->v;` is fine; the value of a static field or of
+ * a global cannot use instance members - E0703).
+ *
+ * The result is stored on the field: `bound_initializer` (already converted
+ * to the field's type) and, for `name := value`, `value_type` - with the
+ * same table that types a local variable, so `total := 5` is an `int` object
+ * as a field too. The getter's result and the setter's parameter follow.
+ *
+ *      C++ comparison: compiler/field_compiler.cpp and `validate_field_type`
+ *      in postprocessor/field_processor.cpp.
+ */
+def analyse_field_value(session: analysis_session, field: sharp_field) {
+    if(field.value_state != TYPE_UNKNOWN) { return; }
+    field.value_state = TYPE_IN_PROGRESS;
+
+    file := session.prog.file_of(field.unit);
+    if(file == null || !field.has_initializer()) {
+        // no value. A field without a type either was reported by an earlier stage.
+        if(field.value_type == null) { set_inferred_type(session, field, session.types.error_type); }
+        field.value_state = TYPE_KNOWN;
+        return;
+    }
+
+    context := new analysis_context(session, file!!);
+    context.class_of = field.owner;
+    context.field = field;
+    context.is_static = field.owner == null || field.has(FLAG_STATIC);
+    if(field.owner != null) { context.environment = field.owner!!.environment; }
+
+    purpose := "the value of `" + field.name + "`";
+    if(field.value_type != null) {
+        // a declaration runs `init(x)` before a constructor (with_init_block_preferred)
+        field.bound_initializer = with_init_block_preferred(context, analyse_converted(context, field.initializer, field.value_type!!, purpose));
+    } else {
+        value := analyse_value(context, field.initializer, null);
+        set_inferred_type(session, field, inferred_type_of(session, value));
+        field.bound_initializer = convert(context, value, field.value_type!!, purpose);
+    }
+    field.value_state = TYPE_KNOWN;
+    session.counters.field_values++;
+}
+
+/** the type of `name := value;`, and with it the getter's result and the setter's parameter */
+def set_inferred_type(session: analysis_session, field: sharp_field, type: resolved_type) {
+    field.value_type = type;
+    field.type_state = TYPE_KNOWN;
+    if(field.getter != null) {
+        field.getter!!.result_type = type;
+        field.getter!!.type_state = TYPE_KNOWN;
+    }
+    if(field.setter != null && field.setter!!.parameters.size() > 0) {
+        field.setter!!.parameters.at(0).value_type = type;
+    }
+}

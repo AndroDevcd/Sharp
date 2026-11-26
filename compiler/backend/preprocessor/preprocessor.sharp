@@ -1,0 +1,11 @@
+mod backend.preprocessor;
+
+/**
+ * STAGE 1, DECLARATIONS: the trees become objects
+ *
+ * The files of this package (module `backend.preprocessor`):
+ *
+ *      declare.sharp  pre_process: one object per class, field, function, alias, component
+ *
+ * This file is the package's front door: it only says what is where.
+ */

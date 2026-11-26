@@ -1,0 +1,207 @@
+mod std.io;
+
+import (
+    platform.*
+)
+
+/**
+* A file or a directory, by its path.
+*
+* A file object is only a path: creating one touches nothing on disk, and the
+* file or directory it names does not have to exist.
+*
+*     f := new file("notes/today.txt");
+*     if(!f.exists()) {
+*         f.parent()!!.mkdirs();
+*         f.write_text("first line\n");
+*     }
+*     f.append_line("second line");
+*     foreach(line in f.read_lines()) { println(line); }
+*
+* The class is spread over several source files so that none of them gets
+* large. This file holds the core (the path, what it names, its times and
+* permissions, the disk); the rest is added with `mutate file`:
+*
+*     files/file_names.sharp   name, parent, extension, child and sibling paths
+*     files/file_text.sharp    read_text, read_lines, write_lines, append, bytes
+*     files/file_tree.sharp    size, create_new, remove, mkdirs, list_files, walk,
+*                              copy_to, move_to, delete_recursively
+*
+* A question is answered with a bool, and so is "did it work" for the
+* functions that change a permission or a time. The functions that read,
+* write, copy and move throw io_exception when they fail.
+*
+* file_stream (files/file_stream.sharp) reads and writes a file in parts.
+*/
+public class file {
+    /**
+     * The path, the way this system writes it: `f.path`. It is read, not
+     * written - a file object keeps its path (move_to gives it the new one).
+     */
+    path: string;
+        private set value -> { path = value; }
+
+    /**
+     * A file object for `path`. The path is normalized first: the
+     * separators of the other operating system are converted, repeated
+     * separators and a separator at the end are removed.
+     *
+     * Throws nullptr_exception when the path is null or empty.
+     */
+    file(path: string) {
+        if(io_strings.is_null(path))
+            throw new nullptr_exception("file path cannot be null");
+        if(sizeof(path.data) == 0)
+            throw new nullptr_exception("file path cannot be empty");
+
+        self->path = file_natives.normalize(path);
+    }
+
+    /** the same as file(string), for an array of characters */
+    file(path: _int8[]) {
+        if(sizeof(path) == 0)
+            throw new nullptr_exception("file path cannot be empty");
+
+        self->path = file_natives.normalize(new string(path));
+    }
+
+    /** the path */
+    override def to_string() : string? = path;
+
+    /* -- what the path names -- */
+
+    /** true when a file or a directory with this path exists */
+    def exists() : bool {
+        return (file_natives.attributes(path) & file_natives.exists_bit) != 0;
+    }
+
+    /** true when the path names a directory */
+    def is_directory() : bool {
+        return (file_natives.attributes(path) & file_natives.directory_bit) != 0;
+    }
+
+    /** true when the path names a plain file (not a directory, not a device) */
+    def is_file() : bool {
+        return (file_natives.attributes(path) & file_natives.file_bit) != 0;
+    }
+
+    /**
+     * True when the file is hidden: on unix a name that starts with '.',
+     * on windows the hidden attribute.
+     */
+    def is_hidden() : bool {
+        return (file_natives.attributes(path) & file_natives.hidden_bit) != 0;
+    }
+
+    /** true when this program may read the file */
+    def is_readable() : bool {
+        return file_natives.can_access(path, file_natives.access_read);
+    }
+
+    /** true when this program may write the file */
+    def is_writable() : bool {
+        return file_natives.can_access(path, file_natives.access_write);
+    }
+
+    /** true when this program may run the file (always false on windows) */
+    def is_executable() : bool {
+        return file_natives.can_access(path, file_natives.access_execute);
+    }
+
+    /** true for a plain file without content, and for a path that names no plain file */
+    def is_empty() : bool {
+       return size() == 0;
+    }
+
+    /* -- times: seconds since 1970 -- */
+
+    /** when the content was last changed */
+    def last_modified() : _int64 {
+        return file_natives.time_of(path, file_natives.time_modified);
+    }
+
+    /** when the name, the owner or the permissions were last changed (on windows: when the file was created) */
+    def last_status_changed() : _int64 {
+        return file_natives.time_of(path, file_natives.time_status_changed);
+    }
+
+    /** when the file was last read */
+    def last_accessed() : _int64 {
+        return file_natives.time_of(path, file_natives.time_accessed);
+    }
+
+    /**
+     * Set the time the content was last changed.
+     * Returns true when it worked. Throws illegal_argument_exception for a negative time.
+     */
+    def set_last_modified(time: _int64) : bool {
+        if (time < 0) throw new illegal_argument_exception("Negative time");
+        return file_natives.set_modified_time(path, time) == time;
+    }
+
+    /* -- permissions: each answers true when it worked -- */
+
+    /** make one directory: the one above it has to exist (mkdirs() makes those too). True when it was made. */
+    def mkdir() : bool {
+        return file_natives.create_directory(path) == 0;
+    }
+
+    /** nobody may write the file; the owner may read it */
+    def set_read_only() : bool {
+        no_writing := file_natives.set_permission(path, file_natives.access_write, false, true);
+        reading := file_natives.set_permission(path, file_natives.access_read, true, true);
+        return no_writing == 0 && reading == 0;
+    }
+
+    /** allow or forbid writing, for the owner only or for everybody */
+    def set_writable(writable: bool, owner_only: bool) : bool {
+        return file_natives.set_permission(path, file_natives.access_write, writable, owner_only) == 0;
+    }
+
+    /** allow or forbid writing for the owner */
+    def set_writable(writable: bool) : bool {
+        return set_writable(writable, true);
+    }
+
+    /** allow or forbid reading, for the owner only or for everybody */
+    def set_readable(readable: bool, owner_only: bool) : bool {
+        return file_natives.set_permission(path, file_natives.access_read, readable, owner_only) == 0;
+    }
+
+    /** allow or forbid reading for the owner */
+    def set_readable(readable: bool) : bool {
+        return set_readable(readable, true);
+    }
+
+    /** allow or forbid running the file, for the owner only or for everybody (windows has no such permission: false) */
+    def set_executable(executable: bool, owner_only: bool) : bool {
+        return file_natives.set_permission(path, file_natives.access_execute, executable, owner_only) == 0;
+    }
+
+    /** allow or forbid running the file for the owner */
+    def set_executable(executable: bool) : bool {
+        return set_executable(executable, true);
+    }
+
+    /* -- the disk the program runs on, in bytes (the runtime reports that one, whatever this path is) -- */
+
+    /** the size of the disk */
+    def total_space() : _int64 {
+        return file_natives.disk_space(0);
+    }
+
+    /** the bytes nothing uses */
+    def free_space() : _int64 {
+        return file_natives.disk_space(1);
+    }
+
+    /** the bytes this program could use (less than free_space() where part of the disk is kept for the system) */
+    def usable_space() : _int64 {
+        return file_natives.disk_space(2);
+    }
+
+    /** the directory relative paths start from */
+    static def current_directory() : string {
+       return file_natives.current_directory();
+    }
+}

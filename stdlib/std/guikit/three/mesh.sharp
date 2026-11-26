@@ -1,0 +1,485 @@
+mod std.guikit.three;
+
+import (
+    std,
+    std.io,
+    std.math,
+    std.guikit.*
+)
+
+// what a mesh is made of, as the graphics side reads it (g3_part_look)
+const MADE_TWO_SIDED : _int64 = 1;      // seen from the back too
+const MADE_CUT_OUT   : _int64 = 2;      // the see-through pixels of its texture are holes (leaves, a fence)
+const MADE_BLENDED   : _int64 = 4;      // see-through, mixed with what is behind it (glass, water)
+const MADE_UNLIT     : _int64 = 8;      // its own colour whatever the light (a sign, a flame)
+
+/**
+ * mesh - a shape you make yourself: corners in space and triangles between them.
+ *
+ *      wall := new mesh();
+ *      a := wall.corner(0, 0, 0);
+ *      b := wall.corner(4, 0, 0);
+ *      c := wall.corner(4, 3, 0);
+ *      d := wall.corner(0, 3, 0);
+ *      wall.quad(a, b, c, d);
+ *      wall.texture("assets/brick.png");
+ *
+ *      scene { add(wall); };
+ *
+ * EVERYTHING 3D IS A MESH underneath: cube, sphere, terrain and tree build one
+ * with exactly the functions below, and a model file is read into several. So
+ * whatever they can show, a mesh of your own can.
+ *
+ * A CORNER has a place, and may have three more things:
+ *
+ *      a facing            which way the surface looks there (nx, ny, nz). Light is worked
+ *                          out from it. Leave it out and smooth() works one out for you
+ *      a texture point     where of the texture is at this corner: (0, 0) its top left,
+ *                          (1, 1) its bottom right; beyond 1 the texture repeats
+ *      a colour            multiplied into the surface there (tint): shade a model by hand,
+ *                          or colour land by its height, without any texture
+ *
+ * A TRIANGLE names three corners COUNTER-CLOCKWISE as seen from the side that
+ * shows. Its back is not drawn (a closed shape never shows a back) - unless
+ * the mesh is two_sided().
+ *
+ * THE SPACE: x to the right, y UP, z towards you; a unit is a metre.
+ *
+ * WHAT IT IS MADE OF, for the whole mesh: color, texture, shiny, glow, and
+ * two_sided / cut_out / see_through / unlit.
+ *
+ * A MESH THAT CHANGES (water, a trail, a morphing shape): change the lists -
+ * points, normals, uvs, tints - or clear() and build again, then say changed().
+ * It is sent to the graphics card again before the next frame.
+ *
+ * A shape of several materials is several meshes: body.also(glass).
+ *
+ * (three.js: BufferGeometry + Material. Godot: ArrayMesh / SurfaceTool.)
+ */
+stable class mesh {
+    // the lists the graphics side reads (native/g3_core.cpp, g3_model_part)
+    points : decimal[];             // x y z for every corner
+    normals : decimal[];            // its facing: nx ny nz
+    uvs : decimal[];                // its texture point: u v
+    tints : _int64[];               // its colour, 0xRRGGBBAA
+    faces : _int32[];               // three corner numbers for every triangle
+    corner_count : _int64 = 0;
+    face_count : _int64 = 0;
+
+    // what it is made of
+    paint : _int64 = 0xFFFFFFFF;
+    picture : _int64 = 0;           // its texture's id (0: none)
+    shine : decimal = 0;
+    light : decimal = 0;
+    both_sides : bool = false;      // two_sided()
+    holes : bool = false;           // cut_out()
+    blended : bool = false;         // see_through()
+    plain : bool = false;           // unlit()
+
+    private corner_room : _int64 = 0;
+    private face_room : _int64 = 0;
+    private faced : bool = true;    // did every corner get a facing when it was made?
+    private model_id : _int64 = 0;  // the model on the graphics card (0: not sent yet)
+    private part : _int64 = 0 - 1;  // which part of that model this mesh is
+    private stale : bool = true;    // the lists changed since they were sent
+    private look_stale : bool = true;
+    private more : list<mesh>? = null;      // the other parts of the same model (also)
+
+    mesh() {
+        corner_room = 64;
+        face_room = 128;
+        points = new decimal[corner_room * 3];
+        normals = new decimal[corner_room * 3];
+        uvs = new decimal[corner_room * 2];
+        tints = new _int64[corner_room];
+        faces = new _int32[face_room * 3];
+    }
+
+    // ---------------------------------------------------------------- building
+
+    /** a new corner at (x, y, z); gives its number. Its facing is worked out by smooth(). */
+    def corner(x: decimal, y: decimal, z: decimal) : _int64 {
+        faced = false;
+        return put(x, y, z, 0, 0, 0, 0, 0);
+    }
+
+    /** a new corner with its facing */
+    def corner(x: decimal, y: decimal, z: decimal, nx: decimal, ny: decimal, nz: decimal) : _int64 {
+        return put(x, y, z, nx, ny, nz, 0, 0);
+    }
+
+    /** a new corner with its facing and its point of the texture */
+    def corner(x: decimal, y: decimal, z: decimal, nx: decimal, ny: decimal, nz: decimal, u: decimal, v: decimal) : _int64 {
+        return put(x, y, z, nx, ny, nz, u, v);
+    }
+
+    private def put(x: decimal, y: decimal, z: decimal, nx: decimal, ny: decimal, nz: decimal, u: decimal, v: decimal) : _int64 {
+        if(corner_count == corner_room) {
+            corner_room = corner_room * 2;
+            realloc(points, corner_room * 3);
+            realloc(normals, corner_room * 3);
+            realloc(uvs, corner_room * 2);
+            realloc(tints, corner_room);
+        }
+        at : _int64 = corner_count * 3;
+        points[at] = x;
+        points[at + 1] = y;
+        points[at + 2] = z;
+        normals[at] = nx;
+        normals[at + 1] = ny;
+        normals[at + 2] = nz;
+        uvs[corner_count * 2] = u;
+        uvs[corner_count * 2 + 1] = v;
+        tints[corner_count] = 0xFFFFFFFF;
+        corner_count = corner_count + 1;
+        stale = true;
+        return corner_count - 1;
+    }
+
+    /** where of the texture is at this corner */
+    def texture_point(corner: _int64, u: decimal, v: decimal) {
+        uvs[corner * 2] = u;
+        uvs[corner * 2 + 1] = v;
+        stale = true;
+    }
+
+    /** this corner's own colour (0xRRGGBBAA), multiplied into the surface there */
+    def tint(corner: _int64, packed: _int64) {
+        tints[corner] = packed;
+        stale = true;
+    }
+
+    /** a triangle between three corners, counter-clockwise as seen from the side that shows */
+    def triangle(a: _int64, b: _int64, c: _int64) {
+        if(face_count == face_room) {
+            face_room = face_room * 2;
+            realloc(faces, face_room * 3);
+        }
+        at : _int64 = face_count * 3;
+        faces[at] = a;
+        faces[at + 1] = b;
+        faces[at + 2] = c;
+        face_count = face_count + 1;
+        stale = true;
+    }
+
+    /** a four-cornered face (two triangles), counter-clockwise as seen from the side that shows */
+    def quad(a: _int64, b: _int64, c: _int64, d: _int64) {
+        triangle(a, b, c);
+        triangle(a, c, d);
+    }
+
+    /** forget every corner and triangle, to build the shape again (the lists are kept) */
+    def clear() {
+        corner_count = 0;
+        face_count = 0;
+        faced = true;
+        stale = true;
+    }
+
+    /** the lists were changed by hand: send them to the graphics card again before the next frame */
+    def changed() {
+        stale = true;
+        thing.changes = thing.changes + 1;
+    }
+
+    /** every corner and triangle of another mesh, added to this one (the other is not changed). Returns this mesh. */
+    def add(other: mesh) : mesh {
+        first : _int64 = corner_count;
+        was_faced : bool = faced;
+        for(i : _int64 = 0; i < other.corner_count; i++) {
+            at : _int64 = put(other.points[i * 3], other.points[i * 3 + 1], other.points[i * 3 + 2],
+                              other.normals[i * 3], other.normals[i * 3 + 1], other.normals[i * 3 + 2],
+                              other.uvs[i * 2], other.uvs[i * 2 + 1]);
+            tints[at] = other.tints[i];
+        }
+        for(i : _int64 = 0; i < other.face_count; i++) {
+            triangle(first + other.faces[i * 3], first + other.faces[i * 3 + 1], first + other.faces[i * 3 + 2]);
+        }
+        faced = was_faced && other.faced;
+        return self;
+    }
+
+    // ---------------------------------------------------------------- the whole shape (each returns the mesh)
+
+    /**
+     * work out every corner's facing from the triangles that meet at it: the
+     * surface then looks rounded. Corners made without a facing get this by
+     * themselves; call it yourself after moving corners by hand.
+     */
+    def smooth() : mesh {
+        for(i : _int64 = 0; i < corner_count * 3; i++) {
+            normals[i] = 0;
+        }
+        for(f : _int64 = 0; f < face_count; f++) {
+            a : _int64 = faces[f * 3] * 3;
+            b : _int64 = faces[f * 3 + 1] * 3;
+            c : _int64 = faces[f * 3 + 2] * 3;
+            ux : decimal = points[b] - points[a];
+            uy : decimal = points[b + 1] - points[a + 1];
+            uz : decimal = points[b + 2] - points[a + 2];
+            vx : decimal = points[c] - points[a];
+            vy : decimal = points[c + 1] - points[a + 1];
+            vz : decimal = points[c + 2] - points[a + 2];
+            nx : decimal = uy * vz - uz * vy;                   // straight out of the triangle, longer for a larger one
+            ny : decimal = uz * vx - ux * vz;
+            nz : decimal = ux * vy - uy * vx;
+            normals[a] = normals[a] + nx;       normals[a + 1] = normals[a + 1] + ny;       normals[a + 2] = normals[a + 2] + nz;
+            normals[b] = normals[b] + nx;       normals[b + 1] = normals[b + 1] + ny;       normals[b + 2] = normals[b + 2] + nz;
+            normals[c] = normals[c] + nx;       normals[c + 1] = normals[c + 1] + ny;       normals[c + 2] = normals[c + 2] + nz;
+        }
+        for(i : _int64 = 0; i < corner_count; i++) {
+            at : _int64 = i * 3;
+            length : decimal = sqrt(normals[at] * normals[at] + normals[at + 1] * normals[at + 1] + normals[at + 2] * normals[at + 2]);
+            if(length > 0) {
+                normals[at] = normals[at] / length;
+                normals[at + 1] = normals[at + 1] / length;
+                normals[at + 2] = normals[at + 2] / length;
+            } else {
+                normals[at + 1] = 1;                            // a corner no triangle uses: up
+            }
+        }
+        faced = true;
+        stale = true;
+        return self;
+    }
+
+    /**
+     * give every triangle corners of its own, all facing the way the triangle
+     * does: the surface then shows its facets - the cut-gem, "low-poly" look.
+     */
+    def faceted() : mesh {
+        old_points := points;
+        old_uvs := uvs;
+        old_tints := tints;
+        old_faces := faces;
+        count : _int64 = face_count;
+
+        corner_room = count * 3;
+        if(corner_room < 3) { corner_room = 3; }
+        points = new decimal[corner_room * 3];
+        normals = new decimal[corner_room * 3];
+        uvs = new decimal[corner_room * 2];
+        tints = new _int64[corner_room];
+        corner_count = 0;
+        face_count = 0;
+        for(f : _int64 = 0; f < count; f++) {
+            a : _int64 = old_faces[f * 3];
+            b : _int64 = old_faces[f * 3 + 1];
+            c : _int64 = old_faces[f * 3 + 2];
+            ux : decimal = old_points[b * 3] - old_points[a * 3];
+            uy : decimal = old_points[b * 3 + 1] - old_points[a * 3 + 1];
+            uz : decimal = old_points[b * 3 + 2] - old_points[a * 3 + 2];
+            vx : decimal = old_points[c * 3] - old_points[a * 3];
+            vy : decimal = old_points[c * 3 + 1] - old_points[a * 3 + 1];
+            vz : decimal = old_points[c * 3 + 2] - old_points[a * 3 + 2];
+            nx : decimal = uy * vz - uz * vy;
+            ny : decimal = uz * vx - ux * vz;
+            nz : decimal = ux * vy - uy * vx;
+            length : decimal = sqrt(nx * nx + ny * ny + nz * nz);
+            if(length > 0) { nx = nx / length; ny = ny / length; nz = nz / length; }
+            first : _int64 = corner_count;
+            for(k : _int64 = 0; k < 3; k++) {
+                from : _int64 = old_faces[f * 3 + k];
+                at : _int64 = put(old_points[from * 3], old_points[from * 3 + 1], old_points[from * 3 + 2], nx, ny, nz,
+                                  old_uvs[from * 2], old_uvs[from * 2 + 1]);
+                tints[at] = old_tints[from];
+            }
+            triangle(first, first + 1, first + 2);
+        }
+        faced = true;
+        return self;
+    }
+
+    /** move every corner */
+    def moved(dx: decimal, dy: decimal, dz: decimal) : mesh {
+        for(i : _int64 = 0; i < corner_count; i++) {
+            points[i * 3] = points[i * 3] + dx;
+            points[i * 3 + 1] = points[i * 3 + 1] + dy;
+            points[i * 3 + 2] = points[i * 3 + 2] + dz;
+        }
+        stale = true;
+        return self;
+    }
+
+    /** stretch along each axis (1: unchanged). Facings are worked out again by smooth() when the stretch is uneven. */
+    def stretched(sx: decimal, sy: decimal, sz: decimal) : mesh {
+        for(i : _int64 = 0; i < corner_count; i++) {
+            points[i * 3] = points[i * 3] * sx;
+            points[i * 3 + 1] = points[i * 3 + 1] * sy;
+            points[i * 3 + 2] = points[i * 3 + 2] * sz;
+        }
+        stale = true;
+        return self;
+    }
+
+    /** turn round (0, 0, 0), in degrees, as a thing is turned: heading, then nose up, then rolled */
+    def turned(yaw: decimal, pitch: decimal, roll: decimal) : mesh {
+        cy : decimal = cos(0 - yaw * PI_VALUE / 180);
+        sy : decimal = sin(0 - yaw * PI_VALUE / 180);
+        cp : decimal = cos(pitch * PI_VALUE / 180);
+        sp : decimal = sin(pitch * PI_VALUE / 180);
+        cr : decimal = cos(0 - roll * PI_VALUE / 180);
+        sr : decimal = sin(0 - roll * PI_VALUE / 180);
+        // heading * pitch * roll, as nine numbers
+        r00 : decimal = cy * cr + sy * sp * sr;
+        r01 : decimal = sy * sp * cr - cy * sr;
+        r02 : decimal = sy * cp;
+        r10 : decimal = cp * sr;
+        r11 : decimal = cp * cr;
+        r12 : decimal = 0 - sp;
+        r20 : decimal = cy * sp * sr - sy * cr;
+        r21 : decimal = sy * sr + cy * sp * cr;
+        r22 : decimal = cy * cp;
+        for(i : _int64 = 0; i < corner_count; i++) {
+            at : _int64 = i * 3;
+            px : decimal = points[at];
+            py : decimal = points[at + 1];
+            pz : decimal = points[at + 2];
+            points[at] = r00 * px + r01 * py + r02 * pz;
+            points[at + 1] = r10 * px + r11 * py + r12 * pz;
+            points[at + 2] = r20 * px + r21 * py + r22 * pz;
+            nx : decimal = normals[at];
+            ny : decimal = normals[at + 1];
+            nz : decimal = normals[at + 2];
+            normals[at] = r00 * nx + r01 * ny + r02 * nz;
+            normals[at + 1] = r10 * nx + r11 * ny + r12 * nz;
+            normals[at + 2] = r20 * nx + r21 * ny + r22 * nz;
+        }
+        stale = true;
+        return self;
+    }
+
+    // ---------------------------------------------------------------- what it is made of (each returns the mesh)
+
+    /** its colour, 0xRRGGBBAA; with a texture, the colour the texture is tinted with (white: as it is) */
+    def color(packed: _int64) : mesh {
+        paint = packed;
+        look_stale = true;
+        return self;
+    }
+
+    /** a picture laid over it by the corners' texture points */
+    def texture(path: string) : mesh {
+        picture = g3_texture(path);
+        look_stale = true;
+        return self;
+    }
+
+    /** a texture that is already loaded or made (texture ids come from three.texture_of and three.make_texture) */
+    def texture(id: _int64) : mesh {
+        picture = id;
+        look_stale = true;
+        return self;
+    }
+
+    /** how strongly it shows the sun's glint: 0 chalk .. 1 polished */
+    def shiny(amount: decimal) : mesh {
+        shine = amount;
+        look_stale = true;
+        return self;
+    }
+
+    /** how much of its own colour it gives off whatever the light: 0 none, 1 fully (a lamp, a screen, lava) */
+    def glow(amount: decimal) : mesh {
+        light = amount;
+        look_stale = true;
+        return self;
+    }
+
+    /** seen from the back too (a leaf, a flag, a sheet of paper) */
+    def two_sided() : mesh {
+        both_sides = true;
+        look_stale = true;
+        return self;
+    }
+
+    /** the see-through pixels of its texture are holes: leaves, a fence, a grate. (Also seen from both sides.) */
+    def cut_out() : mesh {
+        holes = true;
+        both_sides = true;
+        look_stale = true;
+        return self;
+    }
+
+    /** see-through, mixed with what is behind it: glass, water, smoke */
+    def see_through() : mesh {
+        blended = true;
+        look_stale = true;
+        return self;
+    }
+
+    /** its own colour whatever the light */
+    def unlit() : mesh {
+        plain = true;
+        look_stale = true;
+        return self;
+    }
+
+    /** the MADE_... flags the graphics side reads */
+    private def made() : _int64 {
+        flags : _int64 = 0;
+        if(both_sides) { flags = flags + MADE_TWO_SIDED; }
+        if(holes) { flags = flags + MADE_CUT_OUT; }
+        if(blended) { flags = flags + MADE_BLENDED; }
+        if(plain) { flags = flags + MADE_UNLIT; }
+        return flags;
+    }
+
+    /** one more part of the same model, with a material of its own: trunk.also(leaves). Returns this mesh. */
+    def also(other: mesh) : mesh {
+        if(more == null) { more = new list<mesh>(); }
+        more!!.add(other);
+        stale = true;
+        return self;
+    }
+
+    // ---------------------------------------------------------------- on the graphics card
+
+    /**
+     * the model this mesh is on the graphics card: sent the first time it is
+     * asked for, and again after it changed. (The framework asks; a program
+     * needs this only to hand the model to something that takes model ids.)
+     */
+    def ready() : _int64 {
+        if(model_id == 0) {
+            model_id = g3_model();
+            part = 0 - 1;
+        }
+        send(model_id);
+        if(more != null) {
+            count : _int64 = more!!.size();
+            for(i : _int64 = 0; i < count; i++) {
+                more!!.at(i).send(model_id);
+            }
+        }
+        return model_id;
+    }
+
+    /**
+     * take this mesh off the graphics card: for a large shape that will not be
+     * shown again (land left far behind). Shown again, it is sent again.
+     */
+    def forget() {
+        if(model_id != 0) {
+            g3_drop(model_id, 0);
+            model_id = 0;
+            part = 0 - 1;
+            stale = true;
+        }
+    }
+
+    /** put this mesh on the card as a part of that model (its own part number is kept for the next time) */
+    def send(into: _int64) {
+        if(stale && corner_count > 0 && face_count > 0) {
+            if(!faced) { smooth(); }
+            part = g3_model_part(into, part, points, normals, uvs, tints, faces, corner_count, face_count);
+            stale = false;
+            look_stale = true;
+        }
+        if(look_stale && part >= 0) {
+            g3_part_look(into, part, paint, picture, shine, light, made());
+            look_stale = false;
+        }
+    }
+}

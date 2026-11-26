@@ -1,0 +1,282 @@
+mod main;
+
+import ( std.testing, std.time )
+
+/**
+ * std.time.calendar: the month grid and its text form, the n-th weekday of
+ * a month, Western and Orthodox Easter, business-day arithmetic with and
+ * without holidays, ages and ISO week dates.
+ *
+ * Expected values are calendar facts (holiday dates, published Easter
+ * dates, the output of the Unix `cal` program).
+ */
+
+def text(d: date): string {
+    return d.to_string()!!;
+}
+
+def nth(year: decimal, month_number: decimal, weekday: day_of_week, n: decimal): string {
+    return calendar.nth_weekday_of_month(year, month_number, weekday, n).to_string()!!;
+}
+
+def easter(year: decimal): string {
+    return calendar.easter(year).to_string()!!;
+}
+
+def orthodox(year: decimal): string {
+    return calendar.orthodox_easter(year).to_string()!!;
+}
+
+def on(y: decimal, m: decimal, d: decimal): date {
+    return date.of(y, m, d);
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_time_calendar") {
+        // ================= month grid =================
+
+        // February 2024 started on a Thursday and had 29 days
+        grid : decimal[] = calendar.month_grid(2024, 2, day_of_week.monday);
+        test("the grid has 6 rows of 7") { expect(sizeof(grid)).should_be(42); };
+        test("Monday before the 1st is blank") { expect(grid[0]).should_be(0); };
+        test("Wednesday before the 1st is blank") { expect(grid[2]).should_be(0); };
+        test("the 1st is in the Thursday column") { expect(grid[3]).should_be(1); };
+        test("the 4th ends the first row") { expect(grid[6]).should_be(4); };
+        test("the 5th starts the second row") { expect(grid[7]).should_be(5); };
+        test("the 29th") { expect(grid[31]).should_be(29); };
+        test("blank after the last day") { expect(grid[32]).should_be(0); };
+        test("the sixth row is blank") { expect(grid[41]).should_be(0); };
+
+        // the same month with weeks starting on Sunday
+        grid = calendar.month_grid(2024, 2, day_of_week.sunday);
+        test("Sunday start: the 1st moves to column 4") { expect(grid[4]).should_be(1); };
+        test("Sunday start: column 3 is blank") { expect(grid[3]).should_be(0); };
+        test("Sunday start: the 3rd ends the first row") { expect(grid[6]).should_be(3); };
+        test("Sunday start: the 29th") { expect(grid[32]).should_be(29); };
+
+        // November 2026 starts on a Sunday: with Monday first it needs six rows
+        grid = calendar.month_grid(2026, 11, day_of_week.monday);
+        test("the 1st alone at the end of row one") { expect(grid[6]).should_be(1); };
+        test("row one is otherwise blank") { expect(grid[5]).should_be(0); };
+        test("the 30th starts row six") { expect(grid[35]).should_be(30); };
+        test("and nothing follows") { expect(grid[36]).should_be(0); };
+
+        // February 2021 started on a Monday: exactly four rows
+        grid = calendar.month_grid(2021, 2, day_of_week.monday);
+        test("the 1st in the first cell") { expect(grid[0]).should_be(1); };
+        test("the 28th ends row four") { expect(grid[27]).should_be(28); };
+        test("row five is blank") { expect(grid[28]).should_be(0); };
+
+        filled : decimal = 0;
+        grid = calendar.month_grid(2023, 10, day_of_week.saturday);
+        for(i : decimal = 0; i < 42; i++) {
+            if(grid[i] != 0) {
+                filled++;
+            }
+        }
+        test("a 31 day month fills 31 cells") { expect(filled).should_be(31); };
+
+        test("weeks in February 2024") { expect(calendar.weeks_in_month(2024, 2, day_of_week.monday)).should_be(5); };
+        test("weeks in February 2021") { expect(calendar.weeks_in_month(2021, 2, day_of_week.monday)).should_be(4); };
+        test("weeks in November 2026") { expect(calendar.weeks_in_month(2026, 11, day_of_week.monday)).should_be(6); };
+        test("weeks in November 2026, Sunday first") { expect(calendar.weeks_in_month(2026, 11, day_of_week.sunday)).should_be(5); };
+        test("weeks in October 2023") { expect(calendar.weeks_in_month(2023, 10, day_of_week.monday)).should_be(6); };
+
+        // ---- as text: what `cal` prints
+        test("February 2024") { expect(calendar.month_text(2024, 2, day_of_week.monday)).should_be("   February 2024\nMo Tu We Th Fr Sa Su\n          1  2  3  4\n 5  6  7  8  9 10 11\n12 13 14 15 16 17 18\n19 20 21 22 23 24 25\n26 27 28 29"); };
+        test("February 2024, Sunday first") { expect(calendar.month_text(2024, 2, day_of_week.sunday)).should_be("   February 2024\nSu Mo Tu We Th Fr Sa\n             1  2  3\n 4  5  6  7  8  9 10\n11 12 13 14 15 16 17\n18 19 20 21 22 23 24\n25 26 27 28 29"); };
+        test("November 2026 (six rows)") { expect(calendar.month_text(2026, 11, day_of_week.monday)).should_be("   November 2026\nMo Tu We Th Fr Sa Su\n                   1\n 2  3  4  5  6  7  8\n 9 10 11 12 13 14 15\n16 17 18 19 20 21 22\n23 24 25 26 27 28 29\n30"); };
+        test("February 2021 (four rows)") { expect(calendar.month_text(2021, 2, day_of_week.monday)).should_be("   February 2021\nMo Tu We Th Fr Sa Su\n 1  2  3  4  5  6  7\n 8  9 10 11 12 13 14\n15 16 17 18 19 20 21\n22 23 24 25 26 27 28"); };
+        test("October 2023") { expect(calendar.month_text(2023, 10, day_of_week.monday)).should_be("    October 2023\nMo Tu We Th Fr Sa Su\n                   1\n 2  3  4  5  6  7  8\n 9 10 11 12 13 14 15\n16 17 18 19 20 21 22\n23 24 25 26 27 28 29\n30 31"); };
+
+        caught : decimal = 0;
+        try { calendar.month_grid(2024, 13, day_of_week.monday); } catch(e: date_time_exception) { caught = 1; }
+        test("month 13 throws") { expect(caught).should_be(1); };
+
+        // ================= n-th weekday of a month =================
+
+        test("US Thanksgiving 2024: 4th Thursday of November") { expect(nth(2024, 11, day_of_week.thursday, 4)).should_be("2024-11-28"); };
+        test("US Thanksgiving 2026") { expect(nth(2026, 11, day_of_week.thursday, 4)).should_be("2026-11-26"); };
+        test("Martin Luther King Day 2024: 3rd Monday of January") { expect(nth(2024, 1, day_of_week.monday, 3)).should_be("2024-01-15"); };
+        test("Labor Day 2024: 1st Monday of September") { expect(nth(2024, 9, day_of_week.monday, 1)).should_be("2024-09-02"); };
+        test("Mother's Day 2024: 2nd Sunday of May") { expect(nth(2024, 5, day_of_week.sunday, 2)).should_be("2024-05-12"); };
+        test("Memorial Day 2024: last Monday of May") { expect(nth(2024, 5, day_of_week.monday, 0 - 1)).should_be("2024-05-27"); };
+        test("EU summer time 2024 starts: last Sunday of March") { expect(nth(2024, 3, day_of_week.sunday, 0 - 1)).should_be("2024-03-31"); };
+        test("EU summer time 2024 ends: last Sunday of October") { expect(nth(2024, 10, day_of_week.sunday, 0 - 1)).should_be("2024-10-27"); };
+        test("the first day of a month as its own weekday") { expect(nth(2024, 2, day_of_week.thursday, 1)).should_be("2024-02-01"); };
+        test("a 5th Thursday (29 February 2024)") { expect(nth(2024, 2, day_of_week.thursday, 5)).should_be("2024-02-29"); };
+        test("the last Thursday is the same day") { expect(nth(2024, 2, day_of_week.thursday, 0 - 1)).should_be("2024-02-29"); };
+        test("the second to last Friday of February 2024") { expect(nth(2024, 2, day_of_week.friday, 0 - 2)).should_be("2024-02-16"); };
+        test("the first Friday counted from the end") { expect(nth(2024, 2, day_of_week.friday, 0 - 4)).should_be("2024-02-02"); };
+        test("last_weekday_of_month") { expect(text(calendar.last_weekday_of_month(2024, 5, day_of_week.monday))).should_be("2024-05-27"); };
+        test("last Friday of December 2023") { expect(text(calendar.last_weekday_of_month(2023, 12, day_of_week.friday))).should_be("2023-12-29"); };
+
+        caught = 0;
+        try { calendar.nth_weekday_of_month(2024, 2, day_of_week.friday, 5); } catch(e: date_time_exception) { caught = 1; }
+        test("a 5th Friday in February 2024 does not exist") { expect(caught).should_be(1); };
+        caught = 0;
+        try { calendar.nth_weekday_of_month(2024, 2, day_of_week.friday, 0 - 5); } catch(e: date_time_exception) { caught = 1; }
+        test("nor a 5th Friday from the end") { expect(caught).should_be(1); };
+        caught = 0;
+        try { calendar.nth_weekday_of_month(2024, 2, day_of_week.friday, 0); } catch(e: date_time_exception) { caught = 1; }
+        test("n = 0 throws") { expect(caught).should_be(1); };
+        caught = 0;
+        try { calendar.nth_weekday_of_month(2024, 2, day_of_week.friday, 6); } catch(e: date_time_exception) { caught = 1; }
+        test("n = 6 throws") { expect(caught).should_be(1); };
+        try {
+            calendar.nth_weekday_of_month(2024, 2, day_of_week.friday, 5);
+            test("message") { fail_test("no exception"); };
+        } catch(e: date_time_exception) {
+            test("message") { expect(e.get_message()).should_be("February 2024 has no Friday number 5"); };
+        }
+
+        test("Thursdays in February 2024") { expect(calendar.count_weekday_in_month(2024, 2, day_of_week.thursday)).should_be(5); };
+        test("Fridays in February 2024") { expect(calendar.count_weekday_in_month(2024, 2, day_of_week.friday)).should_be(4); };
+        test("Sundays in November 2026") { expect(calendar.count_weekday_in_month(2026, 11, day_of_week.sunday)).should_be(5); };
+        test("Mondays in November 2026") { expect(calendar.count_weekday_in_month(2026, 11, day_of_week.monday)).should_be(5); };
+        test("Tuesdays in November 2026") { expect(calendar.count_weekday_in_month(2026, 11, day_of_week.tuesday)).should_be(4); };
+        test("Mondays in February 2021") { expect(calendar.count_weekday_in_month(2021, 2, day_of_week.monday)).should_be(4); };
+
+        // ================= Easter =================
+
+        test("Easter 2024") { expect(easter(2024)).should_be("2024-03-31"); };
+        test("Easter 2025") { expect(easter(2025)).should_be("2025-04-20"); };
+        test("Easter 2026") { expect(easter(2026)).should_be("2026-04-05"); };
+        test("Easter 2019") { expect(easter(2019)).should_be("2019-04-21"); };
+        test("Easter 2011") { expect(easter(2011)).should_be("2011-04-24"); };
+        test("Easter 2008") { expect(easter(2008)).should_be("2008-03-23"); };
+        test("Easter 2000") { expect(easter(2000)).should_be("2000-04-23"); };
+        test("Easter 1961") { expect(easter(1961)).should_be("1961-04-02"); };
+        test("Easter 1943 (the latest possible date)") { expect(easter(1943)).should_be("1943-04-25"); };
+        test("Easter 1818 (the earliest possible date)") { expect(easter(1818)).should_be("1818-03-22"); };
+        test("Easter 2038 (latest again)") { expect(easter(2038)).should_be("2038-04-25"); };
+        test("Easter 2285 (earliest again)") { expect(easter(2285)).should_be("2285-03-22"); };
+        test("Easter 1583") { expect(easter(1583)).should_be("1583-04-10"); };
+        not_sunday : decimal = 0;
+        out_of_window : decimal = 0;
+        for(year : decimal = 1900; year <= 2199; year++) {
+            day : date = calendar.easter(year);
+            if(day.day_of_week() != day_of_week.sunday) {
+                not_sunday++;
+            }
+            if(day < date.of(year, 3, 22) || day > date.of(year, 4, 25)) {
+                out_of_window++;
+            }
+        }
+        test("Easter is always a Sunday (1900-2199)") { expect(not_sunday).should_be(0); };
+        test("Easter is always 22 March .. 25 April") { expect(out_of_window).should_be(0); };
+
+        test("Orthodox Easter 2024") { expect(orthodox(2024)).should_be("2024-05-05"); };
+        test("Orthodox Easter 2025 (same day as Western)") { expect(orthodox(2025)).should_be("2025-04-20"); };
+        test("Orthodox Easter 2023") { expect(orthodox(2023)).should_be("2023-04-16"); };
+        test("Orthodox Easter 2021") { expect(orthodox(2021)).should_be("2021-05-02"); };
+        test("Orthodox Easter 2019") { expect(orthodox(2019)).should_be("2019-04-28"); };
+        test("Orthodox Easter 2016") { expect(orthodox(2016)).should_be("2016-05-01"); };
+        test("Orthodox Easter 2010 (same day as Western)") { expect(orthodox(2010)).should_be("2010-04-04"); };
+        test("Orthodox Easter 1999") { expect(orthodox(1999)).should_be("1999-04-11"); };
+        not_sunday = 0;
+        for(year : decimal = 1900; year <= 2199; year++) {
+            if(calendar.orthodox_easter(year).day_of_week() != day_of_week.sunday) {
+                not_sunday++;
+            }
+        }
+        test("Orthodox Easter is always a Sunday (1900-2199)") { expect(not_sunday).should_be(0); };
+
+        caught = 0;
+        try { calendar.easter(1582); } catch(e: date_time_exception) { caught = 1; }
+        test("Easter before 1583 throws") { expect(caught).should_be(1); };
+        caught = 0;
+        try { calendar.orthodox_easter(2024.5); } catch(e: date_time_exception) { caught = 1; }
+        test("a fractional year throws") { expect(caught).should_be(1); };
+
+        // ================= business days =================
+
+        friday := on(2024, 3, 1);
+        saturday := on(2024, 3, 2);
+        sunday := on(2024, 3, 3);
+        monday := on(2024, 3, 4);
+
+        test("Saturday is a weekend") { expect_true(calendar.is_weekend(saturday)); };
+        test("Sunday is a weekend") { expect_true(calendar.is_weekend(sunday)); };
+        test("Friday is not") { expect_false(calendar.is_weekend(friday)); };
+        test("Friday is a business day") { expect_true(calendar.is_business_day(friday)); };
+        test("Monday is a business day") { expect_true(calendar.is_business_day(monday)); };
+        test("Saturday is not") { expect_false(calendar.is_business_day(saturday)); };
+
+        test("Friday + 1") { expect(text(calendar.plus_business_days(friday, 1))).should_be("2024-03-04"); };
+        test("Saturday + 1") { expect(text(calendar.plus_business_days(saturday, 1))).should_be("2024-03-04"); };
+        test("Sunday + 1") { expect(text(calendar.plus_business_days(sunday, 1))).should_be("2024-03-04"); };
+        test("Monday + 1") { expect(text(calendar.plus_business_days(monday, 1))).should_be("2024-03-05"); };
+        test("Monday - 1") { expect(text(calendar.plus_business_days(monday, 0 - 1))).should_be("2024-03-01"); };
+        test("Sunday - 1") { expect(text(calendar.plus_business_days(sunday, 0 - 1))).should_be("2024-03-01"); };
+        test("Friday + 5 is the next Friday") { expect(text(calendar.plus_business_days(friday, 5))).should_be("2024-03-08"); };
+        test("Friday + 10") { expect(text(calendar.plus_business_days(friday, 10))).should_be("2024-03-15"); };
+        test("Friday + 23") { expect(text(calendar.plus_business_days(friday, 23))).should_be("2024-04-03"); };
+        test("Friday - 5") { expect(text(calendar.plus_business_days(friday, 0 - 5))).should_be("2024-02-23"); };
+        test("+ 0 leaves a weekend day alone") { expect(text(calendar.plus_business_days(saturday, 0))).should_be("2024-03-02"); };
+        test("Monday + 4 stays in the week") { expect(text(calendar.plus_business_days(monday, 4))).should_be("2024-03-08"); };
+        test("+ 262 business days is a year of them") { expect(text(calendar.plus_business_days(on(2024, 1, 1), 262))).should_be("2025-01-01"); };
+        test("next_business_day from Friday") { expect(text(calendar.next_business_day(friday))).should_be("2024-03-04"); };
+        test("next_business_day from Wednesday") { expect(text(calendar.next_business_day(on(2024, 3, 6)))).should_be("2024-03-07"); };
+        test("previous_business_day from Monday") { expect(text(calendar.previous_business_day(monday))).should_be("2024-03-01"); };
+        test("previous_business_day from Saturday") { expect(text(calendar.previous_business_day(saturday))).should_be("2024-03-01"); };
+
+        test("Monday to the next Monday") { expect(calendar.business_days_between(monday, on(2024, 3, 11))).should_be(5); };
+        test("Friday to Monday") { expect(calendar.business_days_between(friday, monday)).should_be(1); };
+        test("Saturday to Monday") { expect(calendar.business_days_between(saturday, monday)).should_be(0); };
+        test("a day to itself") { expect(calendar.business_days_between(friday, friday)).should_be(0); };
+        test("Monday to Friday of one week (end not included)") { expect(calendar.business_days_between(monday, on(2024, 3, 8))).should_be(4); };
+        test("all of March 2024") { expect(calendar.business_days_between(on(2024, 3, 1), on(2024, 4, 1))).should_be(21); };
+        test("all of 2024") { expect(calendar.business_days_between(on(2024, 1, 1), on(2025, 1, 1))).should_be(262); };
+        test("all of 2023") { expect(calendar.business_days_between(on(2023, 1, 1), on(2024, 1, 1))).should_be(260); };
+        test("backwards is negative") { expect(calendar.business_days_between(on(2024, 3, 11), monday)).should_be(0 - 5); };
+
+        // ---- with holidays: Good Friday and Easter Monday 2024, a Saturday, a duplicate, one far away
+        holidays : date[] = new date[] {
+            on(2024, 3, 29), on(2024, 4, 1), on(2024, 3, 30), on(2024, 3, 29), on(2025, 1, 1)
+        };
+        none : date[] = new date[0];
+        test("a holiday is not a business day") { expect_false(calendar.is_business_day(on(2024, 3, 29), holidays)); };
+        test("the day before is") { expect_true(calendar.is_business_day(on(2024, 3, 28), holidays)); };
+        test("a weekend is not, holiday or not") { expect_false(calendar.is_business_day(saturday, holidays)); };
+        test("an empty holiday list changes nothing") { expect_true(calendar.is_business_day(on(2024, 3, 29), none)); };
+        test("Thursday before Easter + 1 skips four days") { expect(text(calendar.plus_business_days(on(2024, 3, 28), 1, holidays))).should_be("2024-04-02"); };
+        test("Thursday before Easter + 2") { expect(text(calendar.plus_business_days(on(2024, 3, 28), 2, holidays))).should_be("2024-04-03"); };
+        test("Tuesday after Easter - 1") { expect(text(calendar.plus_business_days(on(2024, 4, 2), 0 - 1, holidays))).should_be("2024-03-28"); };
+        test("no holiday in the way") { expect(text(calendar.plus_business_days(friday, 1, holidays))).should_be("2024-03-04"); };
+        test("+ 0 with holidays") { expect(text(calendar.plus_business_days(on(2024, 3, 29), 0, holidays))).should_be("2024-03-29"); };
+        test("an empty holiday list") { expect(text(calendar.plus_business_days(friday, 10, none))).should_be("2024-03-15"); };
+        test("March 2024 with Good Friday off") { expect(calendar.business_days_between(on(2024, 3, 1), on(2024, 4, 1), holidays)).should_be(20); };
+        test("...and April 1st when the range includes it") { expect(calendar.business_days_between(on(2024, 3, 1), on(2024, 4, 2), holidays)).should_be(20); };
+        test("a range without holidays") { expect(calendar.business_days_between(monday, on(2024, 3, 11), holidays)).should_be(5); };
+        test("backwards with holidays") { expect(calendar.business_days_between(on(2024, 4, 1), on(2024, 3, 1), holidays)).should_be(0 - 20); };
+        test("all of 2024 with these holidays") { expect(calendar.business_days_between(on(2024, 1, 1), on(2025, 1, 1), holidays)).should_be(260); };
+
+        // ================= ages and ISO week dates =================
+
+        test("the day before the 34th birthday") { expect(calendar.full_years_between(on(1990, 5, 20), on(2024, 5, 19))).should_be(33); };
+        test("on the 34th birthday") { expect(calendar.full_years_between(on(1990, 5, 20), on(2024, 5, 20))).should_be(34); };
+        test("born on a leap day, 28 February") { expect(calendar.full_years_between(on(2000, 2, 29), on(2023, 2, 28))).should_be(22); };
+        test("born on a leap day, 1 March") { expect(calendar.full_years_between(on(2000, 2, 29), on(2023, 3, 1))).should_be(23); };
+        test("born on a leap day, on a leap day") { expect(calendar.full_years_between(on(2000, 2, 29), on(2024, 2, 29))).should_be(24); };
+        test("not yet born") { expect(calendar.full_years_between(on(2000, 1, 1), on(1990, 1, 1))).should_be(0 - 10); };
+        test("the same day") { expect(calendar.full_years_between(friday, friday)).should_be(0); };
+
+        test("2024-W09-4") { expect(text(calendar.date_of_iso_week(2024, 9, day_of_week.thursday))).should_be("2024-02-29"); };
+        test("2020-W53-7") { expect(text(calendar.date_of_iso_week(2020, 53, day_of_week.sunday))).should_be("2021-01-03"); };
+        test("2025-W01-1") { expect(text(calendar.date_of_iso_week(2025, 1, day_of_week.monday))).should_be("2024-12-30"); };
+        test("2021-W01-1") { expect(text(calendar.date_of_iso_week(2021, 1, day_of_week.monday))).should_be("2021-01-04"); };
+        test("2026-W46-4") { expect(text(calendar.date_of_iso_week(2026, 46, day_of_week.thursday))).should_be("2026-11-12"); };
+        back : date = calendar.date_of_iso_week(2015, 53, day_of_week.friday);
+        test("the inverse of iso_week") { expect(back.iso_week()).should_be(53); };
+        test("the inverse of iso_week_year") { expect(back.iso_week_year()).should_be(2015); };
+        caught = 0;
+        try { calendar.date_of_iso_week(2024, 53, day_of_week.monday); } catch(e: date_time_exception) { caught = 1; }
+        test("week 53 of a 52 week year throws") { expect(caught).should_be(1); };
+        caught = 0;
+        try { calendar.date_of_iso_week(2024, 0, day_of_week.monday); } catch(e: date_time_exception) { caught = 1; }
+        test("week 0 throws") { expect(caught).should_be(1); };
+    };
+    finish_tests("lib_time_calendar");
+}

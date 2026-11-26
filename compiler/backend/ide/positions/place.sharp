@@ -1,0 +1,34 @@
+mod backend.ide.positions;
+
+import (
+    std.io
+)
+
+/**
+ * A PLACE IN A FILE, IN THE EDITOR'S COUNTING
+ *
+ *      from, to              offsets: UTF-16 units from the start of the file, `to` not included
+ *      line, column          where `from` is, both counted from 1
+ *      end_line, end_column  where `to` is
+ *
+ * The convention (what a column counts, how a line end and a tab and an emoji
+ * count) is written down once, in doc/ide.md 4.1, and implemented in
+ * `file_positions` (editor_offsets.sharp).
+ */
+class place {
+    from : _int64;
+    to : _int64;
+    line : _int64;
+    column : _int64;
+    end_line : _int64;
+    end_column : _int64;
+
+    place(from: _int64, to: _int64, line: _int64, column: _int64, end_line: _int64, end_column: _int64) {
+        self->from = from;
+        self->to = to;
+        self->line = line;
+        self->column = column;
+        self->end_line = end_line;
+        self->end_column = end_column;
+    }
+}

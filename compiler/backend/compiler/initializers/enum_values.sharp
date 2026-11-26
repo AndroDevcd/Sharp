@@ -1,0 +1,139 @@
+mod backend.compiler.initializers;
+
+import (
+    std.io,
+    backend.types.declarations,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.expressions
+)
+
+/**
+ * THE NUMBERS OF AN ENUM'S VALUES
+ *
+ *      const top : _int64 = 10;
+ *      enum level { low = top + 1, high }      low is 11, high 12: known while compiling
+ *      enum size { small = limit * 2, big }    small is worked out when the program starts;
+ *                                              big has no number a program may rely on
+ *
+ * Each value of an enum is an object of the enum's class with a number (its
+ * `ordinal`). The rule of doc/backend.md 7.16 [D15]:
+ *
+ *   - a value written `= e`: `e` must be a plain NUMBER expression (E0940
+ *     for text, an object, another enum's value ...); a decimal is cut to a
+ *     whole number. When `e` is a constant - literals, and `const` fields
+ *     with a constant value, combined by `+ - * / ...` - its number is known
+ *     while compiling (`sharp_enum_value.constant`); when not, the
+ *     expression (`bound_value`) is evaluated when the program starts;
+ *   - a value after one with a known number is that number plus one;
+ *   - any other value has no number the program may rely on, only one that
+ *     differs from the others of its enum: `constant` stays null and the code
+ *     generator numbers it.
+ *
+ * Two values with the same known number are accepted, as in the C++ compiler
+ * (they then compare equal), with W1030.
+ *
+ * The value expression is analysed as code of the enum without an object
+ * (like a static field's value).
+ *
+ *      E0940   the value of an enum value is not a number
+ *      W1030   two values of one enum have the same number
+ *
+ *      C++ comparison: compiler/enum_compiler.cpp ("expected numeric type for
+ *      enum field but type `...` was found"); it numbers the values without
+ *      `=` from a counter of the whole program.
+ */
+def analyse_enum_values(session: analysis_session, declared: sharp_class) {
+    if(declared.enum_values.size() == 0) { return; }
+    file := session.prog.file_of(declared.unit);
+    if(file == null) { return; }
+    context := new analysis_context(session, file!!);
+    context.class_of = declared;
+    context.environment = declared.environment;
+    context.is_static = 1;
+
+    next : constant_value? = null;          // the number the next value without `=` gets, when known
+    for(i : _int64 = 0; i < declared.enum_values.size(); i++) {
+        value := declared.enum_values.at(i);
+        if(value.value_node >= 0) {
+            value.bound_value = analyse_enum_number(context, value);
+            next = null;
+            if(value.bound_value != null && value.bound_value!!.constant != null) {
+                value.constant = whole_number_of(value.bound_value!!.constant!!);
+            }
+        } else if(next != null) {
+            value.constant = next;
+        }
+        if(value.constant != null) {
+            value.has_number = 1;
+            value.number = value.constant!!.integer;
+            next = integer_constant(value.number + 1);
+        }
+    }
+    warn_numbers_twice(context, declared);
+}
+
+/** the expression after `=`: a whole number, or null after E0940 */
+def analyse_enum_number(context: analysis_context, value: sharp_enum_value) : bound_expression? {
+    found := analyse_value(context, value.value_node, null);
+    if(found.type.kind == RT_ERROR) { return null; }
+    if(!found.type.is_number()) {
+        report_not_a_number(context, value, found);
+        return null;
+    }
+    if(found.type.kind == RT_DECIMAL) {
+        converted := convert(context, found, context.session.types.int64, "an enum's number");
+        if(found.constant != null) { converted.constant = whole_number_of(found.constant!!); }
+        return converted;
+    }
+    return found;
+}
+
+/** the constant as a whole number (a decimal is cut down, as the VM cuts it) */
+def whole_number_of(constant: constant_value) : constant_value {
+    if(constant.kind == CONST_INTEGER) { return constant; }
+    if(constant.kind == CONST_DECIMAL) { return integer_constant(constant.number as _int64); }
+    return constant;
+}
+
+/** E0940 */
+def report_not_a_number(context: analysis_context, value: sharp_enum_value, found: bound_expression) {
+    d := problem_over(context, "E0940", "the number of `" + value.name + "` must be a number, but this is " + described_type(found.type),
+                      value.value_node);
+    d.with_label("not a number");
+    d.with_note("each value of an enum is numbered; `= e` gives the number, so `e` must be a whole number (a decimal is cut down)");
+    type : resolved_type = found.type;
+    if(type.kind == RT_CLASS && type.is_array == 0 && type.class_of!!.is_enum()) {
+        d.with_help("the number of another enum's value is `" + source_text_of(context, value.value_node) + ".ordinal`");
+    } else if(type.kind == RT_CLASS && type.is_array == 0 && context.session.known.is_box(type.class_of!!)) {
+        d.with_help("its number is `" + source_text_of(context, value.value_node) + ".value`");
+    } else {
+        d.with_help("write a number: `" + value.name + " = 1`");
+    }
+    report(context, d);
+}
+
+/** W1030: two values with one known number */
+def warn_numbers_twice(context: analysis_context, declared: sharp_class) {
+    values := declared.enum_values;
+    for(i : _int64 = 1; i < values.size(); i++) {
+        later := values.at(i);
+        if(later.has_number == 0 || later.constant == null) { continue; }
+        for(j : _int64 = 0; j < i; j++) {
+            earlier := values.at(j);
+            if(earlier.has_number == 1 && earlier.number == later.number) {
+                d := problem_at(context, "W1030", "`" + later.name + "` and `" + earlier.name + "` of `" + declared.name
+                                + "` both have the number " + later.number, later.node);
+                d.with_label("the same number as `" + earlier.name + "`");
+                d.with_related_place(place_of_declaration(earlier, "`" + earlier.name + "` is " + earlier.number + " here"));
+                d.with_note("values with the same number are equal: `" + declared.name + "." + later.name + " == " + declared.name + "."
+                            + earlier.name + "` is true");
+                d.with_help("give `" + later.name + "` a number of its own");
+                report(context, d);
+                break;
+            }
+        }
+    }
+}

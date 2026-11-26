@@ -1,0 +1,119 @@
+mod backend.postprocessor.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system
+)
+
+/**
+ * CONSTRUCTORS AND INIT BLOCKS AS DECLARED
+ * (the C++ compiler: process_function in postprocessor/function_processor.cpp,
+ * create_default_constructor in types/sharp_function.cpp, init_compiler.cpp)
+ *
+ *      class point {
+ *          point(x: decimal, y: decimal) { ... }       a constructor: named like its class
+ *          init { ... }                                runs for every new object, before the constructor
+ *          static init { ... }                         runs once, when the class is first used
+ *          init(text: string) { ... }                  a CONVERSION: lets `p : point = "1,2";` work
+ *      }
+ *
+ * THE CONSTRUCTOR WITHOUT PARAMETERS
+ * Every class has one. When none is written the compiler adds a public,
+ * empty one - also when the class has OTHER constructors. So `new point()`
+ * always exists, and a class whose base class only declares
+ * `shape(name: string)` may still leave out `-> base(...)`.
+ * The added constructor is an ordinary sharp_function with
+ * `is_synthesized = 1`; its `node` is the class's node (there is no text of
+ * its own to point at) and it has no body. `sharp_class.default_constructor`
+ * is the constructor without parameters, written or added.
+ *
+ *      E0370   a constructor that is not named like its class
+ *      E0371   init(...) with parameters must have exactly one
+ *      E0372   `static init` with parameters
+ */
+def check_constructors(prog: sharp_program, problems: list<diagnostic>) {
+    for(i : _int64 = 0; i < prog.all_classes.size(); i++) {
+        declared := prog.all_classes.at(i);
+
+        for(j : _int64 = 0; j < declared.constructors.size(); j++) {
+            constructor := declared.constructors.at(j);
+            if(constructor.name != declared.name) {
+                report_constructor_name(declared, constructor, problems);
+            }
+            if(constructor.parameters.size() == 0 && declared.default_constructor == null) {
+                declared.default_constructor = constructor;
+            }
+        }
+
+        for(j : _int64 = 0; j < declared.init_blocks.size(); j++) {
+            check_init_block(declared, declared.init_blocks.at(j), problems);
+        }
+
+        // (an interface has no objects, so nothing to construct)
+        if(declared.default_constructor == null && declared.kind != D_INTERFACE) {
+            added := new sharp_function(D_CONSTRUCTOR, declared.name, declared.unit, declared.node, declared, declared.module);
+            added.flags = FLAG_PUBLIC;
+            added.is_synthesized = 1;
+            declared.constructors.add(added);
+            declared.default_constructor = added;
+        }
+    }
+}
+
+/** does this init block have a parameter list - `init(x: t) { }` rather than `init { }`? */
+def has_parameter_list(function: sharp_function) : _int64 {
+    return function.unit.parsed!!.tree.child_of_kind(function.node, N_PARAMETERS) >= 0;
+}
+
+/** E0371 / E0372: the forms `init(...)` may not have */
+def check_init_block(declared: sharp_class, block: sharp_function, problems: list<diagnostic>) {
+    if(!has_parameter_list(block)) { return; }
+    count : _int64 = block.parameters.size();
+
+    if(block.has(FLAG_STATIC)) {
+        problems.add(error_at_node("E0372", "a `static init` cannot have parameters", block.unit, block.node)
+            .with_label("nobody calls a static init: it runs by itself when `" + declared.name + "` is first used")
+            .with_note("`init(x: t) { }` is something else: a conversion that makes a `" + declared.name
+                       + "` from a `t`. That always makes an object, so it cannot be static")
+            .with_help("write `static init { ... }` for code that runs once for the class, or remove `static` to declare a conversion"));
+        return;
+    }
+
+    if(count != 1) {
+        d := error_at_node("E0371", "`init(...)` must have exactly one parameter; this one has " + count, block.unit, block.node)
+            .with_label("the value to make a `" + declared.name + "` from")
+            .with_note("`init(x: t) { }` declares a conversion: where a `" + declared.name
+                       + "` is wanted and a `t` is given, the object is made by this block. One value goes in");
+        if(count == 0) {
+            d.with_help("for code that runs whenever an object is made, write it without parentheses:  init { ... }");
+        } else {
+            d.with_help("to make a `" + declared.name + "` from several values, declare a constructor:  " + declared.name + "(...) { ... }");
+        }
+        problems.add(d);
+    }
+}
+
+/** E0370: `pont(x: decimal) { }` in class point */
+def report_constructor_name(declared: sharp_class, constructor: sharp_function, problems: list<diagnostic>) {
+    d := error_at_node("E0370", "`" + constructor.name + "` looks like a constructor, but the class is called `" + declared.name + "`",
+                       constructor.unit, constructor.node)
+        .with_label("a name followed by `(...) {` inside a class declares a constructor")
+        .with_related_place(place_of_node(declared.unit, declared.node, "the class is declared here"))
+        .with_note("a constructor is named exactly like its class (for a generic class, without the `<...>`)");
+
+    names := new list<string>();
+    names.add(declared.name);
+    if(closest_names(constructor.name, names, 1).size() > 0) {
+        d.with_help("if this is the constructor, name it `" + declared.name + "`");
+        d.with_help("if it is meant to be a function, start it with `def`:  def " + constructor.name + "(...) { ... }");
+    } else {
+        d.with_help("if it is meant to be a function, start it with `def`:  def " + constructor.name + "(...) { ... }");
+        d.with_help("if this is the constructor, name it `" + declared.name + "`");
+    }
+    problems.add(d);
+}

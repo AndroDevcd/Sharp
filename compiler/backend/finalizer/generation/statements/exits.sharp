@@ -1,0 +1,160 @@
+mod backend.finalizer.generation.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.typed_tree,
+    backend.types.typed_tree.statements,
+    backend.finalizer.ir,
+    backend.finalizer.generation
+)
+
+/**
+ * WAYS OUT: `return`, `break` and `continue` that leave a `lock` or a `try`
+ * with a `finally` (doc/codegen.md 6.11)
+ *
+ * A jump may pass, on its way out, `lock` statements (the object must be
+ * unlocked) and `try` statements with a `finally` (the finally block must run
+ * first). Analysis lists them in the jump's `leaves`, innermost first:
+ *
+ *      while(more()) {
+ *          lock(table) {
+ *              try {
+ *                  if(done) { break; }     leaves: [the try, the lock]
+ *              } finally { log("out"); }
+ *          }
+ *      }
+ *
+ * THE EXIT STUB. For each `try` with a `finally`, and each way out that leaves
+ * it, the generator places one small piece of code after the try statement
+ * (exceptions.sharp writes them):
+ *
+ *      stub(try, way out):     <a copy of the finally block>
+ *                              <the rest of the way: unlock the locks up to the next try with a
+ *                               finally and jump to ITS stub for the same way out - or, past the
+ *                               last one, the final jump>
+ *
+ * so the `break` above becomes `jump stub(the try, break)`, and that stub is
+ * `log("out"); unlock table; jump <the end of the while>`. The final jump is
+ * the loop's end (`break`), its next round (`continue`) or the return. A
+ * `return value` that passes a finally first puts its value into a hidden
+ * slot of the function (`return_slot`): the value is computed BEFORE any
+ * finally runs (probed: `return x;` with a finally that changes x returns the
+ * old x), and the final return returns that slot.
+ *
+ * One stub serves every jump of the same kind to the same place from inside
+ * the same `try`: what lies between the try and the target is the same for
+ * all of them. Every jump is a direct `jmp` - no return address in a hidden
+ * local and no indirect `brh` as the C++ compiler uses (codegen.md 10, G2) -
+ * which the JIT and the optimizer see through. The price is one copy of the
+ * finally block per way out, as `javac` does it.
+ *
+ * THE ORDER is the order of the nesting: a lock is given back where the walk
+ * passes it, so a finally block runs with exactly the locks held that are
+ * written around it. (The C++-built program runs every finally block first
+ * and unlocks all the locks at the final jump: codegen.md 10, G30.)
+ *
+ *      C++ comparison: return_statement.cpp, break_statement.cpp and
+ *      try_catch_statement.cpp in compiler/functions/statements (the finally
+ *      entered with a stored return address, left by `brh`).
+ */
+
+const WAY_RETURN   : _int64 = 1;
+const WAY_BREAK    : _int64 = 2;
+const WAY_CONTINUE : _int64 = 3;
+
+/** one way out of a `try` with a finally: where its stub begins and the rest of the way after the try */
+class way_out {
+    kind : _int64;                      // WAY_...
+    loop : bound_statement?;            // the loop a break / continue goes to; null for a return
+    label : _int64;                     // where the stub begins
+    leaves : list<bound_statement>;     // the `leaves` of the jump that first asked for it ...
+    at : _int64;                        // ... and the try's position in it: the rest of the way is leaves[at + 1 ..]
+
+    way_out(kind: _int64, loop: bound_statement?, label: _int64, leaves: list<bound_statement>, at: _int64) {
+        self->kind = kind;
+        self->loop = loop;
+        self->label = label;
+        self->leaves = leaves;
+        self->at = at;
+    }
+}
+
+/** a `try` with a finally whose block or catch handlers are being generated, and the ways out of it asked for so far */
+class try_exits {
+    statement : bound_try;
+    ways : list<way_out>;
+
+    try_exits(statement: bound_try) {
+        self->statement = statement;
+        ways = new list<way_out>();
+    }
+
+    /** the label of the stub for this way out; the first jump that asks makes it */
+    def stub_label(b: ir_builder, kind: _int64, loop: bound_statement?, leaves: list<bound_statement>, at: _int64) : _int64 {
+        for(i : _int64 = 0; i < ways.size(); i++) {
+            known := ways.at(i);
+            if(known.kind == kind && known.loop == loop) { return known.label; }
+        }
+        made := new way_out(kind, loop, b.new_label(), leaves, at);
+        ways.add(made);
+        return made.label;
+    }
+}
+
+/**
+ * Go the rest of a way out, from position `from` of its `leaves`: unlock each
+ * lock until the first `try` with a finally, then jump to that try's stub;
+ * with none left, the final jump.
+ */
+def leave_by(g: generator, kind: _int64, loop: bound_statement?, leaves: list<bound_statement>, from: _int64,
+             unit: source_unit, node: _int64) {
+    for(i : _int64 = from; i < leaves.size(); i++) {
+        passed := leaves.at(i);
+        if(passed.kind == BS_LOCK) {
+            held := (passed as bound_lock).held;
+            g.b.lock_object(IR_UNLOCK, g.slot_of(held, unit, node));
+        } else if(passed.kind == BS_TRY && (passed as bound_try).finally_part != null) {
+            exits := exits_of(g, passed as bound_try);
+            if(exits == null) { g.stop("a jump out of a `finally` block", unit, node); }
+            g.b.jump(exits!!.stub_label(g.b, kind, loop, leaves, i));
+            return;
+        }
+    }
+    final_jump(g, kind, loop, unit, node);
+}
+
+/** the try's record of ways out, while its block or handlers are being generated; null otherwise */
+def exits_of(g: generator, statement: bound_try) : try_exits? {
+    for(i : _int64 = g.finally_tries.size() - 1; i >= 0; i--) {
+        if(g.finally_tries.at(i).statement == statement) { return g.finally_tries.at(i); }
+    }
+    return null;
+}
+
+/** the end of a way out: the return (of the hidden return slot, for a function with a result), or the loop's jump */
+def final_jump(g: generator, kind: _int64, loop: bound_statement?, unit: source_unit, node: _int64) {
+    if(kind == WAY_RETURN) {
+        if(g.made.returns_value()) {
+            returned := g.b.emit(IR_RETURN_VALUE);
+            returned.first = g.return_slot_for(unit, node);
+            returned.number = narrowing_of(g.made.of.result_type);
+        } else {
+            g.b.emit(IR_RETURN);
+        }
+        return;
+    }
+    g.b.jump(loop_label(g, kind, loop, unit, node));
+}
+
+/** where a `break` (the loop's end) or a `continue` (its next round) of a loop around this statement goes */
+def loop_label(g: generator, kind: _int64, loop: bound_statement?, unit: source_unit, node: _int64) : _int64 {
+    for(i : _int64 = g.loops.size() - 1; i >= 0; i--) {
+        if(g.loops.at(i) == loop) {
+            if(kind == WAY_BREAK) { return g.break_labels.at(i); }
+            return g.continue_labels.at(i);
+        }
+    }
+    g.stop("a jump to a loop outside this function", unit, node);
+    return 0;
+}

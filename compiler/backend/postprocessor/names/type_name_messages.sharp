@@ -1,0 +1,262 @@
+mod backend.postprocessor.names;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.syntax.parser,
+    frontend.diagnostics,
+    backend.postprocessor.imports,
+    backend.types.declarations,
+    backend.types.program,
+    backend.preprocessor,
+    backend.types.type_system
+)
+
+/**
+ * THE MESSAGES FOR A TYPE NAME THAT WAS NOT FOUND
+ *
+ * `resolve_type_name` (type_names.sharp) does the looking; when it finds
+ * nothing, the functions here say so - and do the looking the programmer
+ * would have to do next:
+ *
+ *      x : strng;              E0301   there is no type named `strng`
+ *                                      = help: did you mean `string`?
+ *      t := new thing();       E0301   ... `thing` is declared in module `one`, which this
+ *                                      file imports as the group `q`: write `q#thing`
+ *      n : Integer;            E0301   ... is written `int` in Sharp        (name_in_sharp)
+ *      v : tools#nothing;      E0304   module `tools` has no type `nothing`
+ *      i : outer.nothing;      E0305   `outer` declares no type `nothing` inside it
+ *      w : toolz#thing;        E0303   there is no module named `toolz`: did you mean
+ *                                      `tools`? - among the modules of the program AND the
+ *                                      import groups of the file (`import ( ... ) as q`)
+ *
+ * The same messages are given for a type name in a body (`new strng()`),
+ * because the type-names stage checks those too.
+ *
+ *      C++ comparison: one line, "could not resolve symbol `strng`"
+ *      (resolve_type in postprocessor/import_processor.cpp and dependency.cpp).
+ */
+
+/** every type name the file can see: what "did you mean" chooses from */
+def visible_type_names(file: sharp_file) : list<string> {
+    names := new list<string>();
+    for(i : _int64 = 0; i < file.imports.size(); i++) {
+        add_type_names(file.imports.at(i).declared, names);
+    }
+    return names;
+}
+
+/** add the name of every type declared in the scope `from` */
+def add_type_names(from: scope, names: list<string>) {
+    for(i : _int64 = 0; i < from.ordered.size(); i++) {
+        declared := from.ordered.at(i);
+        if(names_a_type(declared.kind)) {
+            names.add(declared.name);
+        }
+    }
+}
+
+/**
+ * What this name is called in Sharp, when it is a type name from another
+ * language; "" when it is not one.
+ */
+def name_in_sharp(name: string) : string {
+    if(name == "var" || name == "float" || name == "f32" || name == "f64" || name == "number" || name == "real") {
+        return "a number with a fraction is written `decimal`";
+    }
+    if(name == "i8" || name == "int8" || name == "int8_t" || name == "sbyte") { return "an 8-bit integer is written `_int8`"; }
+    if(name == "i16" || name == "int16" || name == "int16_t") { return "a 16-bit integer is written `_int16`"; }
+    if(name == "i32" || name == "int32" || name == "int32_t") { return "a 32-bit integer is written `_int32`"; }
+    if(name == "i64" || name == "int64" || name == "int64_t") { return "a 64-bit integer is written `_int64`"; }
+    if(name == "u8" || name == "uint8" || name == "uint8_t") { return "an unsigned 8-bit integer is written `_uint8`"; }
+    if(name == "u16" || name == "uint16" || name == "uint16_t") { return "an unsigned 16-bit integer is written `_uint16`"; }
+    if(name == "u32" || name == "uint32" || name == "uint32_t" || name == "unsigned") { return "an unsigned 32-bit integer is written `_uint32`"; }
+    if(name == "u64" || name == "uint64" || name == "uint64_t" || name == "size_t" || name == "usize") { return "an unsigned 64-bit integer is written `_uint64`"; }
+    if(name == "void") { return "a function that returns nothing has no return type at all (or `: nil`)"; }
+    if(name == "any" || name == "Object" || name == "dynamic") { return "\"a value of any class\" is written `object`"; }
+    if(name == "Boolean") { return "true / false is the type `bool` (its object form is the class `boolean`)"; }
+    if(name == "str" || name == "String") { return "text is the class `string`"; }
+    return "";
+}
+
+/**
+ * The type as written, with the group in front - the whole of it, so the
+ * help can be pasted over what was written: `q#thing<int>` for
+ * `thing<int>`, and `new q#thing(5)` when the name is the class of a `new`.
+ * (A help that showed only `q#thing` would drop the type arguments, or the
+ * `new` and its arguments.)
+ */
+def written_through_group(unit: source_unit, part: _int64, group: string) : string {
+    p : parse_state = unit.parsed!!;
+    tree : syntax_tree = p.tree;
+    name_node : _int64 = part;
+    while(name_node >= 0 && tree.kinds!![name_node] != N_TYPE_NAME) { name_node = tree.parents!![name_node]; }
+    if(name_node < 0) { return group + "#" + node_text(unit, part); }
+    // (the `>` that closes type arguments has no node of its own: take as many as are open)
+    first : _int64 = first_token_in(tree, name_node);
+    last : _int64 = last_token_in(tree, name_node);
+    open : _int64 = 0;
+    for(i : _int64 = first; i <= last; i++) {
+        if(p.kinds[i] == P_LESS) { open++; }
+        else if(p.kinds[i] == P_GREATER) { open--; }
+        else if(p.kinds[i] == P_SHR) { open -= 2; }
+    }
+    while(open > 0 && last + 1 < p.count && (p.kinds[last + 1] == P_GREATER || p.kinds[last + 1] == P_SHR)) {
+        last++;
+        if(p.kinds[last] == P_SHR) { open -= 2; } else { open--; }
+    }
+    text := group + "#" + tokens_text(p, first, last);
+    type_node : _int64 = tree.parents!![name_node];
+    if(type_node < 0 || tree.kinds!![type_node] != N_TYPE) { return text; }
+    made : _int64 = tree.parents!![type_node];
+    if(made < 0 || tree.kinds!![made] != N_NEW) { return text; }
+    arguments : _int64 = tree.child_of_kind(made, N_ARGUMENTS);
+    if(arguments < 0) { return "new " + text + "(...)"; }
+    // the arguments as written: from the `(` to the `)` that closes it
+    opener : _int64 = tree.tokens!![arguments];
+    closer : _int64 = opener;
+    depth : _int64 = 0;
+    while(closer < p.count) {
+        kind : _int64 = p.kinds[closer];
+        if(kind == P_LPAREN) { depth++; }
+        else if(kind == P_RPAREN) { depth--; if(depth == 0) { break; } }
+        closer++;
+    }
+    if(closer >= p.count) { return "new " + text + "(...)"; }
+    return "new " + text + tokens_text(p, opener, closer);
+}
+
+/** nothing is called `name` anywhere the file can see */
+def report_unknown_type(prog: sharp_program, file: sharp_file, part: _int64, name: string, problems: list<diagnostic>) {
+    // (a type the misspelt import of this file would have brought in: E0303 said it)
+    if(file.brought_by_a_misspelt_import(name, 1)) { return; }
+    unit := file.unit;
+    module_text : string = "module `" + file.module.name + "`";
+    if(sizeof(file.module.name.data) == 0) { module_text = "its module"; }
+
+    d := error_at_node("E0301", "there is no type named `" + name + "`", unit, part)
+        .with_label("not declared in this file, in " + module_text + " or in a module it imports");
+
+    // 1. it exists, but in a module this file does not import
+    shown : _int64 = 0;
+    for(i : _int64 = 0; i < prog.module_list.size() && shown < 3; i++) {
+        module := prog.module_list.at(i);
+        group := file.group_importing(module);
+        if(group != null && module.declared.find_type(name) != null) {
+            // `import (one) as q;` then `thing`: imported, but only under the group's name
+            d.with_help("module `" + module.name + "` is imported as the group `" + group!!.name + "`, so its types are named through it: `"
+                        + written_through_group(unit, part, group!!.name) + "`");
+            shown++;
+            continue;
+        }
+        if(file.imports_module(module)) { continue; }
+
+        elsewhere := module.declared.find_type(name);
+        if(elsewhere != null) {
+            d.with_help("the " + declaration_kind_name(elsewhere!!.kind) + " `" + name + "` is declared in module `" + module.name
+                        + "`, which this file does not import; add it to the import list:  import ( " + module.name + " )");
+            shown++;
+        }
+    }
+
+    // 2. names that are close to it
+    suggestion := did_you_mean(closest_names(name, visible_type_names(file), 3));
+    if(sizeof(suggestion.data) > 0) {
+        d.with_help(suggestion);
+    }
+
+    // 3. another language's name for something Sharp has
+    translated := name_in_sharp(name);
+    if(sizeof(translated.data) > 0) {
+        d.with_help(translated);
+    }
+
+    if(d.helps.size() == 0) {
+        d.with_note("types are classes, interfaces, enums and aliases; a type declared in another file is visible when that file is part of the build and its module is imported");
+    }
+    problems.add(d);
+}
+
+/** `std.io#fle`: the module exists, the type does not */
+def report_not_in_module(prog: sharp_program, file: sharp_file, part: _int64, name: string, module: sharp_module,
+                         problems: list<diagnostic>) {
+    d := error_at_node("E0304", "module `" + module.name + "` has no type named `" + name + "`", file.unit, part)
+        .with_label("not declared in `" + module.name + "`");
+
+    names := new list<string>();
+    add_type_names(module.declared, names);
+    suggestion := did_you_mean(closest_names(name, names, 3));
+    if(sizeof(suggestion.data) > 0) {
+        d.with_help(suggestion);
+    }
+
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        other := prog.module_list.at(i);
+        if(other != module && other.declared.find_type(name) != null) {
+            d.with_help("a type with this name is declared in module `" + other.name + "`:  " + other.name + "#" + name);
+        }
+    }
+    problems.add(d);
+}
+
+/** `outer.inner`: outer exists, it has no inner */
+def report_no_inner_type(unit: source_unit, part: _int64, name: string, owner: sharp_declaration, problems: list<diagnostic>) {
+    d := error_at_node("E0305", "`" + owner.qualified_name() + "` has no type named `" + name + "` inside it", unit, part)
+        .with_label("not declared in " + declaration_kind_name(owner.kind) + " `" + owner.name + "`")
+        .with_related_place(place_of_node(owner.unit, owner.node, "`" + owner.name + "` is declared here"));
+
+    names := new list<string>();
+    add_type_names(owner.members!!, names);
+    suggestion := did_you_mean(closest_names(name, names, 3));
+    if(sizeof(suggestion.data) > 0) {
+        d.with_help(suggestion);
+    }
+    problems.add(d);
+}
+
+/** `std.oi#file`: there is no such module (nor an import group of that name) */
+def report_unknown_module_in_type(prog: sharp_program, file: sharp_file, node: _int64, module_name: string,
+                                  problems: list<diagnostic>) {
+    unit := file.unit;
+    path : _int64 = unit.parsed!!.tree.child_of_kind(node, N_MODULE_PATH);
+    d := error_at_names("E0303", "there is no module named `" + module_name + "`", unit, path)
+        .with_label("the part before `#` names a module, or an import group of this file");
+    suggestion := did_you_mean(closest_names(module_name, module_and_group_names(prog, file), 3));
+    if(sizeof(suggestion.data) > 0) {
+        d.with_help(suggestion);
+    }
+    add_group_list_note(file, d);
+    problems.add(d);
+}
+
+/**
+ * Every name that may stand before a `#` in this file: the modules of the
+ * program and the import groups of the file (`import (one) as q;` -> `q`).
+ */
+def module_and_group_names(prog: sharp_program, file: sharp_file) : list<string> {
+    known := new list<string>();
+    for(i : _int64 = 0; i < prog.module_list.size(); i++) {
+        known.add(prog.module_list.at(i).name);
+    }
+    for(i : _int64 = 0; i < file.import_groups.size(); i++) {
+        known.add(file.import_groups.at(i).name);
+    }
+    return known;
+}
+
+/** a note listing the import groups of the file ("`q` = one"), when it has any */
+def add_group_list_note(file: sharp_file, d: diagnostic) {
+    if(file.import_groups.size() == 0) { return; }
+    text := new string_builder("");
+    for(i : _int64 = 0; i < file.import_groups.size(); i++) {
+        group := file.import_groups.at(i);
+        if(i > 0) { text.append("; "); }
+        text.append("`").append(group.name).append("` = ");
+        for(j : _int64 = 0; j < group.modules.size(); j++) {
+            if(j > 0) { text.append(", "); }
+            text.append(group.modules.at(j).name);
+        }
+    }
+    d.with_note("the import groups of this file: " + text.build());
+}

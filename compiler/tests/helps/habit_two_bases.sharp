@@ -1,0 +1,13 @@
+// expect: E0100
+// help: class b base a : c
+// replace: class b base a base c
+mod tests.helps;
+import (std, std.io);
+
+class a { }
+interface c { }
+class b base a base c { }
+
+def main() {
+    x : c = new b();
+}

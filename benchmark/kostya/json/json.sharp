@@ -1,0 +1,76 @@
+mod main;
+
+import ( std.io, std.data, std.math )
+
+/**
+ * JSON - the "json" test of github.com/kostya/benchmarks.
+ *
+ *      sharp json <file>           (the file is made by generate_json.sharp)
+ *
+ * Parses a large JSON document with the standard library's json_parser and
+ * prints the average of the x, y and z members of every entry of
+ * "coordinates".
+ *
+ * Measured: parsing and the calculation. Not measured: the self test and
+ * reading the file. The last line is `time: <seconds>`.
+ */
+
+class coordinate {
+    x : decimal;
+    y : decimal;
+    z : decimal;
+
+    coordinate(a: decimal, b: decimal, c: decimal) {
+        x = a;
+        y = b;
+        z = c;
+    }
+}
+
+def calc(text: string) : coordinate {
+    root := json_parser.parse(text);
+    coordinates := root.member("coordinates");
+
+    count : decimal = coordinates.size();
+    x : decimal = 0;
+    y : decimal = 0;
+    z : decimal = 0;
+
+    for(i : decimal = 0; i < count; i++) {
+        entry := coordinates.at(i);
+        x += entry.member("x").as_number();
+        y += entry.member("y").as_number();
+        z += entry.member("z").as_number();
+    }
+
+    return new coordinate(x / count, y / count, z / count);
+}
+
+def verify() {
+    first := calc("{\"coordinates\":[{\"x\":2.0,\"y\":0.5,\"z\":0.25}]}");
+    second := calc("{\"coordinates\":[{\"y\":0.5,\"x\":2.0,\"z\":0.25}]}");
+
+    if(first.x != 2 || first.y != 0.5 || first.z != 0.25
+       || second.x != 2 || second.y != 0.5 || second.z != 0.25) {
+        println("self test failed");
+        exit(1);
+    }
+}
+
+def main(args: string[]) {
+    if(sizeof(args) < 1) {
+        println("usage: sharp json <file>");
+        exit(2);
+    }
+
+    verify();
+    text := new file(args[0]).read_text();
+
+    start : decimal = nano_time().value;
+    result := calc(text);
+    seconds : decimal = (nano_time().value - start) / 1000000000;
+
+    println("Coordinate {x: " + number_to_string(result.x) + ", y: " + number_to_string(result.y)
+            + ", z: " + number_to_string(result.z) + "}");
+    println("time: " + number_to_fixed(seconds, 3));
+}

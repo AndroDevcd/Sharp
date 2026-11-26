@@ -1,0 +1,48 @@
+mod backend.compiler.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.compiler.context
+)
+
+/**
+ * A LOCAL ALIAS: a second name for a type, inside a body
+ *
+ *      def total(prices: list<double>) : double {
+ *          alias list<double> as amounts;      `amounts` names that type ...
+ *          copy : amounts = prices;
+ *          ...
+ *      }                                       ... until the block ends
+ *
+ * It leaves nothing in the typed tree (a bound_empty): it only adds a name to
+ * the scope, which body_types.sharp consults when a type is written. Like a
+ * variable, an alias cannot be declared twice in the same function while the
+ * first is in scope (E0600); a block that has ended frees the name. (The parser
+ * reads no modifiers in front of an alias inside a body: a word such as
+ * `static` there starts a variable declaration.)
+ *
+ *      C++ comparison: compiler/functions/statements/local_alias_statement.cpp
+ *      ("alias `s` is already defined in function").
+ */
+def declare_local_alias(context: analysis_context, node: _int64) {
+    type_node : _int64 = context.tree.child_of_kind(node, N_TYPE);
+    if(type_node < 0) { return; }
+    name := name_at(context, node);
+    if(context.scope == null) { context.open_scope(); }
+    report_if_alias_twice(context, name, node);
+    context.scope!!.declare_alias(name, resolve_type_at(context, type_node));
+    context.alias_count++;
+}
+
+/** E0600: `alias string as s; alias _int64 as s;` in one function, the first still in scope */
+def report_if_alias_twice(context: analysis_context, name: string, node: _int64) {
+    if(context.scope!!.find_alias(name) == null) { return; }
+    d := problem_at(context, "E0600", "`" + name + "` is already a local alias of this function", node);
+    d.with_label("declared a second time");
+    d.with_note("a block cannot declare a name that a block around it already declares");
+    d.with_help("pick another name for the second type");
+    report(context, d);
+}
+

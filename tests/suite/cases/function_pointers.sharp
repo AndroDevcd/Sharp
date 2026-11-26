@@ -1,0 +1,202 @@
+mod main;
+
+import ( testing )
+
+/**
+ * Function pointers: variables, fields, parameters, return values and array
+ * elements that hold a function.
+ *
+ * The type is written (parameter types)(return type):
+ *     (decimal)(decimal)         takes a number, returns a number
+ *     ()()               takes nothing, returns nothing
+ *     (int, int)(bool)   takes two int objects, returns a bool object
+ */
+
+calls : decimal = 0;
+
+def twice(x: decimal) : decimal { return x * 2; }
+def add_one(x: decimal) : decimal { return x + 1; }
+def subtract(a: decimal, b: decimal) : decimal { return a - b; }
+def count_call() { calls++; }
+def bigger(a: int, b: int) : bool { return a > b; }
+def length(s: string) : decimal { return s.size(); }
+def join(a: string, b: string) : string { return a + b; }
+
+class maths {
+    static def triple(x: decimal) : decimal { return x * 3; }
+    static def count_hundred() { calls += 100; }
+}
+
+/** a class with function pointer fields */
+class button {
+    on_press : ()();
+    scale : (decimal)(decimal);
+
+    def press() { on_press(); }
+    def scaled(x: decimal) : decimal { return scale(x); }
+}
+
+// ---- functions that take and return function pointers
+def apply(f: (decimal)(decimal), x: decimal) : decimal { return f(x); }
+def apply_twice(f: (decimal)(decimal), x: decimal) : decimal { return apply(f, apply(f, x)); }
+def hand_back(f: (decimal)(decimal)) : (decimal)(decimal) { return f; }
+def run(work: ()()) { work(); }
+def run_times(work: ()(), n: decimal) {
+    for(i : decimal = 0; i < n; i++) {
+        work();
+    }
+}
+def choose(which: decimal) : (decimal)(decimal) {
+    if(which == 0) { return twice; }
+    return add_one;
+}
+def fold(f: (decimal, decimal)(decimal), a: decimal, b: decimal, c: decimal) : decimal { return f(f(a, b), c); }
+
+/** a function pointer kept in a global variable */
+stored : (decimal)(decimal);
+
+def main(args: string[]) {
+    // ---- pointing at a global function
+    f : (decimal)(decimal) = twice;
+    expect("f(4)", f(4), 8);
+    expect("f(0)", f(0), 0);
+    expect("f(2.5)", f(2.5), 5);
+    expect("f(4) + f(5)", f(4) + f(5), 18);
+    expect("f(4) * 10 - 1", f(4) * 10 - 1, 79);
+
+    // ---- the result of one call as the argument of the next
+    expect("f(f(4))", f(f(4)), 16);
+    expect("f(f(f(1)))", f(f(f(1))), 8);
+    g : (decimal)(decimal) = add_one;
+    expect("f(g(1))", f(g(1)), 4);
+    expect("g(f(1))", g(f(1)), 3);
+    expect("g(g(g(g(0))))", g(g(g(g(0)))), 4);
+
+    // ---- pointing it at another function
+    f = add_one;
+    expect("after f = add_one", f(1), 2);
+    f = twice;
+    expect("and back to twice", f(1), 2);
+    expect("f(10)", f(10), 20);
+
+    // ---- comparing
+    expect_true("f == twice", f == twice);
+    expect_false("f == add_one", f == add_one);
+    expect_true("f != g", f != g);
+    same := f;
+    expect_true("a copy of the pointer is ==", same == f);
+    expect("...and calls the same function", same(21), 42);
+
+    // ---- no parameters, no result
+    h : ()() = count_call;
+    calls = 0;
+    h();
+    h();
+    h();
+    expect("()() called three times", calls, 3);
+
+    // ---- two parameters
+    sub : (decimal, decimal)(decimal) = subtract;
+    expect("sub(10, 4)", sub(10, 4), 6);
+    expect("sub(4, 10): the order of the arguments is kept", sub(4, 10), 0 - 6);
+    expect("sub(sub(10, 4), 1)", sub(sub(10, 4), 1), 5);
+
+    // ---- objects as parameters and results
+    cmp : (int, int)(bool) = bigger;
+    expect_true("cmp(3, 2)", cmp(3, 2));
+    expect_false("cmp(2, 3)", cmp(2, 3));
+    expect_false("cmp(2, 2)", cmp(2, 2));
+    len : (string)(decimal) = length;
+    expect("len(\"hello\")", len("hello"), 5);
+    glue : (string, string)(string) = join;
+    expect_str("glue(\"ab\", \"cd\")", glue("ab", "cd"), "abcd");
+    expect("len(glue(...))", len(glue("abc", "de")), 5);
+
+    // ---- static methods
+    s : (decimal)(decimal) = maths.triple;
+    expect("static method", s(7), 21);
+    expect("s(s(2))", s(s(2)), 18);
+    calls = 0;
+    sn : ()() = maths.count_hundred;
+    sn();
+    expect("static method without a result", calls, 100);
+
+    // ---- as arguments
+    expect("apply(add_one, 9)", apply(add_one, 9), 10);
+    expect("apply(f, 9)", apply(f, 9), 18);
+    expect("apply(maths.triple, 5)", apply(maths.triple, 5), 15);
+    expect("apply_twice(twice, 3)", apply_twice(twice, 3), 12);
+    expect("apply_twice(add_one, 3)", apply_twice(add_one, 3), 5);
+    expect("fold(subtract, 10, 3, 2)", fold(subtract, 10, 3, 2), 5);
+    calls = 0;
+    run(count_call);
+    expect("run(count_call)", calls, 1);
+    run_times(count_call, 5);
+    expect("run_times(count_call, 5)", calls, 6);
+    run_times(h, 4);
+    expect("run_times with a variable", calls, 10);
+
+    // ---- as return values
+    expect("choose(0)(5) calls the returned function at once", choose(0)(5), 10);
+    chosen := choose(1);
+    expect("choose(1) is add_one", chosen(5), 6);
+    expect_true("the returned pointer == add_one", chosen == add_one);
+    passed := hand_back(hand_back(f));
+    expect("through two functions and back", passed(8), 16);
+    expect("apply(choose(0), 6)", apply(choose(0), 6), 12);
+    expect("apply_twice(hand_back(g), 0)", apply_twice(hand_back(g), 0), 2);
+
+    // ---- in a global variable
+    stored = twice;
+    expect("global function pointer", stored(6), 12);
+    stored = maths.triple;
+    expect("global re-pointed", stored(6), 18);
+
+    // ---- in fields
+    b := new button();
+    b.on_press = count_call;
+    calls = 0;
+    b.press();
+    b.press();
+    expect("field called from a method", calls, 2);
+    b.scale = twice;
+    expect("field called directly", b.scale(10), 20);
+    expect("field called through a method", b.scaled(7), 14);
+    b.scale = add_one;
+    expect("field re-pointed", b.scaled(7), 8);
+    other := new button();
+    other.scale = maths.triple;
+    expect("each object has its own pointer", b.scaled(2) + other.scaled(2), 9);
+
+    // ---- arrays of function pointers
+    table := new (decimal)(decimal)[3];
+    expect("sizeof", sizeof(table), 3);
+    table[0] = twice;
+    table[1] = add_one;
+    table[2] = maths.triple;
+    first := table[0];
+    expect("table[0] is twice", first(10), 20);
+    last := table[2];
+    expect("table[2] is maths.triple", last(10), 30);
+
+    total : decimal = 0;
+    for(i : decimal = 0; i < 3; i++) {
+        entry := table[i];
+        total += entry(10);
+    }
+    expect("20 + 11 + 30", total, 61);
+
+    // run a value through every function in turn: ((1 * 2) + 1) * 3
+    value : decimal = 1;
+    foreach(step in table) {
+        value = step(value);
+    }
+    expect("pipeline", value, 9);
+
+    table[1] = table[0];
+    second := table[1];
+    expect("an element copied from another", second(8), 16);
+    expect("apply(table element, 4)", apply(second, 4), 8);
+
+    finish("function_pointers");
+}

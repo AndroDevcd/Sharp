@@ -1,0 +1,395 @@
+mod std.guikit.testing;
+
+import (
+    std,
+    std.testing,
+    std.guikit.*
+)
+
+/**
+ * DOING THINGS TO A WIDGET IN A UI TEST (ui_test.sharp has the overview)
+ *
+ *      click()                 press and release the mouse in the middle of it
+ *      long_click()            press, hold for more than half a second, release
+ *      double_click()          two clicks, one straight after the other
+ *      right_click()           the right mouse button
+ *
+ *      type("words")           click it so that it has the keyboard, then type
+ *      replace("words")        clear(), then type
+ *      clear()                 take out what is typed in it
+ *      press(KEY_ENTER)        a key, pressed while it has the keyboard
+ *      press('s', MOD_CTRL)    ... with Ctrl, Shift or Alt held: MOD_CTRL, MOD_SHIFT, MOD_ALT, added together
+ *      hover()                 the mouse rests in the middle of it (advance(1) then brings up its tooltip)
+ *
+ *      scroll_to()             turn the wheel of the scrolling area around it until it can be seen
+ *
+ *      on a scrolling area (a scroll { }, a lazy_column { }):
+ *      scroll_to(on_tag("row_40"))     turn its wheel until that widget is there and can be seen - also a
+ *                                      row of a long list that the list has not made yet
+ *      scroll_to_end()  scroll_to_start()      as far as it goes
+ *      scroll_down(3)  scroll_up(3)            so many steps of the wheel
+ *      swipe_left() / right / up / down    drag across most of it, as a finger does
+ *      drag(dx, dy)            press in its middle, move this far, release
+ *
+ * EVERYTHING GOES THE WAY A PERSON'S HAND GOES. A click is not "run the
+ * button's function": it is a mouse press and a release at a point of the
+ * screen, and the screen decides what was hit - as it does in the app. So a
+ * click on a button that is disabled does nothing, a click on one that a
+ * dialog covers fails the test ("is covered by ..."), and a click on words
+ * inside a row clicks the row. A widget that is not in sight cannot be
+ * clicked: scroll_to() it first.
+ *
+ * Each of them answers the same ui_node, so they chain:
+ *
+ *      on_tag("agree").click().should_be_on();
+ *
+ * After each, everything that changed is built again and laid out before the
+ * next line of the test runs.
+ */
+
+/**
+ * The middle of the part of the widget that can be seen, as a point to press:
+ * left in test_screen.part_x / part_y ... The test fails when the widget is
+ * not in sight, or when a press there would land on something else.
+ */
+def point_on(node: ui_node, word: string) : view {
+    v : view = node.view_now(word);
+    if(!test_screen.visible_part(v)) {
+        test_screen.fail(word, node.asked() + " is on the screen's list but cannot be seen: it is hidden, has no size, "
+                + "or is scrolled out of sight (scroll_to() brings it in)");
+    }
+    px : decimal = test_screen.part_x + test_screen.part_w / 2;
+    py : decimal = test_screen.part_y + test_screen.part_h / 2;
+    h := test_screen.running(word);
+    hit : view? = h.at_point(px, py);
+    if(hit == null) {
+        test_screen.fail(word, "a press on " + node.asked() + " lands on nothing: something that floats above the page shields it");
+    }
+    if(!test_screen.is_within(hit!!, v) && !test_screen.is_within(v, hit!!)) {
+        test_screen.fail(word, node.asked() + " is covered: a press in its middle lands on a `" + hit!!.how.kind() + "`"
+                + (hit!!.tag != "" ? " tagged `" + hit!!.tag + "`" : ""));
+    }
+    test_screen.part_x = px;
+    test_screen.part_y = py;
+    return v;
+}
+
+/** the mouse goes to the point point_on left, and a button goes down there */
+def press_there(button: _int64) {
+    if(test_screen.watched()) {
+        test_screen.running("a press").mark_touch(test_screen.part_x, test_screen.part_y);     // a ring shows where
+        test_screen.pass(0.15);
+    }
+    test_screen.send(test_screen.event_at(EVENT_MOUSE_MOVE, test_screen.part_x, test_screen.part_y));
+    down := test_screen.event_at(EVENT_MOUSE_DOWN, test_screen.part_x, test_screen.part_y);
+    down.button = button;
+    test_screen.send(down);
+}
+
+/** the left button comes up at a point */
+def release_at(px: decimal, py: decimal) {
+    test_screen.send(test_screen.event_at(EVENT_MOUSE_UP, px, py));
+    test_screen.settle();
+    test_screen.linger();
+}
+
+/** press and release the mouse in the middle of the widget */
+def ui_node.click() : ui_node {
+    point_on(self, "click()");
+    press_there(MOUSE_LEFT);
+    release_at(test_screen.part_x, test_screen.part_y);
+    // (two click()s of a test are two clicks, however quickly the test runs: not one double click)
+    test_screen.running("click()").forget_last_click();
+    return self;
+}
+
+/** two clicks, one straight after the other */
+def ui_node.double_click() : ui_node {
+    point_on(self, "double_click()");
+    press_there(MOUSE_LEFT);
+    release_at(test_screen.part_x, test_screen.part_y);
+    point_on(self, "double_click()");
+    press_there(MOUSE_LEFT);
+    release_at(test_screen.part_x, test_screen.part_y);
+    test_screen.running("double_click()").forget_last_click();
+    return self;
+}
+
+/** press, hold for more than half a second of the test's clock, and release */
+def ui_node.long_click() : ui_node {
+    point_on(self, "long_click()");
+    press_there(MOUSE_LEFT);
+    px : decimal = test_screen.part_x;
+    py : decimal = test_screen.part_y;
+    h := test_screen.running("long_click()");
+    test_screen.pass(0.6);
+    release_at(px, py);
+    h.forget_last_click();
+    return self;
+}
+
+/** the right mouse button, in the middle of the widget */
+def ui_node.right_click() : ui_node {
+    point_on(self, "right_click()");
+    press_there(MOUSE_RIGHT);
+    test_screen.settle();
+    test_screen.linger();
+    return self;
+}
+
+/** press in the middle of the widget, move the mouse this far across and down in small steps, release */
+def ui_node.drag(dx: decimal, dy: decimal) : ui_node {
+    point_on(self, "drag(...)");
+    press_there(MOUSE_LEFT);
+    from_x : decimal = test_screen.part_x;
+    from_y : decimal = test_screen.part_y;
+    for(i : _int64 = 1; i <= 8; i++) {
+        test_screen.send(test_screen.event_at(EVENT_MOUSE_MOVE, from_x + dx * i / 8, from_y + dy * i / 8));
+    }
+    release_at(from_x + dx, from_y + dy);
+    test_screen.running("drag(...)").forget_last_click();
+    return self;
+}
+
+/** drag across most of the widget towards the left, as a finger does (a list then shows what is further right) */
+def ui_node.swipe_left() : ui_node {
+    v : view = view_now("swipe_left()");
+    return drag(0 - (v.w * 0.6 + 20), 0);
+}
+
+def ui_node.swipe_right() : ui_node {
+    v : view = view_now("swipe_right()");
+    return drag(v.w * 0.6 + 20, 0);
+}
+
+/** drag upwards: a list then shows what is further down */
+def ui_node.swipe_up() : ui_node {
+    v : view = view_now("swipe_up()");
+    return drag(0, 0 - (v.h * 0.6 + 20));
+}
+
+def ui_node.swipe_down() : ui_node {
+    v : view = view_now("swipe_down()");
+    return drag(0, v.h * 0.6 + 20);
+}
+
+/** give the widget the keyboard, by clicking it if it has not got it; fails when it cannot take it */
+def take_keyboard(node: ui_node, word: string) {
+    h := test_screen.running(word);
+    v : view = node.view_now(word);
+    if(h.focused() == null || h.focused()!! != v) {
+        point_on(node, word);
+        press_there(MOUSE_LEFT);
+        release_at(test_screen.part_x, test_screen.part_y);
+        h.forget_last_click();
+        v = node.view_now(word);
+    }
+    if(h.focused() == null || h.focused()!! != v) {
+        test_screen.fail(word, node.asked() + " did not take the keyboard when it was clicked (a `" + v.how.kind()
+                + "` is not something to type into, or it is disabled)");
+    }
+}
+
+/** click the widget so that it has the keyboard, and type these words */
+def ui_node.type(words: string) : ui_node {
+    take_keyboard(self, "type(...)");
+    e := new event();
+    e.kind = EVENT_TEXT;
+    e.text = words;
+    test_screen.send(e);
+    test_screen.settle();
+    test_screen.linger();
+    return self;
+}
+
+/** a key goes down and comes up while the widget has the keyboard: press(KEY_ENTER) */
+def ui_node.press(key: _int64) : ui_node {
+    take_keyboard(self, "press(...)");
+    test_screen.send(test_screen.event_key(EVENT_KEY_DOWN, key));
+    test_screen.send(test_screen.event_key(EVENT_KEY_UP, key));
+    test_screen.settle();
+    test_screen.linger();
+    return self;
+}
+
+/** take out everything that is typed in the widget */
+def ui_node.clear() : ui_node {
+    take_keyboard(self, "clear()");
+    test_screen.send(test_screen.event_key(EVENT_KEY_DOWN, KEY_END));
+    test_screen.send(test_screen.event_key(EVENT_KEY_UP, KEY_END));
+    for(i : _int64 = 0; i < 100000; i++) {
+        if(test_screen.words_of(view_now("clear()")) == "") {
+            test_screen.settle();
+            return self;
+        }
+        test_screen.send(test_screen.event_key(EVENT_KEY_DOWN, KEY_BACKSPACE));
+        test_screen.send(test_screen.event_key(EVENT_KEY_UP, KEY_BACKSPACE));
+    }
+    test_screen.fail("clear()", asked() + " still holds words after a hundred thousand presses of Backspace");
+    return self;
+}
+
+/** clear(), then type these words */
+def ui_node.replace(words: string) : ui_node {
+    clear();
+    return type(words);
+}
+
+/**
+ * Bring the widget into sight: the wheel is turned over the scrolling area
+ * around it, a step at a time, until some of it can be seen. A widget that is
+ * in sight already is left where it is.
+ */
+def ui_node.scroll_to() : ui_node {
+    h := test_screen.running("scroll_to()");
+    for(i : _int64 = 0; i < 2000; i++) {
+        v : view = view_now("scroll_to()");
+        if(test_screen.visible_part(v)) {
+            return self;
+        }
+        // the nearest area around it that scrolls and that it lies outside of
+        around : view? = v.parent;
+        while(around != null && !(around!!.how is wheel_target)) {
+            around = around!!.parent;
+        }
+        if(around == null) {
+            test_screen.fail("scroll_to()", asked() + " cannot be seen, and nothing around it scrolls");
+        }
+        area : view = around!!;
+        e := test_screen.event_at(EVENT_WHEEL, area.x + area.w / 2, area.y + area.h / 2);
+        if(v.y + v.h > area.y + area.h) { e.wheel_y = 0 - 1; }
+        else if(v.y < area.y) { e.wheel_y = 1; }
+        else if(v.x + v.w > area.x + area.w) { e.wheel_x = 1; }
+        else { e.wheel_x = 0 - 1; }
+        before_x : decimal = v.x;
+        before_y : decimal = v.y;
+        test_screen.send(e);
+        test_screen.settle();
+        v = view_now("scroll_to()");
+        if(v.x == before_x && v.y == before_y && !test_screen.visible_part(v)) {
+            test_screen.fail("scroll_to()", asked() + " cannot be scrolled into sight: the `" + area.how.kind()
+                    + "` around it does not move any further");
+        }
+    }
+    test_screen.fail("scroll_to()", asked() + " was not in sight after 2000 turns of the wheel");
+    return self;
+}
+
+// ---------------------------------------------------------------- scrolling an area
+
+/**
+ * One step of the wheel over the widget: `turn` 1 shows what is further up,
+ * -1 what is further down. Answers whether anything on the screen moved.
+ */
+def wheel_over(node: ui_node, word: string, turn: _int64) : bool {
+    v : view = node.view_now(word);
+    if(!test_screen.visible_part(v)) {
+        test_screen.fail(word, node.asked() + " cannot be seen: the wheel cannot be turned over it");
+    }
+    before : string = test_screen.tree();
+    e := test_screen.event_at(EVENT_WHEEL, test_screen.part_x + test_screen.part_w / 2, test_screen.part_y + test_screen.part_h / 2);
+    e.wheel_y = turn;
+    test_screen.send(e);
+    test_screen.settle();
+    return test_screen.tree() != before;
+}
+
+/** turn the wheel `steps` steps over the widget, towards what is further down */
+def ui_node.scroll_down(steps: _int64) : ui_node {
+    for(i : _int64 = 0; i < steps; i++) { wheel_over(self, "scroll_down(...)", 0 - 1); }
+    test_screen.linger();
+    return self;
+}
+
+/** ... towards what is further up */
+def ui_node.scroll_up(steps: _int64) : ui_node {
+    for(i : _int64 = 0; i < steps; i++) { wheel_over(self, "scroll_up(...)", 1); }
+    test_screen.linger();
+    return self;
+}
+
+/** scroll the area down as far as it goes */
+def ui_node.scroll_to_end() : ui_node {
+    for(i : _int64 = 0; i < 100000; i++) {
+        if(!wheel_over(self, "scroll_to_end()", 0 - 1)) { break; }
+    }
+    test_screen.linger();
+    return self;
+}
+
+/** scroll the area up as far as it goes */
+def ui_node.scroll_to_start() : ui_node {
+    for(i : _int64 = 0; i < 100000; i++) {
+        if(!wheel_over(self, "scroll_to_start()", 1)) { break; }
+    }
+    test_screen.linger();
+    return self;
+}
+
+/**
+ * Turn the wheel over this scrolling area until `target` is on the screen and
+ * can be seen. For a row of a long list (lazy_column) that the list has not
+ * made yet - it is not there to be found until the list is scrolled to it:
+ *
+ *      on_tag("inbox").scroll_to(on_tag("mail_40"));
+ *      on_tag("mail_40").click();
+ *
+ * The area is scrolled down to its end, and if the widget did not turn up, back
+ * up to its start. The test fails when it is nowhere in the area.
+ */
+def ui_node.scroll_to(target: ui_node) : ui_node {
+    turn : _int64 = 0 - 1;
+    turned_back : bool = false;
+    for(i : _int64 = 0; i < 200000; i++) {
+        if(target.is_shown()) {
+            test_screen.linger();
+            return self;
+        }
+        there : view? = target.view_or_none("scroll_to(...)");
+        if(there != null) {
+            // it is made, but out of sight: towards it
+            area : view = view_now("scroll_to(...)");
+            if(there!!.y + there!!.h > area.y + area.h) { turn = 0 - 1; }
+            else if(there!!.y < area.y) { turn = 1; }
+        }
+        if(!wheel_over(self, "scroll_to(...)", turn)) {
+            if(turned_back) { break; }
+            turned_back = true;
+            turn = 0 - turn;
+        }
+    }
+    test_screen.fail("scroll_to(...)", target.asked() + " did not come into sight: " + asked() + " was scrolled to both of its ends");
+    return self;
+}
+
+// ---------------------------------------------------------------- keys with others held, and the resting mouse
+
+/**
+ * A key goes down and comes up while the widget has the keyboard, with others
+ * held: press('s', MOD_CTRL) is Ctrl+S, press(KEY_TAB, MOD_SHIFT) Shift+Tab,
+ * press('z', MOD_CTRL + MOD_SHIFT) both.
+ */
+def ui_node.press(key: _int64, held: _int64) : ui_node {
+    take_keyboard(self, "press(...)");
+    down := test_screen.event_key(EVENT_KEY_DOWN, key);
+    down.modifiers = held;
+    test_screen.send(down);
+    up := test_screen.event_key(EVENT_KEY_UP, key);
+    up.modifiers = held;
+    test_screen.send(up);
+    test_screen.settle();
+    test_screen.linger();
+    return self;
+}
+
+/**
+ * The mouse moves to the middle of the widget and rests there. Its tooltip
+ * (modifier().tooltip("...")) comes up when it has rested a moment: let that
+ * pass with advance(1), then should_show_tooltip("...").
+ */
+def ui_node.hover() : ui_node {
+    point_on(self, "hover()");
+    test_screen.send(test_screen.event_at(EVENT_MOUSE_MOVE, test_screen.part_x, test_screen.part_y));
+    test_screen.settle();
+    return self;
+}

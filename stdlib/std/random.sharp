@@ -1,0 +1,29 @@
+mod std;
+
+import (
+    platform.kernel
+)
+
+def rand() : double {
+   return vm.random_double(0, 1);
+}
+
+def rand_int(min: int, max: int) : int {
+   return vm.random_int(min.value, max.value);
+}
+
+def rand_double(min: double, max: double) : double {
+   return vm.random_double(min.value, max.value);
+}
+
+def rand_int() : int {
+   return vm.random_int(0, 1e+9);
+}
+
+def rand_double() : double {
+   return vm.random_double(0, 1e+9);
+}
+
+def set_seed(seed: int) {
+   vm.random_seed(seed.value);
+}

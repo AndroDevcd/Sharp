@@ -1,0 +1,47 @@
+// expect: E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100 E0100
+//
+// Keywords with a slip in them (frontend/syntax/parser/habits/
+// misspelt_keywords.sharp). To the tokenizer each is a name; the parser sees
+// that the line has a shape no correct line has, finds the keyword one slip
+// away, reports it ONCE and reads the line as it was meant: no follow-on
+// error. The last function is correct code that looks like a slip and must
+// not be taken for one.
+mod tests.fail;
+improt (std.io);
+
+calss point { x : _int64 = 0; dfe len() : _int64 { return x; } }
+intreface shape { def area() : _int64; }
+enmu colour { red, green }
+clas box<T> { item : T?; }
+alais _int64 as id;
+Def helper() { }
+
+def slips(n: _int64) : _int64 {
+    x := 1;
+    fro(i := 0; i < 3; i++) { x++; }
+    foreahc(k in items) { x++; }
+    whlie(x < 30) x++;
+    if(x == 2) { x++; } esle if(x == 3) { x--; }
+    iff(x > 100) retrun 7;
+    if(n < 0) { thorw new oops(); }
+    Return x;
+}
+
+// not slips: functions and classes whose names are close to keywords, used
+// the way functions and classes are; C's `type name`, which has a message of
+// its own, is not tested here
+class retur { n : _int64 = 0; }
+def fore(n: _int64) : _int64 { return n; }
+def whil(n: _int64, f: (_int64)(_int64)) : _int64 { return f(n); }
+def elsa(f: ()(nil)) { f(); }
+def correct() {
+    x : _int64 = 1;
+    fore(x);
+    y := fore(x) + fore(2);
+    whil(3) { n -> (_int64) return n; };
+    if(x == 1) { x++; }
+    elsa { println("x"); };
+    r : retur = new retur();
+    fore(x); x++;
+    retur.n = 2;
+}

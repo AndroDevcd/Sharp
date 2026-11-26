@@ -1,0 +1,74 @@
+mod backend.types.typed_tree.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.typed_tree
+)
+
+/**
+ * `asm { }` BLOCKS: instructions of the virtual machine written by hand
+ *
+ *      asm {
+ *          .again:                 a label: an instruction with is_label = 1
+ *          movi ebx, [count]       operands: a register, a local variable
+ *          movi adx, $thread       a class
+ *          jmp @again              a label of the block (by its position in `labels`)
+ *      }
+ *
+ * The parser has already checked each instruction's name and the number and
+ * kind of its operands (frontend/syntax/assembly). What analysis adds is the
+ * MEANING of the operands that are names: which variable, field, function or
+ * class, and which label.
+ */
+
+// ---- what an operand is
+const ASM_REGISTER : _int64 = 1;    // ebx, adx ...             register: its name
+const ASM_NUMBER   : _int64 = 2;    // 12, -1, 'c', true        number
+const ASM_TEXT     : _int64 = 3;    // "text"                   text
+const ASM_LABEL    : _int64 = 4;    // @again                   label: its position in bound_asm.labels
+const ASM_LOCAL    : _int64 = 5;    // [count]                  variable
+const ASM_FIELD    : _int64 = 6;    // [total], $c[total]       field
+const ASM_FUNCTION : _int64 = 7;    // [run], $c[run]           function (its address)
+const ASM_CLASS    : _int64 = 8;    // $thread                  class_of
+
+/** one operand of an instruction; which fields mean something depends on `kind` */
+class bound_asm_operand {
+    kind : _int64;
+    register : string = "";
+    number : _int64 = 0;
+    text : string = "";
+    label : _int64 = 0;
+    variable : local_variable?;
+    field : sharp_field?;
+    function : sharp_function?;
+    class_of : sharp_class?;
+
+    bound_asm_operand(kind: _int64) {
+        self->kind = kind;
+    }
+}
+
+/** one line of the block: an instruction with its operands, or a label (`.again:`) */
+class bound_asm_instruction base bound_node {
+    mnemonic : string;                          // "movi"; for a label its name
+    is_label : _int64 = 0;
+    operands : list<bound_asm_operand>;
+
+    bound_asm_instruction(unit: source_unit, node: _int64, mnemonic: string) -> base(BS_ASM, unit, node) {
+        self->mnemonic = mnemonic;
+        operands = new list<bound_asm_operand>();
+    }
+}
+
+/** `asm { ... }`: the instructions in order, and the names of its labels (an ASM_LABEL operand is a position in that list) */
+class bound_asm base bound_statement {
+    instructions : list<bound_asm_instruction>;
+    labels : list<string>;
+
+    bound_asm(unit: source_unit, node: _int64) -> base(BS_ASM, unit, node) {
+        instructions = new list<bound_asm_instruction>();
+        labels = new list<string>();
+    }
+}

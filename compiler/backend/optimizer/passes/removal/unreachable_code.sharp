@@ -1,0 +1,67 @@
+mod backend.optimizer.passes.removal;
+
+import (
+    std.io,
+    backend.finalizer.ir,
+    backend.optimizer.analysis
+)
+
+/**
+ * UNREACHABLE CODE: code that can never run is not written
+ *
+ *      return_value %1
+ *      int_constant %3, 5          (gone: nothing jumps here, and the return before it never falls through)
+ *      jump L4
+ *
+ * The blocks control can come to are found by walking the flow graph from
+ * the entry - and from every handler of a `try`, which the VM enters for an
+ * exception without any jump showing it (analysis/control_flow.sharp,
+ * `reachable_blocks`). Every other block is removed, except what the `try`
+ * records need to stay where they are:
+ *
+ *  - a label a `try` names (its ranges are read off its labels), and
+ *  - the instruction that closes a range (the jump, `throw` or return right
+ *    before an end label: rule R1 of codegen.md 4.7), and the `nop` in front
+ *    of a `try` (rule R2); `line` marks too, which make no code but say
+ *    which line the code after them belongs to.
+ *
+ * Unreachable code appears after a `return` or `throw` in the middle of a
+ * block, after a branch constant propagation decided, and around a
+ * `while(true)` loop.
+ *
+ *      C++ comparison: passes/pass_unreachable_code.cpp.
+ */
+def remove_unreachable_code(analyses: function_analyses) : _int64 {
+    code := analyses.code;
+    if(!can_have_unreachable_code(code)) { return 0; }
+    graph := analyses.graph();
+    reached := reachable_blocks(graph);
+    facts := label_facts_of(code);
+    removed := new number_list();
+    for(b : _int64 = 0; b < graph.block_count(); b++) {
+        if(reached[b] == 1) { continue; }
+        for(i : _int64 = graph.starts[b]; i < graph.ends[b]; i++) {
+            made := code.instructions.at(i);
+            if(made.kind == IR_LABEL && facts.is_protected(made.number)) { continue; }
+            if(made.kind == IR_NOP || made.kind == IR_LINE) { continue; }
+            if(closes_a_range(code, facts, i)) { continue; }
+            removed.add(i);
+        }
+    }
+    remove_instructions(code, removed);
+    if(removed.count > 0) { analyses.changed(); }
+    return removed.count;
+}
+
+/**
+ * Code can only be unreachable after an instruction that does not go on (a
+ * jump, a return, a `throw`): without one before the last instruction, every
+ * block is reached by falling into it.
+ */
+def can_have_unreachable_code(code: ir_function) : _int64 {
+    last : _int64 = code.instructions.size() - 1;
+    for(i : _int64 = 0; i < last; i++) {
+        if(ends_the_way(code.instructions.at(i))) { return 1; }
+    }
+    return 0;
+}

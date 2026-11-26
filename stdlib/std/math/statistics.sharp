@@ -1,0 +1,350 @@
+mod std.math;
+
+/**
+ * @class statistics
+ *
+ * Descriptive statistics over arrays of native numbers. The class only has
+ * static functions and is never instantiated:
+ *
+ *     data := new decimal[] { 2, 4, 4, 4, 5, 5, 7, 9 };
+ *     m : decimal = statistics.mean(data);        // 5
+ *     s : decimal = statistics.std_dev(data);     // 2
+ *     q : decimal = statistics.median(data);      // 4.5
+ *
+ * No function changes the array it is given (the ones that need sorted
+ * data sort a copy). Every function throws illegal_argument_exception for an
+ * empty array, because none of these quantities exists for no data.
+ *
+ * "Population" versions (variance, std_dev, covariance) divide by n and
+ * describe exactly the numbers given; "sample" versions divide by n - 1 and
+ * estimate the spread of a larger population the numbers were drawn from.
+ */
+class statistics {
+
+    private static def require_data(values: decimal[], function_name: string) {
+        if(sizeof(values) == 0)
+            throw new illegal_argument_exception("statistics." + function_name + ": the array is empty");
+    }
+
+    /** how many numbers the array holds */
+    static def count(values: decimal[]): decimal {
+        return sizeof(values);
+    }
+
+    /**
+     * The sum of all values.
+     *
+     * Algorithm: Kahan (compensated) summation - the rounding error of every
+     * addition is carried along and fed back, so adding many small numbers to
+     * a large one does not lose them. An empty array is allowed and gives 0.
+     */
+    static def sum(values: decimal[]): decimal {
+        total : decimal = 0;
+        lost : decimal = 0;
+        for(i : decimal = 0; i < sizeof(values); i++) {
+            corrected : decimal = values[i] - lost;
+            next : decimal = total + corrected;
+            lost = (next - total) - corrected;
+            total = next;
+        }
+        return total;
+    }
+
+    /** the smallest value */
+    static def minimum(values: decimal[]): decimal {
+        require_data(values, "minimum");
+        best : decimal = values[0];
+        for(i : decimal = 1; i < sizeof(values); i++) {
+            if(values[i] < best) best = values[i];
+        }
+        return best;
+    }
+
+    /** the largest value */
+    static def maximum(values: decimal[]): decimal {
+        require_data(values, "maximum");
+        best : decimal = values[0];
+        for(i : decimal = 1; i < sizeof(values); i++) {
+            if(values[i] > best) best = values[i];
+        }
+        return best;
+    }
+
+    /** the spread: maximum - minimum */
+    static def range(values: decimal[]): decimal {
+        require_data(values, "range");
+        return maximum(values) - minimum(values);
+    }
+
+    /** the arithmetic mean (average): sum / count */
+    static def mean(values: decimal[]): decimal {
+        require_data(values, "mean");
+        return sum(values) / sizeof(values);
+    }
+
+    /**
+     * The geometric mean: the n-th root of the product, computed as
+     * exp(mean(log(x))) so the product cannot overflow.
+     * Throws illegal_argument_exception when a value is <= 0.
+     */
+    static def geometric_mean(values: decimal[]): decimal {
+        require_data(values, "geometric_mean");
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(values); i++) {
+            if(values[i] <= 0)
+                throw new illegal_argument_exception("statistics.geometric_mean: all values must be > 0");
+            total += log(values[i]);
+        }
+        return exp(total / sizeof(values));
+    }
+
+    /**
+     * The harmonic mean: count / sum(1 / x), the right average for rates.
+     * Throws illegal_argument_exception when a value is <= 0.
+     */
+    static def harmonic_mean(values: decimal[]): decimal {
+        require_data(values, "harmonic_mean");
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(values); i++) {
+            if(values[i] <= 0)
+                throw new illegal_argument_exception("statistics.harmonic_mean: all values must be > 0");
+            total += 1 / values[i];
+        }
+        return sizeof(values) / total;
+    }
+
+    /**
+     * A sorted copy of the array, smallest value first.
+     *
+     * Algorithm: bottom-up merge sort (no recursion): runs of length 1, 2,
+     * 4 ... are merged pairwise between two buffers. O(n log n), stable.
+     * An empty array gives an empty array.
+     */
+    static def sorted(values: decimal[]): decimal[] {
+        n : decimal = sizeof(values);
+        from := new decimal[n];
+        to := new decimal[n];
+        for(i : decimal = 0; i < n; i++) {
+            from[i] = values[i];
+        }
+
+        for(width : decimal = 1; width < n; width = width * 2) {
+            for(start : decimal = 0; start < n; start += 2 * width) {
+                middle : decimal = start + width;
+                if(middle > n) middle = n;
+                end : decimal = start + 2 * width;
+                if(end > n) end = n;
+
+                // merge from[start .. middle) and from[middle .. end) into to[start .. end)
+                left : decimal = start;
+                right : decimal = middle;
+                for(target : decimal = start; target < end; target++) {
+                    if(left < middle && (right >= end || from[left] <= from[right])) {
+                        to[target] = from[left++];
+                    } else {
+                        to[target] = from[right++];
+                    }
+                }
+            }
+
+            swap := from;
+            from = to;
+            to = swap;
+        }
+        return from;
+    }
+
+    /**
+     * The middle value of the sorted data; for an even count the mean of the
+     * two middle values: median of { 5, 1, 3 } is 3, of { 1, 2, 3, 4 } is 2.5.
+     */
+    static def median(values: decimal[]): decimal {
+        require_data(values, "median");
+        ordered := sorted(values);
+        n : decimal = sizeof(ordered);
+        half : decimal = floor(n / 2);
+
+        if((n % 2) == 1) return ordered[half];
+        return (ordered[half - 1] + ordered[half]) / 2;
+    }
+
+    /**
+     * The value that occurs most often. When several values share the
+     * highest count, the smallest of them is returned (so the result does
+     * not depend on the order of the data).
+     */
+    static def mode(values: decimal[]): decimal {
+        require_data(values, "mode");
+        ordered := sorted(values);
+
+        best : decimal = ordered[0];
+        best_count : decimal = 0;
+        run_value : decimal = ordered[0];
+        run_count : decimal = 0;
+
+        for(i : decimal = 0; i < sizeof(ordered); i++) {
+            if(ordered[i] == run_value) {
+                run_count++;
+            } else {
+                run_value = ordered[i];
+                run_count = 1;
+            }
+
+            if(run_count > best_count) {
+                best_count = run_count;
+                best = run_value;
+            }
+        }
+        return best;
+    }
+
+    /** the sum of squared distances from the mean: sum((x - mean)^2) */
+    private static def squared_deviations(values: decimal[]): decimal {
+        average : decimal = mean(values);
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(values); i++) {
+            distance : decimal = values[i] - average;
+            total += distance * distance;
+        }
+        return total;
+    }
+
+    /** population variance: sum((x - mean)^2) / n */
+    static def variance(values: decimal[]): decimal {
+        require_data(values, "variance");
+        return squared_deviations(values) / sizeof(values);
+    }
+
+    /**
+     * Sample variance: sum((x - mean)^2) / (n - 1) (Bessel's correction).
+     * Throws illegal_argument_exception for fewer than 2 values.
+     */
+    static def sample_variance(values: decimal[]): decimal {
+        if(sizeof(values) < 2)
+            throw new illegal_argument_exception("statistics.sample_variance: at least 2 values are needed");
+        return squared_deviations(values) / (sizeof(values) - 1);
+    }
+
+    /** population standard deviation: the square root of variance() */
+    static def std_dev(values: decimal[]): decimal {
+        require_data(values, "std_dev");
+        return sqrt(variance(values));
+    }
+
+    /**
+     * Sample standard deviation: the square root of sample_variance().
+     * Throws illegal_argument_exception for fewer than 2 values.
+     */
+    static def sample_std_dev(values: decimal[]): decimal {
+        return sqrt(sample_variance(values));
+    }
+
+    /**
+     * The p-th percentile (0 <= p <= 100): the value below which p percent
+     * of the data lie. percentile(v, 50) is the median, 0 the minimum, 100
+     * the maximum.
+     *
+     * Method: linear interpolation between closest ranks (the default of
+     * spreadsheets and NumPy). With the data sorted, the position is
+     * rank = p / 100 * (n - 1); the result lies between the values at
+     * floor(rank) and floor(rank) + 1, weighted by the fractional part.
+     *
+     * Throws illegal_argument_exception when p is outside 0 .. 100.
+     */
+    static def percentile(values: decimal[], p: decimal): decimal {
+        require_data(values, "percentile");
+        if(p < 0 || p > 100 || p != p)
+            throw new illegal_argument_exception("statistics.percentile: p must be in 0 .. 100");
+
+        ordered := sorted(values);
+        rank : decimal = p / 100 * (sizeof(ordered) - 1);
+        low : decimal = floor(rank);
+        weight : decimal = rank - low;
+
+        if(low + 1 >= sizeof(ordered)) return ordered[sizeof(ordered) - 1];
+        return ordered[low] + (ordered[low + 1] - ordered[low]) * weight;
+    }
+
+    /**
+     * Population covariance of two equally long series:
+     * sum((x - mean_x)(y - mean_y)) / n. Positive when the series rise and
+     * fall together.
+     *
+     * Throws illegal_argument_exception when the arrays are empty or differ
+     * in length.
+     */
+    static def covariance(xs: decimal[], ys: decimal[]): decimal {
+        require_data(xs, "covariance");
+        if(sizeof(xs) != sizeof(ys))
+            throw new illegal_argument_exception("statistics.covariance: the arrays differ in length");
+
+        mean_x : decimal = mean(xs);
+        mean_y : decimal = mean(ys);
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(xs); i++) {
+            total += (xs[i] - mean_x) * (ys[i] - mean_y);
+        }
+        return total / sizeof(xs);
+    }
+
+    /**
+     * Pearson correlation coefficient of two equally long series, in
+     * -1 .. 1: 1 when y rises exactly linearly with x, -1 when it falls
+     * exactly linearly, 0 when there is no linear relation.
+     *
+     * Formula: sum((x - mx)(y - my)) / sqrt(sum((x - mx)^2) * sum((y - my)^2)).
+     *
+     * Throws illegal_argument_exception when the arrays are empty or differ
+     * in length, and arithmetic_exception when one series is constant (its
+     * spread is 0, so the coefficient is undefined).
+     */
+    static def correlation(xs: decimal[], ys: decimal[]): decimal {
+        require_data(xs, "correlation");
+        if(sizeof(xs) != sizeof(ys))
+            throw new illegal_argument_exception("statistics.correlation: the arrays differ in length");
+
+        mean_x : decimal = mean(xs);
+        mean_y : decimal = mean(ys);
+        both : decimal = 0;
+        spread_x : decimal = 0;
+        spread_y : decimal = 0;
+
+        for(i : decimal = 0; i < sizeof(xs); i++) {
+            dx : decimal = xs[i] - mean_x;
+            dy : decimal = ys[i] - mean_y;
+            both += dx * dy;
+            spread_x += dx * dx;
+            spread_y += dy * dy;
+        }
+
+        if(spread_x == 0 || spread_y == 0)
+            throw new arithmetic_exception("statistics.correlation: a series is constant");
+        return both / sqrt(spread_x * spread_y);
+    }
+
+    /**
+     * How many standard deviations `value` lies above (positive) or below
+     * (negative) the mean of the data: (value - mean) / std_dev.
+     * Throws arithmetic_exception when all values are equal (std_dev is 0).
+     */
+    static def z_score(values: decimal[], value: decimal): decimal {
+        require_data(values, "z_score");
+        deviation : decimal = std_dev(values);
+        if(deviation == 0)
+            throw new arithmetic_exception("statistics.z_score: the standard deviation is 0");
+        return (value - mean(values)) / deviation;
+    }
+
+    /**
+     * The numbers of a list<double> as a native array, so list contents can
+     * be passed to the functions above. An empty list gives an empty array.
+     */
+    static def to_array(values: list<double>): decimal[] {
+        n : decimal = values.size();
+        result := new decimal[n];
+        for(i : decimal = 0; i < n; i++) {
+            result[i] = values.at(i).value;
+        }
+        return result;
+    }
+}

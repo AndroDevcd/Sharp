@@ -1,0 +1,383 @@
+mod main;
+
+import ( std.testing, std.io, std.system )
+
+/**
+ * std.system args_parser (flags, options, positionals, defaults, help,
+ * errors) and logger (levels, formats, injected clock, writer and file
+ * targets).
+ *
+ * Works only inside /tmp/sharp_suite_io_logger and removes it at the end.
+ */
+
+base_dir : string = "/tmp/sharp_suite_io_logger";
+
+/** a command line from one string: the arguments are separated by '|' */
+def line(text: string): list<string> {
+    if(io_strings.length(text) == 0) {
+        return new list<string>();
+    }
+    return io_strings.split(text, '|');
+}
+
+def new_parser(): args_parser {
+    parser := new args_parser("copytool", "Copies files with style.");
+    parser.add_flag("verbose", 'v', "print what is being done");
+    parser.add_flag("all", 'a', "include hidden files");
+    parser.add_flag("dry-run", 0, "only show what would happen");
+    parser.add_option("jobs", 'j', "N", "how many copies run at once", "4");
+    parser.add_optional_option("include", 'I', "DIR", "an extra directory");
+    parser.add_required_option("output", 'o', "DIR", "where the copies go");
+    parser.add_positional("source", "the file to copy", true);
+    parser.add_positional("target", "the name of the copy", false);
+    return parser;
+}
+
+/** parsing must fail with exactly this message */
+def expect_args_error(name: string, parser: args_parser, text: string, message: string) {
+    try {
+        parser.parse_list(line(text));
+        test(name) { fail_test("no exception"); };
+    } catch(e: args_exception) {
+        test(name) { expect(e.get_message()).should_be(message); };
+    }
+}
+
+def test_args() {
+    p := new_parser();
+    p.parse_list(line("-o|out|file.txt"));
+    test("flag off by default") { expect_false(p.flag("verbose")); };
+    test("default value") { expect(p.value("jobs")).should_be("4"); };
+    test("default as number") { expect(p.number("jobs")).should_be(4); };
+    test("has is false for a default") { expect_false(p.has("jobs")); };
+    test("short option with separate value") { expect(p.value("output")).should_be("out"); };
+    test("has") { expect_true(p.has("output")); };
+    test("positional") { expect(p.value("source")).should_be("file.txt"); };
+    test("optional positional missing") { expect_false(p.has("target")); };
+    test("missing optional positional is empty") { expect(p.value("target")).should_be(""); };
+    test("value_or") { expect(p.value_or("target", "same")).should_be("same"); };
+    test("optional option missing") { expect_false(p.has("include")); };
+    test("values of a missing option") { expect(p.values("include").size()).should_be(0); };
+    test("no extra arguments") { expect(p.rest().size()).should_be(0); };
+    test("help not requested") { expect_false(p.help_requested()); };
+
+    p.parse_list(line("--verbose|--jobs|8|--output=dir with space|src|dst|--dry-run"));
+    test("long flag") { expect_true(p.flag("verbose")); };
+    test("flag after positionals") { expect_true(p.flag("dry-run")); };
+    test("other flag still off") { expect_false(p.flag("all")); };
+    test("long option with separate value") { expect(p.whole_number("jobs")).should_be(8); };
+    test("long option with =") { expect(p.value("output")).should_be("dir with space"); };
+    test("first positional") { expect(p.value("source")).should_be("src"); };
+    test("second positional") { expect(p.value("target")).should_be("dst"); };
+
+    p.parse_list(line("-va|-j16|-oX|s"));
+    test("combined flags: v") { expect_true(p.flag("verbose")); };
+    test("combined flags: a") { expect_true(p.flag("all")); };
+    test("value attached to the letter") { expect(p.number("jobs")).should_be(16); };
+    test("value attached to -o") { expect(p.value("output")).should_be("X"); };
+    p.parse_list(line("-vao|out|s"));
+    test("flags then an option in one group") { expect(p.value("output")).should_be("out"); };
+    test("...with its flags") { expect_true(p.flag("all")); };
+    test("a new parse starts fresh") { expect_false(p.flag("dry-run")); };
+
+    p.parse_list(line("-vvv|-I|a|--include|b|-Ic|-o|1|-o|2|s"));
+    test("count of a repeated flag") { expect(p.count("verbose")).should_be(3); };
+    test("repeated option: all values") { expect(io_strings.join(p.values("include"), ",")).should_be("a,b,c"); };
+    test("repeated option: the last wins") { expect(p.value("output")).should_be("2"); };
+    test("count of an option") { expect(p.count("output")).should_be(2); };
+
+    p.parse_list(line("-o|out|--jobs|-5|--|-not-an-option|--verbose"));
+    test("an option takes the next argument whatever it is") { expect(p.number("jobs")).should_be(0 - 5); };
+    test("after --: positional starting with a dash") { expect(p.value("source")).should_be("-not-an-option"); };
+    test("after --: even --verbose") { expect(p.value("target")).should_be("--verbose"); };
+    test("...so the flag is off") { expect_false(p.flag("verbose")); };
+    p.parse_list(line("-o|out|-"));
+    test("a single dash is a positional") { expect(p.value("source")).should_be("-"); };
+    p.parse_list(line("--output=|s"));
+    test("empty value with =") { expect(p.value("output")).should_be(""); };
+    test("...still counts as given") { expect_true(p.has("output")); };
+    p.parse_list(line("--output=a=b|s"));
+    test("value containing =") { expect(p.value("output")).should_be("a=b"); };
+
+    // errors made by the user
+    expect_args_error("unknown long option", p, "--colour|-o|x|s", "unknown option --colour");
+    expect_args_error("unknown short option", p, "-x|-o|x|s", "unknown option -x");
+    expect_args_error("unknown letter in a group", p, "-vz|-o|x|s", "unknown option -z");
+    expect_args_error("missing value (long)", p, "s|--output", "option --output needs a value");
+    expect_args_error("missing value (short)", p, "s|-o", "option -o needs a value");
+    expect_args_error("missing required option", p, "s", "missing required option --output");
+    expect_args_error("missing required argument", p, "-o|x", "missing required argument <source>");
+    expect_args_error("too many arguments", p, "-o|x|a|b|c", "unexpected argument c");
+    expect_args_error("flag with a value", p, "--verbose=yes|-o|x|s", "option --verbose does not take a value");
+    expect_args_error("empty command line", p, "", "missing required option --output");
+    p.parse_list(line("-o|x|s|--jobs|many"));
+    try { p.number("jobs"); test("not a number") { fail_test("no exception"); }; }
+    catch(e: args_exception) { test("not a number") { expect(e.get_message()).should_be("option --jobs needs a number, not \"many\""); }; }
+    p.parse_list(line("-o|x|s|--jobs|2.5"));
+    test("number with fraction") { expect(p.number("jobs")).should_be(2.5); };
+    try { p.whole_number("jobs"); test("not a whole number") { fail_test("no exception"); }; }
+    catch(e: args_exception) { test("not a whole number") { expect(e.get_message()).should_be("option --jobs needs a whole number, not \"2.5\""); }; }
+
+    // help
+    p.parse_list(line("--help"));
+    test("--help") { expect_true(p.help_requested()); };
+    p.parse_list(line("-h"));
+    test("-h, and nothing is missing") { expect_true(p.help_requested()); };
+    p.parse_list(line("-o|x|s"));
+    test("help flag is reset") { expect_false(p.help_requested()); };
+    test("usage") { expect(p.usage()).should_be("usage: copytool [options] --output DIR <source> [target]"); };
+    test("help") { expect(p.help()).should_be("usage: copytool [options] --output DIR <source> [target]\n"
+        + "\n"
+        + "Copies files with style.\n"
+        + "\n"
+        + "arguments:\n"
+        + "  source             the file to copy\n"
+        + "  target             the name of the copy (optional)\n"
+        + "\n"
+        + "options:\n"
+        + "  -v, --verbose      print what is being done\n"
+        + "  -a, --all          include hidden files\n"
+        + "      --dry-run      only show what would happen\n"
+        + "  -j, --jobs N       how many copies run at once (default: 4)\n"
+        + "  -I, --include DIR  an extra directory\n"
+        + "  -o, --output DIR   where the copies go (required)\n"
+        + "  -h, --help         show this help\n"); };
+
+    // extra arguments and a parser with its own -h
+    more := new args_parser("list", "");
+    more.add_flag("human", 'h', "sizes for people");
+    more.add_positional("dir", "where to look", false);
+    more.allow_extra("patterns", "names to look for");
+    more.parse_list(line("-h|src|*.a|*.b|--|-c"));
+    test("own -h is a flag") { expect_true(more.flag("human")); };
+    test("...and not help") { expect_false(more.help_requested()); };
+    test("rest") { expect(io_strings.join(more.rest(), ",")).should_be("*.a,*.b,-c"); };
+    test("usage with extras") { expect(more.usage()).should_be("usage: list [options] [dir] [patterns...]"); };
+    test("help with extras and own -h") { expect(more.help()).should_be("usage: list [options] [dir] [patterns...]\n"
+        + "\n"
+        + "arguments:\n"
+        + "  dir          where to look (optional)\n"
+        + "  patterns...  names to look for\n"
+        + "\n"
+        + "options:\n"
+        + "  -h, --human  sizes for people\n"
+        + "      --help   show this help\n"); };
+    more.parse_list(line("--help"));
+    test("--help still works") { expect_true(more.help_requested()); };
+    more.parse_list(new list<string>());
+    test("nothing given") { expect_false(more.has("dir")); };
+    bare := new args_parser("bare", "");
+    test("usage without options") { expect(bare.usage()).should_be("usage: bare"); };
+    bare.parse_list(new list<string>());
+    test("empty parser parses nothing") { };
+
+    // parse() with an array, as main() gets it
+    arr := new string[3];
+    arr[0] = new string("-o"); arr[1] = new string("dir"); arr[2] = new string("file");
+    p.parse(arr);
+    test("parse(string[])") { expect(p.value("source")).should_be("file"); };
+
+    // mistakes of the program
+    try { p.flag("nope"); test("undeclared name") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("undeclared name") { }; }
+    try { p.add_flag("verbose", 0, "again"); test("name declared twice") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("name declared twice") { }; }
+    try { p.add_flag("other", 'v', "again"); test("letter declared twice") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("letter declared twice") { }; }
+    try { p.add_flag("has space", 0, "x"); test("malformed name") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("malformed name") { }; }
+    try { p.add_flag("-dash", 0, "x"); test("name starting with a dash") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("name starting with a dash") { }; }
+    try { p.add_flag("", 0, "x"); test("empty name") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("empty name") { }; }
+    try { p.add_flag("sym", '-', "x"); test("symbol as letter") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("symbol as letter") { }; }
+    try { p.add_positional("late", "x", true); test("required after optional") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("required after optional") { }; }
+    try { p.add_positional("source", "x", false); test("positional declared twice") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("positional declared twice") { }; }
+}
+
+def test_logger() {
+    sink := new string_writer();
+    log := new logger("server");
+    log.add_writer(sink);
+    log.set_clock({ -> (decimal) return 1762939800123; });      // 2025-11-12 09:30:00.123 UTC
+    test("name") { expect(log.name()).should_be("server"); };
+    test("default level is info") { expect(log.get_level()).should_be(logger.level_info); };
+    test("one target") { expect(log.target_count()).should_be(1); };
+
+    log.info("listening on port 8080");
+    test("default format") { expect(sink.to_string()!!).should_be("2025-11-12 09:30:00.123 INFO  [server] listening on port 8080\n"); };
+    sink.clear();
+    log.debug("hidden");
+    log.trace("hidden too");
+    test("below the level: nothing written") { expect(sink.length()).should_be(0); };
+    test("dropped count") { expect(log.get_dropped()).should_be(2); };
+    log.warn("careful");
+    log.error("broken");
+    test("warn and error") { expect(sink.to_string()!!).should_be("2025-11-12 09:30:00.123 WARN  [server] careful\n2025-11-12 09:30:00.123 ERROR [server] broken\n"); };
+    test("written count") { expect(log.get_written()).should_be(3); };
+
+    sink.clear();
+    log.set_level(logger.level_trace);
+    log.set_timestamps(false);
+    log.trace("t");
+    log.debug("d");
+    test("no time stamps, all levels") { expect(sink.to_string()!!).should_be("TRACE [server] t\nDEBUG [server] d\n"); };
+    test("is_enabled") { expect_true(log.is_enabled(logger.level_trace)); };
+    log.set_level(logger.level_error);
+    test("is_enabled below") { expect_false(log.is_enabled(logger.level_warn)); };
+    test("is_enabled at") { expect_true(log.is_enabled(logger.level_error)); };
+    log.set_level(logger.level_off);
+    sink.clear();
+    log.error("even this");
+    test("off writes nothing") { expect(sink.length()).should_be(0); };
+    test("is_enabled when off") { expect_false(log.is_enabled(logger.level_error)); };
+
+    sink.clear();
+    log.set_level(logger.level_info).set_timestamps(true);
+    log.set_format("[{level}] {message} ({name} at {time}) {unknown} {");
+    log.info("custom");
+    test("custom format") { expect(sink.to_string()!!).should_be("[INFO ] custom (server at 2025-11-12 09:30:00.123) {unknown} {\n"); };
+    sink.clear();
+    log.set_timestamps(false);
+    log.info("custom");
+    test("custom format without time") { expect(sink.to_string()!!).should_be("[INFO ] custom (server at ) {unknown} {\n"); };
+    log.set_format("{message}");
+    sink.clear();
+    log.log(logger.level_warn, "by number");
+    log.info("");
+    log.info("with {name} inside");
+    test("message only; placeholders in the message are left alone") { expect(sink.to_string()!!).should_be("by number\n\nwith {name} inside\n"); };
+    test("format_line") { expect(log.format_line(logger.level_error, "x")).should_be("x"); };
+    sink.clear();
+    log.set_format("{level}: {message}");
+    try { always_fails(); } catch(e: illegal_state_exception) { log.log_exception("could not start", e); }
+    test("log_exception") { expect(sink.to_string()!!).should_be("ERROR: could not start: the reason\n"); };
+
+    try { log.log(7, "x"); test("bad message level") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("bad message level") { }; }
+    try { log.log(logger.level_off, "x"); test("off as message level") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("off as message level") { }; }
+    try { log.set_level(9); test("bad level") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("bad level") { }; }
+
+    test("level_name") { expect(logger.level_name(logger.level_warn)).should_be("WARN"); };
+    test("level_name off") { expect(logger.level_name(logger.level_off)).should_be("OFF"); };
+    test("level_of") { expect(logger.level_of("debug")).should_be(logger.level_debug); };
+    test("level_of upper case") { expect(logger.level_of(" ERROR ")).should_be(logger.level_error); };
+    test("level_of warning") { expect(logger.level_of("Warning")).should_be(logger.level_warn); };
+    test("level_of off") { expect(logger.level_of("off")).should_be(logger.level_off); };
+    try { logger.level_of("loud"); test("level_of unknown") { fail_test("no exception"); }; }
+    catch(e: illegal_argument_exception) { test("level_of unknown") { }; }
+
+    // dates
+    test("epoch") { expect(logger.format_time(0)).should_be("1970-01-01 00:00:00.000"); };
+    test("one millisecond before a day ends") { expect(logger.format_time(86399999)).should_be("1970-01-01 23:59:59.999"); };
+    test("leap day 2000") { expect(logger.format_time(951782400000)).should_be("2000-02-29 00:00:00.000"); };
+    test("day after leap day") { expect(logger.format_time(951868800000)).should_be("2000-03-01 00:00:00.000"); };
+    test("end of 1999") { expect(logger.format_time(946684799000)).should_be("1999-12-31 23:59:59.000"); };
+    test("2024 leap day") { expect(logger.format_time(1709210096789)).should_be("2024-02-29 12:34:56.789"); };
+    test("2100 is not a leap year") { expect(logger.format_time(4107542400000)).should_be("2100-03-01 00:00:00.000"); };
+    test("2038") { expect(logger.format_time(2147483648000)).should_be("2038-01-19 03:14:08.000"); };
+    test("negative becomes the epoch") { expect(logger.format_time(0 - 5)).should_be("1970-01-01 00:00:00.000"); };
+
+    // several targets, and closing
+    second := new string_writer();
+    log.add_writer(second);
+    sink.clear();
+    log.info("both");
+    test("first target") { expect(sink.to_string()!!).should_be("INFO : both\n"); };
+    test("second target") { expect(second.to_string()!!).should_be("INFO : both\n"); };
+    log.close();
+    log.close();
+    test("close closes the targets") { expect_true(sink.is_closed()); };
+    try { log.info("late"); test("log after close") { fail_test("no exception"); }; }
+    catch(e: illegal_state_exception) { test("log after close") { }; }
+
+    silent := new logger("nowhere");
+    silent.info("no target, no problem");
+    test("a logger without targets still counts") { expect(silent.get_written()).should_be(1); };
+    silent.add_console();
+    silent.set_level(logger.level_off);
+    silent.error("not printed");
+    test("console target added") { expect(silent.target_count()).should_be(1); };
+    live := new logger("clock");
+    live.add_writer(new string_writer());
+    live.info("uses the real clock");
+    test("real clock") { };
+
+    // file targets append
+    target := new file(base_dir + "/app.log");
+    target.write_text("earlier line\n");
+    flog := new logger("app");
+    flog.set_timestamps(false).add_file(target);
+    flog.info("one");
+    test("auto flush: on disk at once") { expect(target.read_text()).should_be("earlier line\nINFO  [app] one\n"); };
+    flog.set_auto_flush(false);
+    flog.info("two");
+    test("no auto flush: not yet on disk") { expect(target.read_text()).should_be("earlier line\nINFO  [app] one\n"); };
+    flog.flush();
+    test("flush") { expect(target.read_text()).should_be("earlier line\nINFO  [app] one\nINFO  [app] two\n"); };
+    flog.warn("three");
+    flog.close();
+    test("close writes the rest") { expect(target.read_lines().size()).should_be(4); };
+    again := new logger("app");
+    again.set_timestamps(false).add_file(target);
+    again.error("four");
+    again.close();
+    test("a new logger appends") { expect(target.read_lines().at(4)).should_be("ERROR [app] four"); };
+    try { new logger("x").add_file(new file(base_dir)); test("directory as log file") { fail_test("no exception"); }; }
+    catch(e: io_exception) { test("directory as log file") { }; }
+
+    // a file that starts anew when it is full: lines of 20 bytes ("INFO  [r] line 0001" and the line end), room for 3
+    turning : string = base_dir + "/turn.log";
+    rlog := new logger("r");
+    rlog.set_timestamps(false).add_rotating_file(turning, 60, 2);
+    test("rotating: counts as a target") { expect(rlog.target_count()).should_be(1); };
+    rlog.info("line 0001");
+    rlog.info("line 0002");
+    rlog.info("line 0003");
+    test("rotating: appended, on disk at once") { expect(new file(turning).read_text()).should_be("INFO  [r] line 0001\nINFO  [r] line 0002\nINFO  [r] line 0003\n"); };
+    test("rotating: not full yet, no old file") { expect_false(new file(turning + ".1").exists()); };
+    rlog.info("line 0004");
+    test("rotating: the full file became .1") { expect(new file(turning + ".1").read_text()).should_be("INFO  [r] line 0001\nINFO  [r] line 0002\nINFO  [r] line 0003\n"); };
+    test("rotating: a new file was started") { expect(new file(turning).read_text()).should_be("INFO  [r] line 0004\n"); };
+    rlog.info("line 0005");
+    rlog.info("line 0006");
+    rlog.info("line 0007");
+    test("rotating: .1 became .2") { expect(new file(turning + ".2").read_lines().at(0)).should_be("INFO  [r] line 0001"); };
+    test("rotating: the second full file is .1") { expect(new file(turning + ".1").read_lines().at(0)).should_be("INFO  [r] line 0004"); };
+    rlog.info("line 0008");
+    rlog.info("line 0009");
+    rlog.info("line 0010");
+    test("rotating: the oldest is dropped (2 are kept)") { expect(new file(turning + ".2").read_lines().at(0)).should_be("INFO  [r] line 0004"); };
+    test("rotating: no third old file") { expect_false(new file(turning + ".3").exists()); };
+    test("rotating: the current file") { expect(new file(turning).read_text()).should_be("INFO  [r] line 0010\n"); };
+    rlog.close();
+    more := new logger("r");
+    more.set_timestamps(false).add_rotating_file(turning, 60, 2);
+    more.info("line 0011");
+    more.close();
+    test("rotating: a new logger goes on in the same file") { expect(new file(turning).read_text()).should_be("INFO  [r] line 0010\nINFO  [r] line 0011\n"); };
+}
+
+def always_fails() {
+    throw new illegal_state_exception("the reason");
+}
+
+def main(args: string[]) {
+    show_only_failures();
+    tests("lib_system_args_logger") {
+        start := new file(base_dir);
+        start.delete_recursively();
+        test("test directory created") { expect_true(start.mkdirs()); };
+
+        test_args();
+        test_logger();
+
+        test("cleanup") { expect_true(start.delete_recursively()); };
+    };
+    finish_tests("lib_system_args_logger");
+}

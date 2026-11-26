@@ -1,0 +1,275 @@
+mod backend.compiler.overloads;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context
+)
+
+/**
+ * GENERIC FUNCTIONS AT A CALL: which instance is meant
+ *
+ *      def first_or<T>(items: list<T>, fallback: T) : T { ... }
+ *
+ *      first_or<string>(names, "none")     the type argument is WRITTEN
+ *      first_or(names, "none")             ... or worked out from the arguments:
+ *                                          `list<T>` against `list<string>` gives T = string
+ *
+ * A generic function as written is a blueprint; each distinct list of type
+ * arguments makes an INSTANCE of it (`instantiate_function`, stage 5), a real
+ * function whose parameters and result are real types, analysed like any
+ * other function. Overload resolution then works on the instances.
+ *
+ * Working the type arguments out is textbook UNIFICATION: each parameter's
+ * WRITTEN type is laid over the type of its argument, and wherever the
+ * written type has a `T` the argument has the type that `T` stands for.
+ *
+ *      parameter written       argument            gives
+ *      T                       _int32              T = _int32
+ *      T?                      string?             T = string
+ *      T[]                     shape[]             T = shape
+ *      list<T>                 list<string>        T = string
+ *      (T)(R)                  (_int64)(string)    T = _int64, R = string
+ *
+ * The first argument that says something about `T` decides it; a later one
+ * that disagrees then simply does not convert (and the call does not fit).
+ * A `T` that no argument says anything about cannot be worked out - only a
+ * lambda argument mentions it, or nothing does (`make<T>()`) - and the call
+ * must write the type arguments (E0517).
+ *
+ *      E0515   wrong number of type arguments
+ *      E0516   type arguments given to a function that is not generic
+ *      E0517   the type arguments cannot be worked out from the arguments
+ *      E0518   a type argument is not what `T base x` asks for
+ *
+ *      C++ comparison: generic_functions.cpp makes the instance by name
+ *      (`first_or<std#string>`) when the call writes the type arguments; it
+ *      does not work them out, so `first_or(names, "none")` is an error there.
+ *      Accepting it is wider (doc/backend.md D53).
+ */
+
+/** the result of turning the generic candidates of a call into instances */
+class candidate_set {
+    functions : list<sharp_function>;           // non-generic candidates and the instances made
+    rejected : list<call_candidate>;            // candidates that could not be made (with the reason)
+    type_argument_problem : string = "";        // E0515 / E0516 / E0517 / E0518 when that is all that is wrong
+
+    candidate_set() {
+        functions = new list<sharp_function>();
+        rejected = new list<call_candidate>();
+    }
+}
+
+/**
+ * The functions a call can mean, with every generic one replaced by its
+ * instance for this call.
+ *
+ * @param type_arguments  the type arguments written at the call (`f<int>(x)`); null when none
+ */
+def instances_for_call(context: analysis_context, functions: list<sharp_function>, arguments: list<call_argument>,
+                       type_arguments: list<resolved_type>?) : candidate_set {
+    candidates := new candidate_set();
+    for(i : _int64 = 0; i < functions.size(); i++) {
+        function := functions.at(i);
+        if(!function.is_generic()) {
+            if(type_arguments != null) {
+                reject(candidates, function, "is not generic: it takes no type arguments", "E0516");
+            } else {
+                candidates.functions.add(function);
+            }
+            continue;
+        }
+
+        wanted : _int64 = function.type_parameters.size();
+        chosen : list<resolved_type>? = type_arguments;
+        if(chosen == null) {
+            if(function.parameters.size() != arguments.size()) {
+                // the wrong number of arguments is the mistake, not the type arguments
+                reject(candidates, function, "takes " + count_of(function.parameters.size(), "argument") + ", "
+                       + count_was(arguments.size(), "given"), "");
+                continue;
+            }
+            chosen = inferred_type_arguments(context, function, arguments);
+            if(chosen == null) {
+                reject(candidates, function, "nothing in the arguments says what `" + first_unknown_type_parameter(context, function, arguments)
+                       + "` is", "E0517");
+                continue;
+            }
+        } else if(chosen!!.size() != wanted) {
+            reject(candidates, function, "takes " + count_of(wanted, "type argument") + ", " + count_was(chosen!!.size(), "given"), "E0515");
+            continue;
+        }
+
+        broken := broken_constraint(context, function, chosen!!);
+        if(broken.size() > 0) {
+            reject(candidates, function, broken, "E0518");
+            continue;
+        }
+        before : _int64 = context.prog.problems.size();
+        made := instantiate_function(context.prog, function, chosen!!);
+        candidates.functions.add(made);
+        if(context.prog.problems.size() > before) { point_at_the_call(context, made, arguments, before); }
+    }
+    return candidates;
+}
+
+/**
+ * A generic function's declaration can be wrong only for some type
+ * arguments (`def pick<T>(...) : T?` is no type for T = decimal). Such a
+ * message is found while the instance is made, and stands at the
+ * declaration - which the reader cannot tell apart from every other call.
+ * So each message the instance gave gets the note "found while checking
+ * `pick<decimal>`" and the place of THIS call, the use to change. (A
+ * generic class's messages get the same from its `first_use`.)
+ *
+ * @param before  how many problems the program had before the instance was made
+ */
+def point_at_the_call(context: analysis_context, made: sharp_function, arguments: list<call_argument>, before: _int64) {
+    if(arguments.size() == 0) { return; }
+    tree : syntax_tree = context.tree;
+    call : _int64 = arguments.at(0).node;
+    while(call >= 0 && tree.kinds!![call] != N_CALL) { call = tree.parents!![call]; }
+    if(call < 0) { return; }
+    p : parse_state = context.state;
+    text := made.name;
+    if(made.type_arguments != null) {
+        text = text + "<";
+        for(i : _int64 = 0; i < made.type_arguments!!.size(); i++) {
+            if(i > 0) { text = text + ", "; }
+            text = text + made.type_arguments!!.at(i).to_text();
+        }
+        text = text + ">";
+    }
+    for(i : _int64 = before; i < context.prog.problems.size(); i++) {
+        d := context.prog.problems.at(i);
+        d.with_note("found while checking `" + text + "`: the declaration is fine as written, but not with these type arguments");
+        d.with_related(p.start_of(first_token_of(tree, call)), p.end_of(last_token_of(tree, call)), "`" + text + "` is used here");
+    }
+}
+
+/**
+ * A candidate that cannot be made for this call.
+ *
+ * @param code  E0515 .. E0518 when its type arguments are what is wrong; "" when it is the arguments
+ */
+def reject(candidates: candidate_set, function: sharp_function, reason: string, code: string) {
+    candidate := new call_candidate(function);
+    candidate.reason = reason;
+    candidate.type_argument_code = code;
+    candidates.rejected.add(candidate);
+    if(candidates.type_argument_problem.size() == 0) { candidates.type_argument_problem = code; }
+}
+
+/** "T, R": the names of a generic function's type parameters */
+def type_parameter_names(function: sharp_function) : string {
+    text := new string_builder("");
+    for(i : _int64 = 0; i < function.type_parameters.size(); i++) {
+        if(i > 0) { text.append(", "); }
+        text.append(function.type_parameters.at(i).name);
+    }
+    return text.build();
+}
+
+/**
+ * The text of the first `T base x` a type argument breaks ("`T` must be ..."),
+ * or "" when every argument is what its parameter asks for.
+ */
+def broken_constraint(context: analysis_context, function: sharp_function, chosen: list<resolved_type>) : string {
+    for(i : _int64 = 0; i < function.type_parameters.size() && i < chosen.size(); i++) {
+        parameter := function.type_parameters.at(i);
+        if(parameter.constraint == null) { continue; }
+        wanted := resolve_written_type(context.prog, parameter.constraint!!, context.environment, context.session.problems);
+        if(!satisfies_constraint(context.prog, chosen.at(i), wanted)) {
+            return "`" + parameter.name + "` must be `" + wanted.to_text() + "` or a class below it, but `"
+                   + chosen.at(i).to_text() + "` was given";
+        }
+    }
+    return "";
+}
+
+/**
+ * The type arguments of `function` worked out from the arguments of the
+ * call, one per type parameter; null when one of them cannot be worked out.
+ */
+def inferred_type_arguments(context: analysis_context, function: sharp_function, arguments: list<call_argument>) : list<resolved_type>? {
+    if(function.parameters.size() != arguments.size()) { return null; }
+    count : _int64 = function.type_parameters.size();
+    found := unify_all(context, function, arguments);
+
+    chosen := new list<resolved_type>();
+    for(i : _int64 = 0; i < count; i++) {
+        if(found[i] == null) { return null; }
+        chosen.add(found[i]);
+    }
+    return chosen;
+}
+
+/** every parameter laid over its argument: what each type parameter stands for, by position (null: not known) */
+def unify_all(context: analysis_context, function: sharp_function, arguments: list<call_argument>) : resolved_type[] {
+    found := new resolved_type[function.type_parameters.size()];
+    for(i : _int64 = 0; i < arguments.size(); i++) {
+        argument := arguments.at(i);
+        written := function.parameters.at(i).type;
+        if(argument.is_lambda == 1 || written == null) { continue; }
+        if(argument.value.type.kind == RT_ERROR || argument.value.type.kind == RT_NULL) { continue; }
+        unify(context, function, written!!, argument.value.type, found);
+    }
+    return found;
+}
+
+/** the name of the first type parameter the arguments say nothing about, for the E0517 message */
+def first_unknown_type_parameter(context: analysis_context, function: sharp_function, arguments: list<call_argument>) : string {
+    found := unify_all(context, function, arguments);
+    for(i : _int64 = 0; i < function.type_parameters.size(); i++) {
+        if(found[i] == null) { return function.type_parameters.at(i).name; }
+    }
+    return type_parameter_names(function);
+}
+
+/**
+ * Lay the written type of a parameter over the type of its argument and
+ * note what each of the function's type parameters stands for (`found`, by
+ * the parameter's position). Parts that do not line up say nothing.
+ */
+def unify(context: analysis_context, function: sharp_function, written: sharp_type, argument_type: resolved_type, found: resolved_type[]) {
+    // the marks written on the parameter are not part of what T stands for
+    given : resolved_type = argument_type;
+    if(written.is_array == 1) {
+        if(given.is_array == 0) { return; }
+        given = given.element_type();
+    }
+    if(written.is_nullable == 1 && written.is_array == 0) { given = given.as_non_null(); }
+
+    if(written.form == TYPE_FUNCTION) {
+        if(given.kind != RT_FUNCTION || given.parameters!!.size() != written.parameters.size()) { return; }
+        for(i : _int64 = 0; i < written.parameters.size(); i++) {
+            unify(context, function, written.parameters.at(i), given.parameters!!.at(i), found);
+        }
+        if(written.result != null && given.result != null) { unify(context, function, written.result!!, given.result!!, found); }
+        return;
+    }
+    if(written.form != TYPE_NAMED || written.declaration == null) { return; }
+
+    declared : sharp_declaration = written.declaration!!;
+    if(declared.kind == D_TYPE_PARAMETER) {
+        for(i : _int64 = 0; i < function.type_parameters.size(); i++) {
+            if(function.type_parameters.at(i) == declared && found[i] == null) {
+                found[i] = given;
+            }
+        }
+        return;
+    }
+
+    // list<T> against list<string>: the type arguments of the instance, one by one
+    if(written.arguments.size() == 0 || given.kind != RT_CLASS || given.is_array == 1) { return; }
+    instance : sharp_class = given.class_of!!;
+    if(instance.blueprint == null || instance.blueprint!!.written != declared || instance.type_arguments == null) { return; }
+    for(i : _int64 = 0; i < written.arguments.size() && i < instance.type_arguments!!.size(); i++) {
+        unify(context, function, written.arguments.at(i), instance.type_arguments!!.at(i), found);
+    }
+}

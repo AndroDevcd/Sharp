@@ -1,0 +1,76 @@
+mod backend.types.typed_tree.statements;
+
+import (
+    std.io,
+    backend.types.typed_tree
+)
+
+/**
+ * THE PARTS OF A STATEMENT
+ *
+ *      if(n > 0) { print(n); }     bound_if
+ *                                    expressions: n > 0
+ *                                    statements:  { print(n); }
+ *
+ * `statement_parts` adds the expressions and the statements directly inside
+ * one statement to two lists, so that a pass that must see every expression
+ * of a body (reports, initializer checks) can walk the tree without knowing
+ * every kind. A catch or a when clause is not a statement of its own; its
+ * tests and body are listed with the statement that holds it.
+ */
+def statement_parts(statement: bound_statement, expressions: list<bound_expression>, statements: list<bound_statement>) {
+    kind : _int64 = statement.kind;
+    if(kind == BS_BLOCK) {
+        inside := (statement as bound_block).statements;
+        for(i : _int64 = 0; i < inside.size(); i++) { statements.add(inside.at(i)); }
+    }
+    else if(kind == BS_LOCAL_DECLARATION) { add_if_there(expressions, (statement as bound_local_declaration).value); }
+    else if(kind == BS_EXPRESSION_STATEMENT) { expressions.add((statement as bound_expression_statement).expression); }
+    else if(kind == BS_RETURN) { add_if_there(expressions, (statement as bound_return).value); }
+    else if(kind == BS_THROW) { expressions.add((statement as bound_throw).value); }
+    else if(kind == BS_IF) {
+        branch := statement as bound_if;
+        expressions.add(branch.condition);
+        statements.add(branch.then_part);
+        if(branch.else_part != null) { statements.add(branch.else_part!!); }
+    }
+    else if(kind == BS_WHEN) {
+        choice := statement as bound_when;
+        add_if_there(expressions, choice.subject);
+        for(i : _int64 = 0; i < choice.clauses.size(); i++) {
+            clause := choice.clauses.at(i);
+            for(j : _int64 = 0; j < clause.tests.size(); j++) { expressions.add(clause.tests.at(j)); }
+            statements.add(clause.body);
+        }
+        if(choice.else_part != null) { statements.add(choice.else_part!!); }
+    }
+    else if(kind == BS_WHILE) {
+        expressions.add((statement as bound_while).condition);
+        statements.add((statement as bound_loop).body);
+    }
+    else if(kind == BS_DO_WHILE) {
+        statements.add((statement as bound_loop).body);
+        add_if_there(expressions, (statement as bound_do_while).condition);
+    }
+    else if(kind == BS_FOR) {
+        loop := statement as bound_for;
+        for(i : _int64 = 0; i < loop.initializers.size(); i++) { statements.add(loop.initializers.at(i)); }
+        add_if_there(expressions, loop.condition);
+        add_if_there(expressions, loop.step);
+        statements.add(loop.body);
+    }
+    else if(kind == BS_FOREACH) {
+        expressions.add((statement as bound_foreach).collection);
+        statements.add((statement as bound_loop).body);
+    }
+    else if(kind == BS_TRY) {
+        attempt := statement as bound_try;
+        statements.add(attempt.body);
+        for(i : _int64 = 0; i < attempt.catches.size(); i++) { statements.add(attempt.catches.at(i).body); }
+        if(attempt.finally_part != null) { statements.add(attempt.finally_part!!); }
+    }
+    else if(kind == BS_LOCK) {
+        expressions.add((statement as bound_lock).locked);
+        statements.add((statement as bound_lock).body);
+    }
+}

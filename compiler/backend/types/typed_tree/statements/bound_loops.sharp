@@ -1,0 +1,107 @@
+mod backend.types.typed_tree.statements;
+
+import (
+    std.io,
+    frontend.syntax.tree,
+    backend.types.type_system,
+    backend.types.declarations,
+    backend.types.typed_tree
+)
+
+/**
+ * LOOPS
+ *
+ *      while(c) body               bound_while         the condition first, every round
+ *      do body while(c);           bound_do_while      the body first, then the condition
+ *      for(init; c; step) body     bound_for           init once; then c, body, step every round
+ *      foreach(x in items) body    bound_foreach       once per item of an array
+ *
+ * What every loop has (bound_loop):
+ *
+ *      body            what is repeated
+ *      is_endless      1 when nothing written can stop it: the condition is
+ *                      missing or the constant `true` - only a `break`, a
+ *                      `return` or a `throw` gets out. The flow analysis needs
+ *                      it: code after `while(true) { }` without a `break` is
+ *                      never reached, and a function may end in such a loop
+ *                      without a `return` after it.
+ *      left_by_break   1 when a `break` that can be reached leaves this loop  } both set by the
+ *      continued       1 when a `continue` that can be reached repeats it     } flow analysis
+ *
+ * The body is made after the loop object (a `break` inside it must know its
+ * loop), so it starts as an empty statement and is filled in when built.
+ */
+class bound_loop base bound_statement {
+    body : bound_statement;
+    is_endless : _int64 = 0;
+    left_by_break : _int64 = 0;
+    continued : _int64 = 0;
+
+    bound_loop(kind: _int64, unit: source_unit, node: _int64) -> base(kind, unit, node) {
+        body = new bound_empty(unit, node);
+    }
+}
+
+/** `while(condition) body` */
+class bound_while base bound_loop {
+    condition : bound_expression;           // a plain number
+
+    bound_while(unit: source_unit, node: _int64, condition: bound_expression) -> base(BS_WHILE, unit, node) {
+        self->condition = condition;
+    }
+}
+
+/** `do body while(condition);` - the body runs at least once */
+class bound_do_while base bound_loop {
+    condition : bound_expression?;          // a plain number; analysed after the body, so set later
+
+    bound_do_while(unit: source_unit, node: _int64) -> base(BS_DO_WHILE, unit, node) {
+    }
+}
+
+/**
+ * `for(initializers; condition; step) body`. Every part may be missing:
+ * `for(;;)` and `for` alone repeat for ever. The variables the initializers
+ * declare live until the loop ends.
+ */
+class bound_for base bound_loop {
+    initializers : list<bound_statement>;   // local declarations, or one expression statement (`for(i = 0; ...)`)
+    condition : bound_expression?;          // a plain number; null: none (endless)
+    step : bound_expression?;               // null: none
+
+    bound_for(unit: source_unit, node: _int64) -> base(BS_FOR, unit, node) {
+        initializers = new list<bound_statement>();
+    }
+}
+
+/**
+ * `foreach(item in items) body` / `foreach(item: t in items) body`.
+ *
+ * `collection` is always an ARRAY: the array written, or for an object whose
+ * class is `loopable<t>` the call of its `get_elements()` (a bound_call
+ * written AS_ITERATE). It is evaluated once, into `array_variable`; then
+ * `index_variable` counts 0, 1, 2 ... up to the length, and each round the
+ * item at that position is converted by `item_conversion` (nothing to do when
+ * no type is written) and stored in `variable` before the body runs. A null
+ * array is not an empty one: as in the C++ compiler, looping over null raises
+ * the null-pointer exception when its length is read.
+ */
+class bound_foreach base bound_loop {
+    variable : local_variable;              // the item, as the body sees it
+    collection : bound_expression;          // an array (possibly nullable)
+    item_type : resolved_type;              // what the array holds
+    item_conversion : conversion;           // from item_type to the variable's type
+    array_variable : local_variable;        // hidden: the array, evaluated once
+    index_variable : local_variable;        // hidden: the position, an _int64
+
+    bound_foreach(unit: source_unit, node: _int64, variable: local_variable, collection: bound_expression,
+                  item_type: resolved_type, item_conversion: conversion, array_variable: local_variable,
+                  index_variable: local_variable) -> base(BS_FOREACH, unit, node) {
+        self->variable = variable;
+        self->collection = collection;
+        self->item_type = item_type;
+        self->item_conversion = item_conversion;
+        self->array_variable = array_variable;
+        self->index_variable = index_variable;
+    }
+}

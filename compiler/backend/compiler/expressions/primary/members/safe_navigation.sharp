@@ -1,0 +1,160 @@
+mod backend.compiler.expressions.primary.members;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.postprocessor.generics,
+    backend.compiler.context,
+    backend.compiler.expressions.primary,
+    backend.compiler.conversions
+)
+
+/**
+ * SAFE NAVIGATION:  user?.address.city
+ *
+ * `?.` reads a member only when the value in front of it is not null. When
+ * it IS null, the WHOLE chain to its end gives null - in `a?.b.c.d()` nothing
+ * after the `?.` needs another `?.` on account of `a`. So the meaning of a
+ * `?.` reaches from where it is written to where the chain ends, and the
+ * typed tree says exactly that:
+ *
+ *      bound_safe_navigation               type: the chain's type, made nullable
+ *        receiver:  user                   evaluated once and tested
+ *        rest:      <receiver>.address.city
+ *
+ * How it is built: when `?.` is met, `begin_safe_navigation` opens a
+ * navigation (kept in `context.navigation`) and hands back a bound_receiver -
+ * "the receiver, known not to be null" - that the rest of the chain is built
+ * on like on any object. When the dispatcher reaches the END of the chain it
+ * calls `close_safe_navigation`, which wraps what was built. Two `?.` in one
+ * chain (`a?.b?.c`) nest: the outer navigation's rest is the inner one.
+ *
+ * One thing has no meaning and is refused (E0725): a chain that ends in a
+ * plain NUMBER. `p?.x` with `x : _int64` would have to be "a number or
+ * null", and a plain number is never null.
+ *
+ *      C++ comparison: the old compiler accepts `p?.x` for a number and the
+ *      program raises a null exception when p is null (doc/backend.md, D24).
+ */
+
+/** a `?.` on a value that may be null: open a navigation and give back its receiver */
+def begin_safe_navigation(context: analysis_context, receiver: bound_expression, node: _int64) : bound_expression {
+    opened := new bound_safe_navigation(context.unit, node, receiver);
+    opened.enclosing = context.navigation;
+    context.navigation = opened;
+    return new bound_receiver(opened, receiver.type.as_non_null());
+}
+
+/** the end of a chain: wrap what was built in the navigations opened on the way, innermost first */
+def close_safe_navigation(context: analysis_context, chain: bound_expression) : bound_expression {
+    result : bound_expression = chain;
+    current := context.navigation;
+    while(current != null) {
+        opened : bound_safe_navigation = current!!;
+        opened.rest = result;
+        type : resolved_type = result.type;
+        if(type.is_number() && ends_in_field(result)) {
+            // `a.next?.value` read as a number: the C++ compiler accepts it and the
+            // program throws when `next` is null (the suite relies on it): a warning
+            // (not for the left side of `=`: `p?.x = 1` is refused as a whole, E0711)
+            if(context.reading_a_target == 0) { warn_number_through_safe_navigation(context, opened, result); }
+            opened.type = type;
+        } else if(type.is_number()) {
+            report_number_through_safe_navigation(context, opened, result);
+            opened.type = context.session.types.error_type;
+        } else if(type.kind == RT_ERROR || type.kind == RT_NIL) {
+            opened.type = type;
+        } else {
+            opened.type = type.as_nullable();
+        }
+        result = opened;
+        current = opened.enclosing;
+    }
+    context.navigation = null;
+    return result;
+}
+
+/** E0725: `p?.x` where x is a plain number */
+def report_number_through_safe_navigation(context: analysis_context, opened: bound_safe_navigation, result: bound_expression) {
+    receiver := source_text_of(context, opened.receiver.node);
+    d := problem_at(context, "E0725", "`?.` cannot give a plain number: when `" + receiver + "` is null there is no `"
+                    + result.type.to_text() + "` to give", opened.node);
+    d.with_label("the result would be \"a `" + result.type.to_text() + "` or null\"");
+    d.with_note("a plain number is never null, so this chain has no value when `" + receiver + "` is null");
+    d.with_help("say what the number is then: `" + receiver + " != null ? " + receiver + "!!.<member> : 0`");
+    d.with_help("or, when `" + receiver + "` is certainly not null here, write `" + receiver + "!!.`");
+    report(context, d);
+}
+
+/** is the end of the chain a field read (a stored field or a getter), not a call? */
+def ends_in_field(result: bound_expression) : _int64 {
+    if(result.kind == BX_FIELD) { return 1; }
+    return result.kind == BX_CALL && (result as bound_call).written_as == AS_GETTER;
+}
+
+/**
+ * W1027: `p?.x` read as a plain number. There is no "number or null", so
+ * the C++ compiler reads the field as if `!!.` were written - the program
+ * throws when `p` is null - and programs rely on it. Accepted with a warning;
+ * a CALL that gives a number through `?.` stays E0725, as in the C++ compiler.
+ */
+def warn_number_through_safe_navigation(context: analysis_context, opened: bound_safe_navigation, result: bound_expression) {
+    receiver := source_text_of(context, opened.receiver.node);
+    d := problem_at(context, "W1027", "`?.` gives a plain `" + result.type.to_text() + "` here: when `" + receiver
+                    + "` is null the program stops", opened.node);
+    d.with_label("a number cannot be null, so this reads like `!!.`");
+
+    // the same read written with `!!.`: `maybe?.x` -> `maybe!!.x`
+    rest := "<field>";
+    whole := source_text_of(context, result.node);
+    asked := receiver + "?.";
+    if(whole.starts_with(asked)) { rest = new string(whole.data!!, sizeof(asked.data), sizeof(whole.data)); }
+    certain := receiver + "!!." + rest;
+
+    // The test-then-read fix names the receiver twice. When the receiver is a
+    // CALL (`r.find("ZZ")?.price`) that would run it twice - twice the work,
+    // and any side effect twice - so the fix keeps its result in a local first.
+    // (`tested` is never assigned a text after it was given `receiver`: `string` has an
+    // `operator=` that changes the object itself, which `receiver` would then show too)
+    is_call : _int64 = context.tree.kinds!![opened.receiver.node] == N_CALL || context.tree.kinds!![opened.receiver.node] == N_NEW;
+    tested := "found";
+    first := "keep its result in a variable first, so it runs once: `found := " + receiver + ";` and then ";
+    if(is_call == 0) {
+        tested = new string(receiver);
+        first = "";
+    }
+    certain_tested := tested + "!!." + rest;
+
+    fallback : _int64 = fallback_of_elvis_around(context, opened.node);
+    if(fallback >= 0) {
+        // `maybe?.x ?: -1`: the `?:` was meant to give the number - but it never gets a null to replace
+        d.with_note("the `?:` after it never runs: it replaces a null, and this chain gives a number or stops the program");
+        d.with_help("test for null yourself: " + first + "`" + tested + " != null ? " + certain_tested + " : " + source_text_of(context, fallback) + "`");
+    } else {
+        d.with_help("say so: `" + certain + "`; or give the number to use: " + first + "`" + tested + " != null ? " + certain_tested + " : 0`");
+    }
+    report(context, d);
+}
+
+/**
+ * `maybe?.x ?: -1` - when the chain at `node` is the value of a `?:`, the
+ * node of the fallback (`-1`); -1 otherwise. Parentheses around the chain
+ * are looked through.
+ */
+def fallback_of_elvis_around(context: analysis_context, node: _int64) : _int64 {
+    tree : syntax_tree = context.tree;
+    inner : _int64 = node;
+    up : _int64 = tree.parents!![node];
+    while(up >= 0 && (tree.kinds!![up] == N_PAREN || tree.kinds!![up] == N_MEMBER)) {
+        inner = up;
+        up = tree.parents!![up];
+    }
+    if(up < 0 || tree.kinds!![up] != N_ELVIS || tree.first_child!![up] != inner) { return 0 - 1; }
+    return tree.next_sibling!![inner];
+}

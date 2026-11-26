@@ -1,0 +1,223 @@
+mod std.guikit.overlay;
+
+import (
+    std.guikit.*
+)
+
+/** where a popup's content appears (popup.where) */
+const POPUP_CENTER : _int64 = 0;    // in the middle of the window, with the page behind it dimmed: a dialog
+const POPUP_BELOW  : _int64 = 1;    // under the container the popup was made in, at least as wide: a menu
+const POPUP_AT_MOUSE : _int64 = 2;
+const POPUP_BOTTOM : _int64 = 3;    // along the bottom edge of the window, rising into place, the page dimmed: a sheet  // where the mouse was when the popup opened: a context menu
+
+/**
+ * popup - content that floats ABOVE the page instead of sitting in it: the
+ * machinery under dialog(...) and dropdown(...).
+ *
+ * A popup is an ordinary widget in the tree - it is made by build() like
+ * everything else, and it exists exactly while your state says it is open.
+ * There is no show() or dismiss() to call and no second window:
+ *
+ *      confirm := state(0);
+ *      button("Delete") { confirm.value = 1; };
+ *      dialog(confirm) {                          // there while confirm.value is 1
+ *          text("Delete this file?");
+ *          button("Yes") { remove(); confirm.value = 0; };
+ *      }
+ *
+ * (Android does dialogs and popups as separate windows with imperative
+ * show() / dismiss(), which is where much of their complexity comes from.
+ * Keeping them in the one tree, driven by state, is the lesson taken from
+ * Compose - and then simplified: Compose still opens a window for a Dialog.)
+ *
+ * HOW IT FLOATS
+ *
+ *   In the PAGE the popup takes no room at all (it measures as 0 x 0), and it
+ *   is a `floater`: the view does not paint or hit-test its children in the
+ *   normal walk. Instead, when the page is arranged the popup tells the host
+ *   "I am open" (ui_host.add_overlay). The host then, after the page:
+ *
+ *     - has each open popup place its content in the WINDOW (place_content):
+ *       centred, or under its anchor - flipped above it when there is no room
+ *       below, and kept inside the window;
+ *     - paints them on top of the page, in the order they were opened;
+ *     - asks them FIRST where the mouse is. A click outside the topmost popup
+ *       closes it and goes no further (it does not also press what is behind);
+ *       Escape closes it too.
+ *
+ *   "Closing" is asking: the popup calls the `dismiss` function it was given,
+ *   which sets your state back to 0; the rebuild that follows simply does not
+ *   make the popup again. The state stays yours.
+ *
+ * The ANCHOR of a POPUP_BELOW popup is its parent in the tree: the container
+ * it was made in. dropdown puts its closed box and its popup into one small
+ * stack for exactly that reason.
+ */
+stable class popup base widget : behavior, floater, stateful {
+    private where : _int64 = POPUP_CENTER;
+    private dismiss : ()()?;
+
+    // POPUP_AT_MOUSE: where the mouse was when the popup opened (-1: not opened yet). The
+    // popup's own memory: a rebuild while it is open must not move it to where the mouse is NOW.
+    private opened_x : decimal = 0 - 1;
+    private opened_y : decimal = 0 - 1;
+
+    // a sheet rises into place: when it opened (-1: not placed yet), on the host's clock
+    private opened_at : decimal = 0 - 1;
+    private static const RISE_TIME : decimal = 0.24;    // seconds a sheet takes to rise
+    private static const SHEET_WIDEST : decimal = 640;  // on a wide window a sheet does not span the whole width
+
+    popup(placement: _int64, on_dismiss: ()()) {
+        attach(self);
+        where = placement;
+        dismiss = on_dismiss;
+    }
+
+    /** the nested way to give the popup its content (scope.sharp) */
+    def content(block: ()()) : popup {
+        scope.fill(me, block);
+        return self;
+    }
+
+    override def floats() : _int64 { return 1; }
+
+    override def kind() : string { return "popup"; }
+
+    // ------------------------------------------------------------ in the page: no room, and "I am open"
+
+    override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
+        me.content_w = 0;
+        me.content_h = 0;
+    }
+
+    override def arrange() {
+        if(me.kid_count() > 0 && ui_host.current != null) {
+            ui_host.current!!.add_overlay(me);
+        }
+    }
+
+    override def paint(p: painter) {
+    }
+
+    // ------------------------------------------------------------ in the window: called by the host
+
+    /** measure the content and put it where it belongs in a window of this size */
+    def place_content(window_w: decimal, window_h: decimal) {
+        if(me.kid_count() == 0) {
+            return;
+        }
+        content : view = me.kids.at(0);
+        edge : decimal = 12;                            // never closer to the window's edge than this
+
+        if(where == POPUP_BELOW && me.parent != null) {
+            anchor : view = me.parent!!;
+
+            // As wide as the anchor - wider only when the content itself needs
+            // more. Asked first with no limit on the width, the content answers
+            // its natural width (a "fill" inside it has nothing to fill yet);
+            // then it is measured for real at the width decided.
+            most : decimal = window_w - edge * 2;
+            content.measure(0, UNBOUNDED, 0, window_h - edge * 2);
+            wide : decimal = num.between(content.want_w, num.smaller(anchor.w, most), most);
+            content.measure(wide, wide, 0, window_h - edge * 2);
+
+            // under the anchor - or above it, when it would run off the bottom and there is more room above
+            top : decimal = anchor.y + anchor.h + 4;
+            if(top + content.want_h > window_h - edge && anchor.y - 4 - content.want_h >= edge) {
+                top = anchor.y - 4 - content.want_h;
+            }
+            left : decimal = num.between(anchor.x, edge, num.larger(edge, window_w - edge - content.want_w));
+            content.arrange(num.nearest(left), num.nearest(top), content.want_w, content.want_h);
+        } else if(where == POPUP_AT_MOUSE) {
+            if(opened_x < 0 && ui_host.current != null) {
+                opened_x = ui_host.current!!.mouse_x;
+                opened_y = ui_host.current!!.mouse_y;
+            }
+            // as wide as its content needs: asked first with no limit on the width
+            // (so a "fill" inside has nothing to fill), then measured at that width
+            content.measure(0, UNBOUNDED, 0, window_h - edge * 2);
+            natural : decimal = num.smaller(content.want_w, window_w - edge * 2);
+            content.measure(natural, natural, 0, window_h - edge * 2);
+
+            // its corner at the mouse - moved back in when it would run off the right or the bottom
+            left : decimal = num.between(opened_x, edge, num.larger(edge, window_w - edge - content.want_w));
+            top : decimal = num.between(opened_y, edge, num.larger(edge, window_h - edge - content.want_h));
+            content.arrange(num.nearest(left), num.nearest(top), content.want_w, content.want_h);
+        } else if(where == POPUP_BOTTOM) {
+            // as wide as the window (up to a limit), as tall as its content, at most nine tenths of the window
+            wide : decimal = num.smaller(window_w, SHEET_WIDEST);
+            content.measure(wide, wide, 0, window_h * 0.9);
+            hidden_part : decimal = (1 - risen()) * content.want_h;     // how much of it is still below the edge
+            content.arrange(num.nearest((window_w - wide) / 2), num.nearest(window_h - content.want_h + hidden_part), content.want_w, content.want_h);
+        } else {
+            content.measure(0, window_w - edge * 2, 0, window_h - edge * 2);
+            content.arrange(num.nearest((window_w - content.want_w) / 2), num.nearest((window_h - content.want_h) / 2), content.want_w, content.want_h);
+        }
+    }
+
+    /**
+     * How far a sheet has risen: 0 when it has just opened, 1 when it is in
+     * place. It starts fast and settles gently (ease-out), like the screens
+     * of a navigator. Everything that is not a sheet is simply there: 1.
+     */
+    private def risen() : decimal {
+        if(where != POPUP_BOTTOM || ui_host.current == null) {
+            return 1;
+        }
+        clock : decimal = ui_host.current!!.now;
+        if(opened_at < 0) {
+            opened_at = clock;
+        }
+        through : decimal = num.between((clock - opened_at) / RISE_TIME, 0, 1);
+        left_to_go : decimal = 1 - through;
+        return 1 - left_to_go * left_to_go * left_to_go;
+    }
+
+    /** a popup that is rebuilt while open stays where it opened */
+    override def adopt(old: behavior) {
+        if(old is popup) {
+            before := old as popup;
+            if(before.me.kid_count() > 0) {         // it was open: keep its place
+                opened_x = before.opened_x;
+                opened_y = before.opened_y;
+                opened_at = before.opened_at;       // a sheet that is rebuilt does not rise again
+            }
+        }
+    }
+
+    /** paint the popup over the page: a dialog first dims everything behind it */
+    def paint_floating(p: painter, window_w: decimal, window_h: decimal) {
+        if(me.kid_count() == 0) {
+            return;
+        }
+        if(where == POPUP_CENTER) {
+            p.rect(0, 0, window_w, window_h, new color(0, 0, 0, 130));
+        }
+        if(where == POPUP_BOTTOM) {
+            // while it rises: the dimming deepens, the sheet is placed again for
+            // this frame, and another frame is asked for
+            up : decimal = risen();
+            p.rect(0, 0, window_w, window_h, new color(0, 0, 0, num.whole(130 * up)));
+            if(up < 1) {
+                place_content(window_w, window_h);
+                ui_host.current!!.request_frame();
+            }
+        }
+        me.kids.at(0).paint(p);
+    }
+
+    /** the view of this popup's content under the window point, or null when the point is outside the content */
+    def content_at(px: decimal, py: decimal) : view? {
+        if(me.kid_count() == 0) {
+            return null;
+        }
+        return me.kids.at(0).find_at(px, py);
+    }
+
+    /** the user clicked outside, or pressed Escape: ask to be closed */
+    def ask_to_close() {
+        if(dismiss != null) {
+            dismiss();
+        }
+    }
+}

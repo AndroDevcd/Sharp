@@ -1,0 +1,200 @@
+mod backend.compiler.conversions;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context
+)
+
+/**
+ * THE TABLE OF IMPLICIT CONVERSIONS
+ *
+ * "Implicit" = done by the compiler without the programmer writing `as`.
+ * `S` is the type of the value, `T` the type wanted (section 7.5.1 of
+ * doc/backend.md has the same table with the probes that confirmed it).
+ *
+ *      S                       T                           answer                  rank
+ *      ----------------------  --------------------------  ----------------------  ----
+ *      any                     the same type               identity                0
+ *      t                       t?                          to nullable             0
+ *      t?                      t                           NO: may be null (E0721)
+ *      null                    t?, object                  null                    1
+ *      null                    anything else               NO (E0720)
+ *      a number                any other number type       number (never refused:  1
+ *                                                          the value is cut down)
+ *      a bool                  a number                    number (1 or 0)         1
+ *      a number                bool                        NO: write the test (`n != 0`)
+ *      n[] (numbers)           the same n[] only           identity                0
+ *      class C                 a class above C, an         upcast                  2
+ *                              interface C has
+ *      class / interface B     a class below B             downcast, tested at     4
+ *                                                          run time (warning W1017)
+ *      class C                 an unrelated class          NO, unless C can be
+ *                                                          BUILT from the value    5
+ *      any object, any array   object                      to object               3
+ *      C[]                     B[] (C converts to B)       like its items          2 / 4
+ *      C[]                     object[]                    to object               3
+ *      a number                object                      NO (wrap it: new int(n))
+ *      object                  a class                     NO: write `as`
+ *      function type           the same function type      identity                0
+ *      an object               a number                    NO (.value / .ordinal)
+ *      a value of type nil     anything                    NO: there is no value (E0406)
+ *      the error type          anything, and back          yes, silently
+ *
+ * Nullability is checked LAST: when everything but the `?` fits, the answer
+ * is "may be null" and not "does not convert", so the message can say the
+ * one thing that is wrong.
+ *
+ * `find_conversion` only ANSWERS; it reports nothing (overload resolution
+ * will ask it for every argument of every candidate). `convert` in
+ * convert.sharp applies an answer to an expression and reports a refusal.
+ *
+ *      C++ comparison: `is_implicit_type_match` in types/sharp_type.cpp.
+ */
+
+/**
+ * How a value of type `from` becomes a `to`.
+ *
+ * @param allow_construction  1: the target class may also be BUILT from the
+ *        value by a one-parameter constructor or init(x) (class_conversion.sharp).
+ *        0: not - used for the value handed to such a constructor, because
+ *        conversions do not chain.
+ */
+def find_conversion(session: analysis_session, from: resolved_type, to: resolved_type,
+                    allow_construction: _int64) : conversion {
+    session.counters.conversions++;
+    if(from == to) { return session.nothing_to_do; }
+
+    // one side was reported already, or is a type parameter nothing is known
+    // about (only in code that is not analysed for real): accepted silently
+    if(from.kind == RT_ERROR || to.kind == RT_ERROR || from.is_open_type == 1 || to.is_open_type == 1) {
+        return session.after_an_error;
+    }
+
+    if(from.kind == RT_NIL) { return refused(from, to, WHY_NO_VALUE); }
+    if(to.kind == RT_NIL || to.kind == RT_NULL) { return refused(from, to, WHY_UNRELATED); }
+    if(from.kind == RT_NULL) { return conversion_of_null(from, to); }
+    if(from.is_number()) { return conversion_of_number(session, from, to, allow_construction); }
+    if(to.is_number()) { return refused(from, to, WHY_OBJECT_TO_NUMBER); }
+
+    // both are references now: objects, arrays, function values
+    found := conversion_of_reference(session, from, to);
+    if(found.converts()) {
+        if(from.is_nullable == 0 || to.can_be_null()) { return found; }
+        // everything fits but the `?`
+        found = refused(from, to, WHY_NULLABLE);
+        found.only_nullable_in_the_way = 1;
+    }
+
+    if(allow_construction == 1) {
+        built := conversion_by_construction(session, from, to);
+        if(built != null) { return built!!; }
+    }
+    return found;
+}
+
+/** "does not convert", with the reason */
+def refused(from: resolved_type, to: resolved_type, why: _int64) : conversion {
+    answer := new conversion(CONV_NONE, from, to);
+    answer.problem = why;
+    return answer;
+}
+
+/** a conversion that works */
+def accepted(kind: _int64, from: resolved_type, to: resolved_type, rank: _int64) : conversion {
+    answer := new conversion(kind, from, to);
+    answer.rank = rank;
+    return answer;
+}
+
+/** `null` fits everything that may hold null: a `t?`, and `object` (which takes null without the mark) */
+def conversion_of_null(from: resolved_type, to: resolved_type) : conversion {
+    if(to.can_be_null() && !to.is_number()) { return accepted(CONV_NULL, from, to, 1); }
+    return refused(from, to, WHY_NULL);
+}
+
+/**
+ * A plain number. Every number type converts to every other one - there is
+ * no "narrowing" error in Sharp: `small : _int8 = 300;` holds 44. A number is
+ * never an object by itself; a class may be built from it (`n : int = 5;`).
+ */
+def conversion_of_number(session: analysis_session, from: resolved_type, to: resolved_type,
+                         allow_construction: _int64) : conversion {
+    if(to.is_boolean() && !from.is_boolean()) { return refused(from, to, WHY_NUMBER_TO_BOOL); }
+    if(to.is_number()) { return accepted(CONV_NUMERIC, from, to, 1); }
+    if(to.is_array == 1) { return refused(from, to, WHY_ARRAY); }
+    if(allow_construction == 1) {
+        built := conversion_by_construction(session, from, to);
+        if(built != null) { return built!!; }
+    }
+    return refused(from, to, WHY_NUMBER_TO_OBJECT);
+}
+
+/**
+ * Objects, arrays and function values, WITHOUT looking at `?` (the caller
+ * checks that last).
+ */
+def conversion_of_reference(session: analysis_session, from: resolved_type, to: resolved_type) : conversion {
+    if(from.is_array != to.is_array) {
+        // any array is an object; nothing else mixes an array with a non-array
+        if(to.kind == RT_OBJECT && to.is_array == 0) { return accepted(CONV_TO_OBJECT, from, to, 3); }
+        return refused(from, to, WHY_ARRAY);
+    }
+
+    from_is_number_array : _int64 = from.kind == RT_INTEGER || from.kind == RT_DECIMAL;
+    to_is_number_array : _int64 = to.kind == RT_INTEGER || to.kind == RT_DECIMAL;
+    if(from_is_number_array == 1 || to_is_number_array == 1) {
+        // _int8[] is only ever an _int8[]: the items of a number array are not objects
+        if(from.kind == to.kind && from.bits == to.bits && from.is_signed == to.is_signed && from.is_bool_type == to.is_bool_type) {
+            return accepted(CONV_TO_NULLABLE, from, to, 0);
+        }
+        return refused(from, to, WHY_UNRELATED);
+    }
+
+    if(to.kind == RT_OBJECT) {
+        if(from.kind == RT_OBJECT) { return accepted(CONV_TO_NULLABLE, from, to, 0); }
+        return accepted(CONV_TO_OBJECT, from, to, 3);
+    }
+    if(from.kind == RT_OBJECT) { return refused(from, to, WHY_NEEDS_CAST); }
+
+    if(from.kind == RT_FUNCTION || to.kind == RT_FUNCTION) {
+        // function types are compared exactly: same parameters, same result
+        if(from.kind == to.kind && same_resolved_type(from, to)) { return session.nothing_to_do; }
+        if(from.kind == to.kind && function_types_fit(from.as_non_null(), to.as_non_null())) {
+            return accepted(CONV_TO_NULLABLE, from, to, 0);
+        }
+        if(from.kind == to.kind) { return refused(from, to, WHY_FUNCTION_SHAPE); }
+        return refused(from, to, WHY_UNRELATED);
+    }
+
+    return conversion_between_classes(session, from, to);
+}
+
+/**
+ * Does a function value of type `from` fit where `to` is wanted? The same
+ * number of parameters, each the same type - where `to` may have a `?` the
+ * value's function lacks (`(object[]?)(int)` takes a function written
+ * `(object[])(int)`, as in the C++ compiler, whose comparison of the two lets
+ * the receiving side be nullable) - and the same result, likewise.
+ */
+def function_types_fit(from: resolved_type, to: resolved_type) : _int64 {
+    if(same_resolved_type(from, to)) { return 1; }
+    if(from.parameters!!.size() != to.parameters!!.size()) { return 0; }
+    for(i : _int64 = 0; i < from.parameters!!.size(); i++) {
+        if(!same_or_nullable_of(from.parameters!!.at(i), to.parameters!!.at(i))) { return 0; }
+    }
+    return same_or_nullable_of(from.result!!, to.result!!);
+}
+
+/** is `wanted` the type `given`, or `given` with a `?`? */
+def same_or_nullable_of(given: resolved_type, wanted: resolved_type) : _int64 {
+    if(same_resolved_type(given, wanted)) { return 1; }
+    if(wanted.is_nullable == 1 && given.is_nullable == 0) { return same_resolved_type(given.as_nullable(), wanted); }
+    return 0;
+}

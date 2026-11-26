@@ -1,0 +1,165 @@
+mod backend.compiler.expressions.collections;
+
+import (
+    std.io,
+    frontend.lexer,
+    frontend.syntax.tree,
+    frontend.diagnostics,
+    backend.types.declarations,
+    backend.types.program,
+    backend.types.type_system,
+    backend.types.typed_tree,
+    backend.compiler.context,
+    backend.compiler.conversions,
+    backend.compiler.overloads,
+    backend.compiler.expressions,
+    backend.compiler.expressions.calls,
+    backend.compiler.expressions.arithmetic
+)
+
+/**
+ * INDEXING:  a[i]
+ *
+ * On an ARRAY: one index, a number (a decimal is cut to a whole number, an
+ * `int` object gives its number). The result is the item type - nullable
+ * when the array is a `t[]??`. An array that may itself be null
+ * (`numbers : decimal[]?`) is indexed without `!!`; the program throws when
+ * it is null (the language leaves this to run time).
+ *
+ * On an OBJECT: `o[i]` calls the class's `operator[]`, chosen by the type of
+ * the index - overload resolution, like any call (index_object below).
+ *
+ * On anything else (a number, `object`, a function value): E0414.
+ *
+ *      E0414   `[ ]` on something that cannot be indexed
+ *      E0415   the index is not a number
+ *      E0416   more than one index on an array (arrays have one dimension)
+ *
+ *      C++ comparison: primary/array_expression.cpp.
+ */
+def analyse_index(context: analysis_context, node: _int64) : bound_expression {
+    tree : syntax_tree = context.tree;
+    error_type : resolved_type = context.session.types.error_type;
+    target_node : _int64 = tree.first_child!![node];
+    index_node : _int64 = tree.next_sibling!![target_node];
+    if(index_node < 0) { return new bound_error(context.unit, node, error_type); }
+
+    target := analyse_value(context, target_node, null);
+    type : resolved_type = target.type;
+
+    if(type.is_array == 0) {
+        // an object (operator[]), something already reported, or something that cannot be indexed
+        arguments := new list<call_argument>();
+        current : _int64 = index_node;
+        while(current >= 0) {
+            arguments.add(new call_argument(analyse_value(context, current, null), current));
+            current = tree.next_sibling!![current];
+        }
+        if(type.kind == RT_CLASS) { return index_object(context, node, target, arguments); }
+        if(type.kind != RT_ERROR) {
+            d := problem_at(context, "E0414", "`" + source_text_of(context, target_node) + "` is " + described_type(type)
+                            + ": it cannot be indexed", node);
+            d.with_label("`[ ]` needs an array, or an object whose class has `operator[]`");
+            if(type.kind == RT_OBJECT) { d.with_help("say what it is first: `(" + source_text_of(context, target_node) + " as <type>[])[...]`"); }
+            else if(type.is_number()) { explain_index_of_number(context, d, target, target_node); }
+            report(context, d);
+        }
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    if(tree.next_sibling!![index_node] >= 0) {
+        d := problem_over(context, "E0416", "an array takes one index", tree.next_sibling!![index_node]);
+        d.with_label("a second index");
+        d.with_note("Sharp arrays have one dimension");
+        d.with_help("for a table, compute the position yourself: `cells[row * width + column]`");
+        report(context, d);
+        return new bound_error(context.unit, node, error_type);
+    }
+
+    index := analyse_whole_number(context, index_node, "an array index");
+    if(index == null) { return new bound_error(context.unit, node, error_type); }       // E0415 was reported
+    return new bound_index(context.unit, node, target, index!!, type.element_type());
+}
+
+/**
+ * E0414 on a plain number. Two slips lead there: an array indexed twice
+ * (`a[0][0]` - Sharp arrays have one dimension, so `a[0]` already is the
+ * number), or a number variable used as if it were an array.
+ */
+def explain_index_of_number(context: analysis_context, d: diagnostic, target: bound_expression, target_node: _int64) {
+    tree : syntax_tree = context.tree;
+    if(tree.kinds!![target_node] == N_INDEX) {
+        array_text := source_text_of(context, tree.first_child!![target_node]);
+        d.with_note("`" + array_text + "` has one dimension: one index already gives its item, a number");
+        d.with_help("for a table, keep it in one array and compute the position: `" + array_text + "[row * width + column]`");
+        return;
+    }
+    d.with_note("a number holds one value; only an array (or an object with `operator[]`) has items");
+    if(target.kind == BX_LOCAL || target.kind == BX_FIELD) {
+        d.with_help("to keep several numbers, declare an array: `" + source_text_of(context, target_node) + " : " + target.type.to_text()
+                    + "[] = new " + target.type.to_text() + "[10];`");
+    }
+}
+
+/**
+ * `o[i]` on an OBJECT: the class's `operator[]`, chosen by the index
+ * (overload resolution) - a bound_call written_as AS_INDEX. An object that
+ * may be null is indexed without `!!` (doc/backend.md 7.11).
+ *
+ *      E0414   the class has no operator[] at all
+ *      E0501   it has, but none takes this index
+ */
+def index_object(context: analysis_context, node: _int64, target: bound_expression, arguments: list<call_argument>) : bound_expression {
+    error_type : resolved_type = context.session.types.error_type;
+    owner : sharp_class = target.type.class_of!!;
+    functions := operator_functions(context, owner, "operator[]");
+    if(functions.size() == 0) {
+        d := problem_at(context, "E0414", "`" + source_text_of(context, target.node) + "` is a `" + target.type.to_text()
+                        + "`, which cannot be indexed", node);
+        d.with_label("`" + owner.written.name + "` has no `operator[]`");
+        d.with_note("`o[i]` on an object calls the function `operator[]` of its class");
+        if(owner.module.is_library()) { add_library_item_access(context, d, owner, target, arguments); }
+        else { d.with_help("give `" + owner.written.name + "` a function `def operator[](index: _int64) : <type>`"); }
+        report(context, d);
+        return new bound_error(context.unit, node, error_type);
+    }
+    result := resolve_overload(context, functions, arguments, null, owner);
+    if(result.best == null) {
+        if(has_error_argument(arguments) == 0) {
+            if(result.tied.size() > 0) { report_ambiguous(context, "operator[]", node, result.tied, arguments); }
+            else {
+                report_no_fit(context, "E0501", "no `operator[]` of `" + owner.qualified_name() + "` takes "
+                              + argument_types_text(arguments), node, result.rejected, arguments);
+            }
+        }
+        return new bound_error(context.unit, node, error_type);
+    }
+    call := bind_call(context, result.best!!, target, arguments, node, node);
+    call.written_as = AS_INDEX;
+    return call;
+}
+
+/**
+ * `m["a"]` on a class of the library that has no `operator[]`, such as a
+ * `hash_map`: the help names the functions it has for the same job - `at`
+ * to read an item, `put` to store one - written with the programmer's own
+ * receiver and index. (A help never suggests editing the library.)
+ */
+def add_library_item_access(context: analysis_context, d: diagnostic, owner: sharp_class, target: bound_expression,
+                            arguments: list<call_argument>) {
+    receiver := as_operand_text(context, target.node);
+    index := "<index>";
+    if(arguments.size() == 1) { index = source_text_of(context, arguments.at(0).node); }
+    has_at : _int64 = operator_functions(context, owner, "at").size() > 0;
+    has_put : _int64 = operator_functions(context, owner, "put").size() > 0;
+
+    if(context.reading_a_target == 1 && has_put) {
+        d.with_help("store an item with `put`: `" + receiver + ".put(" + index + ", <value>);`");
+    } else if(has_at) {
+        d.with_help("read an item with `at`: `" + receiver + ".at(" + index + ")`");
+    } else if(has_put) {
+        d.with_help("store an item with `put`: `" + receiver + ".put(" + index + ", <value>);`");
+    } else {
+        d.with_help("`" + owner.written.name + "` is not indexed with `[ ]`; look up its functions in the library");
+    }
+}

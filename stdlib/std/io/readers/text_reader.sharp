@@ -1,0 +1,42 @@
+mod std.io;
+
+/**
+ * Something text can be read from, character by character or line by line:
+ * a string in memory (string_text_reader), a file (file_reader), or another
+ * reader with extras on top (buffered_reader).
+ *
+ * Code that takes a text_reader works with all of them:
+ *
+ *     def count_lines(input: text_reader) : decimal {
+ *         lines : decimal = 0;
+ *         while(input.read_line() != null) { lines++; }
+ *         return lines;
+ *     }
+ *
+ * Characters are returned as their codes (0..255); the end of the text is
+ * reported as -1, never as an exception. Reading from a reader that was
+ * closed throws io_exception.
+ */
+interface text_reader {
+    /** the next character (0..255), or -1 at the end of the text */
+    def read_char() : decimal;
+
+    /** the next character without taking it: the following read_char() returns it again. -1 at the end */
+    def peek_char() : decimal;
+
+    /**
+     * The text up to the next line end ("\n", "\r\n" or "\r"), without the
+     * line end, which is taken as well. null at the end of the text. A last
+     * line without a line end is returned like the others.
+     */
+    def read_line() : string?;
+
+    /** everything that has not been read yet ("" at the end) */
+    def read_all() : string;
+
+    /** true when there is at least one more character to read */
+    def has_more() : bool;
+
+    /** finish with the reader; reading afterwards throws io_exception. Closing twice is fine. */
+    def close();
+}
