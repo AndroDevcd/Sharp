@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="doc/logo-dark.png" alt="Sharp" width="340">
+<img src="doc/logo-transparent-bg.png" alt="Sharp" width="340">
 
 # The Sharp Programming Language
 
