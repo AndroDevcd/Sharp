@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.layout.scrolling - Sharp standard library</title>
 <meta name="description" content="The std.guikit.layout.scrolling module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#lazy_list">lazy_list</a> <a href="#scroller">scroller</a></p>
 <section class="type" id="lazy_list">
 <h2><span class="kind">class</span> lazy_list</h2>
-<p class="meta"><code>base widget : behavior, clipper, wheel_target, drag_scroller, stateful, overlay_painter</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/layout/scrolling/lazy_list.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, clipper, wheel_target, drag_scroller, stateful, overlay_painter</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/layout/scrolling/lazy_list.sharp">source</a></p>
 <p>lazy_list - a scrolling list that only builds the rows you can see. Made with lazy_column(...).</p>
 <div class="code"><pre class="sharp">lazy_column(modifier().fill()) {
     item { text(&quot;Contacts&quot;).size(22).bold(); }          // one fixed row
@@ -122,7 +126,7 @@
 </section>
 <section class="type" id="scroller">
 <h2><span class="kind">class</span> scroller</h2>
-<p class="meta"><code>base widget : behavior, clipper, wheel_target, pointer_target, drag_scroller, stateful, overlay_painter</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/layout/scrolling/scroller.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, clipper, wheel_target, pointer_target, drag_scroller, stateful, overlay_painter</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/layout/scrolling/scroller.sharp">source</a></p>
 <p>scroller - a window onto content that is bigger than the room there is.</p>
 <div class="code"><pre class="sharp">scroll(modifier().fill()) {                       // scrolls up and down
     for(i : _int64 = 1; i &lt;= 200; i++) { text(&quot;row &quot; + i); }

@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.math - Sharp standard library</title>
 <meta name="description" content="The std.math module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -60,7 +64,7 @@
 <p class="contents"><a href="#big_integer">big_integer</a> <a href="#bits">bits</a> <a href="#circle">circle</a> <a href="#complex">complex</a> <a href="#fraction">fraction</a> <a href="#matrix">matrix</a> <a href="#rect">rect</a> <a href="#statistics">statistics</a> <a href="#vector2">vector2</a> <a href="#vector3">vector3</a> <a href="#functions">functions</a> <a href="#constants">constants</a></p>
 <section class="type" id="big_integer">
 <h2><span class="kind">class</span> big_integer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/math/numbers/big_integer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/math/numbers/big_integer.sharp">source</a></p>
 <p>A whole number of any size (arbitrary precision), for results that do not fit in the 53 exact bits of a native number: 30!, 2^200, long products.</p>
 <div class="code"><pre class="sharp">a := new big_integer(&quot;123456789012345678901234567890&quot;);
 b := big_integer.of(987654321);
@@ -127,7 +131,7 @@ f := big_integer.factorial(30);     // 265252859812191058636308480000000</pre></
 </section>
 <section class="type" id="bits">
 <h2><span class="kind">class</span> bits</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/math/bits.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/math/bits.sharp">source</a></p>
 <p>Bit tricks on whole numbers. Only static functions; never instantiated.</p>
 <div class="code"><pre class="sharp">bits.count_ones(255)            // 8
 bits.highest_one_bit(100)       // 64
@@ -161,7 +165,7 @@ bits.rotate_left(1, 31)         // 2147483648</pre></div>
 </section>
 <section class="type" id="circle">
 <h2><span class="kind">class</span> circle</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/math/geometry/circle.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/math/geometry/circle.sharp">source</a></p>
 <p>A circle: a centre (x, y) and a radius, all native numbers.</p>
 <div class="code"><pre class="sharp">c := new circle(0, 0, 5);
 c.area()                         // 25 pi = 78.5398...
@@ -195,7 +199,7 @@ c.intersects(new circle(8, 0, 3)).value     // true (they touch)</pre></div>
 </section>
 <section class="type" id="complex">
 <h2><span class="kind">class</span> complex</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/math/numbers/complex.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/math/numbers/complex.sharp">source</a></p>
 <p>A complex number re + im * i, where i * i == -1.</p>
 <p>Complex numbers are VALUES: operators and methods return new objects.</p>
 <div class="code"><pre class="sharp">a := new complex(3, 4);
@@ -246,7 +250,7 @@ root := new complex(-4, 0).sqrt();   // 2i</pre></div>
 </section>
 <section class="type" id="fraction">
 <h2><span class="kind">class</span> fraction</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/math/numbers/fraction.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/math/numbers/fraction.sharp">source</a></p>
 <p>An exact rational number numerator / denominator.</p>
 <p>Unlike a floating point number a fraction has no rounding error: 1/3 + 1/6 is exactly 1/2. A fraction is always kept NORMALISED:</p>
 <p>- numerator and denominator have no common divisor (6/8 is stored as 3/4) - the denominator is positive (1/-2 is stored as -1/2) - zero is 0/1</p>
@@ -307,7 +311,7 @@ x : decimal = c.to_var();       // 0.5</pre></div>
 </section>
 <section class="type" id="matrix">
 <h2><span class="kind">class</span> matrix</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/math/linear/matrix.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/math/linear/matrix.sharp">source</a></p>
 <p>A matrix of native numbers with any number of rows and columns.</p>
 <p>The cells are stored row after row in one flat array (&quot;row-major&quot;): the cell in row r and column c is cells[r * columns + c]. Rows and columns are counted from 0.</p>
 <div class="code"><pre class="sharp">m := new matrix(2, 2);          // 2 x 2, all zeros
@@ -366,7 +370,7 @@ id := m * inv;                  // the identity (up to rounding)</pre></div>
 </section>
 <section class="type" id="rect">
 <h2><span class="kind">class</span> rect</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/math/geometry/rect.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/math/geometry/rect.sharp">source</a></p>
 <p>An axis-aligned rectangle: a corner (x, y), a width and a height, all native numbers. (x, y) is the corner with the smallest coordinates; the rectangle covers x .. x + width and y .. y + height. Which of top and bottom is &quot;up&quot; depends on the coordinate system of the caller, so the edges are named by their coordinates: left / right for x, low_y / high_y for y.</p>
 <div class="code"><pre class="sharp">r := new rect(0, 0, 10, 5);
 r.area()                         // 50
@@ -406,7 +410,7 @@ r.intersects(new rect(8, 3, 5, 5)).value    // true</pre></div>
 </section>
 <section class="type" id="statistics">
 <h2><span class="kind">class</span> statistics</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/math/statistics.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/math/statistics.sharp">source</a></p>
 <p>Descriptive statistics over arrays of native numbers. The class only has static functions and is never instantiated:</p>
 <div class="code"><pre class="sharp">data := new decimal[] { 2, 4, 4, 4, 5, 5, 7, 9 };
 m : decimal = statistics.mean(data);        // 5
@@ -446,7 +450,7 @@ q : decimal = statistics.median(data);      // 4.5</pre></div>
 </section>
 <section class="type" id="vector2">
 <h2><span class="kind">class</span> vector2</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/math/linear/vector2.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/math/linear/vector2.sharp">source</a></p>
 <p>A 2D vector (or point) with native number components x and y.</p>
 <p>Vectors are VALUES: every operator and every method that produces a vector returns a NEW object and leaves its operands alone, so vectors can be shared freely. The fields are public and may be written directly when an object really should change in place (v.x = 5).</p>
 <div class="code"><pre class="sharp">a := new vector2(3, 4);
@@ -500,7 +504,7 @@ d : decimal = a.dot(b);         // 3</pre></div>
 </section>
 <section class="type" id="vector3">
 <h2><span class="kind">class</span> vector3</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/math/linear/vector3.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/math/linear/vector3.sharp">source</a></p>
 <p>A 3D vector (or point) with native number components x, y and z.</p>
 <p>Like vector2, vectors are VALUES: operators and methods return new objects and never change their operands. The fields are public.</p>
 <div class="code"><pre class="sharp">a := new vector3(1, 0, 0);

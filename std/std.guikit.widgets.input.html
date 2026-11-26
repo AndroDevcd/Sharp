@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.widgets.input - Sharp standard library</title>
 <meta name="description" content="The std.guikit.widgets.input module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#button">button</a> <a href="#checkbox">checkbox</a> <a href="#dropdown">dropdown</a> <a href="#fab">fab</a> <a href="#form">form</a> <a href="#menu_option">menu_option</a> <a href="#radio">radio</a> <a href="#slider">slider</a> <a href="#tab_item">tab_item</a> <a href="#tab_strip">tab_strip</a> <a href="#text_area">text_area</a> <a href="#text_field">text_field</a> <a href="#toggle">toggle</a> <a href="#constants">constants</a></p>
 <section class="type" id="button">
 <h2><span class="kind">class</span> button</h2>
-<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/button.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/button.sharp">source</a></p>
 <p>button - words you can click. Made with button(...).</p>
 <div class="code"><pre class="sharp">button(&quot;Save&quot;) { save(); }
 button(&quot;Cancel&quot;) { close(); }.outline()
@@ -105,7 +109,7 @@ button(&quot;Delete&quot;, modifier().enable(can_delete.value)) { remove(item); 
 </section>
 <section class="type" id="checkbox">
 <h2><span class="kind">class</span> checkbox</h2>
-<p class="meta"><code>base widget : behavior, shows_words, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/checkbox.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/checkbox.sharp">source</a></p>
 <p>checkbox - a box you tick, with words next to it. Made with checkbox(...).</p>
 <div class="code"><pre class="sharp">agreed := state(0);                                     // 0 = off, 1 = on
 checkbox(&quot;I agree to the terms&quot;, agreed)
@@ -126,7 +130,7 @@ button(&quot;Continue&quot;, modifier().enable(agreed.value)) { go(); }</pre></d
 </section>
 <section class="type" id="dropdown">
 <h2><span class="kind">class</span> dropdown</h2>
-<p class="meta"><code>base composable</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/dropdown.sharp">source</a></p>
+<p class="meta"><code>base composable</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/dropdown.sharp">source</a></p>
 <p>dropdown - pick one of several named choices from a menu that drops down.</p>
 <div class="code"><pre class="sharp">size := state(1);                       // which option is chosen: 0 is the first</pre></div>
 <div class="code"><pre class="sharp">dropdown(size) {
@@ -148,7 +152,7 @@ button(&quot;Continue&quot;, modifier().enable(agreed.value)) { go(); }</pre></d
 </section>
 <section class="type" id="fab">
 <h2><span class="kind">class</span> fab</h2>
-<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/fab.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/fab.sharp">source</a></p>
 <p>fab - the floating action button: a round button that floats over the page, for THE thing people do on this screen (&quot;new task&quot;). Made with fab(...).</p>
 <div class="code"><pre class="sharp">stack(modifier().fill()) {
     task_list();
@@ -167,7 +171,7 @@ button(&quot;Continue&quot;, modifier().enable(agreed.value)) { go(); }</pre></d
 </section>
 <section class="type" id="form">
 <h2><span class="kind">class</span> form</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/form.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/form.sharp">source</a></p>
 <p>form - the rules a set of fields must pass before something is saved, and what to tell the user when they do not.</p>
 <div class="code"><pre class="sharp">class new_task_model base view_model {          // (or any class: the form is plain logic)
     title    := state(&quot;&quot;);
@@ -196,7 +200,7 @@ text_field(model.title).label(&quot;Title&quot;).error(model.rules.problem_of(mo
 </section>
 <section class="type" id="menu_option">
 <h2><span class="kind">class</span> menu_option</h2>
-<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/dropdown.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/dropdown.sharp">source</a></p>
 <p>One choice of a dropdown, as written in its block: option(&quot;Small&quot;), or option { ... } with widgets. It only carries its words - or the block that makes its widgets - to the dropdown that collects it; it is never shown itself.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>words</code></td><td><code>string</code></td><td></td></tr><tr><td><code>fill</code></td><td><code>()()?</code></td><td>makes the option&#x27;s widgets (the block form); null: the words are shown</td></tr></table></div>
 <h3>Functions</h3><div>
@@ -211,7 +215,7 @@ text_field(model.title).label(&quot;Title&quot;).error(model.rules.problem_of(mo
 </section>
 <section class="type" id="radio">
 <h2><span class="kind">class</span> radio</h2>
-<p class="meta"><code>base widget : behavior, shows_words, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/radio.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/radio.sharp">source</a></p>
 <p>radio - one choice out of several: a round dot with words next to it. Made with radio(...).</p>
 <div class="code"><pre class="sharp">size := state(1);                       // which one is chosen</pre></div>
 <div class="code"><pre class="sharp">radio(&quot;Small&quot;,  size, 0);
@@ -233,7 +237,7 @@ radio(&quot;Large&quot;,  size, 2);</pre></div>
 </section>
 <section class="type" id="slider">
 <h2><span class="kind">class</span> slider</h2>
-<p class="meta"><code>base widget : behavior, pointer_target, key_target, has_value</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/slider.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, pointer_target, key_target, has_value</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/slider.sharp">source</a></p>
 <p>slider - pick a number by dragging a knob along a track. Made with gui.slider(...).</p>
 <div class="code"><pre class="sharp">volume := state(0.5);
 gui.slider(volume, 0, 1)                    // from 0 to 1
@@ -256,7 +260,7 @@ gui.text(&quot;volume: &quot; + volume.value)</pre></div>
 </section>
 <section class="type" id="tab_item">
 <h2><span class="kind">class</span> tab_item</h2>
-<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/tabs.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/tabs.sharp">source</a></p>
 <p>one title in a tab strip. Made with tab(...), inside tabs { }.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="tab_item.tab_item"><div class="sig"><b>tab_item</b>(title: string)</div></div>
@@ -270,7 +274,7 @@ gui.text(&quot;volume: &quot; + volume.value)</pre></div>
 </section>
 <section class="type" id="tab_strip">
 <h2><span class="kind">class</span> tab_strip</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/tabs.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/tabs.sharp">source</a></p>
 <p>tabs - a strip of titles, one of them chosen: the switch between the pages of a screen.</p>
 <div class="code"><pre class="sharp">page := state(0);                       // which tab is chosen: 0 is the first</pre></div>
 <div class="code"><pre class="sharp">tabs(page) {
@@ -300,7 +304,7 @@ else { settings(); }</pre></div>
 </section>
 <section class="type" id="text_area">
 <h2><span class="kind">class</span> text_area</h2>
-<p class="meta"><code>base widget : behavior, key_target, pointer_target, wheel_target, stateful, shows_words, has_caption</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/text_area.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, key_target, pointer_target, wheel_target, stateful, shows_words, has_caption</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/text_area.sharp">source</a></p>
 <p>text_area - a box for text of several lines: notes, a description, a message. Made with text_area(state).</p>
 <div class="code"><pre class="sharp">notes := state(&quot;&quot;);
 text_area(notes, modifier().fill_width().height(140))
@@ -336,7 +340,7 @@ text_area(notes, modifier().fill_width().height(140))
 </section>
 <section class="type" id="text_field">
 <h2><span class="kind">class</span> text_field</h2>
-<p class="meta"><code>base widget : behavior, key_target, pointer_target, stateful, shows_words, has_caption</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/text_field.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, key_target, pointer_target, stateful, shows_words, has_caption</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/text_field.sharp">source</a></p>
 <p>text_field - a box to type one line of text into. Made with text_field(...).</p>
 <div class="code"><pre class="sharp">name := state(&quot;&quot;);
 text_field(name).hint(&quot;Your name&quot;).on_submit({ -&gt; greet(); })
@@ -383,7 +387,7 @@ Ctrl+C / Ctrl+X / Ctrl+V    copy / cut / paste - the system clipboard,
 </section>
 <section class="type" id="toggle">
 <h2><span class="kind">class</span> toggle</h2>
-<p class="meta"><code>base widget : behavior, stateful, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/input/toggle.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, stateful, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/input/toggle.sharp">source</a></p>
 <p>toggle - an on/off switch. Made with gui.toggle(...).</p>
 <div class="code"><pre class="sharp">dark_mode := state(1);                  // 0 = off, 1 = on
 gui.row().gap(12)

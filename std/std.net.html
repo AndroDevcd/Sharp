@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.net - Sharp standard library</title>
 <meta name="description" content="The std.net module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -60,7 +64,7 @@
 <p class="contents"><a href="#connection">connection</a> <a href="#datagram">datagram</a> <a href="#dns">dns</a> <a href="#fake_http">fake_http</a> <a href="#http">http</a> <a href="#http_client">http_client</a> <a href="#http_engine">http_engine</a> <a href="#http_error">http_error</a> <a href="#http_exception">http_exception</a> <a href="#http_exchange">http_exchange</a> <a href="#http_headers">http_headers</a> <a href="#http_hook">http_hook</a> <a href="#http_line">http_line</a> <a href="#http_log">http_log</a> <a href="#http_part">http_part</a> <a href="#http_request">http_request</a> <a href="#http_request_hook">http_request_hook</a> <a href="#http_response">http_response</a> <a href="#http_response_hook">http_response_hook</a> <a href="#http_route">http_route</a> <a href="#http_server">http_server</a> <a href="#http_server_worker">http_server_worker</a> <a href="#http_service">http_service</a> <a href="#http_status_exception">http_status_exception</a> <a href="#http_text">http_text</a> <a href="#http_timeout">http_timeout</a> <a href="#http_types">http_types</a> <a href="#openssl">openssl</a> <a href="#posix_sockets">posix_sockets</a> <a href="#schannel">schannel</a> <a href="#socket_address">socket_address</a> <a href="#socket_exception">socket_exception</a> <a href="#socket_system">socket_system</a> <a href="#socket_time">socket_time</a> <a href="#socket_timeout">socket_timeout</a> <a href="#tcp_server">tcp_server</a> <a href="#tcp_socket">tcp_socket</a> <a href="#tls_exception">tls_exception</a> <a href="#tls_socket">tls_socket</a> <a href="#udp_posix">udp_posix</a> <a href="#udp_socket">udp_socket</a> <a href="#udp_windows">udp_windows</a> <a href="#url">url</a> <a href="#web_message">web_message</a> <a href="#web_socket">web_socket</a> <a href="#web_socket_exception">web_socket_exception</a> <a href="#web_socket_turn">web_socket_turn</a> <a href="#windows_sockets">windows_sockets</a></p>
 <section class="type" id="connection">
 <h2><span class="kind">interface</span> connection</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/connection.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/connection.sharp">source</a></p>
 <p>A CONNECTION: one end of a conversation in bytes, whatever carries it</p>
 <p>tcp_socket (plain) and tls_socket (encrypted) are both one, so code written against <code>connection</code> - the HTTP client, a line protocol of your own - works over either:</p>
 <div class="code"><pre class="sharp">def greet(line: connection) {
@@ -81,7 +85,7 @@ close()             close this end; twice does nothing</pre></div>
 </section>
 <section class="type" id="datagram">
 <h2><span class="kind">class</span> datagram</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/udp.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/udp.sharp">source</a></p>
 <p>NETWORKING WITHOUT CONNECTIONS (UDP), and looking up names (DNS)</p>
 <div class="code"><pre class="sharp">// one side
 ear := udp_socket.bind(9000);                   // listen on port 9000
@@ -112,7 +116,7 @@ dns.first(&quot;example.com&quot;)            the first of them</pre></div>
 </section>
 <section class="type" id="dns">
 <h2><span class="kind">class</span> dns</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/udp.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/udp.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="dns.first"><div class="sig">static def <b>first</b>(host: string) : string</div></div>
@@ -121,7 +125,7 @@ dns.first(&quot;example.com&quot;)            the first of them</pre></div>
 </section>
 <section class="type" id="fake_http">
 <h2><span class="kind">class</span> fake_http</h2>
-<p class="meta"><code>: http_engine</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http.sharp">source</a></p>
+<p class="meta"><code>: http_engine</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http.sharp">source</a></p>
 <p>A SERVER THAT IS NOT THERE: for tests of code that talks HTTP</p>
 <div class="code"><pre class="sharp">fake := new fake_http();
 fake.answer(&quot;GET&quot;, &quot;/users/octocat&quot;, 200, &quot;{\&quot;name\&quot;:\&quot;The Octocat\&quot;}&quot;);
@@ -142,7 +146,7 @@ fake.last().headers.find(&quot;Authorization&quot;)   // ... and what the last o
 </section>
 <section class="type" id="http">
 <h2><span class="kind">class</span> http</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http.sharp">source</a></p>
 <p>HTTP IN ONE LINE</p>
 <div class="code"><pre class="sharp">page := http.GET(&quot;https://example.com/&quot;).text();</pre></div>
 <div class="code"><pre class="sharp">answer := http.POST(&quot;https://httpbin.org/post&quot;) {
@@ -176,7 +180,7 @@ Python: requests.get(url) and requests.post(url, json=...).</pre></div>
 </section>
 <section class="type" id="http_client">
 <h2><span class="kind">class</span> http_client</h2>
-<p class="meta"><code>: http_engine</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_client.sharp">source</a></p>
+<p class="meta"><code>: http_engine</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_client.sharp">source</a></p>
 <p>THE HTTP CLIENT: sends requests over the network (HTTP/1.1, http and https)</p>
 <p>Most programs never make one: http.GET(...) and every http_service use a shared one. Make your own to give it other settings:</p>
 <div class="code"><pre class="sharp">client := new http_client();
@@ -196,7 +200,7 @@ answer := client.send(new http_request(&quot;GET&quot;, &quot;https://example.co
 </section>
 <section class="type" id="http_engine">
 <h2><span class="kind">interface</span> http_engine</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_response.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_response.sharp">source</a></p>
 <p>WHAT SENDS A REQUEST AND BRINGS BACK THE ANSWER</p>
 <p>http_client does it over the network. A test hands a service an engine of its own instead (fake_http), and nothing leaves the program.</p>
 <h3>Functions</h3><div>
@@ -205,7 +209,7 @@ answer := client.send(new http_request(&quot;GET&quot;, &quot;https://example.co
 </section>
 <section class="type" id="http_error">
 <h2><span class="kind">class</span> http_error</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_server.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_server.sharp">source</a></p>
 <p>AN HTTP SERVER: routes, written the way the client&#x27;s are</p>
 <div class="code"><pre class="sharp">class user { id : _int64 = 0; name : string = &quot;&quot;; }
 class new_user { name : string = &quot;&quot;; }</pre></div>
@@ -244,7 +248,7 @@ Python: Flask&#x27;s @app.get(&quot;/users/&lt;id&gt;&quot;); JavaScript: Expres
 </section>
 <section class="type" id="http_exception">
 <h2><span class="kind">class</span> http_exception</h2>
-<p class="meta"><code>base io_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_response.sharp">source</a></p>
+<p class="meta"><code>base io_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_response.sharp">source</a></p>
 <p>A request did not get an answer: the host is unknown, nothing accepts the connection, the certificate is wrong, the server was silent for too long (http_timeout), or what came back is not HTTP.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="http_exception.http_exception"><div class="sig">public <b>http_exception</b>(message : string?) -&gt; base(message)</div></div>
@@ -252,7 +256,7 @@ Python: Flask&#x27;s @app.get(&quot;/users/&lt;id&gt;&quot;); JavaScript: Expres
 </section>
 <section class="type" id="http_exchange">
 <h2><span class="kind">class</span> http_exchange</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_server.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_server.sharp">source</a></p>
 <p>one request and the answer to it</p>
 <h3>Functions</h3><div>
 <div class="fn" id="http_exchange.http_exchange"><div class="sig"><b>http_exchange</b>(verb: string, where: string, asked: string, headers: http_headers, body: _int8[], from: string)</div></div>
@@ -286,7 +290,7 @@ Python: Flask&#x27;s @app.get(&quot;/users/&lt;id&gt;&quot;); JavaScript: Expres
 </section>
 <section class="type" id="http_headers">
 <h2><span class="kind">class</span> http_headers</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_headers.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_headers.sharp">source</a></p>
 <p>THE HEADERS of a request or a response: names with values, in order</p>
 <div class="code"><pre class="sharp">headers.put(&quot;Accept&quot;, &quot;application/json&quot;);      // the one value of that name
 headers.add(&quot;Set-Cookie&quot;, &quot;a=1&quot;);               // one more of that name
@@ -310,7 +314,7 @@ type := headers.find(&quot;content-type&quot;);           // null when there is 
 </section>
 <section class="type" id="http_hook">
 <h2><span class="kind">class</span> http_hook</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_server.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_server.sharp">source</a></p>
 
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>run</code></td><td><code>(http_exchange)()</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -319,7 +323,7 @@ type := headers.find(&quot;content-type&quot;);           // null when there is 
 </section>
 <section class="type" id="http_line">
 <h2><span class="kind">class</span> http_line</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_client.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_client.sharp">source</a></p>
 <p>one connection to a server, and the bytes read from it that were not used yet</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>wire</code></td><td><code>connection</code></td><td></td></tr><tr><td><code>origin</code></td><td><code>string</code></td><td></td></tr><tr><td><code>reusable</code></td><td><code>bool</code></td><td>can the next request use it (the server keeps it open, and the answer was read to its end)?</td></tr><tr><td><code>arrived</code></td><td><code>bool</code></td><td>has anything arrived since it was taken for a request?</td></tr></table></div>
 <h3>Functions</h3><div>
@@ -334,13 +338,13 @@ type := headers.find(&quot;content-type&quot;);           // null when there is 
 </section>
 <section class="type" id="http_log">
 <h2><span class="kind">class</span> http_log</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_service.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_service.sharp">source</a></p>
 <p>how much log(...) of an http_service prints</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>none</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>basic</code></td><td><code>_int64</code></td><td>one line per request and one per answer</td></tr><tr><td><code>headers</code></td><td><code>_int64</code></td><td>and their headers</td></tr><tr><td><code>body</code></td><td><code>_int64</code></td><td>and their bodies</td></tr></table></div>
 </section>
 <section class="type" id="http_part">
 <h2><span class="kind">class</span> http_part</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_request.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_request.sharp">source</a></p>
 <p>one part of a form in parts: a plain value, or a file with its name and what it is</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>file_name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>type</code></td><td><code>string</code></td><td></td></tr><tr><td><code>data</code></td><td><code>_int8[]?</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -350,7 +354,7 @@ type := headers.find(&quot;content-type&quot;);           // null when there is 
 </section>
 <section class="type" id="http_request">
 <h2><span class="kind">class</span> http_request</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_request.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_request.sharp">source</a></p>
 <p>ONE REQUEST, being put together</p>
 <div class="code"><pre class="sharp">asked := new http_request(&quot;POST&quot;, &quot;https://api.shop.example/v2/products/{id}/photo&quot;);
 asked.path(&quot;id&quot;, 7)                     // fills {id} in the address
@@ -397,7 +401,7 @@ asked.path(&quot;id&quot;, 7)                     // fills {id} in the address
 </section>
 <section class="type" id="http_request_hook">
 <h2><span class="kind">class</span> http_request_hook</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_service.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_service.sharp">source</a></p>
 
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>run</code></td><td><code>(http_request)()</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -406,7 +410,7 @@ asked.path(&quot;id&quot;, 7)                     // fills {id} in the address
 </section>
 <section class="type" id="http_response">
 <h2><span class="kind">class</span> http_response</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_response.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_response.sharp">source</a></p>
 <p>WHAT THE SERVER ANSWERED</p>
 <div class="code"><pre class="sharp">answer := http.GET(&quot;https://api.github.com/users/octocat&quot;);</pre></div>
 <div class="code"><pre class="sharp">answer.status           200
@@ -435,7 +439,7 @@ answer.require_ok()     the answer itself, or http_status_exception when it is n
 </section>
 <section class="type" id="http_response_hook">
 <h2><span class="kind">class</span> http_response_hook</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_service.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_service.sharp">source</a></p>
 
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>run</code></td><td><code>(http_response)()</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -444,7 +448,7 @@ answer.require_ok()     the answer itself, or http_status_exception when it is n
 </section>
 <section class="type" id="http_route">
 <h2><span class="kind">class</span> http_route</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_server.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_server.sharp">source</a></p>
 <p>one route: a method, the parts of its path, and what runs for it</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>method</code></td><td><code>string</code></td><td></td></tr><tr><td><code>parts</code></td><td><code>list&lt;string&gt;</code></td><td></td></tr><tr><td><code>handler</code></td><td><code>(http_exchange)()</code></td><td></td></tr><tr><td><code>socket_handler</code></td><td><code>(web_socket)()</code></td><td></td></tr><tr><td><code>is_socket</code></td><td><code>bool</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -454,7 +458,7 @@ answer.require_ok()     the answer itself, or http_status_exception when it is n
 </section>
 <section class="type" id="http_server">
 <h2><span class="kind">class</span> http_server</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_server.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_server.sharp">source</a></p>
 
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>workers</code></td><td><code>_int64</code></td><td>how many requests are served at the same time</td></tr><tr><td><code>idle_wait</code></td><td><code>_int64</code></td><td>milliseconds a connection may stay silent between requests before it is closed</td></tr><tr><td><code>most_body</code></td><td><code>_int64</code></td><td>the largest body a request may have, in bytes</td></tr><tr><td><code>show_errors</code></td><td><code>bool</code></td><td>print what a handler threw (the message and where)</td></tr></table></div>
 <h3>Functions</h3><div>
@@ -479,7 +483,7 @@ answer.require_ok()     the answer itself, or http_status_exception when it is n
 </section>
 <section class="type" id="http_server_worker">
 <h2><span class="kind">class</span> http_server_worker</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_server.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_server.sharp">source</a></p>
 <p>what a thread of the server runs</p>
 <h3>Functions</h3><div>
 <div class="fn" id="http_server_worker.work"><div class="sig">static def <b>work</b>(args: object[]) : int</div></div>
@@ -487,7 +491,7 @@ answer.require_ok()     the answer itself, or http_status_exception when it is n
 </section>
 <section class="type" id="http_service">
 <h2><span class="kind">class</span> http_service</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_service.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_service.sharp">source</a></p>
 <p>A SERVER YOU TALK TO, DESCRIBED ONCE</p>
 <div class="code"><pre class="sharp">class user { login : string = &quot;&quot;; name : string = &quot;&quot;; public_repos : _int64 = 0; }
 class repo { name : string = &quot;&quot;; stargazers_count : _int64 = 0; }</pre></div>
@@ -570,7 +574,7 @@ here the annotation is the call and the parameter annotations are the block.</pr
 </section>
 <section class="type" id="http_status_exception">
 <h2><span class="kind">class</span> http_status_exception</h2>
-<p class="meta"><code>base http_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_response.sharp">source</a></p>
+<p class="meta"><code>base http_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_response.sharp">source</a></p>
 <p>The server answered, and its answer is not &quot;it worked&quot; (200 to 299): 404 not found, 401 not allowed, 500 the server failed ...</p>
 <div class="code"><pre class="sharp">catch(failed: http_status_exception) {
     print(&quot;the shop said &quot; + failed.status + &quot;: &quot; + failed.body_text());
@@ -583,7 +587,7 @@ here the annotation is the call and the parameter annotations are the block.</pr
 </section>
 <section class="type" id="http_text">
 <h2><span class="kind">class</span> http_text</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_request.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_request.sharp">source</a></p>
 <p>small conversions the http classes share</p>
 <h3>Functions</h3><div>
 <div class="fn" id="http_text.boundary"><div class="sig">static def <b>boundary</b>() : string</div><p>a text that will not turn up inside what a form in parts carries</p></div>
@@ -593,7 +597,7 @@ here the annotation is the call and the parameter annotations are the block.</pr
 </section>
 <section class="type" id="http_timeout">
 <h2><span class="kind">class</span> http_timeout</h2>
-<p class="meta"><code>base http_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_response.sharp">source</a></p>
+<p class="meta"><code>base http_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_response.sharp">source</a></p>
 <p>the server did not answer within the request&#x27;s timeout</p>
 <h3>Functions</h3><div>
 <div class="fn" id="http_timeout.http_timeout"><div class="sig">public <b>http_timeout</b>(message : string?) -&gt; base(message)</div></div>
@@ -601,7 +605,7 @@ here the annotation is the call and the parameter annotations are the block.</pr
 </section>
 <section class="type" id="http_types">
 <h2><span class="kind">class</span> http_types</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/http_server.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/http_server.sharp">source</a></p>
 <p>what a file is, by the ending of its name</p>
 <h3>Functions</h3><div>
 <div class="fn" id="http_types.of_name"><div class="sig">static def <b>of_name</b>(name: string) : string</div></div>
@@ -610,28 +614,28 @@ here the annotation is the call and the parameter annotations are the block.</pr
 </section>
 <section class="type" id="openssl">
 <h2><span class="kind">class</span> openssl</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/tls.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/tls.sharp">source</a></p>
 <p>OpenSSL: the part with the connections (libssl) and the part with the error texts (libcrypto)</p>
 </section>
 <section class="type" id="posix_sockets">
 <h2><span class="kind">class</span> posix_sockets</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/system_sockets.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/system_sockets.sharp">source</a></p>
 
 </section>
 <section class="type" id="schannel">
 <h2><span class="kind">class</span> schannel</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/tls.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/tls.sharp">source</a></p>
 <p>SChannel: Windows&#x27; TLS, and the socket calls with addresses where tcp_socket has arrays</p>
 </section>
 <section class="type" id="socket_address">
 <h2><span class="kind">class</span> socket_address</h2>
-<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/system_sockets.sharp">source</a></p>
+<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/system_sockets.sharp">source</a></p>
 <p>struct sockaddr_in: an internet address (version 4) and a port, both in network byte order</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>c_bytes</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>family</code></td><td><code>c_ushort</code></td><td></td></tr><tr><td><code>port</code></td><td><code>c_ushort</code></td><td></td></tr><tr><td><code>address</code></td><td><code>c_uint</code></td><td></td></tr><tr><td><code>zero</code></td><td><code>c_char[]</code></td><td></td></tr></table></div>
 </section>
 <section class="type" id="socket_exception">
 <h2><span class="kind">class</span> socket_exception</h2>
-<p class="meta"><code>base io_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/tcp.sharp">source</a></p>
+<p class="meta"><code>base io_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/tcp.sharp">source</a></p>
 <p>NETWORKING: connections between programs (TCP)</p>
 <div class="code"><pre class="sharp">// a client
 connection := tcp_socket.connect(&quot;example.com&quot;, 80);
@@ -657,7 +661,7 @@ while(true) {
 </section>
 <section class="type" id="socket_system">
 <h2><span class="kind">class</span> socket_system</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/tcp.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/tcp.sharp">source</a></p>
 <p>what tcp_socket and tcp_server share: the system&#x27;s calls, whichever system it is</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>NONE</code></td><td><code>_int64</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -677,13 +681,13 @@ while(true) {
 </section>
 <section class="type" id="socket_time">
 <h2><span class="kind">class</span> socket_time</h2>
-<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/system_sockets.sharp">source</a></p>
+<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/system_sockets.sharp">source</a></p>
 <p>struct timeval: seconds and microseconds (for a socket&#x27;s timeouts on Linux)</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>seconds</code></td><td><code>c_long</code></td><td></td></tr><tr><td><code>microseconds</code></td><td><code>c_long</code></td><td></td></tr></table></div>
 </section>
 <section class="type" id="socket_timeout">
 <h2><span class="kind">class</span> socket_timeout</h2>
-<p class="meta"><code>base socket_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/tcp.sharp">source</a></p>
+<p class="meta"><code>base socket_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/tcp.sharp">source</a></p>
 <p>a read or a write took longer than the socket&#x27;s timeout</p>
 <h3>Functions</h3><div>
 <div class="fn" id="socket_timeout.socket_timeout"><div class="sig">public <b>socket_timeout</b>(message : string?) -&gt; base(message)</div></div>
@@ -691,7 +695,7 @@ while(true) {
 </section>
 <section class="type" id="tcp_server">
 <h2><span class="kind">class</span> tcp_server</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/tcp.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/tcp.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="tcp_server.tcp_server"><div class="sig"><b>tcp_server</b>(port: _int64)</div><p>Listen on <code>port</code> of this machine (0: any port that is free - port() says which). Throws socket_exception when the port is taken or not allowed (below 1024 needs rights on most systems).</p></div>
@@ -704,7 +708,7 @@ while(true) {
 </section>
 <section class="type" id="tcp_socket">
 <h2><span class="kind">class</span> tcp_socket</h2>
-<p class="meta"><code>: connection</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/tcp.sharp">source</a></p>
+<p class="meta"><code>: connection</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/tcp.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="tcp_socket.close"><div class="sig">override def <b>close</b>()</div><p>close this end; the other side then reads &quot;closed&quot;. Closing twice does nothing.</p></div>
@@ -728,7 +732,7 @@ while(true) {
 </section>
 <section class="type" id="tls_exception">
 <h2><span class="kind">class</span> tls_exception</h2>
-<p class="meta"><code>base socket_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/tls.sharp">source</a></p>
+<p class="meta"><code>base socket_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/tls.sharp">source</a></p>
 <p>ENCRYPTED CONNECTIONS (TLS - what the &quot;s&quot; of https is)</p>
 <div class="code"><pre class="sharp">line := tls_socket.connect(&quot;example.com&quot;, 443);
 line.write_text(&quot;GET / HTTP/1.0\r\nHost: example.com\r\n\r\n&quot;);
@@ -749,7 +753,7 @@ tls_socket.trust_everyone(true)     do NOT check certificates (a test server of 
 </section>
 <section class="type" id="tls_socket">
 <h2><span class="kind">class</span> tls_socket</h2>
-<p class="meta"><code>: connection</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/tls.sharp">source</a></p>
+<p class="meta"><code>: connection</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/tls.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="tls_socket.close"><div class="sig">override def <b>close</b>()</div><p>close this end (after telling the other side). Closing twice does nothing.</p></div>
@@ -772,12 +776,12 @@ tls_socket.trust_everyone(true)     do NOT check certificates (a test server of 
 </section>
 <section class="type" id="udp_posix">
 <h2><span class="kind">class</span> udp_posix</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/udp.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/udp.sharp">source</a></p>
 <p>the two calls tcp does not need, per system (the rest are in system_sockets.sharp)</p>
 </section>
 <section class="type" id="udp_socket">
 <h2><span class="kind">class</span> udp_socket</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/udp.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/udp.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="udp_socket.allow_broadcast"><div class="sig">def <b>allow_broadcast</b>() : udp_socket</div><p>let this socket send to a broadcast address (&quot;255.255.255.255&quot;: every machine of the local network)</p></div>
@@ -795,12 +799,12 @@ tls_socket.trust_everyone(true)     do NOT check certificates (a test server of 
 </section>
 <section class="type" id="udp_windows">
 <h2><span class="kind">class</span> udp_windows</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/udp.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/udp.sharp">source</a></p>
 
 </section>
 <section class="type" id="url">
 <h2><span class="kind">class</span> url</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/url.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/url.sharp">source</a></p>
 <p>A WEB ADDRESS, taken apart</p>
 <div class="code"><pre class="sharp">where := url.parse(&quot;https://api.shop.example:8443/v2/products?q=lamp#top&quot;);</pre></div>
 <div class="code"><pre class="sharp">where.scheme    &quot;https&quot;
@@ -826,7 +830,7 @@ where.query     &quot;q=lamp&quot;        (&quot;&quot; when the address has non
 </section>
 <section class="type" id="web_message">
 <h2><span class="kind">class</span> web_message</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/web_socket.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/web_socket.sharp">source</a></p>
 <p>one message: text or bytes</p>
 <h3>Functions</h3><div>
 <div class="fn" id="web_message.web_message"><div class="sig"><b>web_message</b>(data: _int8[], textual: bool)</div></div>
@@ -838,7 +842,7 @@ where.query     &quot;q=lamp&quot;        (&quot;&quot; when the address has non
 </section>
 <section class="type" id="web_socket">
 <h2><span class="kind">class</span> web_socket</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/web_socket.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/web_socket.sharp">source</a></p>
 
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>close_code</code></td><td><code>_int64</code></td><td>why the other side closed (1000: done, 1001: going away ...); 0 while open or when it said nothing</td></tr><tr><td><code>close_reason</code></td><td><code>string</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -859,7 +863,7 @@ where.query     &quot;q=lamp&quot;        (&quot;&quot; when the address has non
 </section>
 <section class="type" id="web_socket_exception">
 <h2><span class="kind">class</span> web_socket_exception</h2>
-<p class="meta"><code>base socket_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/web_socket.sharp">source</a></p>
+<p class="meta"><code>base socket_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/web_socket.sharp">source</a></p>
 <p>WEBSOCKETS: a connection both sides can send on at any time, in whole messages</p>
 <div class="code"><pre class="sharp">chat := web_socket.connect(&quot;wss://chat.example/room/7&quot;);
 chat.send(&quot;hello&quot;);                         // a text message
@@ -887,12 +891,12 @@ close()   close(code, reason)           say goodbye and close (1000 is &quot;don
 </section>
 <section class="type" id="web_socket_turn">
 <h2><span class="kind">class</span> web_socket_turn</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/http/web_socket.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/http/web_socket.sharp">source</a></p>
 <p>what two threads that send on one websocket take turns on</p>
 </section>
 <section class="type" id="windows_sockets">
 <h2><span class="kind">class</span> windows_sockets</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/net/system_sockets.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/net/system_sockets.sharp">source</a></p>
 
 </section>
     </main>

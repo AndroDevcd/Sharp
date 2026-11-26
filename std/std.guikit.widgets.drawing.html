@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.widgets.drawing - Sharp standard library</title>
 <meta name="description" content="The std.guikit.widgets.drawing module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#canvas">canvas</a> <a href="#frame">frame</a></p>
 <section class="type" id="canvas">
 <h2><span class="kind">class</span> canvas</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/drawing/canvas.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/drawing/canvas.sharp">source</a></p>
 <p>canvas - an area you paint yourself, every frame. Made with canvas(...).</p>
 <p>This is the escape hatch out of the widgets: a chart, a drawing surface, a whole game. You get the painter and draw whatever you like; the rest of the screen around it is still ordinary widgets.</p>
 <div class="code"><pre class="sharp">ball_x : decimal = 50;</pre></div>
@@ -106,7 +110,7 @@
 </section>
 <section class="type" id="frame">
 <h2><span class="kind">class</span> frame</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/drawing/canvas.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/widgets/drawing/canvas.sharp">source</a></p>
 <p>frame - what a canvas&#x27;s drawing function is told about this frame: how big the canvas is, how much time has passed, where the mouse is, which keys are held.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>width</code></td><td><code>decimal</code></td><td>the size of the canvas, in pixels</td></tr><tr><td><code>height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>time</code></td><td><code>decimal</code></td><td>seconds since the window opened</td></tr><tr><td><code>step</code></td><td><code>decimal</code></td><td>seconds since the previous frame: move things by speed * step</td></tr><tr><td><code>mouse_x</code></td><td><code>decimal</code></td><td>the mouse, measured from the canvas&#x27;s top-left corner</td></tr><tr><td><code>mouse_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mouse_down</code></td><td><code>_int64</code></td><td>1 while the left button is held</td></tr><tr><td><code>moved_x</code></td><td><code>decimal</code></td><td>how far the mouse moved since the previous frame, across and down:</td></tr><tr><td><code>moved_y</code></td><td><code>decimal</code></td><td>it goes on counting when the window keeps the mouse (gui.keep_mouse)</td></tr></table></div>
 <h3>Functions</h3><div>

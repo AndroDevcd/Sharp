@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.collections - Sharp standard library</title>
 <meta name="description" content="The std.collections module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -60,7 +64,7 @@
 <p class="contents"><a href="#array_iterator">array_iterator</a> <a href="#arrays">arrays</a> <a href="#bit_set">bit_set</a> <a href="#collections">collections</a> <a href="#deque">deque</a> <a href="#hash_set">hash_set</a> <a href="#immutable_list">immutable_list</a> <a href="#iterable">iterable</a> <a href="#iterator">iterator</a> <a href="#linked_hash_map">linked_hash_map</a> <a href="#linked_hash_node">linked_hash_node</a> <a href="#linked_list">linked_list</a> <a href="#linked_list_iterator">linked_list_iterator</a> <a href="#linked_node">linked_node</a> <a href="#priority_queue">priority_queue</a> <a href="#queue">queue</a> <a href="#stack">stack</a> <a href="#tree_map">tree_map</a> <a href="#tree_map_iterator">tree_map_iterator</a> <a href="#tree_node">tree_node</a> <a href="#tree_set">tree_set</a> <a href="#var_arrays">var_arrays</a></p>
 <section class="type" id="array_iterator">
 <h2><span class="kind">class</span> array_iterator&lt;T&gt;</h2>
-<p class="meta"><code>: iterator&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/array_iterator.sharp">source</a></p>
+<p class="meta"><code>: iterator&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/array_iterator.sharp">source</a></p>
 <p>An <code>iterator</code> over the elements of an array, from a start index up to (not including) an end index.</p>
 <p>It is what the array backed collections (stack, queue, deque, hash_set, the maps, ...) return from iterator(): they hand it a snapshot of their elements, so the collection may be changed while the iterator is in use without disturbing the walk (the iterator keeps showing the elements as they were when it was created).</p>
 <p>It can also be used directly to walk a plain array:</p>
@@ -78,7 +82,7 @@ while(it.has_next()) println(it.next());</pre></div>
 </section>
 <section class="type" id="arrays">
 <h2><span class="kind">class</span> arrays&lt;T&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/arrays.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/arrays.sharp">source</a></p>
 <p>Static helpers for arrays of OBJECTS (int[], string[], my_class[], ...): sorting, searching, copying, comparing. Nothing here needs an instance; name the element type and call the function:</p>
 <div class="code"><pre class="sharp">words := new string[] { &quot;pear&quot;, &quot;fig&quot;, &quot;apple&quot; };
 arrays&lt;string&gt;.sort(words, { a: string, b: string -&gt; (decimal) return a.size() - b.size(); });
@@ -121,7 +125,7 @@ compare(a, b) &gt; 0     a sorts after b</pre></div>
 </section>
 <section class="type" id="bit_set">
 <h2><span class="kind">class</span> bit_set</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/bit_set.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/bit_set.sharp">source</a></p>
 <p>A growable row of bits, each either on (1) or off (0), addressed by an index that starts at 0. It is the compact way to keep a yes/no flag for a large range of small numbers (visited markers, a sieve, sets of ids): 30 flags are packed into every native number.</p>
 <div class="code"><pre class="sharp">seen := new bit_set();
 seen.set_bit(3);
@@ -172,7 +176,7 @@ seen.cardinality();         // 2  (how many bits are on)</pre></div>
 </section>
 <section class="type" id="collections">
 <h2><span class="kind">class</span> collections&lt;T base _object_&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/collections.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/collections.sharp">source</a></p>
 <p>LISTS OF LISTS: chunked, windowed, flatten.</p>
 <div class="code"><pre class="sharp">rows := collections&lt;int&gt;.chunked(numbers, 3);      // [[1,2,3],[4,5,6],[7]]
 pairs := collections&lt;int&gt;.windowed(numbers, 2);    // [[1,2],[2,3],[3,4], ...]
@@ -190,7 +194,7 @@ all := collections&lt;int&gt;.flatten(rows);             // [1,2,3,4,5,6,7]</pre
 </section>
 <section class="type" id="deque">
 <h2><span class="kind">class</span> deque&lt;T&gt;</h2>
-<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/deque.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/deque.sharp">source</a></p>
 <p>A double ended queue (&quot;deck&quot;): elements can be added and removed at both the front and the back in O(1).</p>
 <p>It is backed by an array that is used as a ring buffer: <code>head</code> is the array index of the first element and the elements continue from there, wrapping around to index 0 when they reach the end of the array. Nothing is moved when an element is added or removed at either end. When the array is full it is replaced by one twice the size (so adding is O(1) on average).</p>
 <div class="code"><pre class="sharp">d := new deque&lt;int&gt;();
@@ -233,7 +237,7 @@ d.remove_last();                                     // 3</pre></div>
 </section>
 <section class="type" id="hash_set">
 <h2><span class="kind">class</span> hash_set&lt;T base _object_&gt;</h2>
-<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/hash_set.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/hash_set.sharp">source</a></p>
 <p>A collection that holds every element at most once and answers &quot;is x in here?&quot; in O(1) on average, however many elements it holds.</p>
 <div class="code"><pre class="sharp">seen := new hash_set&lt;string&gt;();
 seen.add(&quot;a&quot;);          // 1: added
@@ -271,7 +275,7 @@ seen.size();            // 1</pre></div>
 </section>
 <section class="type" id="immutable_list">
 <h2><span class="kind">class</span> immutable_list&lt;T&gt;</h2>
-<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/immutable_list.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/immutable_list.sharp">source</a></p>
 <p>A list that cannot be changed after it was created: it has functions to read, search and loop, and none to add, replace or remove. Hand one out when other code should be able to look at your elements but must not be able to modify your collection.</p>
 <div class="code"><pre class="sharp">class team {
     private members := new list&lt;string&gt;();
@@ -309,7 +313,7 @@ seen.size();            // 1</pre></div>
 </section>
 <section class="type" id="iterable">
 <h2><span class="kind">interface</span> iterable&lt;T&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/iterable.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/iterable.sharp">source</a></p>
 <p>@interface iterable</p>
 <p>Implemented by everything that can hand out an <code>iterator</code> over its elements. All collections of std.collections implement it, which makes it possible to write a function once and use it with any of them:</p>
 <div class="code"><pre class="sharp">def total(numbers: iterable&lt;int&gt;) : decimal {
@@ -324,7 +328,7 @@ seen.size();            // 1</pre></div>
 </section>
 <section class="type" id="iterator">
 <h2><span class="kind">interface</span> iterator&lt;T&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/iterator.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/iterator.sharp">source</a></p>
 <p>@interface iterator</p>
 <p>The uniform way to walk over the elements of any collection in std.collections, one element at a time:</p>
 <div class="code"><pre class="sharp">it := names.iterator();
@@ -343,7 +347,7 @@ while(it.has_next()) {
 </section>
 <section class="type" id="linked_hash_map">
 <h2><span class="kind">class</span> linked_hash_map&lt;K base _object_, V&gt;</h2>
-<p class="meta"><code>: loopable&lt;map_entry&lt;K, V&gt; &gt;, iterable&lt;map_entry&lt;K, V&gt; &gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/linked_hash_map.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;map_entry&lt;K, V&gt; &gt;, iterable&lt;map_entry&lt;K, V&gt; &gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/linked_hash_map.sharp">source</a></p>
 <p>A hash map that remembers the order in which its keys were first added. Looking a key up, adding and removing are O(1) on average, like any hash map, and looping over the map always visits the pairs oldest first:</p>
 <div class="code"><pre class="sharp">ages := new linked_hash_map&lt;string, int&gt;();
 ages.put(&quot;tom&quot;, 31);
@@ -387,7 +391,7 @@ foreach(entry in ages)
 </section>
 <section class="type" id="linked_hash_node">
 <h2><span class="kind">class</span> linked_hash_node&lt;K, V&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/linked_hash_node.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/linked_hash_node.sharp">source</a></p>
 <p>The storage cell of a <code>linked_hash_map</code>: one key/value pair that is part of two chains at the same time:</p>
 <p>- the BUCKET chain (<code>chain</code>): all pairs whose keys landed in the same slot of the hash table - the ORDER chain (<code>before</code> / <code>after</code>): all pairs of the map in the order they were first added, which is what gives the map its predictable iteration order</p>
 <p>This class is an implementation detail of linked_hash_map.</p>
@@ -398,7 +402,7 @@ foreach(entry in ages)
 </section>
 <section class="type" id="linked_list">
 <h2><span class="kind">class</span> linked_list&lt;T&gt;</h2>
-<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/linked_list.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/linked_list.sharp">source</a></p>
 <p>A doubly linked list: every element lives in its own node that points to the node before and after it.</p>
 <p>Compared to the array backed <code>list</code>: - adding or removing at either END is O(1) and never copies elements - reaching an element by index is O(n) (the list walks to it, starting from whichever end is closer)</p>
 <p>Use it when elements mostly come and go at the ends, or when a list is built once and then walked from front to back. Use <code>list</code> when elements are looked up by index a lot.</p>
@@ -450,7 +454,7 @@ foreach(name in names) println(name);        // a, b</pre></div>
 </section>
 <section class="type" id="linked_list_iterator">
 <h2><span class="kind">class</span> linked_list_iterator&lt;T&gt;</h2>
-<p class="meta"><code>: iterator&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/linked_list_iterator.sharp">source</a></p>
+<p class="meta"><code>: iterator&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/linked_list_iterator.sharp">source</a></p>
 <p>The <code>iterator</code> a <code>linked_list</code> returns. It follows the links of the list directly (no copy of the elements is made), either from the head towards the tail or - for descending_iterator() - from the tail towards the head.</p>
 <p>Because it walks the live list, the list should not be changed while one of its iterators is still in use: removing the node the iterator is standing on makes the rest of the walk meaningless.</p>
 <h3>Functions</h3><div>
@@ -462,7 +466,7 @@ foreach(name in names) println(name);        // a, b</pre></div>
 </section>
 <section class="type" id="linked_node">
 <h2><span class="kind">class</span> linked_node&lt;T&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/linked_node.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/linked_node.sharp">source</a></p>
 <p>One link of a <code>linked_list</code>: it holds an element and knows the node in front of it and the node behind it.</p>
 <p>This class is an implementation detail of linked_list (and of linked_list_iterator). Code that uses a linked_list never needs to touch its nodes.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>value</code></td><td><code>T</code></td><td>the element stored in this node</td></tr><tr><td><code>next</code></td><td><code>linked_node&lt;T&gt;?</code></td><td>the node towards the tail of the list, null for the last node</td></tr><tr><td><code>prev</code></td><td><code>linked_node&lt;T&gt;?</code></td><td>the node towards the head of the list, null for the first node</td></tr></table></div>
@@ -472,7 +476,7 @@ foreach(name in names) println(name);        // a, b</pre></div>
 </section>
 <section class="type" id="priority_queue">
 <h2><span class="kind">class</span> priority_queue&lt;T&gt;</h2>
-<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/priority_queue.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/priority_queue.sharp">source</a></p>
 <p>A queue that always hands out its SMALLEST element first, whatever order the elements were added in. &quot;Smallest&quot; is decided by a comparison function given to the constructor:</p>
 <div class="code"><pre class="sharp">compare(a, b) &lt; 0     a comes out before b
 compare(a, b) == 0    a and b have the same priority
@@ -512,7 +516,7 @@ pq.poll();      // 3</pre></div>
 </section>
 <section class="type" id="queue">
 <h2><span class="kind">class</span> queue&lt;T&gt;</h2>
-<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/queue.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/queue.sharp">source</a></p>
 <p>A first-in first-out queue: elements are added at the back (enqueue) and taken from the front (dequeue), so they leave in the order they arrived.</p>
 <div class="code"><pre class="sharp">q := new queue&lt;string&gt;();
 q.enqueue(&quot;first&quot;);
@@ -546,7 +550,7 @@ q.peek();               // &quot;second&quot; (stays in the queue)</pre></div>
 </section>
 <section class="type" id="stack">
 <h2><span class="kind">class</span> stack&lt;T&gt;</h2>
-<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/stack.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/stack.sharp">source</a></p>
 <p>A last-in first-out stack: push puts an element on top, pop takes the top element off again, so elements leave in the reverse order they arrived.</p>
 <div class="code"><pre class="sharp">s := new stack&lt;int&gt;();
 s.push(1);  s.push(2);  s.push(3);
@@ -577,7 +581,7 @@ s.peek();       // 2 (stays on the stack)</pre></div>
 </section>
 <section class="type" id="tree_map">
 <h2><span class="kind">class</span> tree_map&lt;K, V&gt;</h2>
-<p class="meta"><code>: loopable&lt;map_entry&lt;K, V&gt; &gt;, iterable&lt;map_entry&lt;K, V&gt; &gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/tree_map.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;map_entry&lt;K, V&gt; &gt;, iterable&lt;map_entry&lt;K, V&gt; &gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/tree_map.sharp">source</a></p>
 <p>A map that keeps its keys SORTED. Looking a key up, adding and removing are O(log n); looping over the map visits the pairs in ascending key order; and because the keys are ordered the map can also answer questions a hash map cannot: the smallest / largest key, the nearest key below or above a value, all keys inside a range.</p>
 <p>The order is decided by a comparison function given to the constructor:</p>
 <div class="code"><pre class="sharp">compare(a, b) &lt; 0     a sorts before b
@@ -642,7 +646,7 @@ foreach(entry in prices) ...  // 10, 20, 30</pre></div>
 </section>
 <section class="type" id="tree_map_iterator">
 <h2><span class="kind">class</span> tree_map_iterator&lt;K, V&gt;</h2>
-<p class="meta"><code>: iterator&lt;map_entry&lt;K, V&gt; &gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/tree_map_iterator.sharp">source</a></p>
+<p class="meta"><code>: iterator&lt;map_entry&lt;K, V&gt; &gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/tree_map_iterator.sharp">source</a></p>
 <p>The <code>iterator</code> a <code>tree_map</code> returns: it walks the pairs of the map in key order (or in reverse key order), optionally only up to a boundary node. Each next() returns a <code>map_entry</code> - a copy of the key and the value.</p>
 <p>The iterator steps through the tree itself (no snapshot is made, creating it is O(log n) and each step O(1) on average). The map must therefore not be changed while one of its iterators is still in use.</p>
 <h3>Functions</h3><div>
@@ -654,7 +658,7 @@ foreach(entry in prices) ...  // 10, 20, 30</pre></div>
 </section>
 <section class="type" id="tree_node">
 <h2><span class="kind">class</span> tree_node&lt;K, V&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/tree_node.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/tree_node.sharp">source</a></p>
 <p>One node of the balanced search tree inside a <code>tree_map</code>: a key/value pair, the two sub trees (smaller keys on the left, larger keys on the right), the parent node and the height of the sub tree below it.</p>
 <p>The parent link is what lets the tree be walked in key order WITHOUT recursion and without a stack: next_node() and previous_node() step from a node to its neighbour in sorted order.</p>
 <p>This class is an implementation detail of tree_map / tree_map_iterator.</p>
@@ -669,7 +673,7 @@ foreach(entry in prices) ...  // 10, 20, 30</pre></div>
 </section>
 <section class="type" id="tree_set">
 <h2><span class="kind">class</span> tree_set&lt;T&gt;</h2>
-<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/tree_set.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;T&gt;, iterable&lt;T&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/tree_set.sharp">source</a></p>
 <p>A set (every element at most once) that keeps its elements SORTED. Adding, removing and &quot;is x in here?&quot; are O(log n); looping visits the elements in ascending order; and the set can find the smallest / largest element, the nearest element below or above a value, and all elements inside a range.</p>
 <p>The order is decided by a comparison function given to the constructor (negative: a sorts before b, zero: same element, positive: a sorts after b):</p>
 <div class="code"><pre class="sharp">primes := new tree_set&lt;int&gt;({ a: int, b: int -&gt; (decimal) return a.value - b.value; });
@@ -718,7 +722,7 @@ foreach(p in primes)    // 2, 5, 7</pre></div>
 </section>
 <section class="type" id="var_arrays">
 <h2><span class="kind">class</span> var_arrays</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/collections/var_arrays.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/collections/var_arrays.sharp">source</a></p>
 <p>Static helpers for arrays of NATIVE numbers (decimal[]): sorting, searching, copying, and the usual aggregates (min, max, sum, average).</p>
 <div class="code"><pre class="sharp">samples := new decimal[4];
 samples[0] = 3;  samples[1] = 1.5;  samples[2] = 9;  samples[3] = 2;

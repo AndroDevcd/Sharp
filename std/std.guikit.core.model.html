@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.core.model - Sharp standard library</title>
 <meta name="description" content="The std.guikit.core.model module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#model_store">model_store</a> <a href="#saved_entry">saved_entry</a> <a href="#saved_items">saved_items</a> <a href="#saved_maker">saved_maker</a> <a href="#saved_store">saved_store</a> <a href="#view_model">view_model</a></p>
 <section class="type" id="model_store">
 <h2><span class="kind">class</span> model_store</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/model/view_model.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/model/view_model.sharp">source</a></p>
 <p>model_store - the models of one screen (or of the app). FRAMEWORK USE: apps ask for models with model_of&lt;...&gt;().</p>
 <p><code>current</code> is the store a model asked for right now goes into. A screen makes it its own while its content is built, and every composable remembers which store was current when it was made - so a part of a screen that is built again later, on its own, still finds the models of ITS screen (composable.sharp).</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>current</code></td><td><code>model_store?</code></td><td>the store of the screen being built right now (null: none - then the app&#x27;s store is used)</td></tr><tr><td><code>app</code></td><td><code>model_store</code></td><td>the models that belong to no screen: they live until the window closes</td></tr></table></div>
@@ -95,7 +99,7 @@
 </section>
 <section class="type" id="saved_entry">
 <h2><span class="kind">interface</span> saved_entry</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/model/saved.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/model/saved.sharp">source</a></p>
 <p>something that takes its value from its file when the store opens</p>
 <h3>Functions</h3><div>
 <div class="fn" id="saved_entry.load"><div class="sig">def <b>load</b>()</div></div>
@@ -103,7 +107,7 @@
 </section>
 <section class="type" id="saved_items">
 <h2><span class="kind">class</span> saved_items&lt;t&gt;</h2>
-<p class="meta"><code>: saved_entry</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/model/saved.sharp">source</a></p>
+<p class="meta"><code>: saved_entry</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/model/saved.sharp">source</a></p>
 <p>A saved list: one item per line of the file. An item&#x27;s own text may hold line ends and backslashes; they are written as two characters each (a backslash and &quot;n&quot;, two backslashes) so that a line of the file is always exactly one item.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="saved_items.saved_items"><div class="sig"><b>saved_items</b>(name: string, target: state_list&lt;t&gt;, write_item: (t)(string), read_item: (string)(t))</div></div>
@@ -112,7 +116,7 @@
 </section>
 <section class="type" id="saved_maker">
 <h2><span class="kind">class</span> saved_maker</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/model/saved.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/model/saved.sharp">source</a></p>
 <p>the makers behind saved(...) and saved_list(...): FRAMEWORK USE (gui.sharp calls them)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="saved_maker.number"><div class="sig">static def <b>number</b>(key: string, first: decimal) : state&lt;decimal&gt;</div></div>
@@ -122,7 +126,7 @@
 </section>
 <section class="type" id="saved_store">
 <h2><span class="kind">class</span> saved_store</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/model/saved.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/model/saved.sharp">source</a></p>
 <p>SAVED STATE - values that are still there the next time the program runs.</p>
 <div class="code"><pre class="sharp">theme_choice := saved(&quot;theme&quot;, 0);          // a whole number
 text_size    := saved(&quot;text_size&quot;, 16.0);   // a decimal number
@@ -154,7 +158,7 @@ Windows     %APPDATA%\&lt;app&gt;\</pre></div>
 </section>
 <section class="type" id="view_model">
 <h2><span class="kind">class</span> view_model</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/model/view_model.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/model/view_model.sharp">source</a></p>
 <p>view_model - the LOGIC of a screen, kept apart from what the screen looks like.</p>
 <div class="code"><pre class="sharp">class tasks_model base view_model {
     tasks := state_list&lt;task&gt;();            // what the screen shows

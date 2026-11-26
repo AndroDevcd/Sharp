@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.core.tree - Sharp standard library</title>
 <meta name="description" content="The std.guikit.core.tree module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#behavior">behavior</a> <a href="#clipper">clipper</a> <a href="#drag_scroller">drag_scroller</a> <a href="#element">element</a> <a href="#floater">floater</a> <a href="#has_caption">has_caption</a> <a href="#has_value">has_value</a> <a href="#key_target">key_target</a> <a href="#on_or_off">on_or_off</a> <a href="#overlay_painter">overlay_painter</a> <a href="#pointer_target">pointer_target</a> <a href="#scope">scope</a> <a href="#shows_words">shows_words</a> <a href="#stateful">stateful</a> <a href="#view">view</a> <a href="#wheel_target">wheel_target</a> <a href="#widget">widget</a> <a href="#constants">constants</a></p>
 <section class="type" id="behavior">
 <h2><span class="kind">interface</span> behavior</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>What every kind of widget must answer.</p>
 <p>The widget object holds its own view (<code>me</code>, from the widget base class), so these take no view argument.</p>
 <h3>Functions</h3><div>
@@ -97,7 +101,7 @@
 </section>
 <section class="type" id="clipper">
 <h2><span class="kind">interface</span> clipper</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget whose children must not paint (or be clicked) outside its box: a scrolling area.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="clipper.clips"><div class="sig">def <b>clips</b>() : _int64</div></div>
@@ -105,7 +109,7 @@
 </section>
 <section class="type" id="drag_scroller">
 <h2><span class="kind">interface</span> drag_scroller</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A scrolling widget whose content can be DRAGGED to scroll it, the way a finger moves a list on a touch screen. When a press on something inside it turns into a drag, the host takes the gesture away from what was pressed (that is not a click any more) and feeds the movement here instead.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="drag_scroller.drag_by"><div class="sig">def <b>drag_by</b>(dx: decimal, dy: decimal)</div><p>the content was dragged this far since the last time, across and down, in pixels</p></div>
@@ -113,7 +117,7 @@
 </section>
 <section class="type" id="element">
 <h2><span class="kind">interface</span> element</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>Anything that can be put into the tree with .add(...): it has a view.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="element.node"><div class="sig">def <b>node</b>() : view</div></div>
@@ -121,7 +125,7 @@
 </section>
 <section class="type" id="floater">
 <h2><span class="kind">interface</span> floater</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget whose children are NOT part of the page: they float above everything - a dialog, a menu. The view neither paints nor hit-tests a floater&#x27;s children in the normal walk of the tree; the host does both for them afterwards, on top (popup.sharp, and &quot;overlays&quot; in host.sharp).</p>
 <h3>Functions</h3><div>
 <div class="fn" id="floater.floats"><div class="sig">def <b>floats</b>() : _int64</div></div>
@@ -129,7 +133,7 @@
 </section>
 <section class="type" id="has_caption">
 <h2><span class="kind">interface</span> has_caption</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget with words that NAME it besides what it shows: the caption above a text field.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="has_caption.caption_shown"><div class="sig">def <b>caption_shown</b>() : string</div></div>
@@ -137,7 +141,7 @@
 </section>
 <section class="type" id="has_value">
 <h2><span class="kind">interface</span> has_value</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget that stands at a number: a slider, a progress bar.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="has_value.value_shown"><div class="sig">def <b>value_shown</b>() : decimal</div></div>
@@ -145,7 +149,7 @@
 </section>
 <section class="type" id="key_target">
 <h2><span class="kind">interface</span> key_target</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget that takes the keyboard while it has the focus (a text field, a slider moved with the arrow keys).</p>
 <h3>Functions</h3><div>
 <div class="fn" id="key_target.key"><div class="sig">def <b>key</b>(e: event) : _int64</div><p>a key went down. Return 1 when it was used (0: the framework may use it: Tab moves the focus).</p></div>
@@ -154,7 +158,7 @@
 </section>
 <section class="type" id="on_or_off">
 <h2><span class="kind">interface</span> on_or_off</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget that is on or off: a checkbox, a switch, a radio (on: it is the one chosen), a chip.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="on_or_off.is_on"><div class="sig">def <b>is_on</b>() : bool</div></div>
@@ -162,7 +166,7 @@
 </section>
 <section class="type" id="overlay_painter">
 <h2><span class="kind">interface</span> overlay_painter</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget that paints something OVER its children too: a scroll bar.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="overlay_painter.paint_over"><div class="sig">def <b>paint_over</b>(p: painter)</div></div>
@@ -170,7 +174,7 @@
 </section>
 <section class="type" id="pointer_target">
 <h2><span class="kind">interface</span> pointer_target</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget that wants the mouse in detail - where it was pressed, dragging - like a slider or a text field. (A plain click needs none of this: give the view an on_click and the framework does the rest.)</p>
 <p>From the press until the release, every move goes to the SAME widget, also when the mouse leaves it: that is what makes dragging a slider work.</p>
 <h3>Functions</h3><div>
@@ -179,7 +183,7 @@
 </section>
 <section class="type" id="scope">
 <h2><span class="kind">class</span> scope</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/scope.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/scope.sharp">source</a></p>
 <p>scope - what makes the nested, Compose-like way of writing a screen work:</p>
 <div class="code"><pre class="sharp">gui.column {
     gui.text(&quot;Hello&quot;);                       // lands in the column ...
@@ -212,7 +216,7 @@
 </section>
 <section class="type" id="shows_words">
 <h2><span class="kind">interface</span> shows_words</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget that shows words: a text, a button, a chip. A text field answers with what is typed in it.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="shows_words.words_shown"><div class="sig">def <b>words_shown</b>() : string</div></div>
@@ -220,7 +224,7 @@
 </section>
 <section class="type" id="stateful">
 <h2><span class="kind">interface</span> stateful</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget that remembers something between frames that is NOT in the program&#x27;s state: how far a list is scrolled, where the text cursor is, how far a switch has slid. When the screen is rebuilt a NEW widget object is made; <code>adopt</code> is its chance to copy those things from the old one it replaces (same kind, same place in the tree).</p>
 <h3>Functions</h3><div>
 <div class="fn" id="stateful.adopt"><div class="sig">def <b>adopt</b>(old: behavior)</div></div>
@@ -228,7 +232,7 @@
 </section>
 <section class="type" id="view">
 <h2><span class="kind">class</span> view</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/view.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/view.sharp">source</a></p>
 <p>view - one box on the screen, and one node of the tree.</p>
 <p>Every widget has exactly one view. The view holds what ALL boxes have in common and does the work that is the same for all of them:</p>
 <div class="code"><pre class="sharp">the tree         parent, kids
@@ -289,7 +293,7 @@ the mouse        which view is under a point; hovered / pressed; on_click</pre><
 </section>
 <section class="type" id="wheel_target">
 <h2><span class="kind">interface</span> wheel_target</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/behavior.sharp">source</a></p>
 <p>A widget that scrolls. Return 1 when the turn was used (0: let the widget around me have it).</p>
 <h3>Functions</h3><div>
 <div class="fn" id="wheel_target.wheel"><div class="sig">def <b>wheel</b>(dx: decimal, dy: decimal) : _int64</div></div>
@@ -297,7 +301,7 @@ the mouse        which view is under a point; hovered / pressed; on_click</pre><
 </section>
 <section class="type" id="widget">
 <h2><span class="kind">class</span> widget</h2>
-<p class="meta"><code>: element</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/tree/widget.sharp">source</a></p>
+<p class="meta"><code>: element</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/tree/widget.sharp">source</a></p>
 <p>widget - what every built-in widget class starts from: its view.</p>
 <div class="code"><pre class="sharp">class label base widget : behavior { ... }</pre></div>
 <p>A widget is two things joined together:</p>

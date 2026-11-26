@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.animation - Sharp standard library</title>
 <meta name="description" content="The std.guikit.animation module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#animated">animated</a> <a href="#fader">fader</a> <a href="#glide">glide</a> <a href="#revealer">revealer</a> <a href="#stagger">stagger</a> <a href="#constants">constants</a></p>
 <section class="type" id="animated">
 <h2><span class="kind">class</span> animated</h2>
-<p class="meta"><code>: state_cell</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/animation/animated.sharp">source</a></p>
+<p class="meta"><code>: state_cell</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/animation/animated.sharp">source</a></p>
 <p>animated - a number that GLIDES to a new value instead of jumping there.</p>
 <div class="code"><pre class="sharp">class drawer base composable {
     width := animated(0);                       // starts at 0, not moving</pre></div>
@@ -118,7 +122,7 @@
 </section>
 <section class="type" id="fader">
 <h2><span class="kind">class</span> fader</h2>
-<p class="meta"><code>base widget : behavior, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/animation/fader.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/animation/fader.sharp">source</a></p>
 <p>fader - content that fades in when it should be seen and fades out when it should not. Made with fade(...).</p>
 <div class="code"><pre class="sharp">saved := state(0);</pre></div>
 <div class="code"><pre class="sharp">fade(saved.value) {                         // there while saved.value is not 0
@@ -147,7 +151,7 @@
 </section>
 <section class="type" id="glide">
 <h2><span class="kind">class</span> glide</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/animation/glide.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/animation/glide.sharp">source</a></p>
 <p>glide - boxes that move to their new place instead of jumping there. FRAMEWORK USE: apps ask for it with .animate_items() on a column or row and modifier().animate_size(); the host calls the functions here.</p>
 <p>THE IDEA (known as FLIP: first, last, invert, play)</p>
 <p>When a list changes - a row is added, removed, moved - layout simply puts every row where it now belongs. Nothing about layout is animated. Instead:</p>
@@ -172,7 +176,7 @@
 </section>
 <section class="type" id="revealer">
 <h2><span class="kind">class</span> revealer</h2>
-<p class="meta"><code>base widget : behavior, clipper, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/animation/revealer.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, clipper, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/animation/revealer.sharp">source</a></p>
 <p>revealer - content that appears and disappears with a movement instead of popping. Made with animated_show(...).</p>
 <div class="code"><pre class="sharp">expanded := state(0);</pre></div>
 <div class="code"><pre class="sharp">button(&quot;Details&quot;) { expanded.value = 1 - expanded.value; };
@@ -196,7 +200,7 @@ animated_show(expanded.value) {
 </section>
 <section class="type" id="stagger">
 <h2><span class="kind">class</span> stagger</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/animation/stagger.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/animation/stagger.sharp">source</a></p>
 <p>stagger - the &quot;loose&quot; scrolling feel: while a list is moving, each row lags a little behind the one before it, so the rows spread apart; as the movement dies down they close up again.</p>
 <div class="code"><pre class="sharp">scroll { column { ... } }.scroll_feel(SCROLL_STAGGER);
 lazy_column { ... }.scroll_feel(SCROLL_STAGGER);</pre></div>

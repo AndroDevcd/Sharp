@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.three - Sharp standard library</title>
 <meta name="description" content="The std.guikit.three module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#camera">camera</a> <a href="#endless">endless</a> <a href="#flock">flock</a> <a href="#lamp">lamp</a> <a href="#mesh">mesh</a> <a href="#motes">motes</a> <a href="#plant">plant</a> <a href="#plants">plants</a> <a href="#scattering">scattering</a> <a href="#scene">scene</a> <a href="#shape_store">shape_store</a> <a href="#shapes">shapes</a> <a href="#stage">stage</a> <a href="#sun">sun</a> <a href="#terrain">terrain</a> <a href="#thing">thing</a> <a href="#water">water</a> <a href="#functions">functions</a> <a href="#constants">constants</a></p>
 <section class="type" id="camera">
 <h2><span class="kind">class</span> camera</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/camera.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/camera.sharp">source</a></p>
 <p>camera - the eye a scene is seen through. Inside a scene:</p>
 <div class="code"><pre class="sharp">camera().at(0, 2, 6).look_at(0, 1, 0);          // stands here, looks there
 camera().at(x, y, z).facing(heading, tilt);     // stands here, looks this way
@@ -128,7 +132,7 @@ fly()       like walk, but forward is wherever the eye looks - up included.</pre
 </section>
 <section class="type" id="endless">
 <h2><span class="kind">class</span> endless</h2>
-<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/endless.sharp">source</a></p>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/endless.sharp">source</a></p>
 <p>endless - land with no edge. It is made piece by piece round the eye as the eye travels, and the pieces left far behind are let go: however far you go there is land ahead, and the machine holds only what is near.</p>
 <div class="code"><pre class="sharp">hills := endless(128, 64, { x: decimal, z: decimal -&gt; return rolling(x, z); });
 hills.colored({ height: decimal, steep: decimal -&gt; return steep &gt; 0.6 ? 0x6D675FFF : 0x5E7740FF; });
@@ -172,7 +176,7 @@ scene {
 </section>
 <section class="type" id="flock">
 <h2><span class="kind">class</span> flock</h2>
-<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/moving.sharp">source</a></p>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/moving.sharp">source</a></p>
 <p>flock - many copies of one thing that move together, round the place the flock stands at: a school of fish, a flight of birds, gnats over a pond.</p>
 <div class="code"><pre class="sharp">school := flock(fish, 300).at(80, 12, 90).spread(9).speed(3);</pre></div>
 <p>Each goes round the middle at its own distance, nose first, the inner ones quicker, rising and sinking a little as it goes. The flock itself is a thing: move it, bob it, send it round a circle (circling) and all of them go along. The copies cost what a scatter&#x27;s do - one shape on the card.</p>
@@ -195,7 +199,7 @@ scene {
 </section>
 <section class="type" id="lamp">
 <h2><span class="kind">class</span> lamp</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/lights.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/lights.sharp">source</a></p>
 <p>lamp - a light at a place, reaching a few metres round it: a street lamp, a fire, a torch.</p>
 <div class="code"><pre class="sharp">lamp().at(0, 3, 0).reach(8).color(0xFFE9A0FF);</pre></div>
 <p>Made inside a group, its place is the group&#x27;s (the lamp of a street lamp moves with the post). The four lamps nearest the camera light the scene; a scene may have as many as it likes.</p>
@@ -210,7 +214,7 @@ scene {
 </section>
 <section class="type" id="mesh">
 <h2><span class="kind">class</span> mesh</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/mesh.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/mesh.sharp">source</a></p>
 <p>mesh - a shape you make yourself: corners in space and triangles between them.</p>
 <div class="code"><pre class="sharp">wall := new mesh();
 a := wall.corner(0, 0, 0);
@@ -269,7 +273,7 @@ a colour            multiplied into the surface there (tint): shade a model by h
 </section>
 <section class="type" id="motes">
 <h2><span class="kind">class</span> motes</h2>
-<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/moving.sharp">source</a></p>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/moving.sharp">source</a></p>
 <p>motes - small things adrift all round the eye: specks of light, bubbles, snow, dust in a sunbeam, fireflies. There are always <code>count</code> of them near the eye, however far it goes: one that drifts out of reach comes back in on the other side.</p>
 <div class="code"><pre class="sharp">motes(1500).color(0xE8D36AFF).size(0.03);               // glowing specks
 motes(300).bubbles().rising(0.8).size(0.06);            // bubbles going up
@@ -294,7 +298,7 @@ motes(4000).rising(0 - 1.5).size(0.02).color(0xFFFFFFFF);   // snow</pre></div>
 </section>
 <section class="type" id="plant">
 <h2><span class="kind">class</span> plant</h2>
-<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/plant.sharp">source</a></p>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/plant.sharp">source</a></p>
 <p>plant - a tree, grown by the program: a trunk that tapers and leans, limbs that branch and reach up, and foliage on them.</p>
 <div class="code"><pre class="sharp">oak := tree(7);                 // a broad-leaved tree; another number, another tree
 fir := pine(3);                 // a conifer</pre></div>
@@ -317,7 +321,7 @@ fir := pine(3);                 // a conifer</pre></div>
 </section>
 <section class="type" id="plants">
 <h2><span class="kind">class</span> plants</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/plant.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/plant.sharp">source</a></p>
 <p>plants - the trees already grown, by kind and seed: tree(7) asked for a second time (the screen was rebuilt) gets the shape of the first.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="plants.grown"><div class="sig">static def <b>grown</b>(kind: string, seed: decimal, full: bool) : plant</div><p>a tree of this kind (&quot;tree&quot;, &quot;pine&quot;) and seed, full or simple: grown now, or the one grown before</p></div>
@@ -326,7 +330,7 @@ fir := pine(3);                 // a conifer</pre></div>
 </section>
 <section class="type" id="scattering">
 <h2><span class="kind">class</span> scattering</h2>
-<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/terrain.sharp">source</a></p>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/terrain.sharp">source</a></p>
 <p>scattering - many copies of one thing, strewn about: a forest, rocks on a slope, grass, a crowd of crates.</p>
 <div class="code"><pre class="sharp">pine := tree(7);
 scene {
@@ -372,7 +376,7 @@ far(cheaper, 80)        beyond 80 metres draw this simpler thing in its place</p
 </section>
 <section class="type" id="scene">
 <h2><span class="kind">class</span> scene</h2>
-<p class="meta"><code>base widget : behavior, pointer_target, wheel_target, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/scene.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, pointer_target, wheel_target, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/scene.sharp">source</a></p>
 <p>scene - a 3D view: a widget like any other, with a world in it.</p>
 <div class="code"><pre class="sharp">scene {
     cube(1).texture(&quot;assets/crate.png&quot;).spin(40);
@@ -418,7 +422,7 @@ on_frame { f -&gt; ... }   your code, run before every frame: move things, read 
 </section>
 <section class="type" id="shape_store">
 <h2><span class="kind">class</span> shape_store</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/shape_store.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/shape_store.sharp">source</a></p>
 <p>shape_store - one copy of every shape the words make.</p>
 <p>A screen is built again whenever its state changes, and every build runs cube(1), sphere(0.5) ... again. The THINGS are new each time (they are a few numbers); the SHAPE on the graphics card is not: the words ask here first, by a name that says exactly which shape (&quot;cube 1 1 1&quot;).</p>
 <h3>Functions</h3><div>
@@ -429,7 +433,7 @@ on_frame { f -&gt; ... }   your code, run before every frame: move things, read 
 </section>
 <section class="type" id="shapes">
 <h2><span class="kind">class</span> shapes</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/shapes.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/shapes.sharp">source</a></p>
 <p>shapes - the meshes behind the words cube, sphere, cylinder, ground ...</p>
 <p>Each function makes a NEW mesh, with facings and texture points, which you may change like any mesh before it is shown: stretch it, turn it, tint its corners, add it into a bigger one.</p>
 <div class="code"><pre class="sharp">roof := shapes.cylinder(2.2, 0, 1.2, 4).turned(45, 0, 0).moved(0, 3, 0);    // a pyramid
@@ -447,7 +451,7 @@ scene { add(hut).texture(&quot;assets/planks.png&quot;); };</pre></div>
 </section>
 <section class="type" id="stage">
 <h2><span class="kind">class</span> stage</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/thing.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/thing.sharp">source</a></p>
 <p>stage - what makes the nested way of writing a scene work, exactly as <code>scope</code> does for widgets (core/tree/scope.sharp):</p>
 <div class="code"><pre class="sharp">scene {
     cube(1).at(0, 0.5, 0);                  // lands in the scene ...
@@ -466,7 +470,7 @@ scene { add(hut).texture(&quot;assets/planks.png&quot;); };</pre></div>
 </section>
 <section class="type" id="sun">
 <h2><span class="kind">class</span> sun</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/lights.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/lights.sharp">source</a></p>
 <p>sun - the one light that reaches everywhere in a scene, from one direction.</p>
 <div class="code"><pre class="sharp">sun().from(0.8, 0.3, -0.5);                 // low in the east
 sun().from(-0.4, 0.8, 0.5).shadows();       // high, and things throw shadows
@@ -486,7 +490,7 @@ sun().color(0xFFD9A0FF).strength(1.2);      // warm evening light</pre></div>
 </section>
 <section class="type" id="terrain">
 <h2><span class="kind">class</span> terrain</h2>
-<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/terrain.sharp">source</a></p>
+<p class="meta"><code>base thing</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/terrain.sharp">source</a></p>
 <p>terrain - land: ground whose height you give as a function of where it is.</p>
 <div class="code"><pre class="sharp">land := terrain(320, { x: decimal, z: decimal -&gt; return hills(x, z); });
 land.texture(&quot;assets/grass.png&quot;, 60);</pre></div>
@@ -515,7 +519,7 @@ land.texture(&quot;assets/grass.png&quot;, 60);</pre></div>
 </section>
 <section class="type" id="thing">
 <h2><span class="kind">class</span> thing</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/thing.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/thing.sharp">source</a></p>
 <p>thing - anything that stands in a scene: a shape, a model from a file, a group of other things.</p>
 <p>You rarely write <code>thing</code> itself. The words make them - cube, sphere, model, group, terrain, tree ... - and everything about how a thing sits and looks is chained onto it, the way a text&#x27;s size is chained onto a text:</p>
 <div class="code"><pre class="sharp">model(&quot;assets/car.obj&quot;).at(0, 0, -4).turn(30).color(0xD63031FF);</pre></div>
@@ -588,7 +592,7 @@ add(cliff).rough(0.8);</pre></div>
 </section>
 <section class="type" id="water">
 <h2><span class="kind">class</span> water</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/three/water.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/three/water.sharp">source</a></p>
 <p>water - the water a scene is in, when the eye is under its surface. Made with underwater(shallow, deep) inside a scene; every setting has a value already, so underwater(...) alone is a sea.</p>
 <div class="code"><pre class="sharp">scene {
     underwater(0x35C6D0FF, 0x0A2E4AFF)

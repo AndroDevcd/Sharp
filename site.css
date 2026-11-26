@@ -1,40 +1,51 @@
-/* Layout: a steel-and-ink language site. Nothing is rounded: corners are square or cut on a diagonal, like the name.
-   One hot accent (cobalt) on cool neutrals; code always sits on an ink panel. Three views on the hash: home, library, install. */
+/* Layout: a language site in the brand's colours. Nothing is rounded: corners are square or cut on a diagonal, like the blade.
+   One accent on cool neutrals; code always sits on an ink panel.
+
+   THE COLOUR SCHEME IS THESE THREE BLOCKS AND NOTHING ELSE: every rule below takes its colours from the
+   names defined here. The light scheme comes first; the dark one is written twice with the same values
+   (once for a visitor whose system is dark, once for the switch in the header, which sets data-theme).
+
+   The brand (the kit's README): Sharp Cyan #00D4E6, Sharp Teal #007999, Ink #1B1E22, White #FFFFFF.
+   On a light page the accent is the teal (the cyan is too pale to read on white); on a dark page it is the cyan. */
 :root {
-  --bg: #F5F7FA;
+  --bg: #F6F8F9;
   --surface: #FFFFFF;
-  --band: #E9EDF3;
-  --ink: #0F1522;
-  --muted: #556074;
-  --line: #CCD3DE;
-  --accent: #2346E0;
+  --band: #EAF0F2;
+  --ink: #1B1E22;
+  --muted: #56616B;
+  --line: #CDD6DB;
+  --accent: #007999;
   --accent-ink: #FFFFFF;
-  --accent-soft: #DDE4FF;
+  --accent-soft: #D5F5F9;
   --ok: #0E7A4B;
-  --code-bg: #0F1522;
-  --code-line: #283248;
-  --code-fg: #DCE3F0;
-  --code-kw: #8FA6FF;
+  --code-bg: #1B1E22;
+  --code-line: #30363D;
+  --code-fg: #E3E8EC;
+  --code-kw: #00D4E6;
   --code-str: #F2C46B;
-  --code-com: #7A879E;
-  --code-num: #7FD6C2;
-  --display: "Poppins", "Segoe UI", system-ui, sans-serif;
-  --body: "Poppins", "Segoe UI", system-ui, sans-serif;
-  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --code-com: #8A959E;
+  --code-num: #8FE3C9;
+  --logo-on-light: block;                   /* which of the header's two logos shows */
+  --logo-on-dark: none;
+  --display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --body: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   --cut: 14px;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0B1019; --surface: #121927; --band: #0F1623; --ink: #E8EDF6; --muted: #98A4B8; --line: #263147;
-    --accent: #7C93FF; --accent-ink: #0B1019; --accent-soft: #1B2547; --ok: #4FD39A;
-    --code-bg: #070B12; --code-line: #1E2738;
+    --bg: #14171A; --surface: #1B1E22; --band: #171A1E; --ink: #EEF1F3; --muted: #9BA6AF; --line: #2F353C;
+    --accent: #00D4E6; --accent-ink: #1B1E22; --accent-soft: #0C3A43; --ok: #4FD39A;
+    --code-bg: #0F1113; --code-line: #272C32;
+    --logo-on-light: none; --logo-on-dark: block;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0B1019; --surface: #121927; --band: #0F1623; --ink: #E8EDF6; --muted: #98A4B8; --line: #263147;
-  --accent: #7C93FF; --accent-ink: #0B1019; --accent-soft: #1B2547; --ok: #4FD39A;
-  --code-bg: #070B12; --code-line: #1E2738;
+  --bg: #14171A; --surface: #1B1E22; --band: #171A1E; --ink: #EEF1F3; --muted: #9BA6AF; --line: #2F353C;
+  --accent: #00D4E6; --accent-ink: #1B1E22; --accent-soft: #0C3A43; --ok: #4FD39A;
+  --code-bg: #0F1113; --code-line: #272C32;
+  --logo-on-light: none; --logo-on-dark: block;
   color-scheme: dark;
 }
 
@@ -53,8 +64,13 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--surface); border-bottom: 1px solid var(--line); }
 header.top .wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding-block: 10px; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-family: var(--display); font-weight: 800; font-size: 22px; }
-.mark { width: 30px; height: 30px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-family: var(--mono); font-weight: 600; font-size: 19px;
-        clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%); }
+.brand img { height: 40px; width: auto; }
+.brand .on-light { display: var(--logo-on-light); }
+.brand .on-dark { display: var(--logo-on-dark); }
+/* the switch between the light and the dark scheme (site.js) */
+.theme { width: 30px; height: 30px; padding: 0; border: 1px solid var(--line); background: transparent; cursor: pointer; display: grid; place-items: center; }
+.theme::before { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--ink); background: linear-gradient(90deg, var(--ink) 50%, transparent 50%); }
+.theme:hover { border-color: var(--ink); }
 nav.main { display: flex; gap: 4px; flex-wrap: wrap; margin-left: auto; }
 nav.main a { text-decoration: none; color: var(--muted); font-weight: 500; font-size: 15px; padding: 6px 10px; border-bottom: 2px solid transparent; }
 nav.main a:hover { color: var(--ink); }

@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.system - Sharp standard library</title>
 <meta name="description" content="The std.system module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -60,7 +64,7 @@
 <p class="contents"><a href="#args_exception">args_exception</a> <a href="#args_option">args_option</a> <a href="#args_parser">args_parser</a> <a href="#environment">environment</a> <a href="#gc">gc</a> <a href="#gc_hook">gc_hook</a> <a href="#gc_mode">gc_mode</a> <a href="#gc_stats">gc_stats</a> <a href="#logger">logger</a> <a href="#platform_info">platform_info</a> <a href="#process">process</a> <a href="#rotating_log_file">rotating_log_file</a> <a href="#signal_hook">signal_hook</a> <a href="#signals">signals</a> <a href="#subprocess">subprocess</a> <a href="#windows_environment_clear">windows_environment_clear</a></p>
 <section class="type" id="args_exception">
 <h2><span class="kind">class</span> args_exception</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/args_exception.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/args_exception.sharp">source</a></p>
 <p>Thrown by args_parser.parse() when the command line does not fit what the program declared: an unknown option, an option without its value, a missing required option or argument, too many arguments, a value that is not a number where one is needed.</p>
 <p>The message is meant for the user of the program, e.g.</p>
 <div class="code"><pre class="sharp">unknown option --colour
@@ -73,7 +77,7 @@ missing required argument &lt;source&gt;</pre></div>
 </section>
 <section class="type" id="args_option">
 <h2><span class="kind">class</span> args_option</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/args_option.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/args_option.sharp">source</a></p>
 <p>One thing an args_parser knows about: a flag (--verbose), an option with a value (--output FILE) or a positional argument (&lt;source&gt;), with its description and - after parsing - what the command line gave for it.</p>
 <p>Programs declare these through args_parser.add_flag / add_option / add_positional and read the results through the parser; this class only holds the data.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>kind_flag</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>kind_value</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>kind_positional</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>kind</code></td><td><code>decimal</code></td><td>which of the three kinds this is</td></tr><tr><td><code>name</code></td><td><code>string</code></td><td>the long name, without the dashes (&quot;output&quot;); for a positional the name shown in the help</td></tr><tr><td><code>letter</code></td><td><code>decimal</code></td><td>the one-letter name as a character code (&#x27;o&#x27;), or 0 when there is none</td></tr><tr><td><code>value_name</code></td><td><code>string</code></td><td>what the value is called in the help (&quot;FILE&quot;); only for options with a value</td></tr><tr><td><code>description</code></td><td><code>string</code></td><td>the text for the help</td></tr><tr><td><code>required</code></td><td><code>decimal</code></td><td>1 when leaving it out is an error</td></tr><tr><td><code>has_default</code></td><td><code>decimal</code></td><td>1 when there is a default value</td></tr><tr><td><code>default_value</code></td><td><code>string</code></td><td>the value used when the command line does not give one</td></tr><tr><td><code>seen</code></td><td><code>decimal</code></td><td>how many times it appeared on the command line</td></tr><tr><td><code>value</code></td><td><code>string</code></td><td>the value from the command line (the last one when it appeared several times)</td></tr><tr><td><code>values</code></td><td><code></code></td><td>all values from the command line in order, for options that may be repeated</td></tr></table></div>
@@ -84,7 +88,7 @@ missing required argument &lt;source&gt;</pre></div>
 </section>
 <section class="type" id="args_parser">
 <h2><span class="kind">class</span> args_parser</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/args_parser.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/args_parser.sharp">source</a></p>
 <p>Takes the command line of a program apart: flags, options with values and positional arguments, with defaults, checks, and a generated help text.</p>
 <div class="code"><pre class="sharp">def main(args: string[]) {
     parser := new args_parser(&quot;copytool&quot;, &quot;Copies files with style.&quot;);
@@ -135,7 +139,7 @@ if(parser.help_requested()) { println(parser.help()); exit(0); }</pre></div>
 </section>
 <section class="type" id="environment">
 <h2><span class="kind">class</span> environment</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/environment.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/environment.sharp">source</a></p>
 <p>THE ENVIRONMENT: the named texts every program is started with</p>
 <div class="code"><pre class="sharp">home := environment.value(&quot;HOME&quot;);                // null when it is not set
 level := environment.value_or(&quot;LOG_LEVEL&quot;, &quot;info&quot;);
@@ -154,7 +158,7 @@ environment.remove(&quot;MY_TOOL_DIR&quot;);</pre></div>
 </section>
 <section class="type" id="gc">
 <h2><span class="kind">class</span> gc</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/gc.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/gc.sharp">source</a></p>
 <p>THE GARBAGE COLLECTOR: when it runs, and what it has been doing</p>
 <p>A collection stops the program for a moment. Most programs never notice. One that draws a picture sixty times a second does: a pause in the middle of a frame is a frame that comes late. Such a program takes the decision for itself:</p>
 <div class="code"><pre class="sharp">gc.set_mode(gc_mode.manual);        // from here on nothing is collected ...
@@ -215,7 +219,7 @@ OutOfMemoryError can be caught too, but with no reserve to handle it in.</pre></
 </section>
 <section class="type" id="gc_hook">
 <h2><span class="kind">class</span> gc_hook</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/gc.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/gc.sharp">source</a></p>
 <p>one hook of <code>gc</code> (a function value cannot be the element of a list by itself)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="gc_hook.gc_hook"><div class="sig"><b>gc_hook</b>(work: ()())</div></div>
@@ -224,14 +228,14 @@ OutOfMemoryError can be caught too, but with no reserve to handle it in.</pre></
 </section>
 <section class="type" id="gc_mode">
 <h2><span class="kind">enum</span> gc_mode</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/gc.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/gc.sharp">source</a></p>
 <p>How the garbage collector decides when to run.</p>
 <div class="code"><pre class="sharp">normal      on its own, when memory is needed. What every program starts with.
 manual      only when the program asks (gc.collect(), gc.collect_young()).</pre></div>
 </section>
 <section class="type" id="gc_stats">
 <h2><span class="kind">class</span> gc_stats</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/gc.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/gc.sharp">source</a></p>
 <p>what the collector has been doing, at the moment gc.stats() was called</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>mode</code></td><td><code>gc_mode</code></td><td></td></tr><tr><td><code>memory_in_use</code></td><td><code>_int64</code></td><td>bytes</td></tr><tr><td><code>memory_limit</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>allocated_since_collection</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>collections</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>full_collections</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>last_pause</code></td><td><code>decimal</code></td><td>milliseconds</td></tr><tr><td><code>longest_pause</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>total_pause</code></td><td><code>decimal</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -240,7 +244,7 @@ manual      only when the program asks (gc.collect(), gc.collect_young()).</pre>
 </section>
 <section class="type" id="logger">
 <h2><span class="kind">class</span> logger</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/logger.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/logger.sharp">source</a></p>
 <p>Writes log messages with a level, optionally a time stamp, and a name, to the console, to files, or to any text_writer.</p>
 <div class="code"><pre class="sharp">log := new logger(&quot;server&quot;);
 log.add_console();
@@ -292,7 +296,7 @@ log.close();</pre></div>
 </section>
 <section class="type" id="platform_info">
 <h2><span class="kind">class</span> platform_info</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/platform_info.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/platform_info.sharp">source</a></p>
 <p>Facts about the machine and the running program: which operating system, how many processors, where the directories are, what the program is called.</p>
 <div class="code"><pre class="sharp">if(platform_info.is_windows()) { ... }
 println(platform_info.os_name() + &quot;, &quot; + platform_info.processor_count() + &quot; cores&quot;);
@@ -322,7 +326,7 @@ config := platform_info.home_directory() + &quot;/.myapp&quot;;</pre></div>
 </section>
 <section class="type" id="process">
 <h2><span class="kind">class</span> process</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/process.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/process.sharp">source</a></p>
 <p>Runs a command of the operating system and tells what came out of it.</p>
 <div class="code"><pre class="sharp">result := process.run(&quot;git status --short&quot;);
 if(result.succeeded()) {
@@ -355,7 +359,7 @@ if(result.succeeded()) {
 </section>
 <section class="type" id="rotating_log_file">
 <h2><span class="kind">class</span> rotating_log_file</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/logger.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/logger.sharp">source</a></p>
 <p>A log file that is appended to and replaced by a new one when it is full (logger.add_rotating_file). It is kept open; each line goes to the end of the file, so nothing that is there is written again.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="rotating_log_file.rotating_log_file"><div class="sig"><b>rotating_log_file</b>(path: string, most: decimal, keep: decimal)</div></div>
@@ -366,7 +370,7 @@ if(result.succeeded()) {
 </section>
 <section class="type" id="signal_hook">
 <h2><span class="kind">class</span> signal_hook</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/signals.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/signals.sharp">source</a></p>
 <p>one hook of <code>signals</code> (a function value cannot be the element of a list by itself)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="signal_hook.signal_hook"><div class="sig"><b>signal_hook</b>(work: ()())</div></div>
@@ -375,7 +379,7 @@ if(result.succeeded()) {
 </section>
 <section class="type" id="signals">
 <h2><span class="kind">class</span> signals</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/signals.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/signals.sharp">source</a></p>
 <p>SIGNALS: being told when someone asks the program to stop, instead of being stopped</p>
 <div class="code"><pre class="sharp">signals.on_interrupt({ -&gt;                   // Ctrl+C
     println(&quot;saving before I go...&quot;);
@@ -402,7 +406,7 @@ channel read by a goroutine - the same idea as here.</pre></div>
 </section>
 <section class="type" id="subprocess">
 <h2><span class="kind">class</span> subprocess</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/subprocess.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/subprocess.sharp">source</a></p>
 <p>A PROGRAM THIS PROGRAM STARTS AND TALKS TO WHILE IT RUNS</p>
 <div class="code"><pre class="sharp">child := subprocess.start(&quot;ping example.com&quot;);
 while(true) {
@@ -456,7 +460,7 @@ again := subprocess.run(program_path(), new string[] { &quot;child&quot; });    
 </section>
 <section class="type" id="windows_environment_clear">
 <h2><span class="kind">class</span> windows_environment_clear</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/system/environment.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/system/environment.sharp">source</a></p>
 <p>SetEnvironmentVariableA with no text (C&#x27;s NULL) for the value, which is how Windows takes a name out</p>
 </section>
     </main>

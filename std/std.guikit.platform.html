@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.platform - Sharp standard library</title>
 <meta name="description" content="The std.guikit.platform module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#color">color</a> <a href="#event">event</a> <a href="#font">font</a> <a href="#image">image</a> <a href="#painter">painter</a> <a href="#shape_batch">shape_batch</a> <a href="#surface">surface</a> <a href="#window">window</a> <a href="#window_mode">window_mode</a> <a href="#constants">constants</a></p>
 <section class="type" id="color">
 <h2><span class="kind">class</span> color</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/platform/color.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/platform/color.sharp">source</a></p>
 <p>color - how much red, green and blue a thing is, and how solid it is (alpha). Every channel is 0..255; alpha 255 is fully solid, 0 is invisible.</p>
 <p>Like java.awt.Color or Compose&#x27;s Color. Make one through the front door so your code reads in one voice:</p>
 <div class="code"><pre class="sharp">p.rect(10, 10, 200, 80, gui.rgb(24, 28, 40));          // solid dark blue
@@ -98,7 +102,7 @@ p.rect(10, 10, 200, 80, gui.rgba(0, 0, 0, 128));       // half see-through black
 </section>
 <section class="type" id="event">
 <h2><span class="kind">class</span> event</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/platform/event.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/platform/event.sharp">source</a></p>
 <p>event - one thing that happened to a window: a key, the mouse, the close button, a resize, typed text.</p>
 <p><code>kind</code> says which (the EVENT_ list above), and only the fields that kind fills in mean anything - the rest are 0. Like an SDL_Event or an Android MotionEvent/KeyEvent rolled into one small record.</p>
 <div class="code"><pre class="sharp">e := w.next_event();
@@ -120,7 +124,7 @@ while(e.kind != EVENT_NONE) {
 </section>
 <section class="type" id="font">
 <h2><span class="kind">class</span> font</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/platform/font.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/platform/font.sharp">source</a></p>
 <p>font - a typeface at one size, ready to draw text with.</p>
 <div class="code"><pre class="sharp">title := gui.font(28);                       // the system&#x27;s standard font, 28 pixels
 mono  := gui.font(&quot;fonts/code.ttf&quot;, 14);     // your own .ttf file</pre></div>
@@ -137,7 +141,7 @@ wide := title.width_of(&quot;Hello&quot;);             // to centre or right-ali
 </section>
 <section class="type" id="image">
 <h2><span class="kind">class</span> image</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/platform/image.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/platform/image.sharp">source</a></p>
 <p>image - a picture loaded from a file (PNG, JPG, BMP, GIF), ready to draw.</p>
 <div class="code"><pre class="sharp">logo := gui.image(&quot;assets/logo.png&quot;);
 p.image(logo, 20, 20);                       // at its own size
@@ -151,7 +155,7 @@ p.image(logo, 20, 20, 64, 64);               // stretched to 64 x 64</pre></div>
 </section>
 <section class="type" id="painter">
 <h2><span class="kind">class</span> painter</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/platform/painter.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/platform/painter.sharp">source</a></p>
 <p>painter - the thing you draw with. Shapes, lines, text and pictures.</p>
 <p>Get it from the window and paint between clear() and show():</p>
 <div class="code"><pre class="sharp">p := w.painter();
@@ -224,7 +228,7 @@ p.unfade(before);</pre></div>
 </section>
 <section class="type" id="shape_batch">
 <h2><span class="kind">class</span> shape_batch</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/platform/shape_batch.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/platform/shape_batch.sharp">source</a></p>
 <p>shape_batch - many shapes, painted with ONE call.</p>
 <div class="code"><pre class="sharp">shapes := new shape_batch();                // once, before the frame loop</pre></div>
 <div class="code"><pre class="sharp">shapes.clear();                             // every frame: fill it again ...
@@ -251,7 +255,7 @@ p.draw(shapes);                             // ... and paint all of it</pre></di
 </section>
 <section class="type" id="surface">
 <h2><span class="kind">class</span> surface</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/platform/surface.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/platform/surface.sharp">source</a></p>
 <p>surface - loads the native backend exactly once, the first time any window is made. The user never calls load_library: the window constructor asks here, and here we load it from beside the <code>sharp</code> runtime (runtime_folder()), wherever the install put it. <code>ready</code> makes it happen once and no more.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>ready</code></td><td><code>_int64</code></td><td>1 once the library is loaded (a number, not a bool: bools are shared objects)</td></tr></table></div>
 <h3>Functions</h3><div>
@@ -260,7 +264,7 @@ p.draw(shapes);                             // ... and paint all of it</pre></di
 </section>
 <section class="type" id="window">
 <h2><span class="kind">class</span> window</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/platform/window.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/platform/window.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="window.window"><div class="sig"><b>window</b>(w: _int32, h: _int32)</div><p>A WINDOW THAT IS NOT THERE: nothing opens on any screen and the native library is not loaded. It has a size, a clock and events like a real one, but they are whatever the program says they are:</p>
@@ -291,7 +295,7 @@ resize(w, h)        the size changes</pre></div>
 </section>
 <section class="type" id="window_mode">
 <h2><span class="kind">enum</span> window_mode</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/platform/window.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/platform/window.sharp">source</a></p>
 <p>How a window sits on the screen.</p>
 <div class="code"><pre class="sharp">windowed     an ordinary window of the size it was opened with
 maximized    fills the desktop; the title bar and the taskbar stay

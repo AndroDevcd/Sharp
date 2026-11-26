@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.data - Sharp standard library</title>
 <meta name="description" content="The std.data module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -60,7 +64,7 @@
 <p class="contents"><a href="#base64">base64</a> <a href="#csv_exception">csv_exception</a> <a href="#csv_reader">csv_reader</a> <a href="#csv_row">csv_row</a> <a href="#csv_writer">csv_writer</a> <a href="#hex">hex</a> <a href="#ini_file">ini_file</a> <a href="#ini_section">ini_section</a> <a href="#json">json</a> <a href="#json_exception">json_exception</a> <a href="#json_member_order">json_member_order</a> <a href="#json_objects">json_objects</a> <a href="#json_parser">json_parser</a> <a href="#json_value">json_value</a> <a href="#json_writer">json_writer</a> <a href="#sql_exception">sql_exception</a> <a href="#sql_row">sql_row</a> <a href="#sql_statement">sql_statement</a> <a href="#sql_value">sql_value</a> <a href="#sqlite">sqlite</a> <a href="#sqlite_library">sqlite_library</a> <a href="#url_codec">url_codec</a> <a href="#xml_writer">xml_writer</a></p>
 <section class="type" id="base64">
 <h2><span class="kind">class</span> base64</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/encoding/base64.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/encoding/base64.sharp">source</a></p>
 <p>Base64: writes any bytes with 64 harmless characters (A-Z a-z 0-9 and two more), three bytes becoming four characters. Used wherever binary data has to travel as text: e-mail attachments, data in JSON or XML, tokens.</p>
 <div class="code"><pre class="sharp">base64.encode(&quot;hello&quot;)              &quot;aGVsbG8=&quot;
 base64.decode(&quot;aGVsbG8=&quot;)           &quot;hello&quot;
@@ -83,7 +87,7 @@ base64.encode_url(&quot;\xfb\xff&quot;)       &quot;-_8&quot;       (URL safe, n
 </section>
 <section class="type" id="csv_exception">
 <h2><span class="kind">class</span> csv_exception</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/csv/csv_exception.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/csv/csv_exception.sharp">source</a></p>
 <p>Thrown by csv_reader for text that is not well formed CSV: a quoted field that is never closed, or text directly behind the closing quote of a field (&quot;ab&quot;c). Also thrown by csv_writer and csv_reader for settings that cannot work (a separator that is a quote or a line end).</p>
 <p><code>line</code> is the line of the text where the problem is (counting from 1, and counting the line breaks inside quoted fields too), <code>column</code> the place in that line (from 1). Both are -1 when the error is not about a place in a text. The message already contains them.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>line</code></td><td><code>decimal</code></td><td>line of the problem, counting from 1, or -1</td></tr><tr><td><code>column</code></td><td><code>decimal</code></td><td>place within the line, counting from 1, or -1</td></tr></table></div>
@@ -94,7 +98,7 @@ base64.encode_url(&quot;\xfb\xff&quot;)       &quot;-_8&quot;       (URL safe, n
 </section>
 <section class="type" id="csv_reader">
 <h2><span class="kind">class</span> csv_reader</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/csv/csv_reader.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/csv/csv_reader.sharp">source</a></p>
 <p>Reads CSV (comma separated values) text: rows of fields.</p>
 <div class="code"><pre class="sharp">rows := csv_reader.parse(&quot;name,age\nAda,36\n\&quot;Smith, John\&quot;,41\n&quot;);
 rows.at(2).at(0)                  // Smith, John   (rows: list&lt;csv_row&gt;)</pre></div>
@@ -128,7 +132,7 @@ while(reader.has_next()) {
 </section>
 <section class="type" id="csv_row">
 <h2><span class="kind">class</span> csv_row</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/csv/csv_row.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/csv/csv_row.sharp">source</a></p>
 <p>One row of CSV data: its fields in order, and - when the reader read a header - the names of the columns, so that a field can be asked for by name.</p>
 <div class="code"><pre class="sharp">row := reader.next_row();
 row.at(0)                 // the first field
@@ -154,7 +158,7 @@ row.add(&quot;Ada&quot;).add(&quot;36&quot;);</pre></div>
 </section>
 <section class="type" id="csv_writer">
 <h2><span class="kind">class</span> csv_writer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/csv/csv_writer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/csv/csv_writer.sharp">source</a></p>
 <p>Writes CSV (comma separated values) text: rows of fields, quoted where needed so that a csv_reader with the same settings reads back exactly the same fields.</p>
 <div class="code"><pre class="sharp">out := new csv_writer();
 out.write_field(&quot;name&quot;).write_field(&quot;age&quot;).end_row();
@@ -187,7 +191,7 @@ out.save(new file(&quot;people.csv&quot;));</pre></div>
 </section>
 <section class="type" id="hex">
 <h2><span class="kind">class</span> hex</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/encoding/hex.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/encoding/hex.sharp">source</a></p>
 <p>Hexadecimal: bytes written as two digits each (0-9, a-f), and the classic &quot;hex dump&quot; for looking at binary data.</p>
 <div class="code"><pre class="sharp">hex.encode(&quot;Hi!&quot;)                 &quot;486921&quot;
 hex.decode(&quot;486921&quot;)              &quot;Hi!&quot;
@@ -215,7 +219,7 @@ hex.dump(&quot;Hello, world! 123&quot;)
 </section>
 <section class="type" id="ini_file">
 <h2><span class="kind">class</span> ini_file</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/config/ini_file.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/config/ini_file.sharp">source</a></p>
 <p>Settings in the INI format: sections with &quot;key = value&quot; lines.</p>
 <div class="code"><pre class="sharp">; comment
 name = demo</pre></div>
@@ -258,7 +262,7 @@ config.save(new file(&quot;app.ini&quot;));</pre></div>
 </section>
 <section class="type" id="ini_section">
 <h2><span class="kind">class</span> ini_section</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/config/ini_section.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/config/ini_section.sharp">source</a></p>
 <p>One section of an ini_file: a name and its &quot;key = value&quot; entries, in the order they were added. A key occurs once; putting it again replaces the value. Keys are compared exactly (case matters).</p>
 <p>Programs normally go through ini_file (find, put, ...); a section object is handy to walk over all entries of a section:</p>
 <div class="code"><pre class="sharp">section := config.section(&quot;server&quot;);
@@ -280,7 +284,7 @@ for(i : decimal = 0; i &lt; section.size(); i++) {
 </section>
 <section class="type" id="json">
 <h2><span class="kind">class</span> json</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/json/json.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/json/json.sharp">source</a></p>
 <p>JSON AND YOUR OWN CLASSES</p>
 <div class="code"><pre class="sharp">class address { street : string = &quot;&quot;; city : string = &quot;&quot;; }</pre></div>
 <div class="code"><pre class="sharp">class user {
@@ -331,7 +335,7 @@ Kotlin: Json.decodeFromString&lt;User&gt;(text).</pre></div>
 </section>
 <section class="type" id="json_exception">
 <h2><span class="kind">class</span> json_exception</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/json/json_exception.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/json/json_exception.sharp">source</a></p>
 <p>Thrown by the JSON classes: by json_parser for text that is not valid JSON, by json_value when a value is used as something it is not (asking a string for its number, a missing member, an index outside an array), and by json_writer for a number JSON cannot express (NaN, infinity).</p>
 <p>For a parse error the place is recorded: <code>position</code> is the index of the offending character in the text (from 0), <code>line</code> and <code>column</code> count from 1. The message already contains them, e.g.</p>
 <div class="code"><pre class="sharp">expected &#x27;,&#x27; or &#x27;}&#x27; but found &#x27;]&#x27; at line 3, column 14</pre></div>
@@ -344,7 +348,7 @@ Kotlin: Json.decodeFromString&lt;User&gt;(text).</pre></div>
 </section>
 <section class="type" id="json_member_order">
 <h2><span class="kind">class</span> json_member_order</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/json/json_member_order.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/json/json_member_order.sharp">source</a></p>
 <p>Helper of json_writer: the order in which the entries of one array or object are written - as they are, or, for an object when keys are sorted, by name. Programs do not need this class.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="json_member_order.json_member_order"><div class="sig"><b>json_member_order</b>(container: json_value, sorted: decimal)</div></div>
@@ -353,7 +357,7 @@ Kotlin: Json.decodeFromString&lt;User&gt;(text).</pre></div>
 </section>
 <section class="type" id="json_objects">
 <h2><span class="kind">class</span> json_objects</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/json/json.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/json/json.sharp">source</a></p>
 <p>how json.to / json.of work: objects made and read through std.reflect</p>
 <h3>Functions</h3><div>
 <div class="fn" id="json_objects.fill_top"><div class="sig">static def <b>fill_top</b>(target: object, value: json_value)</div></div>
@@ -362,7 +366,7 @@ Kotlin: Json.decodeFromString&lt;User&gt;(text).</pre></div>
 </section>
 <section class="type" id="json_parser">
 <h2><span class="kind">class</span> json_parser</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/json/json_parser.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/json/json_parser.sharp">source</a></p>
 <p>Turns JSON text into a json_value.</p>
 <div class="code"><pre class="sharp">doc := json_parser.parse(&quot;{\&quot;ok\&quot;: true, \&quot;items\&quot;: [1, 2, 3]}&quot;);
 doc := json_parser.parse_file(new file(&quot;config.json&quot;));</pre></div>
@@ -382,7 +386,7 @@ doc := json_parser.parse_file(new file(&quot;config.json&quot;));</pre></div>
 </section>
 <section class="type" id="json_value">
 <h2><span class="kind">class</span> json_value</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/json/json_value.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/json/json_value.sharp">source</a></p>
 <p>One JSON value: null, a boolean, a number, a string, an array of values or an object (names with values). A whole JSON document is a json_value whose arrays and objects hold more json_values.</p>
 <p>Reading:</p>
 <div class="code"><pre class="sharp">doc := json_parser.parse(&quot;{\&quot;name\&quot;: \&quot;Ada\&quot;, \&quot;tags\&quot;: [\&quot;a\&quot;, \&quot;b\&quot;], \&quot;age\&quot;: 36}&quot;);
@@ -463,7 +467,7 @@ text := doc.to_string();     // {&quot;name&quot;:&quot;Ada&quot;,&quot;age&quot
 </section>
 <section class="type" id="json_writer">
 <h2><span class="kind">class</span> json_writer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/json/json_writer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/json/json_writer.sharp">source</a></p>
 <p>Turns a json_value into JSON text.</p>
 <div class="code"><pre class="sharp">json_writer.to_compact(doc)        {&quot;name&quot;:&quot;Ada&quot;,&quot;tags&quot;:[&quot;a&quot;,&quot;b&quot;]}
 json_writer.to_pretty(doc)         one member / element per line, 2 spaces per level</pre></div>
@@ -489,7 +493,7 @@ w.write_file(doc, new file(&quot;out.json&quot;));</pre></div>
 </section>
 <section class="type" id="sql_exception">
 <h2><span class="kind">class</span> sql_exception</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/sql/sqlite.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/sql/sqlite.sharp">source</a></p>
 <p>A DATABASE IN A FILE (SQLite)</p>
 <div class="code"><pre class="sharp">db := sqlite.open(&quot;app.db&quot;);                    // made when it is not there; sqlite.memory() for one that is not kept
 db.run(&quot;create table if not exists users (id integer primary key, name text, age integer, admin integer)&quot;);</pre></div>
@@ -516,7 +520,7 @@ db.close();</pre></div>
 </section>
 <section class="type" id="sql_row">
 <h2><span class="kind">class</span> sql_row</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/sql/sqlite.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/sql/sqlite.sharp">source</a></p>
 <p>ONE ROW of a result: its values by column name or by position (0 = first)</p>
 <div class="code"><pre class="sharp">row.text(&quot;name&quot;)    row.number(&quot;age&quot;)   row.flag(&quot;admin&quot;)   row.bytes(&quot;photo&quot;)   row.is_null(&quot;email&quot;)
 row.text_at(0)      row.number_at(1)    row.size()          row.name_at(0)</pre></div>
@@ -540,7 +544,7 @@ row.text_at(0)      row.number_at(1)    row.size()          row.name_at(0)</pre>
 </section>
 <section class="type" id="sql_statement">
 <h2><span class="kind">class</span> sql_statement</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/sql/sqlite.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/sql/sqlite.sharp">source</a></p>
 <p>ONE SQL STATEMENT with its values: made by db.sql(text), given a value for each <code>?</code> with .with(...), and then run in one of these ways:</p>
 <div class="code"><pre class="sharp">run()           for insert, update, delete: how many rows it changed
 rows()          every row, as a list of sql_row
@@ -569,7 +573,7 @@ text()          ... as a text (&quot;&quot; when there is no row)</pre></div>
 </section>
 <section class="type" id="sql_value">
 <h2><span class="kind">class</span> sql_value</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/sql/sqlite.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/sql/sqlite.sharp">source</a></p>
 <p>one value going into a statement or coming out of a row</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>NOTHING</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>WHOLE</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>NUMBER</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>TEXT</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>BYTES</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>kind</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>number</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>bytes</code></td><td><code>_int8[]?</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -580,7 +584,7 @@ text()          ... as a text (&quot;&quot; when there is no row)</pre></div>
 </section>
 <section class="type" id="sqlite">
 <h2><span class="kind">class</span> sqlite</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/sql/sqlite.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/sql/sqlite.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="sqlite.changed"><div class="sig">def <b>changed</b>() : _int64</div><p>how many rows the last insert, update or delete changed</p></div>
@@ -600,7 +604,7 @@ text()          ... as a text (&quot;&quot; when there is no row)</pre></div>
 </section>
 <section class="type" id="sqlite_library">
 <h2><span class="kind">class</span> sqlite_library</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/sql/sqlite.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/sql/sqlite.sharp">source</a></p>
 <p>SQLite&#x27;s C functions</p>
 <h3>Functions</h3><div>
 <div class="fn" id="sqlite_library.find"><div class="sig">static def <b>find</b>()</div><p>say where the library is: winsqlite3.dll is part of Windows; Linux has libsqlite3.so.0</p></div>
@@ -608,7 +612,7 @@ text()          ... as a text (&quot;&quot; when there is no row)</pre></div>
 </section>
 <section class="type" id="url_codec">
 <h2><span class="kind">class</span> url_codec</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/encoding/url_codec.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/encoding/url_codec.sharp">source</a></p>
 <p>Percent encoding for URLs, and building and taking apart query strings.</p>
 <div class="code"><pre class="sharp">url_codec.encode(&quot;a b&amp;c=d/e&quot;)          &quot;a%20b%26c%3Dd%2Fe&quot;
 url_codec.decode(&quot;a%20b%26c&quot;)          &quot;a b&amp;c&quot;
@@ -637,7 +641,7 @@ url_codec.query_value(&quot;q=sharp+lang&amp;page=2&quot;, &quot;q&quot;)    &qu
 </section>
 <section class="type" id="xml_writer">
 <h2><span class="kind">class</span> xml_writer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/data/xml/xml_writer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/data/xml/xml_writer.sharp">source</a></p>
 <p>Writes well formed XML, element by element.</p>
 <div class="code"><pre class="sharp">xml := new xml_writer();
 xml.set_indent(2);

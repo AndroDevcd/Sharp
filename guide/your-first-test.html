@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Your first test - Sharp guide</title>
 <meta name="description" content="The Sharp guide: Your first test.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html" aria-current="page">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -36,6 +40,7 @@
         <li><a href="your-first-program.html">Your first program</a></li>
         <li><a href="a-program-with-a-class.html">A program with a class</a></li>
         <li><a href="a-tour-of-the-language.html">A tour of the language</a></li>
+        <li><a href="dictionaries-with-and-apply.html">Dictionaries, with and apply</a></li>
         <li class="on"><a href="your-first-test.html">Your first test</a></li>
         <li><a href="your-first-window.html">Your first window</a></li>
         <li><a href="your-first-3d-scene.html">Your first 3D scene</a></li>
@@ -48,7 +53,7 @@
       </ul>
     </aside>
     <main>
-      <p class="crumbs">Guide / 5 of 9</p>
+      <p class="crumbs">Guide / 6 of 10</p>
       <h1>Your first test</h1>
 <p>Tests are an ordinary program that uses <code>std.testing</code>:</p>
 <div class="code"><pre class="sharp">mod app;
@@ -76,8 +81,8 @@ def main() {
   ok    adding zero changes nothing
 
 all 2 tests passed</pre></div>
-<p>The program&#x27;s exit code is 0 only when every test passed. Mocks (<code>mock&lt;an_interface&gt;()</code>) and stand-ins for injected objects are shown in the <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/README.md">README</a> and in <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/examples/testing"><code>examples/testing</code></a>.</p>
-      <div class="pager"><a href="a-tour-of-the-language.html">&larr; A tour of the language</a><a href="your-first-window.html">Your first window &rarr;</a></div>
+<p>The program&#x27;s exit code is 0 only when every test passed. Mocks (<code>mock&lt;an_interface&gt;()</code>) and stand-ins for injected objects are shown in the <a href="https://github.com/AndroDevcd/Sharp/blob/master/README.md">README</a> and in <a href="https://github.com/AndroDevcd/Sharp/blob/master/examples/testing"><code>examples/testing</code></a>.</p>
+      <div class="pager"><a href="dictionaries-with-and-apply.html">&larr; Dictionaries, with and apply</a><a href="your-first-window.html">Your first window &rarr;</a></div>
     </main>
 </div></div>
 

@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Calling a C library - Sharp guide</title>
 <meta name="description" content="The Sharp guide: Calling a C library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html" aria-current="page">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -36,6 +40,7 @@
         <li><a href="your-first-program.html">Your first program</a></li>
         <li><a href="a-program-with-a-class.html">A program with a class</a></li>
         <li><a href="a-tour-of-the-language.html">A tour of the language</a></li>
+        <li><a href="dictionaries-with-and-apply.html">Dictionaries, with and apply</a></li>
         <li><a href="your-first-test.html">Your first test</a></li>
         <li><a href="your-first-window.html">Your first window</a></li>
         <li><a href="your-first-3d-scene.html">Your first 3D scene</a></li>
@@ -48,7 +53,7 @@
       </ul>
     </aside>
     <main>
-      <p class="crumbs">Guide / 8 of 9</p>
+      <p class="crumbs">Guide / 9 of 10</p>
       <h1>Calling a C library</h1>
 <p>A Sharp program can call the functions of any C library directly. List them in an <code>extern</code> block, each without a body and under its C name:</p>
 <div class="code"><pre class="sharp">mod app;
@@ -72,7 +77,7 @@ def main() {
 <div class="code"><pre>strlen says 8
 sorted by C: 3 7 19 42</pre></div>
 <ul class="plainlist"><li><b><code>extern &quot;c&quot;</code></b> is C&#x27;s own library, the functions every C program has. Any other name is a library file: <code>extern &quot;SDL2&quot; { ... }</code> opens <code>SDL2.dll</code> on Windows and <code>libSDL2.so</code> on Linux. <code>c_library(&quot;sdl&quot;, &quot;path/or/name&quot;)</code> says which file a name is, and so does <code>&quot;c_libraries&quot;</code> in a project&#x27;s <code>settings.json</code>.</li><li><b>The types</b> are C&#x27;s by their C names: <code>c_int</code>, <code>c_float</code>, <code>c_double</code>, <code>c_size</code>, <code>pointer</code> (an address) and so on. A <code>string</code> is handed over as a C string, an array of numbers as the address of its items.</li><li><b>A C struct</b> is a class based on <code>c_struct</code> whose fields are the members. Written as a parameter it travels by value; written with a <code>?</code> it is a pointer, and what C writes through it is in your object after the call.</li><li><b>A function</b> can be handed to C, as <code>qsort</code> is handed the comparison above.</li><li><b>When something is wrong</b> - the library is not found, the function is not in it - the message lists what was looked for. A crash inside C names the C function, how it was declared and what it was handed.</li></ul>
-<p><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/compiler/doc/extern.md"><code>compiler/doc/extern.md</code></a> has all of it.</p>
+<p><a href="https://github.com/AndroDevcd/Sharp/blob/master/compiler/doc/extern.md"><code>compiler/doc/extern.md</code></a> has all of it.</p>
       <div class="pager"><a href="your-first-3d-scene.html">&larr; Your first 3D scene</a><a href="where-to-go-next.html">Where to go next &rarr;</a></div>
     </main>
 </div></div>

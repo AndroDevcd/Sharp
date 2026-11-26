@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.io.console - Sharp standard library</title>
 <meta name="description" content="The std.io.console module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -65,7 +69,7 @@
 <p class="contents"><a href="#ansi">ansi</a> <a href="#console">console</a> <a href="#console_line_end">console_line_end</a> <a href="#functions">functions</a></p>
 <section class="type" id="ansi">
 <h2><span class="kind">class</span> ansi</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/console/ansi.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/console/ansi.sharp">source</a></p>
 <p>ANSI escape sequences: the control codes terminals understand for colours, bold / underline, clearing the screen and moving the cursor.</p>
 <div class="code"><pre class="sharp">println(ansi.colored(&quot;error:&quot;, ansi.red) + &quot; file not found&quot;);
 println(ansi.styled(&quot;Title&quot;, ansi.bold));
@@ -93,7 +97,7 @@ print(ansi.clear_screen());</pre></div>
 </section>
 <section class="type" id="console">
 <h2><span class="kind">class</span> console</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/console/console.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/console/console.sharp">source</a></p>
 <p>Talking to the person at the terminal: printing numbers the short way, coloured output, clearing the screen, and asking for input with validation.</p>
 <div class="code"><pre class="sharp">console.print_line(&quot;Total: &quot; + io_strings.number_to_string(7.5));
 console.print_colored(&quot;warning&quot;, ansi.yellow);
@@ -133,7 +137,7 @@ if(console.confirm(&quot;Continue?&quot;)) { ... }</pre></div>
 </section>
 <section class="type" id="console_line_end">
 <h2><span class="kind">class</span> console_line_end</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/console/console_functions.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/console/console_functions.sharp">source</a></p>
 <p>what read_line() remembers between two lines</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>after_return</code></td><td><code>_int64</code></td><td>1 when the last line read ended with <code>\r</code>: a <code>\n</code> right after it belongs to that line end</td></tr></table></div>
 </section>

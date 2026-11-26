@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.layout.flow - Sharp standard library</title>
 <meta name="description" content="The std.guikit.layout.flow module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#column">column</a> <a href="#flex">flex</a> <a href="#row">row</a> <a href="#spacer">spacer</a> <a href="#wrap">wrap</a> <a href="#constants">constants</a></p>
 <section class="type" id="column">
 <h2><span class="kind">class</span> column</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/layout/flow/column.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/layout/flow/column.sharp">source</a></p>
 <p>column - children stacked top to bottom.</p>
 <div class="code"><pre class="sharp">column(modifier().padding(16)) {
     text(&quot;Title&quot;).size(24);
@@ -116,7 +120,7 @@
 </section>
 <section class="type" id="flex">
 <h2><span class="kind">class</span> flex</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/layout/flow/flex.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/layout/flow/flex.sharp">source</a></p>
 <p>flex - the ONE algorithm behind both gui.row() and gui.column().</p>
 <p>A row and a column are the same thing turned 90 degrees, so the layout is written once in terms of two directions:</p>
 <div class="code"><pre class="sharp">MAIN  direction: the way children follow each other (down, in a column)
@@ -134,7 +138,7 @@ CROSS direction: the other one                      (across, in a column)</pre><
 </section>
 <section class="type" id="row">
 <h2><span class="kind">class</span> row</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/layout/flow/row.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/layout/flow/row.sharp">source</a></p>
 <p>row - children side by side, left to right.</p>
 <div class="code"><pre class="sharp">gui.row().gap(8)
     .add(gui.text(&quot;Name&quot;))
@@ -165,7 +169,7 @@ CROSS direction: the other one                      (across, in a column)</pre><
 </section>
 <section class="type" id="spacer">
 <h2><span class="kind">class</span> spacer</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/layout/flow/spacer.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/layout/flow/spacer.sharp">source</a></p>
 <p>spacer - empty room.</p>
 <div class="code"><pre class="sharp">gui.row().add(title).add(gui.spacer()).add(close_button)     // pushes them apart
 gui.column().add(a).add(gui.gap(24)).add(b)                  // exactly 24 pixels between</pre></div>
@@ -180,7 +184,7 @@ gui.column().add(a).add(gui.gap(24)).add(b)                  // exactly 24 pixel
 </section>
 <section class="type" id="wrap">
 <h2><span class="kind">class</span> wrap</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/layout/flow/wrap.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/layout/flow/wrap.sharp">source</a></p>
 <p>wrap - children side by side like words in a paragraph: when the line is full, the next child starts a new line.</p>
 <div class="code"><pre class="sharp">wrap {
     for(i : _int64 = 0; i &lt; tags.size(); i++) { tag_chip(tags.at(i)); }

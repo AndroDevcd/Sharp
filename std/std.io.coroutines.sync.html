@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.io.coroutines.sync - Sharp standard library</title>
 <meta name="description" content="The std.io.coroutines.sync module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -65,7 +69,7 @@
 <p class="contents"><a href="#mutex">mutex</a> <a href="#semaphore">semaphore</a></p>
 <section class="type" id="mutex">
 <h2><span class="kind">class</span> mutex</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/sync/mutex.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/coroutines/sync/mutex.sharp">source</a></p>
 <p>mutex - a lock for coroutines: one at a time, the others are SUSPENDED (not spinning, not blocking their thread) until it is their turn.</p>
 <p>USAGE guard := new mutex();</p>
 <div class="code"><pre class="sharp">guard.with_lock({ -&gt;            // acquire, run the block, release - whatever happens
@@ -93,7 +97,7 @@ try { ... } finally { guard.release(); }</pre></div>
 </section>
 <section class="type" id="semaphore">
 <h2><span class="kind">class</span> semaphore</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/sync/semaphore.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/coroutines/sync/semaphore.sharp">source</a></p>
 <p>semaphore - a counter of permits: at most N coroutines inside at the same time, the others are suspended until a permit comes back.</p>
 <p>USAGE downloads := new semaphore(4);           // at most 4 at once</p>
 <div class="code"><pre class="sharp">for(i : decimal = 0; i &lt; 100; i++) {

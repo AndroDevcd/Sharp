@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.core.runtime - Sharp standard library</title>
 <meta name="description" content="The std.guikit.core.runtime module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#main_queue">main_queue</a> <a href="#timer">timer</a> <a href="#ui_host">ui_host</a></p>
 <section class="type" id="main_queue">
 <h2><span class="kind">class</span> main_queue</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/runtime/main_queue.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/runtime/main_queue.sharp">source</a></p>
 <p>main_queue - things to run on the MAIN thread, handed over from other threads. What on_main { } puts its block into.</p>
 <div class="code"><pre class="sharp">launch_on(dispatchers.io(), { -&gt;
     found := load_from_disk();          // slow: on a background thread
@@ -103,7 +107,7 @@
 </section>
 <section class="type" id="timer">
 <h2><span class="kind">class</span> timer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/runtime/timer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/runtime/timer.sharp">source</a></p>
 <p>timer - run something later, or again and again.</p>
 <div class="code"><pre class="sharp">gui.after(2) { banner.value = 0; };              // once, two seconds from now</pre></div>
 <div class="code"><pre class="sharp">tick := gui.every(1) { seconds.value += 1; };    // every second
@@ -123,7 +127,7 @@ tick.cancel();                                   // stop it</pre></div>
 </section>
 <section class="type" id="ui_host">
 <h2><span class="kind">class</span> ui_host</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/runtime/host.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/core/runtime/host.sharp">source</a></p>
 <p>ui_host - runs an app: owns the window and the tree, and turns the crank.</p>
 <p>gui.run(...) makes one and calls run(). There is one live host at a time (<code>ui_host.current</code>); widgets reach it for the theme, fonts, the focus and to ask for another frame.</p>
 <p>THE LOOP - every turn:</p>

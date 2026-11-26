@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.guikit.testing - Sharp standard library</title>
 <meta name="description" content="The std.guikit.testing module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -83,7 +87,7 @@
 <p class="contents"><a href="#held_dispatcher">held_dispatcher</a> <a href="#query_step">query_step</a> <a href="#state_watch">state_watch</a> <a href="#test_screen">test_screen</a> <a href="#ui_node">ui_node</a> <a href="#ui_nodes">ui_nodes</a> <a href="#ui_query">ui_query</a> <a href="#functions">functions</a> <a href="#constants">constants</a></p>
 <section class="type" id="held_dispatcher">
 <h2><span class="kind">class</span> held_dispatcher</h2>
-<p class="meta"><code>: coroutine_dispatcher, holding_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/testing/models.sharp">source</a></p>
+<p class="meta"><code>: coroutine_dispatcher, holding_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/testing/models.sharp">source</a></p>
 <p>A dispatcher for tests: the work it is given is kept, not started, until run_work() - which runs it on the thread that made the dispatcher, the test&#x27;s. Made with test_dispatcher().</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>waiting</code></td><td><code>list&lt;job&gt;</code></td><td>the work every test dispatcher has been given and that has not run yet, in the order it was given</td></tr></table></div>
 <h3>Functions</h3><div>
@@ -94,7 +98,7 @@
 </section>
 <section class="type" id="query_step">
 <h2><span class="kind">class</span> query_step</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/testing/finders.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/testing/finders.sharp">source</a></p>
 <p>one step of a question: what to find, or what to keep of what was found</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>how</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>what</code></td><td><code>string</code></td><td>the tag, or the words</td></tr><tr><td><code>fits</code></td><td><code>(view)(bool)?</code></td><td>STEP_KIND, STEP_ONLY_KIND: is this view&#x27;s widget of the class?</td></tr><tr><td><code>place</code></td><td><code>_int64</code></td><td>STEP_PICK: which one</td></tr></table></div>
 <h3>Functions</h3><div>
@@ -105,7 +109,7 @@
 </section>
 <section class="type" id="state_watch">
 <h2><span class="kind">class</span> state_watch&lt;t&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/testing/models.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/testing/models.sharp">source</a></p>
 <p>What a state has been: its value when watching(...) was called, and every value it was given after that, in order. Made with watching(state).</p>
 <h3>Functions</h3><div>
 <div class="fn" id="state_watch.state_watch"><div class="sig"><b>state_watch</b>(of: state&lt;t&gt;)</div></div>
@@ -121,7 +125,7 @@
 </section>
 <section class="type" id="test_screen">
 <h2><span class="kind">class</span> test_screen</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/testing/ui_test.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/testing/ui_test.sharp">source</a></p>
 <p>The screen the running UI test looks at: the host it runs on, and the things every word of this module does through it. (A program does not use this class: it is what the words above are made of.)</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>host</code></td><td><code>ui_host?</code></td><td></td></tr><tr><td><code>wide</code></td><td><code>_int32</code></td><td></td></tr><tr><td><code>tall</code></td><td><code>_int32</code></td><td></td></tr><tr><td><code>watching</code></td><td><code>_int64</code></td><td>1: on a real window. 0: not. -1: the arguments were not looked at yet</td></tr><tr><td><code>rest</code></td><td><code>decimal</code></td><td>seconds the screen rests after each thing the test does</td></tr><tr><td><code>title</code></td><td><code>string</code></td><td>the test that is running: the window&#x27;s title</td></tr><tr><td><code>holding</code></td><td><code>bool</code></td><td>hold_on_failure(): a watched test that fails keeps its window up</td></tr><tr><td><code>part_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>part_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>part_w</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>part_h</code></td><td><code>decimal</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -146,7 +150,7 @@
 </section>
 <section class="type" id="ui_node">
 <h2><span class="kind">class</span> ui_node</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/testing/finders.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/testing/finders.sharp">source</a></p>
 <p>one widget of the screen: a question, and which of its answers is meant</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>asks</code></td><td><code>ui_query</code></td><td></td></tr><tr><td><code>place</code></td><td><code>_int64</code></td><td>a number from 0, THE_ONLY or THE_LAST</td></tr></table></div>
 <h3>Functions</h3><div>
@@ -167,7 +171,7 @@
 </section>
 <section class="type" id="ui_nodes">
 <h2><span class="kind">class</span> ui_nodes</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/testing/finders.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/testing/finders.sharp">source</a></p>
 <p>several widgets of the screen: every answer to a question</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>asks</code></td><td><code>ui_query</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -189,7 +193,7 @@
 </section>
 <section class="type" id="ui_query">
 <h2><span class="kind">class</span> ui_query</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/testing/finders.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/guikit/testing/finders.sharp">source</a></p>
 <p>a question about the screen: steps, each working on what the one before it found</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>steps</code></td><td><code>list&lt;query_step&gt;</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>

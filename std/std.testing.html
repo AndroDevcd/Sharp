@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.testing - Sharp standard library</title>
 <meta name="description" content="The std.testing module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -60,7 +64,7 @@
 <p class="contents"><a href="#call_check">call_check</a> <a href="#call_order">call_order</a> <a href="#mock">mock</a> <a href="#mock_arg">mock_arg</a> <a href="#mock_args">mock_args</a> <a href="#mock_call">mock_call</a> <a href="#mock_noted">mock_noted</a> <a href="#mock_recorder">mock_recorder</a> <a href="#mock_stub">mock_stub</a> <a href="#number_check">number_check</a> <a href="#stubbing">stubbing</a> <a href="#test_failure">test_failure</a> <a href="#test_run">test_run</a> <a href="#test_skipped">test_skipped</a> <a href="#text_check">text_check</a> <a href="#functions">functions</a></p>
 <section class="type" id="call_check">
 <h2><span class="kind">class</span> call_check</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/mock.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/mock.sharp">source</a></p>
 <p>what verify { } gives back: say how often the call should have been made</p>
 <h3>Functions</h3><div>
 <div class="fn" id="call_check.call_check"><div class="sig"><b>call_check</b>(call: mock_call)</div></div>
@@ -73,7 +77,7 @@
 </section>
 <section class="type" id="call_order">
 <h2><span class="kind">class</span> call_order</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/mock.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/mock.sharp">source</a></p>
 <p>what verify_order { } gives back: the next call that must have come after</p>
 <h3>Functions</h3><div>
 <div class="fn" id="call_order.then"><div class="sig">def <b>then</b>(block: ()()) : call_order</div><p>the call in the block must have been made - after the ones before it in this order</p></div>
@@ -81,7 +85,7 @@
 </section>
 <section class="type" id="mock">
 <h2><span class="kind">class</span> mock</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/mock.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/mock.sharp">source</a></p>
 <p>MOCKS - stand-ins that do no real work, remember how they were used, and give back what a test tells them to.</p>
 <div class="code"><pre class="sharp">store := mock&lt;note_store&gt;();                        // the compiler writes the class</pre></div>
 <div class="code"><pre class="sharp">given { store.load(); }.returns(one_note());        // set up: what a call gives back</pre></div>
@@ -136,7 +140,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 </section>
 <section class="type" id="mock_arg">
 <h2><span class="kind">class</span> mock_arg</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/mock.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/mock.sharp">source</a></p>
 <p>one argument of a call: a plain number, or an object (text included)</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>is_number</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>number</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>thing</code></td><td><code>object?</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -147,7 +151,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 </section>
 <section class="type" id="mock_args">
 <h2><span class="kind">class</span> mock_args</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/mock.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/mock.sharp">source</a></p>
 <p>The arguments of one call, in order. FRAMEWORK USE: the generated class fills one per call - number(...) for a plain number, thing(...) for everything else (text and every other object).</p>
 <h3>Functions</h3><div>
 <div class="fn" id="mock_args.count"><div class="sig">def <b>count</b>() : _int64</div></div>
@@ -160,7 +164,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 </section>
 <section class="type" id="mock_call">
 <h2><span class="kind">class</span> mock_call</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/mock.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/mock.sharp">source</a></p>
 <p>one call of a mock: which function, with what</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>owner</code></td><td><code>mock</code></td><td></td></tr><tr><td><code>function</code></td><td><code>string</code></td><td></td></tr><tr><td><code>args</code></td><td><code>mock_args</code></td><td></td></tr><tr><td><code>checked</code></td><td><code>_int64</code></td><td>1 once a verify has counted it</td></tr><tr><td><code>number</code></td><td><code>_int64</code></td><td>which call of the whole program it was, counted over every mock (0: only noted)</td></tr></table></div>
 <h3>Functions</h3><div>
@@ -170,7 +174,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 </section>
 <section class="type" id="mock_noted">
 <h2><span class="kind">class</span> mock_noted</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/mock.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/mock.sharp">source</a></p>
 <p>thrown inside a given / verify block to leave it once its call is noted (never seen by a test)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="mock_noted.mock_noted"><div class="sig"><b>mock_noted</b>() -&gt; base(&quot;&quot;)</div></div>
@@ -178,7 +182,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 </section>
 <section class="type" id="mock_recorder">
 <h2><span class="kind">class</span> mock_recorder</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/mock.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/mock.sharp">source</a></p>
 <p>While a given { } or verify { } block runs, mocks do not act: they add the call to <code>noted</code>. FRAMEWORK USE.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>noting</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>noted</code></td><td><code>list&lt;mock_call&gt;</code></td><td></td></tr><tr><td><code>made</code></td><td><code>_int64</code></td><td>how many calls every mock together has been asked so far</td></tr><tr><td><code>ANY_NUMBER</code></td><td><code>decimal</code></td><td>what any_number() gives: a number no test would write, recognised as &quot;any&quot;</td></tr><tr><td><code>any_text_mark</code></td><td><code>string</code></td><td>what any_text() gives: one particular text object, recognised by being that very object</td></tr></table></div>
 <h3>Functions</h3><div>
@@ -187,7 +191,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 </section>
 <section class="type" id="mock_stub">
 <h2><span class="kind">class</span> mock_stub</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/mock.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/mock.sharp">source</a></p>
 <p>one given: the call it is for, and what that call gives back (or throws)</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>pattern</code></td><td><code>mock_call</code></td><td></td></tr><tr><td><code>any_arguments</code></td><td><code>_int64</code></td><td>1: whatever the arguments are</td></tr><tr><td><code>value</code></td><td><code>object?</code></td><td></td></tr><tr><td><code>failure</code></td><td><code>throwable?</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -197,7 +201,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 </section>
 <section class="type" id="number_check">
 <h2><span class="kind">class</span> number_check</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/expect.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/expect.sharp">source</a></p>
 <p>what expect(number) gives back</p>
 <h3>Functions</h3><div>
 <div class="fn" id="number_check.number_check"><div class="sig"><b>number_check</b>(actual: decimal)</div></div>
@@ -214,7 +218,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 </section>
 <section class="type" id="stubbing">
 <h2><span class="kind">class</span> stubbing</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/mock.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/mock.sharp">source</a></p>
 <p>what given { } gives back: say what the call returns</p>
 <h3>Functions</h3><div>
 <div class="fn" id="stubbing.stubbing"><div class="sig"><b>stubbing</b>(call: mock_call)</div></div>
@@ -228,7 +232,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 </section>
 <section class="type" id="test_failure">
 <h2><span class="kind">class</span> test_failure</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/testing.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/testing.sharp">source</a></p>
 <p>thrown by a check that does not hold; its message is what the report shows</p>
 <h3>Functions</h3><div>
 <div class="fn" id="test_failure.test_failure"><div class="sig"><b>test_failure</b>(message: string) -&gt; base(message)</div></div>
@@ -236,7 +240,7 @@ given { store.load(); }.throws(io_exception(&quot;disk is full&quot;));</pre></d
 </section>
 <section class="type" id="test_run">
 <h2><span class="kind">class</span> test_run</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/testing.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/testing.sharp">source</a></p>
 <p>TESTING - small programs that check that your code does what you meant.</p>
 <div class="code"><pre class="sharp">import ( std.testing )</pre></div>
 <div class="code"><pre class="sharp">def main() {
@@ -312,7 +316,7 @@ sharp basket_tests -test-only &quot;a shopping basket &gt; a new basket is empty
 </section>
 <section class="type" id="test_skipped">
 <h2><span class="kind">class</span> test_skipped</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/testing.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/testing.sharp">source</a></p>
 <p>thrown by skip_test(...): the test ends there, counted as skipped; its message is the reason</p>
 <h3>Functions</h3><div>
 <div class="fn" id="test_skipped.test_skipped"><div class="sig"><b>test_skipped</b>(why: string) -&gt; base(why)</div></div>
@@ -320,7 +324,7 @@ sharp basket_tests -test-only &quot;a shopping basket &gt; a new basket is empty
 </section>
 <section class="type" id="text_check">
 <h2><span class="kind">class</span> text_check</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/testing/expect.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/testing/expect.sharp">source</a></p>
 <p>what expect(text) gives back</p>
 <h3>Functions</h3><div>
 <div class="fn" id="text_check.text_check"><div class="sig"><b>text_check</b>(actual: string)</div></div>

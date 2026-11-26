@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Download - Sharp</title>
 <meta name="description" content="Download and install Sharp on Windows, Linux or a Raspberry Pi.">
-<link rel="icon" href="logo.png">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="index.html"><img class="on-light" src="logo.png" alt="Sharp"><img class="on-dark" src="logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="index.html">Home</a>
       <a href="guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="install.html" aria-current="page">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -32,12 +36,12 @@
   <div class="wrap">
     <div class="section-head">
       <p class="eyebrow">Download</p>
-      <h1>Get Sharp <span data-newest-version>0.5.13</span></h1>
+      <h1>Get Sharp <span data-newest-version>0.5.14</span></h1>
       <p>Download the zip, unpack the whole archive, then run the installer for your system. Open a new terminal afterwards so that <code>sharp</code> and <code>sharpc</code> are on your PATH.</p>
     </div>
     <div class="getit">
       <!-- site.js points this at the zip of the newest GitHub release; as written it opens that release's page -->
-      <a id="get-sharp" class="btn primary big" href="https://github.com/AndroDevcd/Sharp/releases/latest">Download Sharp <span data-newest-version>0.5.13</span></a>
+      <a id="get-sharp" class="btn primary big" href="https://github.com/AndroDevcd/Sharp/releases/latest">Download Sharp <span data-newest-version>0.5.14</span></a>
       <span>One zip for Windows and 64-bit Linux.</span>
       <a href="https://github.com/AndroDevcd/Sharp/releases">All releases</a>
     </div>

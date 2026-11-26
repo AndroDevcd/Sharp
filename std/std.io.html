@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.io - Sharp standard library</title>
 <meta name="description" content="The std.io module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -73,7 +77,7 @@
 <p class="contents"><a href="#atomic">atomic</a> <a href="#atomic_counter">atomic_counter</a> <a href="#atomic_ref">atomic_ref</a> <a href="#binary_reader">binary_reader</a> <a href="#binary_writer">binary_writer</a> <a href="#buffered_reader">buffered_reader</a> <a href="#buffered_writer">buffered_writer</a> <a href="#byte_buffer">byte_buffer</a> <a href="#char_buffer">char_buffer</a> <a href="#console_writer">console_writer</a> <a href="#directory_listing">directory_listing</a> <a href="#directory_walker">directory_walker</a> <a href="#file">file</a> <a href="#file_change">file_change</a> <a href="#file_natives">file_natives</a> <a href="#file_reader">file_reader</a> <a href="#file_stream">file_stream</a> <a href="#file_utils">file_utils</a> <a href="#file_writer">file_writer</a> <a href="#folder_watch_filter">folder_watch_filter</a> <a href="#folder_watcher">folder_watcher</a> <a href="#io_strings">io_strings</a> <a href="#path">path</a> <a href="#string_text_reader">string_text_reader</a> <a href="#string_writer">string_writer</a> <a href="#temp_files">temp_files</a> <a href="#text_reader">text_reader</a> <a href="#text_writer">text_writer</a> <a href="#thread">thread</a> <a href="#thread_group">thread_group</a> <a href="#thread_priority">thread_priority</a> <a href="#thread_result">thread_result</a> <a href="#uncaught_exception_handler">uncaught_exception_handler</a> <a href="#functions">functions</a></p>
 <section class="type" id="atomic">
 <h2><span class="kind">class</span> atomic&lt;t base base_number&lt;t&gt;</h2>
-<p class="meta"><code>&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/atomic.sharp">source</a></p>
+<p class="meta"><code>&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/atomic.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="atomic.atomic"><div class="sig"><b>atomic</b>(initial_val : t)</div></div>
@@ -648,7 +652,7 @@
 </section>
 <section class="type" id="atomic_counter">
 <h2><span class="kind">class</span> atomic_counter</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/atomic_counter.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/atomic_counter.sharp">source</a></p>
 <p>atomic_counter - a number that many fibers and threads can change at the same time without losing updates.</p>
 <p>USAGE hits := new atomic_counter();            // starts at 0 hits.increment();                        // from any fiber, any thread hits.add(5); n : decimal = hits.read(); if(hits.compare_and_set(6, 0)) { ... }   // &quot;set to 0, but only if it is still 6&quot;</p>
 <p>WHY NOT atomic&lt;int&gt; (std.io) atomic&lt;t&gt; returns a new number object from every ++ and takes its arguments as objects; this class works on native numbers (decimal) and allocates nothing, which matters when 10,000 coroutines count something. (atomic&lt;decimal&gt; itself does not compile.)</p>
@@ -672,7 +676,7 @@
 </section>
 <section class="type" id="atomic_ref">
 <h2><span class="kind">class</span> atomic_ref&lt;t&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/atomic_ref.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/atomic_ref.sharp">source</a></p>
 
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>value</code></td><td><code>t</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -684,7 +688,7 @@
 </section>
 <section class="type" id="binary_reader">
 <h2><span class="kind">class</span> binary_reader</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/binary/binary_reader.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/binary/binary_reader.sharp">source</a></p>
 <p>Reads the values a binary_writer wrote, in the same order, from a byte_buffer (see binary_writer for an example and the formats).</p>
 <p>The reader has to ask for the same kinds of values in the same order as they were written: the data does not say what it contains.</p>
 <p>When the data ends before a value is complete the read functions throw out_of_bounds_exception; data that cannot be right (a boolean that is neither 0 nor 1, a number with too many bytes) throws io_exception. Not thread safe.</p>
@@ -714,7 +718,7 @@
 </section>
 <section class="type" id="binary_writer">
 <h2><span class="kind">class</span> binary_writer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/binary/binary_writer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/binary/binary_writer.sharp">source</a></p>
 <p>Writes values in a compact binary form into a byte_buffer; binary_reader reads them back in the same order.</p>
 <div class="code"><pre class="sharp">out := new binary_writer();
 out.write_string(&quot;player one&quot;);
@@ -752,7 +756,7 @@ score := input.read_int();            // 12500
 </section>
 <section class="type" id="buffered_reader">
 <h2><span class="kind">class</span> buffered_reader</h2>
-<p class="meta"><code>: text_reader, loopable&lt;string&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/readers/buffered_reader.sharp">source</a></p>
+<p class="meta"><code>: text_reader, loopable&lt;string&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/readers/buffered_reader.sharp">source</a></p>
 <p>Puts extras on top of any text_reader: stepping back, line and column counting, and reading in words and up to a given character - the things a hand written parser needs.</p>
 <div class="code"><pre class="sharp">input := new buffered_reader(new file_reader(&quot;points.txt&quot;));
 while(input.skip_whitespace() &amp;&amp; input.has_more()) {
@@ -786,7 +790,7 @@ input.close();</pre></div>
 </section>
 <section class="type" id="buffered_writer">
 <h2><span class="kind">class</span> buffered_writer</h2>
-<p class="meta"><code>: text_writer</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/writers/buffered_writer.sharp">source</a></p>
+<p class="meta"><code>: text_writer</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/writers/buffered_writer.sharp">source</a></p>
 <p>Puts a buffer in front of another text_writer: what is written collects here and is handed on in large pieces - when the buffer is full, on flush() and on close(). That saves work when the writer underneath is slow per call (the console prints every piece right away).</p>
 <div class="code"><pre class="sharp">out := new buffered_writer(new console_writer());
 for(i : decimal = 0; i &lt; 1000; i++) {
@@ -817,7 +821,7 @@ out.close();</pre></div>
 </section>
 <section class="type" id="byte_buffer">
 <h2><span class="kind">class</span> byte_buffer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/binary/byte_buffer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/binary/byte_buffer.sharp">source</a></p>
 <p>A growable array of bytes with a read position: binary data is put in at the end and taken out from the front.</p>
 <div class="code"><pre class="sharp">buf := new byte_buffer();
 buf.put_int32(1234);
@@ -881,7 +885,7 @@ d := buf.get_float64();               // 2.5</pre></div>
 </section>
 <section class="type" id="char_buffer">
 <h2><span class="kind">class</span> char_buffer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/text/char_buffer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/text/char_buffer.sharp">source</a></p>
 <p>A growable buffer of characters: the cheap way to build a string piece by piece.</p>
 <p><code>string += x</code> copies the whole string every time, so building a long text that way costs time proportional to the square of its length. A char_buffer keeps spare room at the end of its array and doubles it when it runs out, so appending is cheap, and the string is made once at the end with to_string().</p>
 <div class="code"><pre class="sharp">buf := new char_buffer();
@@ -917,7 +921,7 @@ text := buf.build();              // &quot;x = 42\n&quot;</pre></div>
 </section>
 <section class="type" id="console_writer">
 <h2><span class="kind">class</span> console_writer</h2>
-<p class="meta"><code>: text_writer</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/writers/console_writer.sharp">source</a></p>
+<p class="meta"><code>: text_writer</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/writers/console_writer.sharp">source</a></p>
 <p>A text_writer that prints to the console (standard output), so that code written for a text_writer can print as well as write files.</p>
 <div class="code"><pre class="sharp">out : text_writer = new console_writer();
 out.write_line(&quot;hello&quot;);</pre></div>
@@ -932,7 +936,7 @@ out.write_line(&quot;hello&quot;);</pre></div>
 </section>
 <section class="type" id="directory_listing">
 <h2><span class="kind">class</span> directory_listing</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/files/directory_listing.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/files/directory_listing.sharp">source</a></p>
 <p>Finds the names of the files and directories in a directory. This is the one place that knows how; file.list_names(), file.list_files() and directory_walker all come here.</p>
 <p>Why this is not a single call: the directory call of the runtime (file_natives.tree_files) reports the regular files of a whole tree and nothing else - no directories (so an empty directory cannot be seen) and nothing whose name starts with &#x27;.&#x27;. That is not enough to list, walk, copy or delete a directory correctly. So the names are found in two ways:</p>
 <p>1. the command line (the default): <code>ls -1Ap</code> on unix, <code>dir /b /a</code> on windows, with the output sent to a temporary file that is read back and deleted. This sees everything: directories, empty directories, hidden entries. It costs one small process per listed directory. 2. the runtime call, as a fallback when the command fails or the command line was switched off with set_shell_enabled(false): the names are worked out from the paths of the files in the tree. Fast and without a process, but empty directories and names starting with &#x27;.&#x27; are missing.</p>
@@ -948,7 +952,7 @@ out.write_line(&quot;hello&quot;);</pre></div>
 </section>
 <section class="type" id="directory_walker">
 <h2><span class="kind">class</span> directory_walker</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/files/directory_walker.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/files/directory_walker.sharp">source</a></p>
 <p>Walks through a directory and everything below it, one entry at a time.</p>
 <div class="code"><pre class="sharp">walker := new directory_walker(new file(&quot;src&quot;));
 walker.set_filter({ f: file -&gt; (bool) return f.has_extension(&quot;sharp&quot;); });
@@ -981,7 +985,7 @@ while(walker.has_next()) {
 </section>
 <section class="type" id="file">
 <h2><span class="kind">class</span> file</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/file.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/file.sharp">source</a></p>
 <p>A file or a directory, by its path.</p>
 <p>A file object is only a path: creating one touches nothing on disk, and the file or directory it names does not have to exist.</p>
 <div class="code"><pre class="sharp">f := new file(&quot;notes/today.txt&quot;);
@@ -1032,7 +1036,7 @@ files/file_tree.sharp    size, create_new, remove, mkdirs, list_files, walk,
 </section>
 <section class="type" id="file_change">
 <h2><span class="kind">class</span> file_change</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/files/folder_watcher.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/files/folder_watcher.sharp">source</a></p>
 <p>WATCHING A FOLDER: what was added, changed or removed since the last look</p>
 <div class="code"><pre class="sharp">watch := new folder_watcher(&quot;src&quot;);             // remembers what is there now
 while(true) {
@@ -1059,7 +1063,7 @@ watch.every(100)                look more (or less) often than every 250 ms whil
 </section>
 <section class="type" id="file_natives">
 <h2><span class="kind">class</span> file_natives</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/files/file_natives.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/files/file_natives.sharp">source</a></p>
 <p>The file system calls of the runtime, as plain static functions that take a path string. This is the lowest layer of the newer file functions (file.read_text, file.mkdirs, file.walk, file_utils, temp_files, ...); programs use those, not this class. It is the one place of the library that holds these calls.</p>
 <p>Every function here hands the path to the runtime exactly as it is given. A path may be relative to the current directory, and it may name something that does not exist yet - writing a new file, asking for the size of a missing file and so on simply work (or report failure through their result), without exceptions about paths that cannot be resolved.</p>
 <p>What the runtime offers: read a whole file, write a whole file, create an empty file or a directory, delete a file, delete an empty directory, rename, the size, kind, times and permissions of a file, the absolute form of an existing path, the current directory, the space on the disk, and a list of the regular files in a directory tree. There are no file handles here: a file is read or written in one piece (file_stream reads and writes in parts).</p>
@@ -1090,7 +1094,7 @@ watch.every(100)                look more (or less) often than every 250 ms whil
 </section>
 <section class="type" id="file_reader">
 <h2><span class="kind">class</span> file_reader</h2>
-<p class="meta"><code>base string_text_reader : loopable&lt;string&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/readers/file_reader.sharp">source</a></p>
+<p class="meta"><code>base string_text_reader : loopable&lt;string&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/readers/file_reader.sharp">source</a></p>
 <p>Reads a text file: character by character, line by line, or in pieces.</p>
 <div class="code"><pre class="sharp">input := new file_reader(&quot;settings.txt&quot;);
 foreach(line in input) {
@@ -1108,7 +1112,7 @@ input.close();</pre></div>
 </section>
 <section class="type" id="file_stream">
 <h2><span class="kind">class</span> file_stream</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/files/file_stream.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/files/file_stream.sharp">source</a></p>
 <p>A FILE READ AND WRITTEN PIECE BY PIECE</p>
 <div class="code"><pre class="sharp">log := file_stream.open(&quot;server.log&quot;, &quot;a&quot;);     // &quot;r&quot; read, &quot;w&quot; write anew, &quot;a&quot; add at the end,
 log.write_text(&quot;started\n&quot;);                    // &quot;r+&quot; read and write what is there
@@ -1151,7 +1155,7 @@ big.close();</pre></div>
 </section>
 <section class="type" id="file_utils">
 <h2><span class="kind">class</span> file_utils</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/files/file_utils.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/files/file_utils.sharp">source</a></p>
 <p>File operations as plain functions that take paths as strings, for when making <code>file</code> objects is not worth it:</p>
 <div class="code"><pre class="sharp">file_utils.write_text(&quot;out/result.txt&quot;, &quot;done\n&quot;);    // creates &quot;out&quot; too
 file_utils.copy(&quot;out&quot;, &quot;backup/out&quot;);
@@ -1185,7 +1189,7 @@ file_utils.delete_tree(&quot;out&quot;);</pre></div>
 </section>
 <section class="type" id="file_writer">
 <h2><span class="kind">class</span> file_writer</h2>
-<p class="meta"><code>: text_writer</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/writers/file_writer.sharp">source</a></p>
+<p class="meta"><code>: text_writer</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/writers/file_writer.sharp">source</a></p>
 <p>Writes text to a file.</p>
 <div class="code"><pre class="sharp">out := new file_writer(new file(&quot;log.txt&quot;));
 out.write_line(&quot;started&quot;);
@@ -1216,7 +1220,7 @@ out.close();                      // now the file is written</pre></div>
 </section>
 <section class="type" id="folder_watch_filter">
 <h2><span class="kind">class</span> folder_watch_filter</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/files/folder_watcher.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/files/folder_watcher.sharp">source</a></p>
 
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>accept</code></td><td><code>(file)(bool)</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -1225,7 +1229,7 @@ out.close();                      // now the file is written</pre></div>
 </section>
 <section class="type" id="folder_watcher">
 <h2><span class="kind">class</span> folder_watcher</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/files/folder_watcher.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/files/folder_watcher.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="folder_watcher.folder_watcher"><div class="sig"><b>folder_watcher</b>(folder: string)</div><p>watch that folder from now on. Throws io_exception when it is not a folder.</p></div>
@@ -1237,7 +1241,7 @@ out.close();                      // now the file is written</pre></div>
 </section>
 <section class="type" id="io_strings">
 <h2><span class="kind">class</span> io_strings</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/text/io_strings.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/text/io_strings.sharp">source</a></p>
 <p>Small string helpers shared by the io, data and system libraries: slicing, searching, trimming, splitting, joining, and turning numbers into text and back.</p>
 <p>Everything is a static function, e.g. <code>io_strings.trim(line)</code>. No function changes the string it is given; each returns a new string.</p>
 <p>Positions count from 0. A range is always &quot;start up to but not including end&quot;. Characters are passed as their codes (&#x27;a&#x27;, 10, ...).</p>
@@ -1284,7 +1288,7 @@ out.close();                      // now the file is written</pre></div>
 </section>
 <section class="type" id="path">
 <h2><span class="kind">class</span> path</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/path.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/path.sharp">source</a></p>
 <p>Path arithmetic: taking paths apart and putting them together as text. Nothing here looks at the disk - the files do not have to exist - so the results depend only on the arguments (and, for the separator that is written, on the operating system).</p>
 <div class="code"><pre class="sharp">path.join(&quot;src&quot;, &quot;main.sharp&quot;)          &quot;src/main.sharp&quot;
 path.normalize(&quot;a/./b/../c//d/&quot;)        &quot;a/c/d&quot;
@@ -1323,7 +1327,7 @@ path.relative_to(&quot;/a/b/c&quot;, &quot;/a/x&quot;)      &quot;../b/c&quot;</
 </section>
 <section class="type" id="string_text_reader">
 <h2><span class="kind">class</span> string_text_reader</h2>
-<p class="meta"><code>: text_reader, loopable&lt;string&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/readers/string_text_reader.sharp">source</a></p>
+<p class="meta"><code>: text_reader, loopable&lt;string&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/readers/string_text_reader.sharp">source</a></p>
 <p>Reads from a string in memory: character by character, line by line, or in pieces of a given size.</p>
 <div class="code"><pre class="sharp">input := new string_text_reader(&quot;alpha\nbeta\n&quot;);
 first := input.read_line();       // &quot;alpha&quot;
@@ -1356,7 +1360,7 @@ rest := input.read_all();         // &quot;eta\n&quot;</pre></div>
 </section>
 <section class="type" id="string_writer">
 <h2><span class="kind">class</span> string_writer</h2>
-<p class="meta"><code>: text_writer</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/writers/string_writer.sharp">source</a></p>
+<p class="meta"><code>: text_writer</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/writers/string_writer.sharp">source</a></p>
 <p>A text_writer that collects what is written in memory; to_string() gives the text. Useful to build a string with code that writes to a text_writer, and in tests in place of a file or the console.</p>
 <div class="code"><pre class="sharp">out := new string_writer();
 out.write(&quot;a = &quot;);
@@ -1383,7 +1387,7 @@ text := out.to_string();        // &quot;a = 1\n&quot;</pre></div>
 </section>
 <section class="type" id="temp_files">
 <h2><span class="kind">class</span> temp_files</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/files/temp_files.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/files/temp_files.sharp">source</a></p>
 <p>Temporary files and directories: where they go, unique names for them, and removing them again.</p>
 <div class="code"><pre class="sharp">scratch := temp_files.create_file(&quot;report_&quot;, &quot;.csv&quot;);
 scratch.write_text(&quot;a,b\n&quot;);
@@ -1409,7 +1413,7 @@ temp_files.cleanup();        // deletes everything created through this class</p
 </section>
 <section class="type" id="text_reader">
 <h2><span class="kind">interface</span> text_reader</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/readers/text_reader.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/readers/text_reader.sharp">source</a></p>
 <p>Something text can be read from, character by character or line by line: a string in memory (string_text_reader), a file (file_reader), or another reader with extras on top (buffered_reader).</p>
 <p>Code that takes a text_reader works with all of them:</p>
 <div class="code"><pre class="sharp">def count_lines(input: text_reader) : decimal {
@@ -1429,7 +1433,7 @@ temp_files.cleanup();        // deletes everything created through this class</p
 </section>
 <section class="type" id="text_writer">
 <h2><span class="kind">interface</span> text_writer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/writers/text_writer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/writers/text_writer.sharp">source</a></p>
 <p>Something text can be written to: a string in memory (string_writer), a file (file_writer), the console (console_writer), or another writer with a buffer in front (buffered_writer).</p>
 <p>Code that takes a text_writer works with all of them:</p>
 <div class="code"><pre class="sharp">def write_report(out: text_writer) {
@@ -1448,7 +1452,7 @@ temp_files.cleanup();        // deletes everything created through this class</p
 </section>
 <section class="type" id="thread">
 <h2><span class="kind">class</span> thread</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/thread.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/thread.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="thread.thread"><div class="sig">public <b>thread</b>(name : string, main: (object[])(int))</div></div>
@@ -1492,7 +1496,7 @@ temp_files.cleanup();        // deletes everything created through this class</p
 </section>
 <section class="type" id="thread_group">
 <h2><span class="kind">class</span> thread_group</h2>
-<p class="meta"><code>: loopable&lt;thread&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/thread_group.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;thread&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/thread_group.sharp">source</a></p>
 
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>main_group</code></td><td><code></code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -1512,17 +1516,17 @@ temp_files.cleanup();        // deletes everything created through this class</p
 </section>
 <section class="type" id="thread_priority">
 <h2><span class="kind">enum</span> thread_priority</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/thread_priority.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/thread_priority.sharp">source</a></p>
 
 </section>
 <section class="type" id="thread_result">
 <h2><span class="kind">enum</span> thread_result</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/thread_result.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/thread_result.sharp">source</a></p>
 
 </section>
 <section class="type" id="uncaught_exception_handler">
 <h2><span class="kind">interface</span> uncaught_exception_handler</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/uncaught_exception_handler.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/io/uncaught_exception_handler.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="uncaught_exception_handler.uncaught_exception"><div class="sig">def <b>uncaught_exception</b>(err: throwable)</div></div>

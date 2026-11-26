@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dictionaries, with and apply - Sharp guide</title>
+<meta name="description" content="The Sharp guide: Dictionaries, with and apply.">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
+    <nav class="main" aria-label="Site">
+      <a href="../index.html">Home</a>
+      <a href="../guide/index.html" aria-current="page">Guide</a>
+      <a href="../std/index.html">Library</a>
+      <a href="../gui.html">GUI</a>
+      <a href="../debugger.html">Debugger</a>
+      <a href="../performance.html">Performance</a>
+      <a href="../install.html">Download</a>
+      <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
+    </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
+  </div>
+</header>
+
+<div class="lib guide"><div class="wrap">
+    <aside>
+      <p class="eyebrow">Guide</p>
+      <ul class="mods">
+        <li><a href="index.html">Install</a></li>
+        <li><a href="your-first-program.html">Your first program</a></li>
+        <li><a href="a-program-with-a-class.html">A program with a class</a></li>
+        <li><a href="a-tour-of-the-language.html">A tour of the language</a></li>
+        <li class="on"><a href="dictionaries-with-and-apply.html">Dictionaries, with and apply</a></li>
+        <li><a href="your-first-test.html">Your first test</a></li>
+        <li><a href="your-first-window.html">Your first window</a></li>
+        <li><a href="your-first-3d-scene.html">Your first 3D scene</a></li>
+        <li><a href="calling-a-c-library.html">Calling a C library</a></li>
+        <li><a href="where-to-go-next.html">Where to go next</a></li>
+        <li><a href="../projects.html">Projects</a></li>
+        <li><a href="../gui.html">GUI development</a></li>
+        <li><a href="../gui-guide.html">The GUI guide</a></li>
+        <li><a href="../debugger.html">Debugging with sdb</a></li>
+      </ul>
+    </aside>
+    <main>
+      <p class="crumbs">Guide / 5 of 10</p>
+      <h1>Dictionaries, with and apply</h1>
+<div class="code"><pre class="sharp">mod app;
+
+class car {
+    plate : string = &quot;&quot;;
+    wheels : _int64 = 4;
+
+    def describe() : string { return &quot;$plate on $wheels wheels&quot;; }
+}
+
+def find_car(cars: dictionary&lt;string, car&gt;, plate: string) : car? {
+    if(cars.contains_key(plate)) { return cars[plate]; }
+    return null;
+}
+
+def main() {
+    // a dictionary: keys and values in braces, read and written with [ ]
+    prices := { &quot;wash&quot;: 12, &quot;polish&quot;: 30 };
+    prices[&quot;wax&quot;] = 18;
+    foreach(service in prices.keys()) {
+        println(service + &quot; costs &quot; + prices[service]);
+    }
+
+    // apply: the block runs inside the object, so its fields need nothing in front
+    van := apply(new car()) {
+        plate = &quot;VAN 1&quot;;
+        wheels = 6;
+    };
+
+    cars := new dictionary&lt;string, car&gt;();
+    cars[van.plate] = van;
+
+    // with: the block runs when the value is there, the else block when it is null
+    with(find_car(cars, &quot;VAN 1&quot;)) as found {
+        println(&quot;found: &quot; + found.describe());
+    } else {
+        println(&quot;no such car&quot;);
+    }
+    with(find_car(cars, &quot;BIKE 9&quot;)) as found {
+        println(&quot;found: &quot; + found.describe());
+    } else {
+        println(&quot;no such car&quot;);
+    }
+
+    // two whole numbers divide to a whole number; a fraction needs a decimal
+    println(&quot;7 / 2 is &quot; + (7 / 2) + &quot;, 7 / 2.0 is &quot; + (7 / 2.0));
+}</pre></div>
+<div class="code"><pre>wash costs 12
+polish costs 30
+wax costs 18
+found: VAN 1 on 6 wheels
+no such car
+7 / 2 is 3, 7 / 2.0 is 3.5</pre></div>
+<p>What that used:</p>
+<div class="scroll"><table class="cmds"><tr><th></th><th></th></tr><tr><td><code>{ &quot;wash&quot;: 12 }</code></td><td>a dictionary written out; <code>new dictionary&lt;string, car&gt;()</code> makes an empty one</td></tr><tr><td><code>d[key]</code>, <code>d[key] = value</code></td><td>read and write an entry. A dictionary keeps the order its keys were added in.</td></tr><tr><td><code>d.keys()</code>, <code>d.values()</code>, <code>d.contains_key(k)</code>, <code>d.remove(k)</code>, <code>d.size()</code></td><td>the rest of what a dictionary does is in the library pages</td></tr><tr><td><code>apply(value) { ... }</code></td><td>runs the block inside the object: a name is looked up in the object first. Its value is the object, so it can be assigned or passed on.</td></tr><tr><td><code>with(value) as name { ... } else { ... }</code></td><td><code>name</code> is the value inside the block, known not to be null; the <code>else</code> block runs when it is null</td></tr><tr><td><code>7 / 2</code></td><td>two whole numbers give a whole number (3). Write <code>7 / 2.0</code> for 3.5. Dividing a whole number by zero throws.</td></tr></table></div>
+<p>Both blocks are part of the function they are written in: a <code>return</code> inside one leaves that function, and <code>break</code> and <code>continue</code> act on the loop around it. <code>apply</code> also takes an <code>else</code> block, for a value that may be null.</p>
+      <div class="pager"><a href="a-tour-of-the-language.html">&larr; A tour of the language</a><a href="your-first-test.html">Your first test &rarr;</a></div>
+    </main>
+</div></div>
+
+<footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="https://github.com/AndroDevcd/Sharp">github.com/AndroDevcd/Sharp</a></div></footer>
+<script src="../site.js"></script>
+</body>
+</html>

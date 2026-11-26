@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Performance - Sharp</title>
 <meta name="description" content="How fast Sharp is: the Benchmarks Game against other languages, and against Sharp in 2020.">
-<link rel="icon" href="logo.png">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="index.html"><img class="on-light" src="logo.png" alt="Sharp"><img class="on-dark" src="logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="index.html">Home</a>
       <a href="guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -66,7 +70,7 @@
         <p>The same programs, on the same PC, both with <code>-O</code>.</p>
       </div>
       <div class="scroll"><table class="cmds years">
-        <tr><th>Program</th><th>Sharp 0.2.9 (2020)</th><th>Sharp 0.5.13</th><th>Faster by</th></tr>
+        <tr><th>Program</th><th>Sharp 0.2.9 (2020)</th><th>Sharp 0.5.14</th><th>Faster by</th></tr>
         <tr><td>spectral-norm, 2000</td><td>61.1 s</td><td>0.38 s</td><td><b>161&times;</b></td></tr>
         <tr><td>n-body, 5,000,000 steps</td><td>101.6 s</td><td>0.76 s</td><td><b>134&times;</b></td></tr>
         <tr><td>fannkuch-redux, 10</td><td>28.9 s</td><td>0.28 s</td><td><b>103&times;</b></td></tr>

@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.text - Sharp standard library</title>
 <meta name="description" content="The std.text module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -60,7 +64,7 @@
 <p class="contents"><a href="#ascii">ascii</a> <a href="#case_format">case_format</a> <a href="#char_sets">char_sets</a> <a href="#number_format">number_format</a> <a href="#number_parser">number_parser</a> <a href="#regex">regex</a> <a href="#regex_match">regex_match</a> <a href="#scanner">scanner</a> <a href="#string_joiner">string_joiner</a> <a href="#string_reader">string_reader</a> <a href="#string_similarity">string_similarity</a> <a href="#string_support">string_support</a> <a href="#string_tokenizer">string_tokenizer</a> <a href="#template">template</a> <a href="#text_align">text_align</a> <a href="#text_pattern">text_pattern</a> <a href="#text_table">text_table</a> <a href="#text_wrap">text_wrap</a></p>
 <section class="type" id="ascii">
 <h2><span class="kind">class</span> ascii</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/ascii.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/ascii.sharp">source</a></p>
 <p>ascii</p>
 <p>Names for the ASCII characters that cannot be typed as a character literal, and a few helpers for working with character codes. Everything is static.</p>
 <div class="code"><pre class="sharp">sb.append_char(ascii.escape).append(&quot;[1m&quot;);      // start bold on a terminal
@@ -80,7 +84,7 @@ ascii.caret(3)           &quot;^C&quot;</pre></div>
 </section>
 <section class="type" id="case_format">
 <h2><span class="kind">class</span> case_format</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/case_format.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/case_format.sharp">source</a></p>
 <p>case_format</p>
 <p>Converts names between the usual spellings. All functions are static:</p>
 <div class="code"><pre class="sharp">case_format.to_snake(&quot;parseHttpRequest&quot;)        &quot;parse_http_request&quot;
@@ -107,7 +111,7 @@ case_format.to_title(&quot;max_size&quot;)                &quot;Max Size&quot;</
 </section>
 <section class="type" id="char_sets">
 <h2><span class="kind">class</span> char_sets</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/char_sets.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/char_sets.sharp">source</a></p>
 <p>char_sets</p>
 <p>Ready-made sets of characters, as strings, for the many functions that take &quot;any of these characters&quot;: string.trim_chars, split_any, index_of_any, remove_chars, retain_chars, string_reader.read_while_in, string_tokenizer ...</p>
 <div class="code"><pre class="sharp">digits_only := phone.retain_chars(char_sets.digits());
@@ -138,7 +142,7 @@ if(password.contains_any(char_sets.punctuation())) ...</pre></div>
 </section>
 <section class="type" id="number_format">
 <h2><span class="kind">class</span> number_format</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/number_format.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/number_format.sharp">source</a></p>
 <p>number_format</p>
 <p>Turns numbers into text. All functions are static and take the number as a native <code>decimal</code>:</p>
 <div class="code"><pre class="sharp">number_format.integer(42)                 &quot;42&quot;
@@ -181,7 +185,7 @@ number_format.roman(1994)                 &quot;MCMXCIV&quot;</pre></div>
 </section>
 <section class="type" id="number_parser">
 <h2><span class="kind">class</span> number_parser</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/number_parser.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/number_parser.sharp">source</a></p>
 <p>number_parser</p>
 <p>Turns text into numbers and says exactly what is wrong when it cannot. All functions are static: <code>number_parser.parse_int(&quot;42&quot;)</code>.</p>
 <p>Every kind of number comes in three flavours (as in Kotlin):</p>
@@ -215,7 +219,7 @@ parse_int_or(text, 0)       returns the given fallback instead of throwing</pre>
 </section>
 <section class="type" id="regex">
 <h2><span class="kind">class</span> regex</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/regex/regex.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/regex/regex.sharp">source</a></p>
 <p>regex</p>
 <p>Regular expressions: patterns that describe text, for testing, searching, replacing and splitting.</p>
 <div class="code"><pre class="sharp">r := new regex(&quot;(\\d+)-(\\d+)&quot;);
@@ -254,7 +258,7 @@ new regex(&quot;,\\s*&quot;).split(&quot;a, b,c&quot;)      [&quot;a&quot;, &quo
 </section>
 <section class="type" id="regex_match">
 <h2><span class="kind">class</span> regex_match</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/regex/regex_match.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/regex/regex_match.sharp">source</a></p>
 <p>regex_match</p>
 <p>One place where a std.text#regex matched: where it starts and ends, the matched text, and what each group &quot;( ... )&quot; of the pattern matched.</p>
 <div class="code"><pre class="sharp">m := new regex(&quot;(\\w+)@(\\w+)&quot;).find(&quot;mail ada@example now&quot;);
@@ -282,7 +286,7 @@ m.group(2)      &quot;example&quot;</pre></div>
 </section>
 <section class="type" id="scanner">
 <h2><span class="kind">class</span> scanner</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/scanner.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/scanner.sharp">source</a></p>
 <p>scanner</p>
 <p>Reads words, numbers and lines out of a text, one after the other (like Java&#x27;s Scanner, but over a string):</p>
 <div class="code"><pre class="sharp">input := new scanner(&quot;width 42 3.5\nsecond line&quot;);
@@ -320,7 +324,7 @@ rest  := input.next_line();        // &quot;second line&quot;</pre></div>
 </section>
 <section class="type" id="string_joiner">
 <h2><span class="kind">class</span> string_joiner</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/string_joiner.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/string_joiner.sharp">source</a></p>
 <p>string_joiner</p>
 <p>Collects pieces of text and joins them with a separator, optionally between a prefix and a suffix (Java&#x27;s StringJoiner):</p>
 <div class="code"><pre class="sharp">j := new string_joiner(&quot;, &quot;, &quot;[&quot;, &quot;]&quot;);
@@ -346,7 +350,7 @@ j.build()                       &quot;[a, b, c]&quot;</pre></div>
 </section>
 <section class="type" id="string_reader">
 <h2><span class="kind">class</span> string_reader</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/string_reader.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/string_reader.sharp">source</a></p>
 <p>string_reader</p>
 <p>A cursor over a string, for writing parsers by hand: look at the next character without taking it (peek), take it (next), skip or collect runs of characters, and try to match fixed pieces of text.</p>
 <div class="code"><pre class="sharp">r := new string_reader(&quot;width = 42;&quot;);
@@ -397,7 +401,7 @@ r.match(&quot;;&quot;);                       // 1, and the reader is at the end
 </section>
 <section class="type" id="string_similarity">
 <h2><span class="kind">class</span> string_similarity</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/string_similarity.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/string_similarity.sharp">source</a></p>
 <p>string_similarity</p>
 <p>Measures of how alike two strings are. All functions are static.</p>
 <div class="code"><pre class="sharp">levenshtein(a, b)          edits (insert / delete / replace one character) to turn a into b
@@ -428,7 +432,7 @@ lcs_length                 length of the longest common SUBSEQUENCE (need not be
 </section>
 <section class="type" id="string_support">
 <h2><span class="kind">class</span> string_support</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/string/string_support.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/string/string_support.sharp">source</a></p>
 <p>string_support</p>
 <p>INTERNAL helpers shared by the string_*.sharp files in this folder (the files that add methods to the <code>string</code> class). Not meant to be called from programs: everything here is available in a friendlier form as a method of <code>string</code> (index_of, contains, trim ...).</p>
 <p>Why this is a class and not a set of private methods of <code>string</code>: a method added to a class by one <code>mutate</code> file is not reliably visible inside another <code>mutate</code> file of the same class - whether it resolves depends on the order in which the compiler happens to process the files. A separate class is always visible, so the shared code lives here and works on the raw character arrays (<code>string.data</code>, which is null for an empty string).</p>
@@ -449,7 +453,7 @@ lcs_length                 length of the longest common SUBSEQUENCE (need not be
 </section>
 <section class="type" id="string_tokenizer">
 <h2><span class="kind">class</span> string_tokenizer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/string_tokenizer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/string_tokenizer.sharp">source</a></p>
 <p>string_tokenizer</p>
 <p>Walks through a text token by token, where tokens are the runs of characters between delimiter characters (Java&#x27;s StringTokenizer):</p>
 <div class="code"><pre class="sharp">t := new string_tokenizer(&quot;a, b;c&quot;, &quot;,; &quot;);
@@ -475,7 +479,7 @@ while(t.has_more_tokens()) {
 </section>
 <section class="type" id="template">
 <h2><span class="kind">class</span> template</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/template.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/template.sharp">source</a></p>
 <p>template</p>
 <p>A text with named placeholders in braces that are filled in later:</p>
 <div class="code"><pre class="sharp">t := new template(&quot;Dear {name}, your order {id} ships on {day}.&quot;);
@@ -504,7 +508,7 @@ t.render()        &quot;Dear Ada, your order 1042 ships on Monday.&quot;</pre></
 </section>
 <section class="type" id="text_align">
 <h2><span class="kind">class</span> text_align</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/text_align.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/text_align.sharp">source</a></p>
 <p>text_align</p>
 <p>Puts one line of text into a field of a given width. All functions are static:</p>
 <div class="code"><pre class="sharp">text_align.left(&quot;abc&quot;, 7)        &quot;abc    &quot;
@@ -528,7 +532,7 @@ text_align.fit(&quot;abcdefgh&quot;, 5)    &quot;ab...&quot;</pre></div>
 </section>
 <section class="type" id="text_pattern">
 <h2><span class="kind">class</span> text_pattern</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/text_pattern.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/text_pattern.sharp">source</a></p>
 <p>text_pattern</p>
 <p>Wildcard (&quot;glob&quot;) matching, the kind used for file names:</p>
 <div class="code"><pre class="sharp">*        any run of characters, including none
@@ -561,7 +565,7 @@ text_pattern.matches(&quot;data_??.csv&quot;, &quot;data_07.csv&quot;)     1</pr
 </section>
 <section class="type" id="text_table">
 <h2><span class="kind">class</span> text_table</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/text_table.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/text_table.sharp">source</a></p>
 <p>text_table</p>
 <p>Lays out rows of text in columns for printing in a terminal or a log:</p>
 <div class="code"><pre class="sharp">t := new text_table(new string[] { &quot;item&quot;, &quot;qty&quot;, &quot;price&quot; });
@@ -597,7 +601,7 @@ pear     3   1.20</pre></div>
 </section>
 <section class="type" id="text_wrap">
 <h2><span class="kind">class</span> text_wrap</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/text/text_wrap.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/text/text_wrap.sharp">source</a></p>
 <p>text_wrap</p>
 <p>Breaks long text into lines of a maximum width, and adds or removes indentation. All functions are static:</p>
 <div class="code"><pre class="sharp">text_wrap.wrap(&quot;the quick brown fox jumps&quot;, 10)     [&quot;the quick&quot;, &quot;brown fox&quot;, &quot;jumps&quot;]

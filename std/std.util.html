@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>std.util - Sharp standard library</title>
 <meta name="description" content="The std.util module of the Sharp standard library.">
-<link rel="icon" href="../logo.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="../site.css">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.13</span>
+    <a class="brand" href="../index.html"><img class="on-light" src="../logo.png" alt="Sharp"><img class="on-dark" src="../logo-dark.png" alt="Sharp"></a>
+    <span class="version">0.5.14</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -25,6 +28,7 @@
       <a href="../install.html">Download</a>
       <a href="https://github.com/AndroDevcd/Sharp">GitHub</a>
     </nav>
+    <button class="theme" id="theme-switch" type="button" aria-label="Switch between the light and the dark look" title="Light / dark"></button>
   </div>
 </header>
 
@@ -60,7 +64,7 @@
 <p class="contents"><a href="#bit_flags">bit_flags</a> <a href="#comparator">comparator</a> <a href="#comparators">comparators</a> <a href="#counter">counter</a> <a href="#either">either</a> <a href="#hashing">hashing</a> <a href="#id_generator">id_generator</a> <a href="#lazy">lazy</a> <a href="#optional">optional</a> <a href="#preconditions">preconditions</a> <a href="#range">range</a> <a href="#ref">ref</a> <a href="#uuid">uuid</a> <a href="#version">version</a></p>
 <section class="type" id="bit_flags">
 <h2><span class="kind">class</span> bit_flags</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/bit_flags.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/bit_flags.sharp">source</a></p>
 <p>A small set of on/off options packed into one number, one bit per option. Define the options as powers of two and combine them with add():</p>
 <div class="code"><pre class="sharp">const READ : decimal = 1;       // bit_flags.flag(0)
 const WRITE : decimal = 2;      // bit_flags.flag(1)
@@ -99,7 +103,7 @@ access.value                    // 3, e.g. to store in a file</pre></div>
 </section>
 <section class="type" id="comparator">
 <h2><span class="kind">class</span> comparator&lt;T&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/comparator.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/comparator.sharp">source</a></p>
 <p>An ordering for objects of type T: something that can say which of two objects comes first. Comparators are built from small pieces and combined (Java&#x27;s Comparator, Kotlin&#x27;s compareBy / thenBy / reversed):</p>
 <div class="code"><pre class="sharp">by_age := comparator&lt;person&gt;.by_key({ p: person -&gt; (decimal) return p.age; });
 by_name := comparator&lt;person&gt;.by_text({ p: person -&gt; (string) return p.name; });</pre></div>
@@ -132,7 +136,7 @@ youngest := by_age.min_of(people);</pre></div>
 </section>
 <section class="type" id="comparators">
 <h2><span class="kind">class</span> comparators</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/comparators.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/comparators.sharp">source</a></p>
 <p>Ready-made comparators (&quot;natural order&quot;) for strings and for the number classes. Only static functions; never instantiated.</p>
 <div class="code"><pre class="sharp">names := new string[] { &quot;pear&quot;, &quot;Apple&quot;, &quot;fig&quot; };
 comparators.strings().sort(names);                  // Apple fig pear
@@ -153,7 +157,7 @@ comparators.ints().reversed().sort(scores);         // largest first</pre></div>
 </section>
 <section class="type" id="counter">
 <h2><span class="kind">class</span> counter</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/counter.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/counter.sharp">source</a></p>
 <p>A number in an object: something to count with that can be shared.</p>
 <p>A lambda can use the objects around it but cannot assign to an outer native variable, so <code>total += x</code> inside a lambda does not work on a <code>decimal</code>. A counter is an object, so this does:</p>
 <div class="code"><pre class="sharp">seen := new counter();
@@ -176,7 +180,7 @@ println(&quot;&quot; + seen.value);</pre></div>
 </section>
 <section class="type" id="either">
 <h2><span class="kind">class</span> either&lt;L, R&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/either.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/either.sharp">source</a></p>
 <p>A value that is ONE of two types: a &quot;left&quot; of type L or a &quot;right&quot; of type R. By convention the right side is the good result and the left side the alternative (usually an error description), which makes <code>either</code> the complement of std#result: a result always has data and maybe an error, an either has exactly one of the two.</p>
 <div class="code"><pre class="sharp">def parse_port(text: string): either&lt;string, int&gt; {
     if(text.size() == 0) return either&lt;string, int&gt;.left(&quot;empty&quot;);
@@ -208,7 +212,7 @@ else println(answer.left_value());</pre></div>
 </section>
 <section class="type" id="hashing">
 <h2><span class="kind">class</span> hashing</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/hashing.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/hashing.sharp">source</a></p>
 <p>Well-known 32-bit hash and checksum functions over text and bytes. Only static functions; never instantiated.</p>
 <div class="code"><pre class="sharp">hashing.fnv1a(&quot;hello&quot;)              // 1335831723
 hashing.crc32(&quot;123456789&quot;)          // 3421780262 (0xCBF43926)
@@ -244,7 +248,7 @@ adler32   a cheaper but weaker checksum (zlib)</pre></div>
 </section>
 <section class="type" id="id_generator">
 <h2><span class="kind">class</span> id_generator</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/id_generator.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/id_generator.sharp">source</a></p>
 <p>Hands out identifiers that are unique within one generator: 1, 2, 3 ... or, with a prefix, &quot;order-1&quot;, &quot;order-2&quot; ...</p>
 <div class="code"><pre class="sharp">ids := new id_generator();
 first : decimal = ids.next_id();            // 1
@@ -267,7 +271,7 @@ name := tickets.next_text();            // &quot;T-1000&quot;</pre></div>
 </section>
 <section class="type" id="lazy">
 <h2><span class="kind">class</span> lazy&lt;T&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/lazy.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/lazy.sharp">source</a></p>
 <p>A value that is computed the first time it is asked for, and remembered from then on (Kotlin&#x27;s <code>by lazy</code>). Use it for something expensive that may never be needed: a parsed configuration, a lookup table, a connection.</p>
 <div class="code"><pre class="sharp">table := new lazy&lt;string&gt;({ -&gt; (string) return build_big_table(); });
 // nothing has been built yet
@@ -286,7 +290,7 @@ again := table.value();     // the same object, not built again</pre></div>
 </section>
 <section class="type" id="optional">
 <h2><span class="kind">class</span> optional&lt;T&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/optional.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/optional.sharp">source</a></p>
 <p>A box that either holds one value or is empty - a way to say &quot;there may be no result&quot; in a return type instead of returning null and hoping the caller checks (Java&#x27;s Optional, Kotlin&#x27;s nullable types).</p>
 <div class="code"><pre class="sharp">def find_user(id: decimal): optional&lt;string&gt; {
     if(id == 1) return optional&lt;string&gt;.of(&quot;ada&quot;);
@@ -317,7 +321,7 @@ if(found.is_present()) println(found.value());</pre></div>
 </section>
 <section class="type" id="preconditions">
 <h2><span class="kind">class</span> preconditions</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/preconditions.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/preconditions.sharp">source</a></p>
 <p>One-line checks that throw the right exception when something is wrong (Kotlin&#x27;s require / check / requireNotNull / error / TODO). Only static functions; never instantiated.</p>
 <div class="code"><pre class="sharp">def withdraw(amount: decimal) {
     preconditions.require(amount &gt; 0, &quot;amount must be positive&quot;);
@@ -348,7 +352,7 @@ todo(...)             the code is not written yet        -&gt; not_implemented_e
 </section>
 <section class="type" id="range">
 <h2><span class="kind">class</span> range</h2>
-<p class="meta"><code>: loopable&lt;decimal&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/range.sharp">source</a></p>
+<p class="meta"><code>: loopable&lt;decimal&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/range.sharp">source</a></p>
 <p>An arithmetic progression of native numbers: first, first + step, first + 2 * step ... up to and INCLUDING the last value (Kotlin&#x27;s IntRange / IntProgression).</p>
 <div class="code"><pre class="sharp">foreach(i in new range(1, 5)) { ... }            // 1 2 3 4 5
 foreach(i in new range(10, 1, 0 - 3)) { ... }    // 10 7 4 1
@@ -383,7 +387,7 @@ new range(1, 10).stepped(2).to_array()           // { 1, 3, 5, 7, 9 }</pre></div
 </section>
 <section class="type" id="ref">
 <h2><span class="kind">class</span> ref&lt;T&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/ref.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/ref.sharp">source</a></p>
 <p>A mutable holder for one object: a variable you can pass around.</p>
 <p>Its main use is with lambdas. A closure can read and call the objects around it but cannot assign to an outer variable; put the value in a ref and the closure can change what the ref holds:</p>
 <div class="code"><pre class="sharp">longest := new ref&lt;string&gt;(&quot;&quot;);
@@ -403,7 +407,7 @@ println(longest.value);</pre></div>
 </section>
 <section class="type" id="uuid">
 <h2><span class="kind">class</span> uuid</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/uuid.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/uuid.sharp">source</a></p>
 <p>A universally unique identifier: 128 bits, written as 32 hexadecimal digits in five groups, 8-4-4-4-12:</p>
 <div class="code"><pre class="sharp">123e4567-e89b-42d3-a456-426614174000</pre></div>
 <div class="code"><pre class="sharp">id := uuid.random();                    // a new random (version 4) id
@@ -441,7 +445,7 @@ same := uuid.parse(text);
 </section>
 <section class="type" id="version">
 <h2><span class="kind">class</span> version</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/util/version.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/master/stdlib/std/util/version.sharp">source</a></p>
 <p>A semantic version number (semver.org, version 2.0.0):</p>
 <div class="code"><pre class="sharp">MAJOR.MINOR.PATCH[-PRE-RELEASE][+BUILD]      e.g.  1.4.2,  2.0.0-rc.1,  1.0.0-beta+exp.sha.5114f85</pre></div>
 <div class="code"><pre class="sharp">v := version.parse(&quot;1.4.2-beta.3+build7&quot;);

@@ -15,6 +15,19 @@
   });
 })();
 
+// the switch in the header: light <-> dark, remembered in this browser. Until it is used, the page follows the system.
+(function () {
+  var button = document.getElementById("theme-switch");
+  if (!button) { return; }
+  button.addEventListener("click", function () {
+    var now = document.documentElement.getAttribute("data-theme")
+      || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    var next = now === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("sharp-theme", next); } catch (e) { }
+  });
+})();
+
 // the example tabs in the hero
 document.querySelectorAll("#tour .bar button").forEach(function (tab) {
   tab.addEventListener("click", function () {
