@@ -750,7 +750,9 @@ def main():
         shutil.copy(os.path.join(ROOT, "doc", source), os.path.join(out, name))
     for name in os.listdir(os.path.join(HERE, "brand")):                # the browser-tab icons
         shutil.copy(os.path.join(HERE, "brand", name), os.path.join(out, name))
-    shutil.copy(os.path.join(ROOT, "doc", "benchmarks.html"), os.path.join(out, "benchmarks.html"))
+    # the chart is a page of its own (benchmark/game/chart.py makes it): on the site it gets a way back
+    write(os.path.join(out, "benchmarks.html"), read(os.path.join(ROOT, "doc", "benchmarks.html")).replace(
+        "<main>", '<main>\n  <p><a href="performance.html" style="color: var(--sharp); font-weight: 600; text-decoration: none">&larr; Performance</a></p>', 1))
 
     modules = read_library(library)
     modules = {name: m for name, m in modules.items() if m["types"] or m["functions"] or m["constants"]}

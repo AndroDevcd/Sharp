@@ -224,20 +224,26 @@ PAGE = """<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sharp in the Benchmarks Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap">
+<script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 <style>
-  :root { --page: #f9f9f7; --surface: #fcfcfb; --ink: #0b0b0b; --ink2: #52514e; --muted: #898781; --grid: #e1e0d9; --axis: #c3c2b7;
-          --other: #2a78d6; --sharp: #eb6834; --before: #1baf7a; }
+  /* the site's colours (tools/site/site.css): Sharp in the accent, the other languages in a neutral grey */
+  :root { --page: #F6F8F9; --surface: #FFFFFF; --ink: #1B1E22; --ink2: #56616B; --muted: #7A858E; --grid: #DDE4E8; --axis: #CDD6DB;
+          --other: #8A959E; --sharp: #007999; --before: #0E7A4B; }
   @media (prefers-color-scheme: dark) {
-    :root { --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --grid: #2c2c2a; --axis: #383835;
-            --other: #3987e5; --sharp: #d95926; --before: #199e70; }
+    :root:not([data-theme="light"]) { --page: #14171A; --surface: #1B1E22; --ink: #EEF1F3; --ink2: #9BA6AF; --muted: #7F8A93; --grid: #2F353C; --axis: #3A414A;
+            --other: #7F8A93; --sharp: #00D4E6; --before: #4FD39A; color-scheme: dark; }
   }
-  body { margin: 0; padding: 24px 16px 48px; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  :root[data-theme="dark"] { --page: #14171A; --surface: #1B1E22; --ink: #EEF1F3; --ink2: #9BA6AF; --muted: #7F8A93; --grid: #2F353C; --axis: #3A414A;
+          --other: #7F8A93; --sharp: #00D4E6; --before: #4FD39A; color-scheme: dark; }
+  body { margin: 0; padding: 24px 16px 48px; background: var(--page); color: var(--ink); font: 15px/1.5 "Space Grotesk", "Segoe UI", system-ui, sans-serif; }
   main { max-width: 1180px; margin: 0 auto; }
   h1 { font-size: 22px; margin: 0 0 4px; }
   p { color: var(--ink2); margin: 0 0 12px; max-width: 78ch; }
-  .card { background: var(--surface); border: 1px solid var(--grid); border-radius: 10px; padding: 16px; overflow-x: auto; position: relative; }
+  .card { background: var(--surface); border: 1px solid var(--grid); padding: 16px; overflow-x: auto; position: relative; }
   .legend { display: flex; gap: 18px; color: var(--ink2); font-size: 13px; margin-bottom: 4px; }
-  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: -1px; }
   svg { display: block; max-width: none; }
   .grid { stroke: var(--grid); stroke-width: 1; }
   .axis { fill: var(--muted); font-size: 12px; }
@@ -249,7 +255,7 @@ PAGE = """<!doctype html>
   .median { stroke: currentColor; stroke-width: 3; }
   .dot { fill: currentColor; stroke: var(--surface); stroke-width: 2; cursor: default; }
   .dot:hover { r: 6; }
-  #tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--surface); padding: 6px 9px; border-radius: 6px; font-size: 12.5px; display: none; z-index: 5; }
+  #tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--surface); padding: 6px 9px; font-size: 12.5px; display: none; z-index: 5; }
   table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
   th, td { text-align: right; padding: 6px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
   th:first-child { text-align: left; }
