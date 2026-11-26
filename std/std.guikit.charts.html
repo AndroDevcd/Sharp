@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -83,13 +83,13 @@
 <p class="contents"><a href="#axis_label">axis_label</a> <a href="#bar_series">bar_series</a> <a href="#chart">chart</a> <a href="#chart_axis">chart_axis</a> <a href="#chart_grid">chart_grid</a> <a href="#chart_hover">chart_hover</a> <a href="#chart_legend">chart_legend</a> <a href="#chart_marker">chart_marker</a> <a href="#chart_series">chart_series</a> <a href="#chart_text">chart_text</a> <a href="#chart_tip">chart_tip</a> <a href="#easing">easing</a> <a href="#legend_entry">legend_entry</a> <a href="#line_series">line_series</a> <a href="#mark">mark</a> <a href="#motion">motion</a> <a href="#constants">constants</a></p>
 <section class="type" id="axis_label">
 <h2><span class="kind">class</span> axis_label</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/parts.sharp">source</a></p>
 <p>axis_label - one label of an axis: <code>it</code> in the block of x_axis / y_axis, and what the function given to chart_axis.for_each is handed. In for_each, change its fields to change how the label is painted.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>index</code></td><td><code>_int64</code></td><td>x axis: the place, 0 the first. y axis: which number, 0 the lowest</td></tr><tr><td><code>value</code></td><td><code>decimal</code></td><td>y axis: the number it stands for (x axis: 0)</td></tr><tr><td><code>words</code></td><td><code>string</code></td><td>what is written</td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td>its colour (null: the axis&#x27; own)</td></tr><tr><td><code>bold</code></td><td><code>_int64</code></td><td>1: bold</td></tr><tr><td><code>hidden</code></td><td><code>_int64</code></td><td>1: not painted</td></tr></table></div>
 </section>
 <section class="type" id="bar_series">
 <h2><span class="kind">class</span> bar_series</h2>
-<p class="meta"><code>base chart_series</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/series.sharp">source</a></p>
+<p class="meta"><code>base chart_series</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/series.sharp">source</a></p>
 <p>bar_series - a row of numbers drawn as bars. Made with bars(...), inside chart { }.</p>
 <div class="code"><pre class="sharp">bars(&quot;Sales&quot;, sales).color(blue).corner(6)
 bars(sales).gradient(light_blue, dark_blue).value_labels()
@@ -117,7 +117,7 @@ bars(profit).color_each { i: _int64, v: decimal -&gt; if(v &lt; 0) { return red;
 </section>
 <section class="type" id="chart">
 <h2><span class="kind">class</span> chart</h2>
-<p class="meta"><code>base widget : behavior, stateful, pointer_target, overlay_painter</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/chart.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, stateful, pointer_target, overlay_painter</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/chart.sharp">source</a></p>
 <p>chart - numbers as bars and lines. Made with chart(...).</p>
 <div class="code"><pre class="sharp">chart(modifier().fill_width().height(240)) {
     bars(&quot;Sales&quot;, sales).corner(6);
@@ -191,7 +191,7 @@ if(pointed.value &gt;= 0) { text(&quot;you are looking at &quot; + months[pointe
 </section>
 <section class="type" id="chart_axis">
 <h2><span class="kind">class</span> chart_axis</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/parts.sharp">source</a></p>
 <p>chart_axis - the words along one side. Made with x_axis(...) or y_axis().</p>
 <div class="code"><pre class="sharp">x_axis(months)                                  // a word under every place (else: 1, 2, 3 ...)
 y_axis().ticks(4).format { v: decimal -&gt; return &quot;$&quot; + chart_text.number(v); }</pre></div>
@@ -221,7 +221,7 @@ y_axis().for_each { l: axis_label -&gt; if(l.value &lt; 0) { l.tint = red; } };<
 </section>
 <section class="type" id="chart_grid">
 <h2><span class="kind">class</span> chart_grid</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/parts.sharp">source</a></p>
 <p>chart_grid - level lines behind the marks, one at each number of the y axis. Made with grid_lines().</p>
 <div class="code"><pre class="sharp">grid_lines().dashed()</pre></div>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>broken</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td></td></tr></table></div>
@@ -232,13 +232,13 @@ y_axis().for_each { l: axis_label -&gt; if(l.value &lt; 0) { l.tint = red; } };<
 </section>
 <section class="type" id="chart_hover">
 <h2><span class="kind">class</span> chart_hover</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/parts.sharp">source</a></p>
 <p>chart_hover - which place the mouse points at: <code>it</code> in the block of marker { }, and what the functions given to a marker are told. The first two fields are all a block or .tip needs; the rest says where things are on the screen, for a function that paints (.draw).</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>index</code></td><td><code>_int64</code></td><td>the place: 0 is the first</td></tr><tr><td><code>name</code></td><td><code>string</code></td><td>its word on the x axis</td></tr><tr><td><code>x</code></td><td><code>decimal</code></td><td>the middle of the place, across</td></tr><tr><td><code>left</code></td><td><code>decimal</code></td><td>the area the marks are in</td></tr><tr><td><code>top</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>width</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mouse_x</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mouse_y</code></td><td><code>decimal</code></td><td></td></tr></table></div>
 </section>
 <section class="type" id="chart_legend">
 <h2><span class="kind">class</span> chart_legend</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/parts.sharp">source</a></p>
 <p>chart_legend - the name of every named series beside a sign in its colour. Made with legend().</p>
 <div class="code"><pre class="sharp">legend()                                            // squares, above the marks, at the left
 legend().bottom().align(ALIGN_CENTER).sign(LEGEND_DOT)
@@ -263,7 +263,7 @@ legend().pills().bold().size(14).gap(10)</pre></div>
 </section>
 <section class="type" id="chart_marker">
 <h2><span class="kind">class</span> chart_marker</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/parts.sharp">source</a></p>
 <p>chart_marker - what the mouse points at: the place under it is marked and a small box says its numbers. Made with marker().</p>
 <div class="code"><pre class="sharp">marker()                                                // the usual look
 marker().guide(GUIDE_BAND).dim_others()                 // the place tinted, the other bars faded
@@ -300,7 +300,7 @@ marker().title { i: _int64 -&gt; return &quot;Week &quot; + (i + 1); }</pre></di
 </section>
 <section class="type" id="chart_series">
 <h2><span class="kind">class</span> chart_series</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/series.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/series.sharp">source</a></p>
 <p>chart_series - one row of numbers in a chart, whatever it is drawn as: what bars and lines have in common. (The two kinds follow: bar_series, line_series.)</p>
 <p>It holds the numbers TWICE: <code>values</code> is what the program gave, and <code>start</code> is where each number stood when the last change began. What is on the screen is somewhere between the two while the chart glides from old numbers to new ones (value_at), and equal to <code>values</code> the rest of the time.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>name</code></td><td><code>string</code></td><td>what the legend and the marker call it (&quot;&quot;: not named)</td></tr><tr><td><code>values</code></td><td><code>decimal[]</code></td><td>the numbers the program gave</td></tr><tr><td><code>start</code></td><td><code>decimal[]</code></td><td>where each one stood when the last change began</td></tr><tr><td><code>count</code></td><td><code>_int64</code></td><td>how many numbers</td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td>null: the chart picks one (palette.sharp ... chart.tint_of)</td></tr><tr><td><code>entering</code></td><td><code>motion?</code></td><td>null: the chart&#x27;s</td></tr><tr><td><code>born</code></td><td><code>decimal</code></td><td>the host time it first appeared; -1: at the next paint</td></tr><tr><td><code>viewer</code></td><td><code>(mark)()?</code></td><td>builds widgets for each mark (the block given to bars / line); null: none</td></tr><tr><td><code>views</code></td><td><code>list&lt;view&gt;</code></td><td>those widgets, one for each number (the chart makes and places them)</td></tr></table></div>
@@ -314,7 +314,7 @@ marker().title { i: _int64 -&gt; return &quot;Week &quot; + (i + 1); }</pre></di
 </section>
 <section class="type" id="chart_text">
 <h2><span class="kind">class</span> chart_text</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/parts.sharp">source</a></p>
 <p>chart_text - numbers as a chart writes them.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="chart_text.number"><div class="sig">static def <b>number</b>(v: decimal) : string</div><p>A number as short as it can honestly be: no &quot;.0&quot; on a whole number, at most two digits after the point, and a comma between the thousands - 1250 is &quot;1,250&quot;, 3.5 is &quot;3.5&quot;, 0.125 is &quot;0.13&quot;.</p></div>
@@ -322,7 +322,7 @@ marker().title { i: _int64 -&gt; return &quot;Week &quot; + (i + 1); }</pre></di
 </section>
 <section class="type" id="chart_tip">
 <h2><span class="kind">class</span> chart_tip</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/parts.sharp">source</a></p>
 <p>chart_tip - what the marker&#x27;s box says, line by line. The function given to marker().tip fills one; the chart measures it, draws the box around it and puts it where there is room.</p>
 <div class="code"><pre class="sharp">marker().tip { h: chart_hover, tip: chart_tip -&gt;
     tip.title(days[h.index]);
@@ -341,7 +341,7 @@ marker().title { i: _int64 -&gt; return &quot;Week &quot; + (i + 1); }</pre></di
 </section>
 <section class="type" id="easing">
 <h2><span class="kind">class</span> easing</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/motion.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/motion.sharp">source</a></p>
 <p>easing - the curves above as one function: easing.at(EASE_OUT, 0.5)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="easing.at"><div class="sig">st<b>at</b>ic def at(curve: _int64, through: decimal) : decimal</div><p>how much of the way is done when <code>through</code> (0 .. 1) of the time has passed</p></div>
@@ -349,13 +349,13 @@ marker().title { i: _int64 -&gt; return &quot;Week &quot; + (i + 1); }</pre></di
 </section>
 <section class="type" id="legend_entry">
 <h2><span class="kind">class</span> legend_entry</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/parts.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/parts.sharp">source</a></p>
 <p>legend_entry - one named series: <code>it</code> in the block of legend { }</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>index</code></td><td><code>_int64</code></td><td>which series of the chart: 0 is the first</td></tr><tr><td><code>name</code></td><td><code>string</code></td><td></td></tr><tr><td><code>tint</code></td><td><code>color?</code></td><td>the series&#x27; colour</td></tr></table></div>
 </section>
 <section class="type" id="line_series">
 <h2><span class="kind">class</span> line_series</h2>
-<p class="meta"><code>base chart_series</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/series.sharp">source</a></p>
+<p class="meta"><code>base chart_series</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/series.sharp">source</a></p>
 <p>line_series - a row of numbers drawn as a line through its points. Made with line(...), inside chart { }.</p>
 <div class="code"><pre class="sharp">line(&quot;Target&quot;, target).curved().thickness(3).dots(4)
 line(visitors).curved().fill_below()
@@ -381,7 +381,7 @@ line(limit).dashed().color(red)</pre></div>
 </section>
 <section class="type" id="mark">
 <h2><span class="kind">class</span> mark</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/motion.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/motion.sharp">source</a></p>
 <p>mark - ONE drawn thing of a chart: one bar, or one point of a line.</p>
 <p>A motion is handed every mark at the place where it comes to rest, and changes it into what it looks like part of the way there. A drawing function (bars(...).draw_bar, line(...).draw_dot) is handed the mark as it is to be painted right now.</p>
 <div class="code"><pre class="sharp">a bar       (x, y) is its top-left corner; width and height its size
@@ -394,7 +394,7 @@ a point     (x, y) is its middle; width and height are 0; size is the dot&#x27;s
 </section>
 <section class="type" id="motion">
 <h2><span class="kind">class</span> motion</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/charts/motion.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/charts/motion.sharp">source</a></p>
 <p>motion - HOW the marks of a chart move: when the chart appears, and when its numbers change.</p>
 <div class="code"><pre class="sharp">chart { ... }.enter(motion.grow().stagger(0.04))            // bars rise one after another
 line(values).enter(motion.draw_on().over(1.2))              // the line is drawn left to right

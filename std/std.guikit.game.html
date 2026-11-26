@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -83,7 +83,7 @@
 <p class="contents"><a href="#hit_box">hit_box</a> <a href="#sprite_animation">sprite_animation</a> <a href="#sprite_batch">sprite_batch</a> <a href="#sprite_sheet">sprite_sheet</a> <a href="#tile_map">tile_map</a></p>
 <section class="type" id="hit_box">
 <h2><span class="kind">class</span> hit_box</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/game/hit_box.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/game/hit_box.sharp">source</a></p>
 <p>hit_box - a rectangle that things in a game are checked against: does the player touch the coin, is the click inside the button, did the bullet hit.</p>
 <div class="code"><pre class="sharp">player := new hit_box(x, y, 32, 48);
 coin := new hit_box(400, 200, 16, 16);</pre></div>
@@ -101,7 +101,7 @@ if(player.contains(f.mouse_x, f.mouse_y)) { ... }</pre></div>
 </section>
 <section class="type" id="sprite_animation">
 <h2><span class="kind">class</span> sprite_animation</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/game/sprite_animation.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/game/sprite_animation.sharp">source</a></p>
 <p>sprite_animation - which frame of a sprite sheet to show, as time passes.</p>
 <div class="code"><pre class="sharp">run := new sprite_animation(8, 6, 12);       // frames 8 .. 13, twelve a second</pre></div>
 <div class="code"><pre class="sharp">p.sprite(hero, run.frame_at(f.time), x, y);  // in the canvas, every frame</pre></div>
@@ -119,7 +119,7 @@ if(player.contains(f.mouse_x, f.mouse_y)) { ... }</pre></div>
 </section>
 <section class="type" id="sprite_batch">
 <h2><span class="kind">class</span> sprite_batch</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/game/sprite_batch.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/game/sprite_batch.sharp">source</a></p>
 <p>sprite_batch - many sprites of ONE sheet, painted with one call.</p>
 <div class="code"><pre class="sharp">coins := new sprite_batch(items);            // once: items is a sprite_sheet</pre></div>
 <div class="code"><pre class="sharp">coins.clear();                               // every frame
@@ -137,7 +137,7 @@ p.draw(coins);</pre></div>
 </section>
 <section class="type" id="sprite_sheet">
 <h2><span class="kind">class</span> sprite_sheet</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/game/sprite_sheet.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/game/sprite_sheet.sharp">source</a></p>
 <p>sprite_sheet - one picture that holds many small ones of the same size, in rows: the frames of a character&#x27;s run, the tiles of a level.</p>
 <div class="code"><pre class="sharp">hero := new sprite_sheet(&quot;assets/hero.png&quot;, 32, 32);     // frames of 32 x 32 pixels
 p.sprite(hero, 5, x, y);                                 // frame 5, at its own size
@@ -160,7 +160,7 @@ p.sprite(hero, 5, x, y, 96, 96, true);                   // facing the other way
 </section>
 <section class="type" id="tile_map">
 <h2><span class="kind">class</span> tile_map</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/game/tile_map.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/game/tile_map.sharp">source</a></p>
 <p>tile_map - a level laid out as a grid of tiles from a tile set.</p>
 <div class="code"><pre class="sharp">ground := new sprite_sheet(&quot;assets/tiles.png&quot;, 18, 18).crisp();
 level := new tile_map(ground, 200, 20);          // 200 tiles wide, 20 high

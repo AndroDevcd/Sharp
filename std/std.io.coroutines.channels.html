@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -65,7 +65,7 @@
 <p class="contents"><a href="#channel">channel</a> <a href="#channels">channels</a> <a href="#closed_channel_exception">closed_channel_exception</a> <a href="#produce">produce</a> <a href="#receive_channel">receive_channel</a> <a href="#send_channel">send_channel</a></p>
 <section class="type" id="channel">
 <h2><span class="kind">class</span> channel&lt;t&gt;</h2>
-<p class="meta"><code>: send_channel&lt;t&gt;, receive_channel&lt;t&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/channel.sharp">source</a></p>
+<p class="meta"><code>: send_channel&lt;t&gt;, receive_channel&lt;t&gt;</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/channels/channel.sharp">source</a></p>
 <p>channel&lt;t&gt; - a queue between coroutines: send() on one side, receive() on the other, and whoever is too fast is suspended until the other side has caught up.</p>
 <p>USAGE numbers := new channel&lt;int&gt;(16);                 // see <code>channels</code> for the capacities</p>
 <div class="code"><pre class="sharp">launch(numbers, { s: object -&gt;                   // the producer (state object: THE CLOSURE RULE)
@@ -111,7 +111,7 @@ for( ;; ) {                                      // the consumer
 </section>
 <section class="type" id="channels">
 <h2><span class="kind">class</span> channels</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/channels.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/channels/channels.sharp">source</a></p>
 <p>channels - the names of the four kinds of channel capacity.</p>
 <p>USAGE a := new channel&lt;int&gt;();                       // rendezvous (the default) b := new channel&lt;int&gt;(16);                     // a buffer of 16 c := new channel&lt;int&gt;(channels.UNLIMITED);     // send never waits d := new channel&lt;int&gt;(channels.CONFLATED);     // only the newest element is kept</p>
 <div class="code"><pre class="sharp">capacity          send() when no receiver is waiting
@@ -125,7 +125,7 @@ CONFLATED         never suspends, replaces the element that was waiting</pre></d
 </section>
 <section class="type" id="closed_channel_exception">
 <h2><span class="kind">class</span> closed_channel_exception</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/closed_channel_exception.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/channels/closed_channel_exception.sharp">source</a></p>
 <p>closed_channel_exception - thrown by channel.send() on a closed channel and by channel.receive() once a closed channel has nothing left.</p>
 <p>USAGE try { for( ;; ) { handle(inbox.receive()); } } catch(e: closed_channel_exception) { // the sender called close() and everything it sent was handled }</p>
 <p>Usually nicer than catching it: inbox.for_each({ item: message -&gt; handle(item); }) or receive_or_null(), which end quietly when the channel is closed.</p>
@@ -136,7 +136,7 @@ CONFLATED         never suspends, replaces the element that was waiting</pre></d
 </section>
 <section class="type" id="produce">
 <h2><span class="kind">class</span> produce&lt;t&gt;</h2>
-<p class="meta"><code>: coroutine_body</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/produce.sharp">source</a></p>
+<p class="meta"><code>: coroutine_body</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/channels/produce.sharp">source</a></p>
 <p>produce&lt;t&gt; - start a coroutine that fills a channel, and get the receiving end of that channel.</p>
 <p>USAGE squares := produce&lt;int&gt;.start({ out: send_channel&lt;int&gt; -&gt; for(i : decimal = 1; i &lt;= 5; i++) { out.send(i * i); } });                                              // the channel is closed when the block returns</p>
 <div class="code"><pre class="sharp">squares.for_each({ n: int -&gt; println(&quot;$n&quot;); });  // 1 4 9 16 25</pre></div>
@@ -158,7 +158,7 @@ lines := produce&lt;string&gt;.start(64, file, { out: send_channel&lt;string&gt;
 </section>
 <section class="type" id="receive_channel">
 <h2><span class="kind">interface</span> receive_channel&lt;t&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/receive_channel.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/channels/receive_channel.sharp">source</a></p>
 <p>receive_channel&lt;t&gt; - the receiving end of a channel: what a consumer is given, and what produce returns.</p>
 <p>USAGE def print_all(source: receive_channel&lt;int&gt;) { source.for_each({ n: int -&gt; println(&quot;$n&quot;); });     // ends when the channel is closed }</p>
 <p>channel&lt;t&gt; implements it. Kotlin equivalent: kotlinx.coroutines.channels.ReceiveChannel&lt;E&gt;.</p>
@@ -173,7 +173,7 @@ lines := produce&lt;string&gt;.start(64, file, { out: send_channel&lt;string&gt;
 </section>
 <section class="type" id="send_channel">
 <h2><span class="kind">interface</span> send_channel&lt;t&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/channels/send_channel.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/channels/send_channel.sharp">source</a></p>
 <p>send_channel&lt;t&gt; - the sending end of a channel: what a producer is given.</p>
 <p>USAGE def produce_numbers(out: send_channel&lt;int&gt;) { for(i : decimal = 0; i &lt; 10; i++) { out.send(i); } out.close(); }</p>
 <p>Handing out only this interface makes it plain that the function sends and never receives. channel&lt;t&gt; implements it.</p>

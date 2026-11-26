@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -83,7 +83,7 @@
 <p class="contents"><a href="#badge">badge</a> <a href="#chip">chip</a> <a href="#divider">divider</a> <a href="#label">label</a> <a href="#picture">picture</a> <a href="#progress_bar">progress_bar</a> <a href="#remote_picture">remote_picture</a> <a href="#remote_pictures">remote_pictures</a> <a href="#rich_label">rich_label</a> <a href="#rich_text">rich_text</a> <a href="#constants">constants</a></p>
 <section class="type" id="badge">
 <h2><span class="kind">class</span> badge</h2>
-<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/chip.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/display/chip.sharp">source</a></p>
 <p>badge - a small filled dot with a number in it: &quot;3 unread&quot;. Made with badge(count). A count of 0 shows nothing and takes no room. (Compose: Badge.)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="badge.badge"><div class="sig"><b>badge</b>(count: _int64)</div></div>
@@ -96,7 +96,7 @@
 </section>
 <section class="type" id="chip">
 <h2><span class="kind">class</span> chip</h2>
-<p class="meta"><code>base widget : behavior, shows_words, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/chip.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words, on_or_off</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/display/chip.sharp">source</a></p>
 <p>chip - a small rounded label: a tag (&quot;work&quot;), a filter you switch on and off, a choice among a few. Made with chip(...).</p>
 <div class="code"><pre class="sharp">chip(&quot;work&quot;);                                   // just a tag
 chip(&quot;urgent&quot;).selected(only_urgent.value);     // drawn filled while the value is not 0
@@ -116,7 +116,7 @@ chip(&quot;urgent&quot;) { only_urgent.value = 1 - only_urgent.value; }.selected
 </section>
 <section class="type" id="divider">
 <h2><span class="kind">class</span> divider</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/divider.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/display/divider.sharp">source</a></p>
 <p>divider - a thin line between things. Made with gui.divider().</p>
 <div class="code"><pre class="sharp">gui.column().add(header).add(gui.divider()).add(body)</pre></div>
 <p>In a column it is a level line across the full width; in a row, call .upright() for a line from top to bottom. It is drawn in the theme&#x27;s border colour. (Compose: HorizontalDivider. HTML: hr.)</p>
@@ -131,7 +131,7 @@ chip(&quot;urgent&quot;) { only_urgent.value = 1 - only_urgent.value; }.selected
 </section>
 <section class="type" id="label">
 <h2><span class="kind">class</span> label</h2>
-<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/label.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, shows_words</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/display/label.sharp">source</a></p>
 <p>label - text on the screen. Made with text(...).</p>
 <div class="code"><pre class="sharp">text(&quot;Hello&quot;)
 text(&quot;Total: &quot; + total.value).size(24).color(theme_green)
@@ -156,7 +156,7 @@ text(long_paragraph, modifier().max_width(400))     // wraps onto several lines<
 </section>
 <section class="type" id="picture">
 <h2><span class="kind">class</span> picture</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/picture.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/display/picture.sharp">source</a></p>
 <p>picture - an image on the screen: from a file, or from a link. Made with image(...).</p>
 <div class="code"><pre class="sharp">image(&quot;assets/logo.png&quot;)                              // a file, at its own size
 image(&quot;assets/photo.jpg&quot;, modifier().size(120, 80))   // in a box of a size
@@ -196,7 +196,7 @@ modifier().corner(12)  .rotate(8)  .scale(1.2)  .blur(4)  .border(2, colour)  .s
 </section>
 <section class="type" id="progress_bar">
 <h2><span class="kind">class</span> progress_bar</h2>
-<p class="meta"><code>base widget : behavior, has_value</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/progress_bar.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, has_value</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/display/progress_bar.sharp">source</a></p>
 <p>progress_bar - how far along something is. Made with gui.progress(...).</p>
 <div class="code"><pre class="sharp">gui.progress(done.value / total)            // a fraction: 0 = nothing, 1 = finished</pre></div>
 <p>It only SHOWS a number (nobody drags it), so it takes a plain value, not a state: build() runs again when your state changes and makes a bar with the new fraction. It is as wide as the room on offer. (Compose: LinearProgressIndicator. HTML: progress.)</p>
@@ -211,13 +211,13 @@ modifier().corner(12)  .rotate(8)  .scale(1.2)  .blur(4)  .border(2, colour)  .s
 </section>
 <section class="type" id="remote_picture">
 <h2><span class="kind">class</span> remote_picture</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/picture.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/display/picture.sharp">source</a></p>
 <p>one link, and the file it was fetched into</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>link</code></td><td><code>string</code></td><td></td></tr><tr><td><code>folder</code></td><td><code>string</code></td><td>the cache folder it is kept in</td></tr><tr><td><code>file</code></td><td><code>string</code></td><td>where it is kept in that folder</td></tr><tr><td><code>state</code></td><td><code>_int64</code></td><td></td></tr><tr><td><code>ready_at</code></td><td><code>decimal</code></td><td>the host&#x27;s clock when it arrived (long ago: it was in the cache already)</td></tr></table></div>
 </section>
 <section class="type" id="remote_pictures">
 <h2><span class="kind">class</span> remote_pictures</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/picture.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/display/picture.sharp">source</a></p>
 <p>THE PICTURES FROM LINKS: each link is fetched once, into the cache folder, and every picture that shows it reads that file. FRAMEWORK USE: a program writes image(&quot;https://...&quot;) and, if it wants, gui.image_cache(&quot;folder&quot;).</p>
 <p>Everything here runs on the main thread, except the fetching itself: that is a coroutine on the IO threads, which hands its answer back with on_main.</p>
 <h3>Functions</h3><div>
@@ -229,7 +229,7 @@ modifier().corner(12)  .rotate(8)  .scale(1.2)  .blur(4)  .border(2, colour)  .s
 </section>
 <section class="type" id="rich_label">
 <h2><span class="kind">class</span> rich_label</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/rich_label.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/display/rich_label.sharp">source</a></p>
 <p>rich_label - shows a rich_text. Made with text(rich { ... }).</p>
 <p>HOW IT WORKS: every part is cut into WORDS (each with the spaces after it). While measuring, the words are laid out left to right and wrapped to the width; each word remembers its line and how far across it is. Painting then only draws each word where it was put.</p>
 <h3>Functions</h3><div>
@@ -243,7 +243,7 @@ modifier().corner(12)  .rotate(8)  .scale(1.2)  .blur(4)  .border(2, colour)  .s
 </section>
 <section class="type" id="rich_text">
 <h2><span class="kind">class</span> rich_text</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/display/rich_label.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/display/rich_label.sharp">source</a></p>
 <p>RICH TEXT - one piece of text with parts that look different: a bold word, a coloured number, a quiet aside.</p>
 <div class="code"><pre class="sharp">text(rich {
     plain(&quot;Due &quot;);

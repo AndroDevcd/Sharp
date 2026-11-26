@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -60,13 +60,13 @@
 <p class="contents"><a href="#c_float_cell">c_float_cell</a> <a href="#c_memory">c_memory</a> <a href="#c_pointer_cell">c_pointer_cell</a> <a href="#c_struct">c_struct</a> <a href="#functions">functions</a></p>
 <section class="type" id="c_float_cell">
 <h2><span class="kind">class</span> c_float_cell</h2>
-<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/c/memory.sharp">source</a></p>
+<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/c/memory.sharp">source</a></p>
 <p>a C <code>float</code> on its own: how a 32-bit float is read from and written to memory</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>value</code></td><td><code>c_float</code></td><td></td></tr></table></div>
 </section>
 <section class="type" id="c_memory">
 <h2><span class="kind">class</span> c_memory</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/c/memory.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/c/memory.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="c_memory.c_memory"><div class="sig"><b>c_memory</b>(size: _int64)</div><p><code>size</code> bytes of C&#x27;s memory, all 0. Throws illegal_argument_exception for a size below 1 and out_of_memory_exception when C has none to give.</p></div>
@@ -104,13 +104,13 @@
 </section>
 <section class="type" id="c_pointer_cell">
 <h2><span class="kind">class</span> c_pointer_cell</h2>
-<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/c/memory.sharp">source</a></p>
+<p class="meta"><code>base c_struct</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/c/memory.sharp">source</a></p>
 <p>an address on its own: how wide an address is on this machine is read off one</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>value</code></td><td><code>pointer</code></td><td></td></tr></table></div>
 </section>
 <section class="type" id="c_struct">
 <h2><span class="kind">class</span> c_struct</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/c/struct.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/c/struct.sharp">source</a></p>
 <p>A C STRUCT: a class whose fields are the struct&#x27;s members</p>
 <div class="code"><pre class="sharp">class SDL_Rect base c_struct {                  // typedef struct { int x, y, w, h; } SDL_Rect;
     x : c_int;

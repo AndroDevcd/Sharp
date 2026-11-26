@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -83,7 +83,7 @@
 <p class="contents"><a href="#canvas">canvas</a> <a href="#frame">frame</a></p>
 <section class="type" id="canvas">
 <h2><span class="kind">class</span> canvas</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/drawing/canvas.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/drawing/canvas.sharp">source</a></p>
 <p>canvas - an area you paint yourself, every frame. Made with canvas(...).</p>
 <p>This is the escape hatch out of the widgets: a chart, a drawing surface, a whole game. You get the painter and draw whatever you like; the rest of the screen around it is still ordinary widgets.</p>
 <div class="code"><pre class="sharp">ball_x : decimal = 50;</pre></div>
@@ -106,7 +106,7 @@
 </section>
 <section class="type" id="frame">
 <h2><span class="kind">class</span> frame</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/widgets/drawing/canvas.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/widgets/drawing/canvas.sharp">source</a></p>
 <p>frame - what a canvas&#x27;s drawing function is told about this frame: how big the canvas is, how much time has passed, where the mouse is, which keys are held.</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>width</code></td><td><code>decimal</code></td><td>the size of the canvas, in pixels</td></tr><tr><td><code>height</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>time</code></td><td><code>decimal</code></td><td>seconds since the window opened</td></tr><tr><td><code>step</code></td><td><code>decimal</code></td><td>seconds since the previous frame: move things by speed * step</td></tr><tr><td><code>mouse_x</code></td><td><code>decimal</code></td><td>the mouse, measured from the canvas&#x27;s top-left corner</td></tr><tr><td><code>mouse_y</code></td><td><code>decimal</code></td><td></td></tr><tr><td><code>mouse_down</code></td><td><code>_int64</code></td><td>1 while the left button is held</td></tr><tr><td><code>moved_x</code></td><td><code>decimal</code></td><td>how far the mouse moved since the previous frame, across and down:</td></tr><tr><td><code>moved_y</code></td><td><code>decimal</code></td><td>it goes on counting when the window keeps the mouse (gui.keep_mouse)</td></tr></table></div>
 <h3>Functions</h3><div>

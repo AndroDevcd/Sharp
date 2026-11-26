@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -65,7 +65,7 @@
 <p class="contents"><a href="#ansi">ansi</a> <a href="#console">console</a> <a href="#console_line_end">console_line_end</a> <a href="#functions">functions</a></p>
 <section class="type" id="ansi">
 <h2><span class="kind">class</span> ansi</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/console/ansi.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/console/ansi.sharp">source</a></p>
 <p>ANSI escape sequences: the control codes terminals understand for colours, bold / underline, clearing the screen and moving the cursor.</p>
 <div class="code"><pre class="sharp">println(ansi.colored(&quot;error:&quot;, ansi.red) + &quot; file not found&quot;);
 println(ansi.styled(&quot;Title&quot;, ansi.bold));
@@ -93,7 +93,7 @@ print(ansi.clear_screen());</pre></div>
 </section>
 <section class="type" id="console">
 <h2><span class="kind">class</span> console</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/console/console.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/console/console.sharp">source</a></p>
 <p>Talking to the person at the terminal: printing numbers the short way, coloured output, clearing the screen, and asking for input with validation.</p>
 <div class="code"><pre class="sharp">console.print_line(&quot;Total: &quot; + io_strings.number_to_string(7.5));
 console.print_colored(&quot;warning&quot;, ansi.yellow);
@@ -133,7 +133,7 @@ if(console.confirm(&quot;Continue?&quot;)) { ... }</pre></div>
 </section>
 <section class="type" id="console_line_end">
 <h2><span class="kind">class</span> console_line_end</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/console/console_functions.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/console/console_functions.sharp">source</a></p>
 <p>what read_line() remembers between two lines</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>after_return</code></td><td><code>_int64</code></td><td>1 when the last line read ended with <code>\r</code>: a <code>\n</code> right after it belongs to that line end</td></tr></table></div>
 </section>

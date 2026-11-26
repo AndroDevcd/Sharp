@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -99,7 +99,7 @@
 <a class="modcard" href="std.guikit.navigation.html"><b>std.guikit.navigation</b><span>7 types, 53 functions</span><span class="names">nav_bar, navigator, route, screen_host, screen_kind, typed_screen, ...</span></a>
 <a class="modcard" href="std.guikit.overlay.html"><b>std.guikit.overlay</b><span>2 types, 19 functions</span><span class="names">menu_box, popup</span></a>
 <a class="modcard" href="std.guikit.platform.html"><b>std.guikit.platform</b><span>9 types, 89 functions</span><span class="names">color, event, font, image, painter, shape_batch, ...</span></a>
-<a class="modcard" href="std.guikit.testing.html"><b>std.guikit.testing</b><span>7 types, 142 functions</span><span class="names">held_dispatcher, query_step, state_watch, test_screen, ui_node, ui_nodes, ...</span></a>
+<a class="modcard" href="std.guikit.testing.html"><b>std.guikit.testing</b><span>7 types, 143 functions</span><span class="names">held_dispatcher, query_step, state_watch, test_screen, ui_node, ui_nodes, ...</span></a>
 <a class="modcard" href="std.guikit.three.html"><b>std.guikit.three</b><span>17 types, 219 functions</span><span class="names">camera, endless, flock, lamp, mesh, motes, ...</span></a>
 <a class="modcard" href="std.guikit.widgets.display.html"><b>std.guikit.widgets.display</b><span>10 types, 62 functions</span><span class="names">badge, chip, divider, label, picture, progress_bar, ...</span></a>
 <a class="modcard" href="std.guikit.widgets.drawing.html"><b>std.guikit.widgets.drawing</b><span>2 types, 7 functions</span><span class="names">canvas, frame</span></a>
@@ -109,7 +109,7 @@
 <p class="contents"><a href="#gui">gui</a> <a href="#sound">sound</a> <a href="#voice">voice</a> <a href="#functions">functions</a></p>
 <section class="type" id="gui">
 <h2><span class="kind">class</span> gui</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/gui.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/gui.sharp">source</a></p>
 <p>gui - the front door to the whole framework.</p>
 <div class="code"><pre class="sharp">class counter base composable {
     count := state(0);</pre></div>
@@ -462,7 +462,7 @@ sheet(adding) {
 </section>
 <section class="type" id="sound">
 <h2><span class="kind">class</span> sound</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/sound.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/sound.sharp">source</a></p>
 <p>sound - sound the program makes itself: no sound files. A few VOICES, set up once, go on by themselves and together make a place sound alive.</p>
 <div class="code"><pre class="sharp">sound.rumble(140).volume(0.35);                         // the deep sea, always there
 sound.hum(55).volume(0.12);                             // a low note under it
@@ -492,7 +492,7 @@ pops(pitch)             short rising blips: bubbles, drips</pre></div>
 </section>
 <section class="type" id="voice">
 <h2><span class="kind">class</span> voice</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/sound.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/sound.sharp">source</a></p>
 <p>one voice of the program&#x27;s sound (sound.hum(...), sound.chime(...) ...)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="voice.voice"><div class="sig"><b>voice</b>(made: _int64)</div></div>

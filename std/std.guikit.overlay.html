@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -83,7 +83,7 @@
 <p class="contents"><a href="#menu_box">menu_box</a> <a href="#popup">popup</a> <a href="#constants">constants</a></p>
 <section class="type" id="menu_box">
 <h2><span class="kind">class</span> menu_box</h2>
-<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/overlay/menu.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/overlay/menu.sharp">source</a></p>
 <p>menu_box - the list of choices of a context menu: the thing that appears at the mouse when something is right-clicked. Made with menu(...).</p>
 <div class="code"><pre class="sharp">opened := state(0);</pre></div>
 <div class="code"><pre class="sharp">row(modifier().right_click { opened.value = 1; }) { text(file.name); };</pre></div>
@@ -108,7 +108,7 @@
 </section>
 <section class="type" id="popup">
 <h2><span class="kind">class</span> popup</h2>
-<p class="meta"><code>base widget : behavior, floater, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/overlay/popup.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, floater, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/overlay/popup.sharp">source</a></p>
 <p>popup - content that floats ABOVE the page instead of sitting in it: the machinery under dialog(...) and dropdown(...).</p>
 <p>A popup is an ordinary widget in the tree - it is made by build() like everything else, and it exists exactly while your state says it is open. There is no show() or dismiss() to call and no second window:</p>
 <div class="code"><pre class="sharp">confirm := state(0);

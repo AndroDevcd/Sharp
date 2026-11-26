@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -62,10 +62,10 @@
     <main>
 <p class="crumbs"><a href="index.html">Standard library</a> / <a href="std.io.html">std.io</a> / std.io.coroutines</p>
 <h1>std.io.coroutines <small>module</small></h1>
-<p class="contents"><a href="#async">async</a> <a href="#cancellation_exception">cancellation_exception</a> <a href="#coroutine_body">coroutine_body</a> <a href="#coroutine_dispatcher">coroutine_dispatcher</a> <a href="#coroutine_exception_handler">coroutine_exception_handler</a> <a href="#coroutine_exceptions">coroutine_exceptions</a> <a href="#coroutine_scope">coroutine_scope</a> <a href="#deferred">deferred</a> <a href="#dispatchers">dispatchers</a> <a href="#global_scope">global_scope</a> <a href="#job">job</a> <a href="#pool_dispatcher">pool_dispatcher</a> <a href="#thread_dispatcher">thread_dispatcher</a> <a href="#timeout_cancellation_exception">timeout_cancellation_exception</a> <a href="#timeout_timer">timeout_timer</a> <a href="#unconfined_dispatcher">unconfined_dispatcher</a> <a href="#functions">functions</a></p>
+<p class="contents"><a href="#async">async</a> <a href="#cancellation_exception">cancellation_exception</a> <a href="#coroutine_body">coroutine_body</a> <a href="#coroutine_dispatcher">coroutine_dispatcher</a> <a href="#coroutine_exception_handler">coroutine_exception_handler</a> <a href="#coroutine_exceptions">coroutine_exceptions</a> <a href="#coroutine_scope">coroutine_scope</a> <a href="#deferred">deferred</a> <a href="#dispatchers">dispatchers</a> <a href="#global_scope">global_scope</a> <a href="#holding_dispatcher">holding_dispatcher</a> <a href="#job">job</a> <a href="#pool_dispatcher">pool_dispatcher</a> <a href="#thread_dispatcher">thread_dispatcher</a> <a href="#timeout_cancellation_exception">timeout_cancellation_exception</a> <a href="#timeout_timer">timeout_timer</a> <a href="#unconfined_dispatcher">unconfined_dispatcher</a> <a href="#functions">functions</a></p>
 <section class="type" id="async">
 <h2><span class="kind">class</span> async&lt;t&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/async.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/async.sharp">source</a></p>
 <p>async&lt;t&gt; - start a coroutine that computes a value; the result is a deferred&lt;t&gt;.</p>
 <p>USAGE price := async&lt;int&gt;.start({ -&gt; (int) return fetch_price(); }); stock := async&lt;int&gt;.start(warehouse, { w: object -&gt; (int) house := w as storage;                    // the state object, see THE CLOSURE RULE return house.count(); }); println(&quot;worth ${price.await() * stock.await()}&quot;);</p>
 <p>The language has no generic functions, so <code>async</code> is a class whose static functions do the work: write the result type once, async&lt;int&gt;.start(...).</p>
@@ -85,7 +85,7 @@
 </section>
 <section class="type" id="cancellation_exception">
 <h2><span class="kind">class</span> cancellation_exception</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/cancellation_exception.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/cancellation_exception.sharp">source</a></p>
 <p>cancellation_exception - thrown inside a coroutine at a cancellation point after its job was cancelled.</p>
 <p>USAGE j := launch({ -&gt; try { delay(10000);                 // a cancellation point } catch(e: cancellation_exception) { println(&quot;cancelled, cleaning up&quot;); throw e;                      // let the coroutine end as cancelled } }); j.cancel();</p>
 <p>Cancellation is cooperative: nothing stops a coroutine by force. The cancellation points are delay(), yield(), ensure_active(), job.join(), deferred.await(), every channel operation, mutex.acquire() and semaphore.acquire(). A coroutine that never reaches one of them runs to its end even when it is cancelled.</p>
@@ -97,7 +97,7 @@
 </section>
 <section class="type" id="coroutine_body">
 <h2><span class="kind">interface</span> coroutine_body</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/coroutine_body.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/coroutine_body.sharp">source</a></p>
 <p>coroutine_body - the code a coroutine runs.</p>
 <p>USAGE class download : coroutine_body { url : string; download(url: string) { self-&gt;url = url; } override def run_body() { fetch(url); } }</p>
 <div class="code"><pre class="sharp">launch(new download(&quot;http://...&quot;));      // an object instead of a lambda</pre></div>
@@ -110,7 +110,7 @@
 </section>
 <section class="type" id="coroutine_dispatcher">
 <h2><span class="kind">interface</span> coroutine_dispatcher</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/dispatchers/coroutine_dispatcher.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/dispatchers/coroutine_dispatcher.sharp">source</a></p>
 <p>coroutine_dispatcher - decides which thread runs a coroutine.</p>
 <p>USAGE launch_on(dispatchers.default_pool(), { -&gt; crunch(); });     // any worker thread ui := dispatchers.single_thread(&quot;ui&quot;); launch_on(ui, { -&gt; draw(); });                               // always the &quot;ui&quot; thread</p>
 <p>The runtime knows two kinds of fibers and a dispatcher simply picks one: select_thread() returns null     an UNBOUND fiber: whichever thread is free takes it (and it may continue on another thread after it has slept) select_thread() returns a thread a fiber BOUND to that thread: only that thread ever runs it</p>
@@ -123,7 +123,7 @@
 </section>
 <section class="type" id="coroutine_exception_handler">
 <h2><span class="kind">interface</span> coroutine_exception_handler</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/coroutine_exception_handler.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/coroutine_exception_handler.sharp">source</a></p>
 <p>coroutine_exception_handler - what happens to an exception nobody is left to receive: a coroutine started with launch() directly in global_scope (or in a supervisor) ended with an exception that is not a cancellation.</p>
 <p>USAGE class log_errors : coroutine_exception_handler { override def handle_exception(failed: job, error: throwable) { println(&quot;coroutine failed: ${error.get_message()}&quot;); } }</p>
 <div class="code"><pre class="sharp">coroutine_exceptions.set_handler(new log_errors());</pre></div>
@@ -135,7 +135,7 @@
 </section>
 <section class="type" id="coroutine_exceptions">
 <h2><span class="kind">class</span> coroutine_exceptions</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/coroutine_exceptions.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/coroutine_exceptions.sharp">source</a></p>
 <p>coroutine_exceptions - where uncaught coroutine exceptions go.</p>
 <p>USAGE coroutine_exceptions.set_handler(my_handler);    // see coroutine_exception_handler coroutine_exceptions.set_handler(null);          // back to printing them coroutine_exceptions.count();                    // how many were reported so far</p>
 <p>WHICH EXCEPTIONS END UP HERE - launch() in global_scope or in a supervisor (supervisor_scope { }, coroutine_scope.supervisor()) and the coroutine throws: reported here. - launch() inside coroutine_scope { } / run_blocking { } / another coroutine: NOT reported here. The failure cancels the parent and is thrown again by the enclosing scope function. - async: never reported here, deferred.await() throws it. - cancellation_exception: never reported, being cancelled is not an error.</p>
@@ -151,7 +151,7 @@
 </section>
 <section class="type" id="coroutine_scope">
 <h2><span class="kind">class</span> coroutine_scope</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/scope/coroutine_scope.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/scope/coroutine_scope.sharp">source</a></p>
 <p>coroutine_scope - an object that owns coroutines, so that they can be cancelled and waited for as a unit. Give one to everything that has a life time: a connection, a window, a request.</p>
 <p>USAGE class connection { scope := new coroutine_scope();</p>
 <div class="code"><pre class="sharp">def open() {
@@ -186,7 +186,7 @@
 </section>
 <section class="type" id="deferred">
 <h2><span class="kind">class</span> deferred&lt;t&gt;</h2>
-<p class="meta"><code>base job</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/deferred.sharp">source</a></p>
+<p class="meta"><code>base job</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/deferred.sharp">source</a></p>
 <p>deferred&lt;t&gt; - a job that produces a value: the result of async.</p>
 <p>USAGE a := async&lt;int&gt;.start({ -&gt; (int) return slow_sum(); }); b := async&lt;int&gt;.start({ -&gt; (int) return slow_product(); }); total := a.await() + b.await();          // both ran at the same time</p>
 <div class="code"><pre class="sharp">all := deferred&lt;int&gt;.await_all(new deferred&lt;int&gt;[] { a, b });   // a list&lt;int&gt;</pre></div>
@@ -207,7 +207,7 @@
 </section>
 <section class="type" id="dispatchers">
 <h2><span class="kind">class</span> dispatchers</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/dispatchers/dispatchers.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/dispatchers/dispatchers.sharp">source</a></p>
 <p>dispatchers - the ready made coroutine dispatchers.</p>
 <p>USAGE launch_on(dispatchers.default_pool(), { -&gt; crunch(); });     // in parallel, on the worker threads launch_on(dispatchers.current_thread(), { -&gt; step(); });     // on this thread, when it is free db := dispatchers.single_thread(&quot;db&quot;);                       // a thread of its own</p>
 <div class="code"><pre class="sharp">which one a coroutine gets when you do not say:
@@ -232,7 +232,7 @@
 </section>
 <section class="type" id="global_scope">
 <h2><span class="kind">class</span> global_scope</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/scope/global_scope.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/scope/global_scope.sharp">source</a></p>
 <p>global_scope - the scope of coroutines that belong to nobody: they live until they are finished or the program ends.</p>
 <p>USAGE launch({ -&gt; background_work(); });       // outside any coroutine: lands here by itself global_scope.launch({ -&gt; ... });         // inside a coroutine: start one that is NOT its child global_scope.active_count();             // how many are still running</p>
 <p>Its job is a supervisor: a coroutine that fails here does not disturb the others, its exception goes to coroutine_exceptions. Coroutines run on the default pool. The program does not wait for them when main returns; use run_blocking { } or job.join() when you need them to finish.</p>
@@ -246,9 +246,20 @@
 <div class="fn" id="global_scope.root"><div class="sig">static def <b>root</b>() : job</div><p>the job every top level coroutine is a child of. It is never cancelled or completed.</p></div>
 </div>
 </section>
+<section class="type" id="holding_dispatcher">
+<h2><span class="kind">interface</span> holding_dispatcher</h2>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/dispatchers/holding_dispatcher.sharp">source</a></p>
+<p>holding_dispatcher - what a dispatcher ALSO is when it KEEPS the coroutines it is given instead of letting them start: they start when it says so. A class implements both: <code>class my_dispatcher : coroutine_dispatcher, holding_dispatcher</code>.</p>
+<p>It is what a test dispatcher is (std.guikit.testing: test_dispatcher()): the work a model starts must not run until the test asks for it, and then in the order it was started. An ordinary dispatcher only picks a thread; it cannot stop a coroutine from starting - on a thread that is busy too, the runtime gives a waiting fiber its turn sooner or later.</p>
+<p>start_coroutine (builders.sharp) hands every coroutine placed on a holding_dispatcher to hold() and does not start it. Whoever holds it calls start_held(coroutine) later; select_thread() then says where it runs, as for any dispatcher. A coroutine started INSIDE held work, without a dispatcher of its own, takes its parent&#x27;s - so it is held too.</p>
+<p>Kotlin equivalent: StandardTestDispatcher, whose scheduler keeps the tasks until advanceUntilIdle() / runCurrent().</p>
+<h3>Functions</h3><div>
+<div class="fn" id="holding_dispatcher.hold"><div class="sig">def <b>hold</b>(coroutine: job)</div><p>keep this coroutine: it is attached to its parent, and has not started</p></div>
+</div>
+</section>
 <section class="type" id="job">
 <h2><span class="kind">class</span> job</h2>
-<p class="meta"><code>: coroutine_body</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/job.sharp">source</a></p>
+<p class="meta"><code>: coroutine_body</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/job.sharp">source</a></p>
 <p>job - the handle of one coroutine (or of a scope that owns coroutines): ask what it is doing, wait for it, cancel it.</p>
 <p>USAGE j := launch({ -&gt; do_work(); }); j.is_active();           // true until the work and all its children are done j.join();                // suspends the caller until then j.cancel();              // asks it to stop (cooperative, see cancellation_exception) j.cancel_and_join();     // cancel, then wait until it really has stopped j.invoke_on_completion({ done: job -&gt; println(&quot;finished: ${done.is_cancelled()}&quot;); });</p>
 <p>Kotlin equivalent: kotlinx.coroutines.Job. C++ has no direct equivalent (the closest is a std::jthread with its stop_token, for a fiber instead of a thread).</p>
@@ -292,7 +303,7 @@ CANCELLED      false        true           true</pre></div>
 </section>
 <section class="type" id="pool_dispatcher">
 <h2><span class="kind">class</span> pool_dispatcher</h2>
-<p class="meta"><code>: coroutine_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/dispatchers/pool_dispatcher.sharp">source</a></p>
+<p class="meta"><code>: coroutine_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/dispatchers/pool_dispatcher.sharp">source</a></p>
 <p>pool_dispatcher - runs coroutines on whichever worker thread is free. dispatchers.default_pool() is the one shared instance.</p>
 <p>USAGE dispatchers.set_parallelism(4);                      // optional, before the first coroutine launch_on(dispatchers.default_pool(), { -&gt; crunch(); });</p>
 <p>HOW IT WORKS Coroutines are started as unbound fibers. The scheduler of the runtime hands an unbound fiber to any thread that has nothing to run, so all this class has to do is make sure such threads exist: the first coroutine starts <code>parallelism</code> worker threads whose own first fiber just sleeps. A thread that is blocked in run_blocking { } or job.join() helps as well, it is free while it waits. Idle workers are parked by the scheduler and cost no cpu.</p>
@@ -311,7 +322,7 @@ CANCELLED      false        true           true</pre></div>
 </section>
 <section class="type" id="thread_dispatcher">
 <h2><span class="kind">class</span> thread_dispatcher</h2>
-<p class="meta"><code>: coroutine_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/dispatchers/thread_dispatcher.sharp">source</a></p>
+<p class="meta"><code>: coroutine_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/dispatchers/thread_dispatcher.sharp">source</a></p>
 <p>thread_dispatcher - runs every coroutine on one particular thread.</p>
 <p>USAGE db := dispatchers.single_thread(&quot;database&quot;);     // a new thread of its own launch_on(db, { -&gt; run_query(); });              // never two of these at the same time db.close();                                      // when it is no longer needed</p>
 <div class="code"><pre class="sharp">here := dispatchers.current_thread();            // the thread that is running right now</pre></div>
@@ -330,7 +341,7 @@ CANCELLED      false        true           true</pre></div>
 </section>
 <section class="type" id="timeout_cancellation_exception">
 <h2><span class="kind">class</span> timeout_cancellation_exception</h2>
-<p class="meta"><code>base cancellation_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/timeout_cancellation_exception.sharp">source</a></p>
+<p class="meta"><code>base cancellation_exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/timeout_cancellation_exception.sharp">source</a></p>
 <p>timeout_cancellation_exception - thrown by with_timeout() when its block did not finish in time.</p>
 <p>USAGE try { with_timeout(500, { -&gt; slow_work(); }); } catch(e: timeout_cancellation_exception) { println(&quot;gave up after half a second&quot;); }</p>
 <p>It is a cancellation_exception: inside the block it arrives at the next cancellation point like any other cancellation, and a coroutine that lets it escape ends as cancelled, not as failed. Use with_timeout_or_null() to get null instead of an exception.</p>
@@ -341,7 +352,7 @@ CANCELLED      false        true           true</pre></div>
 </section>
 <section class="type" id="timeout_timer">
 <h2><span class="kind">class</span> timeout_timer</h2>
-<p class="meta"><code>: coroutine_body</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/timeout_timer.sharp">source</a></p>
+<p class="meta"><code>: coroutine_body</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/timeout_timer.sharp">source</a></p>
 <p>timeout_timer - the coroutine behind with_timeout { }: sleeps for the time limit, then cancels the scope it guards.</p>
 <p>USAGE (by timeouts.sharp only) timer := new timeout_timer(scope_job, 500, error); ticking := new job(timer);          // started on dispatchers.timers() ... ticking.cancel();                   // the block finished in time</p>
 <p>It is a coroutine_body object because the timer runs on another fiber and has to carry its data with it (THE CLOSURE RULE, builders.sharp).</p>
@@ -354,7 +365,7 @@ CANCELLED      false        true           true</pre></div>
 </section>
 <section class="type" id="unconfined_dispatcher">
 <h2><span class="kind">class</span> unconfined_dispatcher</h2>
-<p class="meta"><code>: coroutine_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/dispatchers/unconfined_dispatcher.sharp">source</a></p>
+<p class="meta"><code>: coroutine_dispatcher</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/dispatchers/unconfined_dispatcher.sharp">source</a></p>
 <p>unconfined_dispatcher - coroutines that are not tied to a thread and do not get worker threads either. dispatchers.unconfined() is the shared instance.</p>
 <p>USAGE launch_on(dispatchers.unconfined(), { -&gt; step(); });</p>
 <p>The coroutine is an unbound fiber: whichever thread is free runs it. Unlike pool_dispatcher this class starts no threads, so in a program that never used the default pool the coroutine runs on the thread of its creator the next time that thread waits (or on any other thread that happens to be idle).</p>
@@ -406,6 +417,7 @@ CANCELLED      false        true           true</pre></div>
 <div class="fn" id="set_current_job"><div class="sig">def <b>set_current_job</b>(j: job?)</div><p>set the current job of this fiber; for the builders and scopes of this module</p></div>
 <div class="fn" id="start_coroutine"><div class="sig">def <b>start_coroutine</b>(coroutine: job, owner: job?, where: coroutine_dispatcher?) : job</div><p>Attach a prepared job to its parent and start its fiber. The one place every builder goes through.</p>
 <p>@param owner the parent, or null for &quot;the current coroutine, else global_scope&quot; @param where the dispatcher, or null for &quot;the same as the parent&quot;</p></div>
+<div class="fn" id="start_held"><div class="sig">def <b>start_held</b>(coroutine: job)</div><p>start a coroutine a holding_dispatcher was given to keep</p></div>
 <div class="fn" id="supervisor_scope"><div class="sig">def <b>supervisor_scope</b>(block: ()())</div><p>coroutine_scope() whose children fail on their own: a child that throws does not cancel its siblings or the scope, its exception goes to coroutine_exceptions (async children keep theirs for await()). An exception of the BLOCK ITSELF still cancels all children and is thrown again.</p>
 <p>SUSPENDS; cancellation as for coroutine_scope(). @throws illegal_state_exception directly inside another supervisor_scope { } of the same fiber (THE NESTING RULE) Kotlin: supervisorScope { }</p></div>
 <div class="fn" id="throw_cancellation"><div class="sig">def <b>throw_cancellation</b>()</div><p>Throw the exception a cancelled wait of the current coroutine ends with. For the blocking operations of the library, after await_waiter() returned waiter.CANCELLED.</p></div>

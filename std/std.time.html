@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -60,7 +60,7 @@
 <p class="contents"><a href="#calendar">calendar</a> <a href="#clock">clock</a> <a href="#date">date</a> <a href="#date_time">date_time</a> <a href="#date_time_exception">date_time_exception</a> <a href="#date_time_fields">date_time_fields</a> <a href="#date_time_formatter">date_time_formatter</a> <a href="#day_of_week">day_of_week</a> <a href="#deadline">deadline</a> <a href="#duration">duration</a> <a href="#fixed_clock">fixed_clock</a> <a href="#instant">instant</a> <a href="#interval_timer">interval_timer</a> <a href="#manual_clock">manual_clock</a> <a href="#month">month</a> <a href="#offset_clock">offset_clock</a> <a href="#offset_date_time">offset_date_time</a> <a href="#period">period</a> <a href="#rate_limiter">rate_limiter</a> <a href="#stopwatch">stopwatch</a> <a href="#system_clock">system_clock</a> <a href="#time_math">time_math</a> <a href="#time_of_day">time_of_day</a> <a href="#time_text_reader">time_text_reader</a> <a href="#time_text_writer">time_text_writer</a> <a href="#zone_offset">zone_offset</a> <a href="#functions">functions</a></p>
 <section class="type" id="calendar">
 <h2><span class="kind">class</span> calendar</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/calendar/calendar.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/calendar/calendar.sharp">source</a></p>
 <p>Calendar helpers that build on <code>date</code>: laying out a month for printing, finding &quot;the 3rd Monday of the month&quot;, the date of Easter, and counting in business days. Everything is a static function; the class has no state.</p>
 <div class="code"><pre class="sharp">calendar.nth_weekday_of_month(2024, 11, day_of_week.thursday, 4)   // 2024-11-28 (US Thanksgiving)
 calendar.easter(2024)                                              // 2024-03-31
@@ -128,7 +128,7 @@ day   = (d + e + 114) mod 31 + 1          (a Julian calendar date)</pre></div>
 </section>
 <section class="type" id="clock">
 <h2><span class="kind">interface</span> clock</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/clock.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/clocks/clock.sharp">source</a></p>
 <p>Something that knows what time it is.</p>
 <p>Code that needs the current time should ask a <code>clock</code> it was given instead of calling instant.now() directly. In the program the clock is <code>system_clock.instance</code>; in a test it is a <code>manual_clock</code> or <code>fixed_clock</code> that the test sets and advances, so the test gives the same result every time and never has to wait.</p>
 <div class="code"><pre class="sharp">def is_expired(c: clock, expires: instant): decimal {
@@ -142,7 +142,7 @@ day   = (d + e + 114) mod 31 + 1          (a Julian calendar date)</pre></div>
 </section>
 <section class="type" id="date">
 <h2><span class="kind">class</span> date</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/date.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/date.sharp">source</a></p>
 <p>A calendar date without a time of day and without a time zone: year, month and day, e.g. 2024-02-29.</p>
 <p>The calendar is the PROLEPTIC GREGORIAN calendar (ISO-8601): today&#x27;s leap year rule is applied to every year, also to years before the calendar was introduced in 1582, and there is a year 0 (which is 1 BC) and negative years. Years from -999,999 to 999,999 are supported.</p>
 <p>Dates are immutable: every &quot;plus&quot;, &quot;minus&quot; or &quot;with&quot; returns a new date.</p>
@@ -239,7 +239,7 @@ date.parse(&quot;2000-01-01&quot;) &lt; d // 1</pre></div>
 </section>
 <section class="type" id="date_time">
 <h2><span class="kind">class</span> date_time</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/date_time.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/date_time.sharp">source</a></p>
 <p>A date together with a time of day, without a time zone: e.g. 2024-02-29T13:45:30 (&quot;local date-time&quot; in java.time and kotlin).</p>
 <p>It is what a calendar and a wall clock show somewhere, but it does not say WHERE, so on its own it is not a point on the time line. Combine it with a <code>zone_offset</code> (<code>at_offset</code>, <code>to_instant</code>) to get one.</p>
 <p>Unlike <code>time_of_day</code>, arithmetic here carries over midnight into the date: 2024-02-28T23:30 plus 1 hour is 2024-02-29T00:30.</p>
@@ -323,7 +323,7 @@ date_time.parse(&quot;1999-12-31T23:59:59&quot;).plus_seconds(1).year()   // 200
 </section>
 <section class="type" id="date_time_exception">
 <h2><span class="kind">class</span> date_time_exception</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/date_time_exception.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/date_time_exception.sharp">source</a></p>
 <p>Thrown by every class in std.time when a value is out of range (month 13, 30 February, hour 24 ...), when text cannot be parsed as a date, time, duration, period or offset, or when a formatter pattern is not valid.</p>
 <div class="code"><pre class="sharp">try {
     d := date.of(2023, 2, 29);
@@ -337,7 +337,7 @@ date_time.parse(&quot;1999-12-31T23:59:59&quot;).plus_seconds(1).year()   // 200
 </section>
 <section class="type" id="date_time_fields">
 <h2><span class="kind">class</span> date_time_fields</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/format/date_time_fields.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/format/date_time_fields.sharp">source</a></p>
 <p>The raw result of parsing text with a <code>date_time_formatter</code>: the fields that were found in the text, before they are combined into a value.</p>
 <p>A pattern decides which fields exist. &quot;yyyy-MM-dd&quot; produces year, month and day and nothing else; &quot;HH:mm&quot; produces hour and minute. This class records which fields were present (<code>has_...</code>) and builds the value types from them (<code>to_date</code>, <code>to_time</code>, <code>to_date_time</code>, <code>to_offset_date_time</code>), throwing a clear date_time_exception when a needed field is missing or the fields contradict each other.</p>
 <p>Most code never sees this class: date_time_formatter.parse_date(text) and its siblings call it internally. Use <code>date_time_formatter.parse(text)</code> to get the fields themselves, e.g. to accept input that may or may not carry a time.</p>
@@ -356,7 +356,7 @@ date_time.parse(&quot;1999-12-31T23:59:59&quot;).plus_seconds(1).year()   // 200
 </section>
 <section class="type" id="date_time_formatter">
 <h2><span class="kind">class</span> date_time_formatter</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/format/date_time_formatter.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/format/date_time_formatter.sharp">source</a></p>
 <p>Formats dates and times as text, and parses text back, following a PATTERN such as &quot;yyyy-MM-dd HH:mm:ss&quot; - the pattern language of java.time.format.DateTimeFormatter / kotlin, reduced to what works without locale data (names are English).</p>
 <p>Pattern letters --------------- The NUMBER of letters matters: it sets the width, or chooses between a number and a name.</p>
 <p>y      year                    yyyy -&gt; 2024   yy -&gt; 24   y -&gt; 2024 (no padding) M      month                   M -&gt; 2   MM -&gt; 02   MMM -&gt; Feb   MMMM -&gt; February d      day of month            d -&gt; 9   dd -&gt; 09 D      day of year             D -&gt; 60  DDD -&gt; 060 E      day of week, name       E, EE, EEE -&gt; Thu     EEEE -&gt; Thursday e      day of week, number     1 (Monday) .. 7 (Sunday) w      ISO week of the year    w -&gt; 9   ww -&gt; 09 Y      ISO week-based year     YYYY -&gt; 2024  (the year the ISO week belongs to) Q      quarter                 1 .. 4 H      hour 0-23               H -&gt; 7   HH -&gt; 07 h      hour 1-12               h -&gt; 7   hh -&gt; 07 a      AM / PM m      minute                  m -&gt; 5   mm -&gt; 05 s      second                  s -&gt; 5   ss -&gt; 05 S      fraction of second      as many digits as letters: SSS -&gt; 250  (1 to 9 letters) n      nanosecond of second    n -&gt; 250000000 X      offset, &quot;Z&quot; for UTC     X -&gt; +02 or +0530   XX -&gt; +0200   XXX -&gt; +02:00 x      offset, never &quot;Z&quot;       x -&gt; +00            xx -&gt; +0000   xxx -&gt; +00:00 Z      offset                  +0200 &#x27;...&#x27;  literal text            &#x27;T&#x27;  &#x27;at&#x27;  (&#x27;&#x27; is one quote character)</p>
@@ -397,7 +397,7 @@ date_time_formatter.iso_date().parse_date(&quot;2000-01-01&quot;)</pre></div>
 </section>
 <section class="type" id="day_of_week">
 <h2><span class="kind">class</span> day_of_week</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/day_of_week.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/day_of_week.sharp">source</a></p>
 <p>One of the seven days of the week.</p>
 <p>The days are numbered the ISO-8601 way: Monday is 1 and Sunday is 7. There are exactly seven objects, one per day, reachable as <code>day_of_week.monday</code> ... <code>day_of_week.sunday</code> or through <code>day_of_week.of(number)</code>. Because there is only ever one object per day, two values can be compared with <code>==</code>.</p>
 <p>(It is a class and not an <code>enum</code> because an enum cannot have functions such as <code>plus</code> or <code>short_name</code>.)</p>
@@ -426,7 +426,7 @@ d.is_weekend()       // 1</pre></div>
 </section>
 <section class="type" id="deadline">
 <h2><span class="kind">class</span> deadline</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/deadline.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/clocks/deadline.sharp">source</a></p>
 <p>A moment by which something must be finished, with the questions one asks about it: has it passed, how much time is left, how late are we.</p>
 <p>A deadline is the right thing to pass down through several calls that share one time budget: each of them asks <code>remaining()</code> and uses at most that, instead of each getting its own full timeout.</p>
 <p>A deadline does not wait and starts no thread; it only compares its moment with a <code>clock</code>. With no clock given that is the system clock; tests pass a <code>manual_clock</code>. Deadlines are immutable.</p>
@@ -452,7 +452,7 @@ while(!limit.has_passed()) {
 </section>
 <section class="type" id="duration">
 <h2><span class="kind">class</span> duration</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/duration.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/duration.sharp">source</a></p>
 <p>An amount of time: &quot;2 hours 30 minutes&quot;, &quot;1.5 seconds&quot;, &quot;-10 milliseconds&quot;.</p>
 <p>A duration is not tied to a calendar. It is a length measured in seconds, so a day is always exactly 86,400 seconds. For amounts in calendar units (months, years) use <code>period</code>.</p>
 <p>How the value is stored - and why --------------------------------- A <code>decimal</code> holds whole numbers exactly only up to 2^53 (about 9.0e15). In nanoseconds that is just 104 days, so a single nanosecond count cannot hold a long duration without losing its low digits. A duration therefore keeps TWO numbers, the same way java.time.Duration does:</p>
@@ -540,7 +540,7 @@ duration.parse(&quot;PT1.5S&quot;) == duration.of_millis(1500)   // true</pre></
 </section>
 <section class="type" id="fixed_clock">
 <h2><span class="kind">class</span> fixed_clock</h2>
-<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/fixed_clock.sharp">source</a></p>
+<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/clocks/fixed_clock.sharp">source</a></p>
 <p>A clock that always shows the same moment.</p>
 <p>For tests and for code that must treat a whole operation as happening &quot;at one time&quot; (take the time once, wrap it in a fixed_clock, hand that around). It is immutable; use <code>manual_clock</code> for a clock a test can move.</p>
 <div class="code"><pre class="sharp">c := new fixed_clock(instant.parse(&quot;2024-02-29T12:00:00Z&quot;));
@@ -552,7 +552,7 @@ c.now().to_string()      // always &quot;2024-02-29T12:00:00Z&quot;</pre></div>
 </section>
 <section class="type" id="instant">
 <h2><span class="kind">class</span> instant</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/instant.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/instant.sharp">source</a></p>
 <p>A single point on the UTC time line, independent of any calendar or time zone - the thing a timestamp stores.</p>
 <p>How the value is stored - and why --------------------------------- The obvious representation, &quot;nanoseconds since 1970&quot;, does not fit in a <code>decimal</code>: a <code>decimal</code> holds whole numbers exactly only up to 2^53 (about 9.0e15) and the present is about 1.7e18 ns after 1970, so the last digits would be rounded away (the spacing between neighbouring <code>decimal</code> values at that size is 256 ns). An instant therefore keeps TWO numbers, like java.time.Instant:</p>
 <div class="code"><pre class="sharp">epoch_second   whole seconds since 1970-01-01T00:00:00Z, negative before  (exact)
@@ -604,7 +604,7 @@ instant.parse(&quot;1970-01-01T00:00:01.5Z&quot;).to_epoch_milli()   // 1500</pr
 </section>
 <section class="type" id="interval_timer">
 <h2><span class="kind">class</span> interval_timer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/interval_timer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/clocks/interval_timer.sharp">source</a></p>
 <p>Tells when it is time to do something again: &quot;every 5 seconds&quot;.</p>
 <p>It does not call anything and starts no thread. A loop that runs anyway (a game loop, a polling loop, a server tick) asks it:</p>
 <div class="code"><pre class="sharp">autosave := new interval_timer(duration.of_minutes(5));
@@ -628,7 +628,7 @@ while(running) {
 </section>
 <section class="type" id="manual_clock">
 <h2><span class="kind">class</span> manual_clock</h2>
-<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/manual_clock.sharp">source</a></p>
+<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/clocks/manual_clock.sharp">source</a></p>
 <p>A clock that only moves when it is told to - the clock to use in tests.</p>
 <p>It starts at a chosen moment and stays there until <code>advance</code> or <code>set_time</code> is called, so code that measures time (a stopwatch, a deadline, a rate limiter) can be tested exactly and without sleeping:</p>
 <div class="code"><pre class="sharp">c := new manual_clock(instant.of_epoch_second(1000));
@@ -652,7 +652,7 @@ watch.elapsed().to_millis()      // exactly 1500</pre></div>
 </section>
 <section class="type" id="month">
 <h2><span class="kind">class</span> month</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/month.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/month.sharp">source</a></p>
 <p>One of the twelve months of the year, numbered 1 (January) .. 12 (December).</p>
 <p>There are exactly twelve objects, reachable as <code>month.january</code> ... <code>month.december</code> or through <code>month.of(number)</code>, so two values can be compared with <code>==</code>.</p>
 <div class="code"><pre class="sharp">m := month.of(2);
@@ -683,7 +683,7 @@ m.quarter()          // 1</pre></div>
 </section>
 <section class="type" id="offset_clock">
 <h2><span class="kind">class</span> offset_clock</h2>
-<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/offset_clock.sharp">source</a></p>
+<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/clocks/offset_clock.sharp">source</a></p>
 <p>A clock that shows another clock&#x27;s time shifted by a fixed amount.</p>
 <p>Useful for running code &quot;as if it were tomorrow&quot; on top of the real clock, or for modelling a machine whose clock is wrong by a known amount:</p>
 <div class="code"><pre class="sharp">tomorrow := new offset_clock(system_clock.instance, duration.of_days(1));
@@ -697,7 +697,7 @@ behind   := new offset_clock(base, duration.of_seconds(-30));</pre></div>
 </section>
 <section class="type" id="offset_date_time">
 <h2><span class="kind">class</span> offset_date_time</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/offset_date_time.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/offset_date_time.sharp">source</a></p>
 <p>A date and time together with its offset from UTC: e.g. 2024-02-29T15:00:00+02:00.</p>
 <p>Where a <code>date_time</code> only says what the calendar and clock show, this also says how far that clock is ahead of UTC, which makes it a definite point on the time line (<code>to_instant</code>). The same instant can be written with any offset: 15:00+02:00, 13:00Z and 08:00-05:00 are one moment.</p>
 <p>Equality and ordering --------------------- The comparison operators (<code>==</code>, <code>&lt;</code> ...) and <code>compare_to</code> compare the INSTANT, so 15:00+02:00 == 13:00Z is true. Use <code>same_fields</code> to ask whether both the local date-time and the offset are identical.</p>
@@ -760,7 +760,7 @@ a.with_offset_same_instant(zone_offset.utc).to_string() // &quot;2024-02-29T13:0
 </section>
 <section class="type" id="period">
 <h2><span class="kind">class</span> period</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/period.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/period.sharp">source</a></p>
 <p>An amount of time in calendar units: years, months and days, e.g. &quot;1 year, 2 months and 3 days&quot;.</p>
 <p>Unlike a <code>duration</code>, a period has no fixed length in seconds: adding &quot;1 month&quot; to a date moves it to the same day of the next month, however many days that is. The three fields are independent whole numbers and each may be negative; &quot;14 months&quot; and &quot;1 year 2 months&quot; are different periods until <code>normalized()</code> is called. Days are never converted into months because a month has no fixed number of days.</p>
 <p>Periods are immutable.</p>
@@ -811,7 +811,7 @@ period.of(0, 14, 0).normalized()   // P1Y2M</pre></div>
 </section>
 <section class="type" id="rate_limiter">
 <h2><span class="kind">class</span> rate_limiter</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/rate_limiter.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/clocks/rate_limiter.sharp">source</a></p>
 <p>Limits how often something may happen: at most <code>permits</code> times per <code>window</code>, e.g. 5 requests per second.</p>
 <p>It never waits and starts no thread. The caller asks <code>try_acquire()</code> before doing the thing; the answer is 1 (&quot;go ahead&quot;, one permit is used up) or 0 (&quot;not now&quot;). <code>time_until_available()</code> says how long to wait.</p>
 <p>Algorithm: TOKEN BUCKET ----------------------- Picture a bucket that holds at most <code>permits</code> tokens and starts full. Each allowed action takes one token out. Tokens drip back in at a steady rate of one every <code>window / permits</code> (5 per second = one every 200 ms) until the bucket is full again. So a burst of up to <code>permits</code> actions is allowed at once, and over a long time the rate cannot exceed permits per window.</p>
@@ -833,7 +833,7 @@ if(limiter.try_acquire()) { send_request(); }</pre></div>
 </section>
 <section class="type" id="stopwatch">
 <h2><span class="kind">class</span> stopwatch</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/stopwatch.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/clocks/stopwatch.sharp">source</a></p>
 <p>Measures elapsed time: start it, stop it, read how long it ran.</p>
 <p>A stopwatch can be stopped and started again; the time adds up, like the stopwatch on a phone. <code>lap()</code> records the time since the previous lap (or since the start) without stopping.</p>
 <p>The time comes from a <code>clock</code>. With no argument that is the system clock; a test passes a <code>manual_clock</code> and gets exact, repeatable numbers.</p>
@@ -863,7 +863,7 @@ println(&quot;took &quot; + watch.elapsed().to_string());     // e.g. &quot;took
 </section>
 <section class="type" id="system_clock">
 <h2><span class="kind">class</span> system_clock</h2>
-<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/clocks/system_clock.sharp">source</a></p>
+<p class="meta"><code>: clock</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/clocks/system_clock.sharp">source</a></p>
 <p>The real clock: the operating system&#x27;s time, read through the runtime&#x27;s nanosecond clock (vm.time_in_nanoseconds, nanoseconds since 1970-01-01T00:00:00Z).</p>
 <p>Things to know about it ----------------------- - It is the SYSTEM (&quot;wall&quot;) clock. It can jump forwards or backwards when the operating system corrects the time (NTP, a user changing the clock). The runtime has no monotonic clock, so elapsed times measured with it (<code>stopwatch</code>, measure_time) can occasionally be wrong by the size of such a correction, or even negative. - The runtime returns the reading as one <code>decimal</code>. A <code>decimal</code> holds whole numbers exactly only up to 2^53; the reading is about 1.7e18, where neighbouring <code>decimal</code> values are 256 ns apart. The reading is therefore only good to about a quarter of a microsecond. <code>now()</code> splits it into whole seconds and nanoseconds at once (see below) so nothing more is lost afterwards.</p>
 <p>There is one shared object: <code>system_clock.instance</code>.</p>
@@ -879,7 +879,7 @@ println(&quot;took &quot; + watch.elapsed().to_string());     // e.g. &quot;took
 </section>
 <section class="type" id="time_math">
 <h2><span class="kind">class</span> time_math</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/time_math.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/time_math.sharp">source</a></p>
 <p>Small whole-number helpers shared by the classes in std.time.</p>
 <p>Why they are needed ------------------- <code>decimal</code> is a 64-bit floating point number. Whole numbers are exact up to 2^53 (9,007,199,254,740,992), <code>/</code> keeps the fraction (7 / 2 == 3.5) and <code>%</code> first drops the fraction of both sides and then gives the remainder with the sign of the LEFT side, like C (-7 % 3 == -1).</p>
 <p>Calendar arithmetic needs FLOOR division instead: the day before 1970-01-01 is day -1 and belongs to the week, month and year that came before, not to a mirrored copy of the ones after. floor_div and floor_mod round towards negative infinity:</p>
@@ -906,7 +906,7 @@ floor_div( 7, 3) ==  2      floor_mod( 7, 3) == 1</pre></div>
 </section>
 <section class="type" id="time_of_day">
 <h2><span class="kind">class</span> time_of_day</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/time_of_day.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/time_of_day.sharp">source</a></p>
 <p>A time as shown by a wall clock, without a date and without a time zone: hour, minute, second and nanosecond, e.g. 13:45:30.5.</p>
 <p>Range: 00:00:00.000000000 (midnight) to 23:59:59.999999999. There is no 24:00 and no leap second (second 60).</p>
 <p>Arithmetic WRAPS AROUND midnight: 23:00 plus 2 hours is 01:00, and 00:10 minus 20 minutes is 23:50. Use <code>date_time</code> when the change of day matters. Values are immutable: every operation returns a new time.</p>
@@ -974,7 +974,7 @@ time_of_day.parse(&quot;07:05:00.250&quot;).nano()   // 250000000</pre></div>
 </section>
 <section class="type" id="time_text_reader">
 <h2><span class="kind">class</span> time_text_reader</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/format/time_text_reader.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/format/time_text_reader.sharp">source</a></p>
 <p>A cursor over a string, used by every <code>parse</code> function in std.time.</p>
 <p>It reads from left to right and remembers where it is. The read functions throw a date_time_exception that names the text and the position when the text is not what they were asked to read, so the parsers built on it stay short and all report errors the same way:</p>
 <div class="code"><pre class="sharp">r := new time_text_reader(&quot;2024-02-29&quot;, &quot;date&quot;);
@@ -1011,7 +1011,7 @@ r.expect_end();</pre></div>
 </section>
 <section class="type" id="time_text_writer">
 <h2><span class="kind">class</span> time_text_writer</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/format/time_text_writer.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/format/time_text_writer.sharp">source</a></p>
 <p>A small text buffer used by std.time to build its strings: characters are appended to a byte array that grows by doubling, and <code>text()</code> copies the used part into a string.</p>
 <p>It exists because numbers have to be written as plain digits (&quot;7&quot;, &quot;07&quot;, &quot;2024&quot;) and <code>&quot;&quot; + number</code> prints a <code>decimal</code> with sixteen decimals. Nothing in here knows about dates; it only knows digits, padding and fractions.</p>
 <div class="code"><pre class="sharp">w := new time_text_writer();
@@ -1033,7 +1033,7 @@ s := w.text();</pre></div>
 </section>
 <section class="type" id="zone_offset">
 <h2><span class="kind">class</span> zone_offset</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/time/zone_offset.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/time/zone_offset.sharp">source</a></p>
 <p>A fixed difference from UTC, such as +02:00 or -05:30.</p>
 <p>The offset is how far a local clock is AHEAD of UTC: at offset +02:00 a local clock shows 14:00 when it is 12:00 UTC. Offsets from -18:00 to +18:00 are accepted (the same limit java.time uses), with a resolution of one second.</p>
 <p>LIMITATION: the runtime has no time-zone database, so there are no named zones (&quot;Europe/Berlin&quot;) and no daylight saving rules. An offset is just a constant number of seconds. <code>zone_offset.system_default()</code> gives the offset the operating system uses right now, which is correct for the current moment but not necessarily for dates in another season.</p>

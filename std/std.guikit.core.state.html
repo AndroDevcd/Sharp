@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -83,7 +83,7 @@
 <p class="contents"><a href="#built_by">built_by</a> <a href="#change_hook">change_hook</a> <a href="#composable">composable</a> <a href="#reconciler">reconciler</a> <a href="#state">state</a> <a href="#state_cell">state_cell</a> <a href="#state_list">state_list</a></p>
 <section class="type" id="built_by">
 <h2><span class="kind">class</span> built_by</h2>
-<p class="meta"><code>base composable</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/composable.sharp">source</a></p>
+<p class="meta"><code>base composable</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/state/composable.sharp">source</a></p>
 <p>A composable made from a function instead of a class - for a screen whose state lives outside it (gui.state):</p>
 <div class="code"><pre class="sharp">count := gui.state(0);
 gui.run(&quot;Counter&quot;, 360, 240, { -&gt;
@@ -96,7 +96,7 @@ gui.run(&quot;Counter&quot;, 360, 240, { -&gt;
 </section>
 <section class="type" id="change_hook">
 <h2><span class="kind">class</span> change_hook</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/state.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/state/state.sharp">source</a></p>
 <p>a function to run when a state changes, wrapped so it can be kept in a list</p>
 <h3>Functions</h3><div>
 <div class="fn" id="change_hook.change_hook"><div class="sig"><b>change_hook</b>(what: ()())</div></div>
@@ -105,7 +105,7 @@ gui.run(&quot;Counter&quot;, 360, 240, { -&gt;
 </section>
 <section class="type" id="composable">
 <h2><span class="kind">class</span> composable</h2>
-<p class="meta"><code>: element, behavior, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/composable.sharp">source</a></p>
+<p class="meta"><code>: element, behavior, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/state/composable.sharp">source</a></p>
 <p>composable - a piece of screen you write yourself: some state, and a build() that turns that state into widgets.</p>
 <div class="code"><pre class="sharp">class counter base composable {
     count := state(0);</pre></div>
@@ -156,7 +156,7 @@ gui.run(&quot;Counter&quot;, 360, 240, { -&gt;
 </section>
 <section class="type" id="reconciler">
 <h2><span class="kind">class</span> reconciler</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/reconciler.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/state/reconciler.sharp">source</a></p>
 <p>reconciler - settles freshly built widgets into the tree, carrying over what the widgets they replace had remembered.</p>
 <p>THE PROBLEM: build() makes NEW widget objects every time. If the screen simply swapped to the new tree, everything that lives in the widgets and not in your state would reset on every change: the list would jump back to the top, the text cursor would vanish, the focused field would lose focus, a nested counter would forget its count.</p>
 <p>THE ANSWER: walk the old tree and the new tree side by side. Where a new widget sits in the place of an old widget OF THE SAME KIND, the new one takes over the old one&#x27;s memory:</p>
@@ -178,7 +178,7 @@ column                   column            same kind  -&gt; carry over
 </section>
 <section class="type" id="state">
 <h2><span class="kind">class</span> state&lt;t&gt;</h2>
-<p class="meta"><code>: state_cell</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/state.sharp">source</a></p>
+<p class="meta"><code>: state_cell</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/state/state.sharp">source</a></p>
 <p>state&lt;t&gt; - a value the screen depends on.</p>
 <div class="code"><pre class="sharp">count := state(0);                       // inside a composable</pre></div>
 <div class="code"><pre class="sharp">gui.text(&quot;count: &quot; + count.value)        // read it while building the screen
@@ -202,7 +202,7 @@ count.value += 1;                        // the same</pre></div>
 </section>
 <section class="type" id="state_cell">
 <h2><span class="kind">interface</span> state_cell</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/state.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/state/state.sharp">source</a></p>
 <p>What a composable knows about each of its states without knowing the type inside: that it can take over the value of the state it replaces.</p>
 <p>WHY THIS EXISTS: when a screen is rebuilt, a parent&#x27;s build() makes its child composables AGAIN - new objects, with new states at their starting values. The reconciler pairs each new composable with the old one it replaces and has every new state take the old state&#x27;s value, in the order they were made. So the counter keeps counting although its object is new. (React keeps hook state by call order in the same way; Compose keeps <code>remember</code>ed values by position in its slot table.)</p>
 <h3>Functions</h3><div>
@@ -211,7 +211,7 @@ count.value += 1;                        // the same</pre></div>
 </section>
 <section class="type" id="state_list">
 <h2><span class="kind">class</span> state_list&lt;t&gt;</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/state/state_list.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/state/state_list.sharp">source</a></p>
 <p>state_list - a list the screen watches: add, remove or move an item and every screen that showed the list is built again.</p>
 <div class="code"><pre class="sharp">tasks := state_list&lt;task&gt;();</pre></div>
 <div class="code"><pre class="sharp">tasks.add(task(&quot;Write the notes&quot;));         // the screen follows

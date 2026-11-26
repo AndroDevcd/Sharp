@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -65,7 +65,7 @@
 <p class="contents"><a href="#mutex">mutex</a> <a href="#semaphore">semaphore</a></p>
 <section class="type" id="mutex">
 <h2><span class="kind">class</span> mutex</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/sync/mutex.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/sync/mutex.sharp">source</a></p>
 <p>mutex - a lock for coroutines: one at a time, the others are SUSPENDED (not spinning, not blocking their thread) until it is their turn.</p>
 <p>USAGE guard := new mutex();</p>
 <div class="code"><pre class="sharp">guard.with_lock({ -&gt;            // acquire, run the block, release - whatever happens
@@ -93,7 +93,7 @@ try { ... } finally { guard.release(); }</pre></div>
 </section>
 <section class="type" id="semaphore">
 <h2><span class="kind">class</span> semaphore</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/io/coroutines/sync/semaphore.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/io/coroutines/sync/semaphore.sharp">source</a></p>
 <p>semaphore - a counter of permits: at most N coroutines inside at the same time, the others are suspended until a permit comes back.</p>
 <p>USAGE downloads := new semaphore(4);           // at most 4 at once</p>
 <div class="code"><pre class="sharp">for(i : decimal = 0; i &lt; 100; i++) {

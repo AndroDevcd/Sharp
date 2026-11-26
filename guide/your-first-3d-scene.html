@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html" aria-current="page">Guide</a>
@@ -76,7 +76,7 @@ def main() {
     });
 }</pre></div>
 <ul class="plainlist"><li><b>Things</b> are made by words - <code>cube</code>, <code>sphere</code>, <code>cylinder</code>, <code>cone</code>, <code>ground</code>, <code>tree</code>, <code>pine</code>, <code>model(&quot;file.gltf&quot;)</code> - and what a thing is like is chained onto it: <code>.at(x, y, z)</code>, <code>.turn(degrees)</code>, <code>.scale(s)</code>, <code>.color(0xRRGGBBAA)</code>, <code>.texture(path)</code>, <code>.shiny(...)</code>, <code>.spin(...)</code>, <code>.click { ... }</code>.</li><li><b>The space</b>: x to the right, y up, z towards you; one unit is a metre.</li><li><b>Colours are numbers</b>: <code>0xD63031FF</code> is red, green, blue and alpha, two hex digits each. One kept in a variable needs its type written: <code>red : _int64 = 0xD63031FF;</code>.</li><li><b>Your own models</b> come from <code>.obj</code>, <code>.gltf</code> and <code>.glb</code> files; your own shapes from <code>mesh</code> (corners and triangles). <code>terrain</code> makes land from a height function and <code>scatter(thing, count)</code> strews copies over it.</li><li><b>Your own code</b> runs before every frame in <code>on_frame { f: frame -&gt; ... }</code> (the keys, the time passed), and ordinary widgets go over the scene with <code>hud { ... }</code>.</li></ul>
-<p><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/examples/gui/lantern_hunt"><code>examples/gui/lantern_hunt</code></a> is a complete small game built from these; <code>lib/support/0.4.0/std/guikit/words3d.sharp</code> lists every word.</p>
+<p><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/examples/gui/lantern_hunt"><code>examples/gui/lantern_hunt</code></a> is a complete small game built from these; <code>stdlib/std/guikit/words3d.sharp</code> lists every word.</p>
 <p>Scenes are drawn with OpenGL, which every PC has; on a Raspberry Pi it is OpenGL ES 2.</p>
       <div class="pager"><a href="your-first-window.html">&larr; Your first window</a><a href="calling-a-c-library.html">Calling a C library &rarr;</a></div>
     </main>

@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -60,7 +60,7 @@
 <p class="contents"><a href="#checksums">checksums</a> <a href="#compress_exception">compress_exception</a> <a href="#deflate">deflate</a> <a href="#deflate_tables">deflate_tables</a> <a href="#deflater">deflater</a> <a href="#gzip">gzip</a> <a href="#huffman_codes">huffman_codes</a> <a href="#inflater">inflater</a> <a href="#zip_archive">zip_archive</a> <a href="#zip_builder">zip_builder</a> <a href="#zip_entry">zip_entry</a> <a href="#zlib">zlib</a></p>
 <section class="type" id="checksums">
 <h2><span class="kind">class</span> checksums</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/gzip.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/gzip.sharp">source</a></p>
 <p>numbers of 2 and 4 bytes with the low byte first, as the containers write them (their checksums are hashing.crc32 and hashing.adler32)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="checksums.get16"><div class="sig">static def <b>get16</b>(data: _int8[], at: _int64) : _int64</div></div>
@@ -71,7 +71,7 @@
 </section>
 <section class="type" id="compress_exception">
 <h2><span class="kind">class</span> compress_exception</h2>
-<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p class="meta"><code>base exception</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/deflate.sharp">source</a></p>
 <p>DEFLATE: the compression inside gzip, zip, png and https</p>
 <div class="code"><pre class="sharp">small := deflate.compress(bytes);
 same := deflate.decompress(small);</pre></div>
@@ -88,7 +88,7 @@ same := deflate.decompress(small);</pre></div>
 </section>
 <section class="type" id="deflate">
 <h2><span class="kind">class</span> deflate</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/deflate.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="deflate.compress"><div class="sig">static def <b>compress</b>(data: _int8[]?) : _int8[]</div></div>
@@ -97,13 +97,13 @@ same := deflate.decompress(small);</pre></div>
 </section>
 <section class="type" id="deflate_tables">
 <h2><span class="kind">class</span> deflate_tables</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/deflate.sharp">source</a></p>
 <p>the tables both directions share: the lengths and distances a code stands for, and how many more bits follow it</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>length_base</code></td><td><code>_int64[]</code></td><td></td></tr><tr><td><code>length_extra</code></td><td><code>_int64[]</code></td><td></td></tr><tr><td><code>distance_base</code></td><td><code>_int64[]</code></td><td></td></tr><tr><td><code>distance_extra</code></td><td><code>_int64[]</code></td><td></td></tr></table></div>
 </section>
 <section class="type" id="deflater">
 <h2><span class="kind">class</span> deflater</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/deflate.sharp">source</a></p>
 <p>compression: repeats found through a table of where each three bytes were seen, written in the fixed codes</p>
 <h3>Functions</h3><div>
 <div class="fn" id="deflater.deflater"><div class="sig"><b>deflater</b>(data: _int8[]?)</div></div>
@@ -112,7 +112,7 @@ same := deflate.decompress(small);</pre></div>
 </section>
 <section class="type" id="gzip">
 <h2><span class="kind">class</span> gzip</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/gzip.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/gzip.sharp">source</a></p>
 <p>GZIP: compressed data as files and web servers carry it</p>
 <div class="code"><pre class="sharp">small := gzip.compress(bytes);                      // what `gzip file` writes: the content of a .gz file
 same := gzip.decompress(small);</pre></div>
@@ -137,7 +137,7 @@ gzip.is_gzip(bytes)                                 // does it start as gzip dat
 </section>
 <section class="type" id="huffman_codes">
 <h2><span class="kind">class</span> huffman_codes</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/deflate.sharp">source</a></p>
 <p>a set of Huffman codes, as the format describes one: how many codes of each length, and the symbols in code order</p>
 <h3>Fields</h3><div class="scroll"><table class="fields"><tr><td><code>count</code></td><td><code></code></td><td></td></tr><tr><td><code>symbol</code></td><td><code>_int64[]</code></td><td></td></tr></table></div>
 <h3>Functions</h3><div>
@@ -147,7 +147,7 @@ gzip.is_gzip(bytes)                                 // does it start as gzip dat
 </section>
 <section class="type" id="inflater">
 <h2><span class="kind">class</span> inflater</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/deflate.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/deflate.sharp">source</a></p>
 <p>decompression: reads bits from <code>source</code>, writes bytes to a growing array</p>
 <h3>Functions</h3><div>
 <div class="fn" id="inflater.inflater"><div class="sig"><b>inflater</b>(data: _int8[]?, start: _int64)</div></div>
@@ -157,7 +157,7 @@ gzip.is_gzip(bytes)                                 // does it start as gzip dat
 </section>
 <section class="type" id="zip_archive">
 <h2><span class="kind">class</span> zip_archive</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/zip.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/zip.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="zip_archive.entry_at"><div class="sig">def <b>entry_at</b>(index: _int64) : zip_entry</div></div>
@@ -175,7 +175,7 @@ gzip.is_gzip(bytes)                                 // does it start as gzip dat
 </section>
 <section class="type" id="zip_builder">
 <h2><span class="kind">class</span> zip_builder</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/zip.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/zip.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="zip_builder.add"><div class="sig">def <b>add</b>(name: string, text: string) : zip_builder</div><p>a file with this text as its content</p></div>
@@ -189,7 +189,7 @@ gzip.is_gzip(bytes)                                 // does it start as gzip dat
 </section>
 <section class="type" id="zip_entry">
 <h2><span class="kind">class</span> zip_entry</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/zip.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/zip.sharp">source</a></p>
 <p>ZIP ARCHIVES: many files in one, each compressed</p>
 <div class="code"><pre class="sharp">// read one
 archive := zip_archive.open(new file(&quot;release.zip&quot;));
@@ -214,7 +214,7 @@ made.save(new file(&quot;release.zip&quot;));</pre></div>
 </section>
 <section class="type" id="zlib">
 <h2><span class="kind">class</span> zlib</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/compress/gzip.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/compress/gzip.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="zlib.compress"><div class="sig">static def <b>compress</b>(data: _int8[]?) : _int8[]</div></div>

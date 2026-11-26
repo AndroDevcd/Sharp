@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -60,7 +60,7 @@
 <p class="contents"><a href="#crypto">crypto</a> <a href="#hash_work">hash_work</a> <a href="#hmac">hmac</a> <a href="#md5">md5</a> <a href="#pbkdf2">pbkdf2</a> <a href="#secure_random">secure_random</a> <a href="#sha1">sha1</a> <a href="#sha256">sha256</a></p>
 <section class="type" id="crypto">
 <h2><span class="kind">class</span> crypto</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hmac.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/crypto/hmac.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="crypto.hex"><div class="sig">static def <b>hex</b>(bytes: _int8[]?) : string</div><p>bytes as text, two characters each (0 to 9, a to f)</p></div>
@@ -70,7 +70,7 @@
 </section>
 <section class="type" id="hash_work">
 <h2><span class="kind">class</span> hash_work</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hashes.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/crypto/hashes.sharp">source</a></p>
 <p>HOW THE THREE WORK. They are built the same way (it has a name: the Merkle-Damgard construction):</p>
 <div class="code"><pre class="sharp">the data is cut into blocks of 64 bytes;
 a small state (4, 5 or 8 numbers of 32 bits) starts at fixed values;
@@ -88,7 +88,7 @@ the state at the end, written out, is the fingerprint.</pre></div>
 </section>
 <section class="type" id="hmac">
 <h2><span class="kind">class</span> hmac</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hmac.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/crypto/hmac.sharp">source</a></p>
 <p>SIGNATURES WITH A SHARED SECRET (HMAC), and passwords (PBKDF2)</p>
 <div class="code"><pre class="sharp">signature := hmac.sha256_hex(secret, message);</pre></div>
 <p>A hash of a message that only someone with the KEY can compute: a server that signs what it hands out (a session token, a webhook body, the parameters of an API call) can check later that it comes back unchanged and was signed by a holder of the key. Compare a signature you received with the one you computed using crypto.same(a, b), never ==.</p>
@@ -114,7 +114,7 @@ Python: hmac.new(key, msg, &quot;sha256&quot;), hashlib.pbkdf2_hmac.</pre></div>
 </section>
 <section class="type" id="md5">
 <h2><span class="kind">class</span> md5</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hashes.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/crypto/hashes.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="md5.add"><div class="sig">def <b>add</b>(text: string) : md5</div></div>
@@ -130,7 +130,7 @@ Python: hmac.new(key, msg, &quot;sha256&quot;), hashlib.pbkdf2_hmac.</pre></div>
 </section>
 <section class="type" id="pbkdf2">
 <h2><span class="kind">class</span> pbkdf2</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hmac.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/crypto/hmac.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="pbkdf2.sha256"><div class="sig">static def <b>sha256</b>(password: string, salt: _int8[]?, rounds: _int64, length: _int64) : _int8[]</div><p><code>length</code> bytes made from a password and a salt by <code>rounds</code> rounds of hmac-sha256. More rounds: slower for you once, slower for an attacker every guess (100000 or more).</p></div>
@@ -139,7 +139,7 @@ Python: hmac.new(key, msg, &quot;sha256&quot;), hashlib.pbkdf2_hmac.</pre></div>
 </section>
 <section class="type" id="secure_random">
 <h2><span class="kind">class</span> secure_random</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/secure_random.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/crypto/secure_random.sharp">source</a></p>
 <p>RANDOM NUMBERS NOBODY CAN GUESS</p>
 <div class="code"><pre class="sharp">key := secure_random.bytes(32);         // 32 random bytes
 id := secure_random.hex(16);            // 32 characters, 0 to 9 and a to f
@@ -160,7 +160,7 @@ Linux       getrandom</pre></div>
 </section>
 <section class="type" id="sha1">
 <h2><span class="kind">class</span> sha1</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hashes.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/crypto/hashes.sharp">source</a></p>
 
 <h3>Functions</h3><div>
 <div class="fn" id="sha1.add"><div class="sig">def <b>add</b>(text: string) : sha1</div></div>
@@ -176,7 +176,7 @@ Linux       getrandom</pre></div>
 </section>
 <section class="type" id="sha256">
 <h2><span class="kind">class</span> sha256</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/crypto/hashes.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/crypto/hashes.sharp">source</a></p>
 <p>HASHES: a fingerprint of any amount of data</p>
 <div class="code"><pre class="sharp">sha256.hex(&quot;hello&quot;)                 &quot;2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824&quot;
 sha256.bytes(&quot;hello&quot;)               the same 32 bytes, not written out

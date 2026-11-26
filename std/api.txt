@@ -117,7 +117,8 @@ std  class character
 std  class class_cast_exception
 std  class concurrent_modification_exception
 std  class deferred_init<T base _object_>
-std  class dictionary<k,v>
+std  class dictionary<k base _object_, v base _object_>
+std  class dictionary_entry<k, v>
 std  class division_by_zero_exception
 std  class double
 std  class error
@@ -318,11 +319,30 @@ std  def set_seed(seed: int)
 std  def todo(message: string?)
 std  deferred_init.deferred_init(get_value_fun: ()(T))
 std  deferred_init.value : T
+std  dictionary.def at(key: k) : v?
+std  dictionary.def at_or_default(key: k, fallback: v) : v
+std  dictionary.def clear()
+std  dictionary.def contains_key(key: k) : bool
+std  dictionary.def contains_value(wanted: v) : bool
 std  dictionary.def is_empty() : bool
-std  dictionary.def size() : decimal
-std  dictionary.dictionary(dict : pair<k,v>[])
-std  dictionary.map : 
+std  dictionary.def keys() : list<k>
+std  dictionary.def operator[](key: k) : v
+std  dictionary.def put(key: k, value: v) : bool
+std  dictionary.def put_all(other: dictionary<k, v>)
+std  dictionary.def remove(key: k) : bool
+std  dictionary.def size() : _int64
+std  dictionary.def take(key: k) : v?
+std  dictionary.def values() : list<v>
+std  dictionary.dictionary()
+std  dictionary.dictionary(pairs : pair<k,v>[])
 std  dictionary.override def get_elements() : pair<k,v>[]?
+std  dictionary_entry.after : dictionary_entry<k, v>?
+std  dictionary_entry.before : dictionary_entry<k, v>?
+std  dictionary_entry.code : _int64
+std  dictionary_entry.dictionary_entry(key: k, value: v, code: _int64)
+std  dictionary_entry.key : k
+std  dictionary_entry.next : dictionary_entry<k, v>
+std  dictionary_entry.value : v
 std  division_by_zero_exception.public division_by_zero_exception(message : string?) -> base(message)
 std  double.double(i : double) -> base(i.value)
 std  double.double(initial_val : _int16) -> base(initial_val)
@@ -3716,9 +3736,10 @@ std.guikit.testing  def watch_ui_tests()
 std.guikit.testing  def watch_ui_tests(seconds: decimal)
 std.guikit.testing  def watching<t>(of: state<t>) : state_watch<t>
 std.guikit.testing  def wheel_over(node: ui_node, word: string, turn: _int64) : bool
-std.guikit.testing  held_dispatcher.at_rest : _int64
 std.guikit.testing  held_dispatcher.held_dispatcher()
+std.guikit.testing  held_dispatcher.override def hold(coroutine: job)
 std.guikit.testing  held_dispatcher.override def select_thread() : thread?
+std.guikit.testing  held_dispatcher.waiting : list<job>
 std.guikit.testing  query_step.def named() : string
 std.guikit.testing  query_step.def takes(v: view) : bool
 std.guikit.testing  query_step.fits : (view)(bool)?
@@ -5711,6 +5732,7 @@ std.io.coroutines  def open_scope(supervising: decimal) : job
 std.io.coroutines  def run_blocking(block: ()())
 std.io.coroutines  def set_current_job(j: job?)
 std.io.coroutines  def start_coroutine(coroutine: job, owner: job?, where: coroutine_dispatcher?) : job
+std.io.coroutines  def start_held(coroutine: job)
 std.io.coroutines  def supervisor_scope(block: ()())
 std.io.coroutines  def throw_cancellation()
 std.io.coroutines  def unmark_scope(bit: decimal)
@@ -5740,9 +5762,11 @@ std.io.coroutines  global_scope.static def launch(block: ()()) : job
 std.io.coroutines  global_scope.static def launch(state: object?, block: (object)()) : job
 std.io.coroutines  global_scope.static def launch(task: coroutine_body) : job
 std.io.coroutines  global_scope.static def root() : job
+std.io.coroutines  holding_dispatcher.def hold(coroutine: job)
 std.io.coroutines  interface coroutine_body
 std.io.coroutines  interface coroutine_dispatcher
 std.io.coroutines  interface coroutine_exception_handler
+std.io.coroutines  interface holding_dispatcher
 std.io.coroutines  job.ACTIVE : decimal
 std.io.coroutines  job.CANCELLED : decimal
 std.io.coroutines  job.CANCELLING : decimal

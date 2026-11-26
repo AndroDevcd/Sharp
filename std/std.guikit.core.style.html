@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -83,7 +83,7 @@
 <p class="contents"><a href="#modifier">modifier</a> <a href="#shape">shape</a> <a href="#shape_path">shape_path</a> <a href="#theme">theme</a></p>
 <section class="type" id="modifier">
 <h2><span class="kind">class</span> modifier</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/style/modifier.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/style/modifier.sharp">source</a></p>
 <p>modifier - how a widget&#x27;s BOX is changed: its size, the room around it, its background, whether it can be clicked. You chain what you want onto one and PASS IT IN where the widget is made:</p>
 <div class="code"><pre class="sharp">text(&quot;Hello&quot;, modifier().padding(8))
 column(modifier().fill().padding(16)) { ... }
@@ -178,7 +178,7 @@ on_tag(&quot;save&quot;).click();</pre></div>
 </section>
 <section class="type" id="shape">
 <h2><span class="kind">class</span> shape</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/style/shape.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/style/shape.sharp">source</a></p>
 <p>shape - the outline of a box: what its background is filled as, and what its content is cut to.</p>
 <div class="code"><pre class="sharp">modifier().background(t.surface, shape.rounded(12))
 modifier().background(t.primary, shape.pill())
@@ -215,7 +215,7 @@ modifier().clip(shape.circle())                     // a round picture</pre></di
 </section>
 <section class="type" id="shape_path">
 <h2><span class="kind">class</span> shape_path</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/style/shape.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/style/shape.sharp">source</a></p>
 <p>what the block of shape.corners { } is given: name the corners in order with to(x, y)</p>
 <h3>Functions</h3><div>
 <div class="fn" id="shape_path.shape_path"><div class="sig"><b>shape_path</b>(target: list&lt;shape_point&gt;)</div></div>
@@ -224,7 +224,7 @@ modifier().clip(shape.circle())                     // a round picture</pre></di
 </section>
 <section class="type" id="theme">
 <h2><span class="kind">class</span> theme</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/core/style/theme.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/core/style/theme.sharp">source</a></p>
 <p>theme - the colours and sizes every built-in widget draws itself with.</p>
 <p>Widgets never hard-code a colour: a button asks the theme for <code>primary</code>, a label for <code>text</code>. Change the theme and the whole app changes with it:</p>
 <div class="code"><pre class="sharp">gui.use_theme(theme.light());          // before gui.run(...)</pre></div>

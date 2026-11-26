@@ -14,7 +14,7 @@
 <header class="top">
   <div class="wrap">
     <a class="brand" href="../index.html"><span class="mark">#</span>Sharp</a>
-    <span class="version">0.5.12</span>
+    <span class="version">0.5.13</span>
     <nav class="main" aria-label="Site">
       <a href="../index.html">Home</a>
       <a href="../guide/index.html">Guide</a>
@@ -83,7 +83,7 @@
 <p class="contents"><a href="#nav_bar">nav_bar</a> <a href="#navigator">navigator</a> <a href="#route">route</a> <a href="#screen_host">screen_host</a> <a href="#screen_kind">screen_kind</a> <a href="#typed_screen">typed_screen</a> <a href="#typed_tab">typed_tab</a> <a href="#constants">constants</a></p>
 <section class="type" id="nav_bar">
 <h2><span class="kind">class</span> nav_bar</h2>
-<p class="meta"><code>base widget : behavior, pointer_target</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/nav_bar.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, pointer_target</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/navigation/nav_bar.sharp">source</a></p>
 <p>nav_bar - the bar that switches between an app&#x27;s tabs. Made with nav_bar(nav).</p>
 <div class="code"><pre class="sharp">column(modifier().fill()) {
     screens(nav, to_home(), modifier().grow(1)) {
@@ -109,7 +109,7 @@
 </section>
 <section class="type" id="navigator">
 <h2><span class="kind">class</span> navigator</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/navigator.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/navigation/navigator.sharp">source</a></p>
 <p>navigator - where the app is: the screens that are open, and the ones underneath that &quot;back&quot; returns to.</p>
 <div class="code"><pre class="sharp">class my_app base composable {
     nav : navigator = navigator();</pre></div>
@@ -172,7 +172,7 @@ nav.current()               the route that is showing</pre></div>
 </section>
 <section class="type" id="route">
 <h2><span class="kind">class</span> route</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/route.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/navigation/route.sharp">source</a></p>
 <p>route - where the app can go. Every screen of an app has a route class that extends this one; the route&#x27;s fields are what that screen needs.</p>
 <div class="code"><pre class="sharp">class to_home base route { }                    // a screen that needs nothing</pre></div>
 <div class="code"><pre class="sharp">class to_detail base route {                    // a screen that needs to know which item
@@ -187,7 +187,7 @@ nav.current()               the route that is showing</pre></div>
 </section>
 <section class="type" id="screen_host">
 <h2><span class="kind">class</span> screen_host</h2>
-<p class="meta"><code>base widget : behavior, clipper, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/screens.sharp">source</a></p>
+<p class="meta"><code>base widget : behavior, clipper, stateful</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/navigation/screens.sharp">source</a></p>
 <p>screen_host - shows the top screen of a navigator, and animates the change when the navigator moves. Made with screens(...).</p>
 <div class="code"><pre class="sharp">screens(nav, to_home(), modifier().grow(1)) {
     tab&lt;to_home&gt;(&quot;Home&quot;)       { home_screen(nav); };
@@ -220,7 +220,7 @@ in over the old one       uncovering the one below</pre></div>
 </section>
 <section class="type" id="screen_kind">
 <h2><span class="kind">interface</span> screen_kind</h2>
-<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/route.sharp">source</a></p>
+<p class="meta"><a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/navigation/route.sharp">source</a></p>
 <p>What the navigator knows about one line of the screen list, without knowing the route type it was written for: can it show this route, and how.</p>
 <h3>Functions</h3><div>
 <div class="fn" id="screen_kind.accepts"><div class="sig">def <b>accepts</b>(where: route) : _int64</div><p>is <code>where</code> a route this line of the screen list is for?</p></div>
@@ -232,7 +232,7 @@ in over the old one       uncovering the one below</pre></div>
 </section>
 <section class="type" id="typed_screen">
 <h2><span class="kind">class</span> typed_screen&lt;t base route&gt;</h2>
-<p class="meta"><code>: screen_kind</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/route.sharp">source</a></p>
+<p class="meta"><code>: screen_kind</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/navigation/route.sharp">source</a></p>
 <p>One line of the screen list: &quot;a route of type t is shown by this function&quot;. Made by screen&lt;t&gt;() { } and tab&lt;t&gt;(title) { }.</p>
 <p>It is generic so that the function gets the route AS ITS OWN TYPE (<code>it.id</code> is a real field of to_detail), while the navigator keeps all the lines in one list as plain screen_kind. <code>where is t</code> is what matches a route to its line.</p>
 <h3>Functions</h3><div>
@@ -246,7 +246,7 @@ in over the old one       uncovering the one below</pre></div>
 </section>
 <section class="type" id="typed_tab">
 <h2><span class="kind">class</span> typed_tab&lt;t base route&gt;</h2>
-<p class="meta"><code>: screen_kind</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/lib/support/0.4.0/std/guikit/navigation/route.sharp">source</a></p>
+<p class="meta"><code>: screen_kind</code> &middot; <a href="https://github.com/AndroDevcd/Sharp/blob/runtime-3.0.0_r8/stdlib/std/guikit/navigation/route.sharp">source</a></p>
 <p>A line of the screen list written with tab&lt;t&gt;(title) { }: a top-level screen, one of the places the tab bar switches between.</p>
 <p>A tab is opened by the tab bar, which has no route object to hand - so a tab makes its own (<code>new t()</code>). That is why A TAB&#x27;S ROUTE CLASS MUST BE MAKEABLE WITH NO ARGUMENTS: a tab is a place, not a particular item. (A route with arguments is for screen&lt;...&gt;(), which is always opened with a route someone made.)</p>
 <h3>Functions</h3><div>
