@@ -25,6 +25,7 @@ THE FOLDER is emptied first (everything but .git and CNAME), so a page whose mod
 does not stay behind. To be safe it must be empty, hold a site this script made, or be a git
 checkout (the gh-pages branch).
 """
+import hashlib
 import html
 import os
 import re
@@ -35,6 +36,8 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
 GITHUB = "https://github.com/AndroDevcd/Sharp"
+# the header's logo on the site, and the file in doc/ it is: dark letters for the light look, white ones for the dark look
+LOGOS = {"logo.png": "logo.png", "logo-dark.png": "logo-transparent-bg.png"}
 
 # the top bar: address, words, and the pages that light it up besides its own
 NAV = [("index.html", "Home", ()), ("guide/index.html", "Guide", ("guide/", "projects.html")),
@@ -122,13 +125,13 @@ def page(file, title, description, body, facts):
 <link rel="apple-touch-icon" href="%(root)sapple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
-<link rel="stylesheet" href="%(root)ssite.css">
+<link rel="stylesheet" href="%(root)ssite.css?v=%(stamp)s">
 <script>try { var chosen = localStorage.getItem("sharp-theme"); if (chosen) { document.documentElement.setAttribute("data-theme", chosen); } } catch (e) { }</script>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <a class="brand" href="%(root)sindex.html"><img class="on-light" src="%(root)slogo.png" alt="Sharp"><img class="on-dark" src="%(root)slogo-dark.png" alt="Sharp"></a>
+    <a class="brand" href="%(root)sindex.html"><img class="on-light" src="%(root)slogo.png?v=%(stamp)s" alt="Sharp" height="40"><img class="on-dark" src="%(root)slogo-dark.png?v=%(stamp)s" alt="Sharp" height="40"></a>
     <span class="version">%(version)s</span>
     <nav class="main" aria-label="Site">
       %(links)s
@@ -139,11 +142,11 @@ def page(file, title, description, body, facts):
 
 %(body)s
 <footer><div class="wrap"><span>The Sharp programming language: compiler, VM, standard library and documentation.</span><a href="%(github)s">github.com/AndroDevcd/Sharp</a></div></footer>
-<script src="%(root)ssite.js"></script>
+<script src="%(root)ssite.js?v=%(stamp)s"></script>
 </body>
 </html>
 """ % {"title": esc(title), "description": esc(description), "root": root, "version": facts["version"],
-       "links": "\n      ".join(links), "body": body, "github": GITHUB}
+       "links": "\n      ".join(links), "body": body, "github": GITHUB, "stamp": facts["stamp"]}
 
 
 # ------------------------------------------------------------------------------------------ pages from Markdown
@@ -718,6 +721,13 @@ def main():
     library = os.path.join(ROOT, "stdlib", "std")
     release = newest([n for n in os.listdir(os.path.join(ROOT, "releases")) if n.endswith(".zip")])
     facts = {"version": re.search(r"(\d+(?:\.\d+)+)\.zip$", release).group(1), "branch": branch()}
+    # The look and the logos are asked for with this stamp behind their name: it changes when one of
+    # them does, so a browser never shows a new page with the old look it kept.
+    stamp = hashlib.sha1()
+    for path in [os.path.join(HERE, "site.css"), os.path.join(HERE, "site.js")] + [os.path.join(ROOT, "doc", name) for name in LOGOS.values()]:
+        with open(path, "rb") as file:
+            stamp.update(file.read())
+    facts["stamp"] = stamp.hexdigest()[:8]
 
     empty(out)
     write(os.path.join(out, ".sharp-site"), "made by tools/site/build_site.py\n")
@@ -736,8 +746,8 @@ def main():
     for name in ("site.css", "site.js"):
         shutil.copy(os.path.join(HERE, name), os.path.join(out, name))
     shutil.copytree(os.path.join(HERE, "shots"), os.path.join(out, "shots"))
-    for name in ("logo.png", "logo-dark.png"):          # the logo for a light page and for a dark one
-        shutil.copy(os.path.join(ROOT, "doc", name), os.path.join(out, name))
+    for name, source in LOGOS.items():
+        shutil.copy(os.path.join(ROOT, "doc", source), os.path.join(out, name))
     for name in os.listdir(os.path.join(HERE, "brand")):                # the browser-tab icons
         shutil.copy(os.path.join(HERE, "brand", name), os.path.join(out, name))
     shutil.copy(os.path.join(ROOT, "doc", "benchmarks.html"), os.path.join(out, "benchmarks.html"))
