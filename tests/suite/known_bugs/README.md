@@ -1,34 +1,26 @@
 # Known bugs
 
-Every file in this folder is a reproduction of a bug that is still open. Each one
-is **expected to fail** (a failed check, a compile error, a crash or a hang) and
-is not run with the normal suite. When a bug is fixed, move its checks into
-`../cases/` and delete it from this list.
+What is still open, and what is the way it is on purpose. A bug that has a reproduction gets a file
+in this folder, **expected to fail** (a failed check, a compile error, a crash or a hang) and not
+run with the normal suite; when it is fixed, its checks move into `../cases/` and it leaves this
+list. Right now no open bug has a file: each one below is described in its row.
 
-Status below was checked on 2026-11-12 after the compiler bug-fix round (see
-"Fixed" at the end). "All configurations" means with and without `-O`, with and
-without the JIT.
+Status below was checked on 2026-11-25 with Sharp 0.5.13 (VM 4.0.13), each entry by a small
+program, on Linux with the JIT and on Windows ("Checked on 2026-11-25" at the end says what left
+the list).
 
-To run one by hand:
+To try something by hand, with what is in the repository now:
 
 ```
-sharpc tests/suite/known_bugs/<name>.sharp tests/suite/testing.sharp -o /tmp/bug
-sharp /tmp/bug
+bash test.sh try my_program.sharp
 ```
-
-## Needs a decision, not (only) a fix
-
-| Behaviour | Where |
-|---|---|
-| Assigning to a non-nullable string variable/field calls `operator=` on the object it holds, so every other reference to that string changes too. (Null elements and nullable targets now get a new object.) | described in `lib_coroutines` report; no file |
-| `override` only applies to interface / delegate methods; a plain base-class method is bound statically. Documented as the current design in `cases/inheritance.sharp`. | - |
 
 ## By design (not bugs)
 
-- Enum members without an explicit value get a value that depends on when the
-  enum is compiled; they do not count up from 0. Give members explicit values
-  when the number matters.
-- `override` only applies to interface / delegate methods.
+- `override` is for a function that was declared WITHOUT a body (in an interface, or in a class
+  above). A function with a body cannot be overridden: `override def` on one is a compile error,
+  and without `override` the function below only hides the one above (W1041) - a call through the
+  base type runs the base's version.
 - The operands of a binary operator are evaluated RIGHT TO LEFT: in
   `f() + g()` g runs first (decided 2026-11-12; `cases/operators_evaluation_order.sharp`).
   Write calls with side effects as separate statements when the order matters.
@@ -36,70 +28,60 @@ sharp /tmp/bug
   the number into that object (it calls the object's `operator=`), so every
   holder of the same object sees it (decided 2026-11-12;
   `cases/lib_collections_language.sharp`). Assign `new int(n)` to replace the
-  object for one holder only.
+  object for one holder only. (A string is different since 0.5.12: assigning to a
+  string variable or field points it at the new string.)
 - Block comments nest: `/* a /* b */` is still open, the tokenizer counts
   every `/*` (decided 2026-11-12).
 - `new coffee { water_left = 100 }` (inline initialization) is not part of the
-  language. `examples/new_class.sharp` still shows it; the examples are left
-  as they are, several are older than the language (decided 2026-11-12).
-- A function value is an object (see "Fourth part" below). `f == g` is true
-  when both are the same function with the same captured variables: `f == twice`
-  after `f := twice`, but two closures made by two calls of one function are
-  different.
-- A closure captures objects, arrays and function values, not plain numbers
-  (`count : decimal`): put the number in an object (`new int(0)`).
+  language (decided 2026-11-12). `apply(new coffee()) { water_left = 100; }` does it.
+- A function value is an object. `f == g` is true when both are the same function
+  with the same captured variables: `f == twice` after `f := twice`, but two closures
+  made by two calls of one function are different.
 
 ## Compiler
 
-Found on 2026-11-12 porting `compiler` to the current language:
+| Bug | File |
+|---|---|
+| Not retested: when a generic class gets its `mutate` members after the block was processed (a `list<T>` first used later), the bodies are compiled in the file of the generic class, so a name that only the mutating file imports may not resolve. (Members added by one `mutate` file ARE visible in another `mutate` file of the same class: tried on 2026-11-25, in both file orders.) | described only |
+
+## Runtime
 
 | Bug | File |
 |---|---|
-| An error in the initializer of a global is reported in the files that IMPORT the module, with the importing file's text at that line; "could not locate main method" is reported against `std/io/atomic.sharp:0:0`. | not reduced |
+| The directory call returns only the regular files of a whole tree and skips every name that starts with a dot (`runtime/interrupts/native/file_system.cpp`); read-file returns null for an empty file and a missing one alike (not retested). | worked around in `std/io/files` |
 
-Found on 2026-11-15 by random programs built with both compilers (the verifier
-of the bootstrap's optimizer, `compiler/doc/codegen.md` 13.6); the
-bootstrap compiler gives the right answer in each:
+## Checked on 2026-11-25 (what left the list)
 
-| Bug | File |
-|---|---|
-| A `? :` with a CONSTANT arm, compared or negated, gives the wrong answer when the other arm is taken: with `five : _int64 = 5; wide : _int64 = 0;` the program prints 0 for `((11 == five) ? 7 : 0) == 0`, for `((11 == five) ? 123456789 : wide) == 0` and for `!((11 == five) ? 123456789 : wide)` (each is 1). With two variables as arms (`((11 == five) ? five : wide) == 0`) it is right, and so is the value when it is only printed (`n3 : _uint8 = 0; show((11 == five) ? 123456789 : n3)` prints 0). Seen with and without the JIT; not tried with `-O`. | not reduced further |
+Found by the check and fixed the same day (VM 4.0.14, `cases/whole_numbers_as_text.sharp`):
 
-Found on 2026-11-15 while the bootstrap's driver was completed
-(`compiler/doc/codegen.md` 13.7); worked around in
-`compiler/configuration/settings_processor.sharp`, `project_path`,
-by putting the object in a local first. The bootstrap compiler builds the
-program as written:
+- **A whole number above 2^53 lost its low digits when it became TEXT**: `n : _int64 = 9007199254740990; n = n + 3;`
+  printed 9007199254740992 with `"" + n`, with `"$n"` and with `new long(n).to_string()`. The number
+  itself was right; the way to text went through a decimal. The VM has a call of its own for the
+  digits of a whole number now (interrupt 0x69, `whole_text`), and `string` and the number classes use it.
 
-| Bug | File |
-|---|---|
-| A `new` expression used directly as the receiver of a call inside a condition stops the code generator: `def pick(written: string) : string { if(new file(written).exists()) { return written; } return "none"; }` gives "sharp: <code-generator> fatal error: incorrect operation_step, found (1) when (31) was expected. note: in function: pick(std#string): std#string". With `candidate := new file(written); if(candidate.exists())` it compiles. | not in a file (the text here is the whole reproduction; it needs `import ( std.io )`) |
+Each of these was tried with a small program; they are fixed, or no longer true:
 
-Not in a file (described only; not retested on 2026-11-12):
-members added by one `mutate` file are not always visible inside another
-`mutate` file of the same class. Also: when a generic class gets its `mutate`
-members after the block was processed (a `list<T>` first used later), the
-bodies are compiled in the file of the generic class, so a name that only the
-mutating file imports may not resolve.
-
-## Runtime and JIT
-
-| Bug | File |
-|---|---|
-| Seen with the JIT that was replaced in November 2026: a crash when functions are first compiled while several worker threads are inside them (the coroutine tests warm up on one thread to avoid it). A bug of exactly this shape was found and fixed on 2026-11-14 (see "Fixed" below: a fiber continued in the machine code of a function compiled while it waited); the warm-ups were left in place. Re-tested without them on 2026-11-14 (`lib_coroutines_core`, `_channels`, `_sync` with the `warm_up()` call taken out, plain and `-O`, 25 runs each, and 8 runs each under the address sanitizer): no failure, neither with the runtime from before that fix nor with the one after. So the warm-ups no longer guard anything that can be reproduced; they cost nothing and stay. | `cases/lib_coroutines_resume_after_compile.sharp` |
-| NOT REPRODUCED OUTSIDE THE BOOTSTRAP COMPILER: a plain `main` that `launch`ed one coroutine per source file (each read and parsed a file, then `send` its result on an unlimited channel) and then called `receive()` once per file hung about one run in three with 6 or more files, with and without the JIT; 4 or fewer files never hung. A small test of the same shape with a number loop instead of the file work ran 1,200 rounds without hanging, so the cause is something in the real work (file reads, large allocations during a collection) and is not found. `compiler/main.sharp` now uses `run_blocking { coroutine_scope { launch_on(pool) } }` and a list, which has not hung. | first version of `parse_all` in `compiler/main.sharp`, 2026-11-12 |
-| The JIT exists for x86-64 Linux / Intel macOS only; on arm64 and Windows everything is interpreted. | `runtime/jit/jit_compiler.cpp` |
-| OPEN (found 2026-11-16): with the JIT, a program stalls ONCE for 1 to 2.4 seconds a few thousand turns into a loop - in roughly one run in four; `-nojit` never. Seen with `thread.sleep(2)`, with `delay(2)` outside a coroutine and with `delay(2)` inside `run_blocking`, so it is not the sleep call: it looks like a pause at the moment something is compiled (or a wait that times out there). Not caused by `time *= 1000` changing the caller's `long` (removed from std/time.sharp; the stall stayed). 64-bit Linux only - Windows and ARM have no JIT. | a loop of 4000 x "pause 2 ms" that prints the longest gap between two turns |
-| An integer constant above 2^53 written in source is loaded through a decimal constant (`ldc` + `d2i`) and loses its low bits. | needs an integer constant table |
-| Deep recursion ends in SIGSEGV instead of a stack overflow exception. | described in `cases/recursion.sharp` |
-| The directory call returns only regular files of a whole tree and skips dot names; no environment-variable call; read-file returns null for empty and missing alike. | worked around in `std/io/files` |
-
-## Library
-
-| Bug | File |
-|---|---|
-| Existing `read_line()` loops forever at end of input; `print_numbers(_int16[])` etc. call themselves. | `std/console.sharp` |
-| `file.get_free_space()` returns <= 0 under `-O` (asm loads an int object). | `std/io/file.sharp` |
+- **String assignment** changed every other reference to the same string: a string variable or
+  field now points at the new string (0.5.12).
+- **A closure could not capture a plain number**: it can (`count : _int64 = 0; bump := { -> count = count + 1; };`
+  called twice leaves 2).
+- **Enum members had values that depended on when the enum was compiled**: they count up from 0.
+- **An error in the initializer of a global** was reported in the files that import the module, and
+  **"could not locate main method"** against `std/io/atomic.sharp:0:0`: both were the C++ compiler.
+  The error is reported in the file it is in; a program without `main` gets E0975.
+- **A `? :` with a constant arm, compared or negated**, gave the wrong answer: right now, with and without `-O`.
+- **`if(new file(name).exists())`** stopped the code generator: it compiles and runs.
+- **An integer constant above 2^53** lost its low bits: it is exact.
+- **Deep recursion ended in SIGSEGV**: it throws an exception the program can catch (Linux and Windows, plain and `-O`).
+- **"The JIT exists for x86-64 Linux only"**: it runs on 64-bit Windows and on ARM (64 and 32 bit) too.
+- **A stall of 1 to 2.4 seconds once in a loop of short sleeps, with the JIT, in one run in four**:
+  not seen in 8 runs of the same loop (the longest gap was 2 ms each time).
+- **A crash when functions are first compiled while several threads are inside them**, and **a hang
+  of the first `parse_all` of the compiler**: neither was ever reproduced after 2026-11-14, and the
+  code of the second is gone. The warm-ups in the coroutine tests stay; they cost nothing.
+- **No environment-variable call**: `std.system`'s `environment` class has it.
+- **`read_line()` looped for ever at the end of input**: it returns. **`print_numbers(_int16[])` called itself**: it does not.
+- **`file.get_free_space()` under `-O`**: the function is `free_space()` now and gives a positive number, with and without `-O`.
 
 ## Fixed (kept here so the history is easy to find)
 

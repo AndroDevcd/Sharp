@@ -32,6 +32,9 @@ import (
  *     is declared inside, in a module the file does not import, or as a
  *     static member of some class (`processor_count` for
  *     `platform_info.processor_count`);
+ *   - nothing has the name itself, but a module the file does not import has
+ *     a close one (`buton` for `std.guikit#button`): the three closest, each
+ *     with the import to add;
  *   - the name is a habit from another language (`total = 0;` to declare,
  *     `f(width = 2)`, `for(i; ...)`, `brake;`, `this`): other_language_habits.sharp.
  *
@@ -156,8 +159,8 @@ def add_later_use(context: analysis_context, first: diagnostic, name: string, no
 
 /** "not declared in this function, in class `cart`, in module `shop` or in anything it imports" */
 def where_it_was_looked_for(context: analysis_context) : string {
-    text := new string_builder("not declared in ");
-    if(context.function != null) { text.append("this function, "); }
+    text := new string_builder("not declared ");
+    if(context.function != null) { text.append("in this function, "); }
     if(context.class_of != null) { text.append("in class `" + context.class_of!!.written.name + "` or the classes above it, "); }
     text.append("in module `" + context.file.module.name + "` or in anything this file imports");
     return text.build();
@@ -184,7 +187,7 @@ def add_where_it_exists(context: analysis_context, d: diagnostic, name: string) 
 
     // in a module the file does not import
     shown : _int64 = 0;
-    for(i : _int64 = 0; i < context.prog.module_list.size() && shown < 2; i++) {
+    for(i : _int64 = 0; i < context.prog.module_list.size() && shown < 3; i++) {
         module := context.prog.module_list.at(i);
         group := context.file.group_importing(module);
         if(context.file.imports_module(module) && group == null) { continue; }
@@ -201,7 +204,46 @@ def add_where_it_exists(context: analysis_context, d: diagnostic, name: string) 
                     + "` exists: add `import (" + module.name + ")` to this file");
         shown++;
     }
-    if(shown == 0) { add_static_members_called(context, d, name); }
+    if(shown == 0) { shown = add_static_members_called(context, d, name); }
+    if(shown == 0) { add_similar_names_elsewhere(context, d, name); }
+}
+
+/**
+ * Nothing anywhere has the name itself: the closest names in the modules
+ * this file does NOT import (the same "how close" as did-you-mean,
+ * frontend/diagnostics/similar_names.sharp), each with the import it needs.
+ * Three at most.
+ *
+ *      buton("ok");        without `import (std.guikit)`:
+ *        = help: did you mean the function `std.guikit#button`? add `import (std.guikit)` to this file
+ *
+ * A name another file keeps to itself (`local`, `private`) is not offered:
+ * an import would not make it visible.
+ */
+def add_similar_names_elsewhere(context: analysis_context, d: diagnostic, name: string) {
+    elsewhere := new list<string>();
+    for(i : _int64 = 0; i < context.prog.module_list.size(); i++) {
+        module := context.prog.module_list.at(i);
+        if(context.file.imports_module(module)) { continue; }
+        for(k : _int64 = 0; k < module.declared.ordered.size(); k++) {
+            declared := module.declared.ordered.at(k);
+            if(can_be_named(declared.kind) && !declared.has(FLAG_LOCAL) && !declared.has(FLAG_PRIVATE)) { elsewhere.add(declared.name); }
+        }
+    }
+
+    close := closest_names(name, elsewhere, 3);
+    for(c : _int64 = 0; c < close.size(); c++) {
+        // the first module that declares it, in the order the modules were read
+        for(i : _int64 = 0; i < context.prog.module_list.size(); i++) {
+            module := context.prog.module_list.at(i);
+            if(context.file.imports_module(module)) { continue; }
+            same_name := module.declared.find(close.at(c));
+            if(same_name == null || same_name!!.size() == 0 || !can_be_named(same_name!!.at(0).kind)) { continue; }
+            d.with_help("did you mean the " + declaration_kind_name(same_name!!.at(0).kind) + " `" + module.name + "#" + close.at(c)
+                        + "`? add `import (" + module.name + ")` to this file");
+            break;
+        }
+    }
 }
 
 /**
@@ -209,8 +251,10 @@ def add_where_it_exists(context: analysis_context, d: diagnostic, name: string) 
  * was meant: a static member (or an enum value, or a class inside a class) of
  * some class of the program has the name. Says through which class it is
  * reached, and which import is missing if one is. At most two are shown.
+ *
+ * @return how many were shown
  */
-def add_static_members_called(context: analysis_context, d: diagnostic, name: string) {
+def add_static_members_called(context: analysis_context, d: diagnostic, name: string) : _int64 {
     shown : _int64 = 0;
     classes := context.prog.all_classes;
     for(i : _int64 = 0; i < classes.size() && shown < 2; i++) {
@@ -231,6 +275,7 @@ def add_static_members_called(context: analysis_context, d: diagnostic, name: st
         d.with_help(text);
         shown++;
     }
+    return shown;
 }
 
 /**

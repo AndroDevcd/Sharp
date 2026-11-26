@@ -75,6 +75,7 @@ typedef void (*interrupt_fn)(Int interrupt);
 void op_printf(Int interrupt);
 void op_flush(Int interrupt);
 void op_print_bytes(Int interrupt);
+void op_whole_text(Int interrupt);
 void op_kbhit(Int interrupt);
 void op_strtod(Int interrupt);
 void op_strtol(Int interrupt);

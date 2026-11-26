@@ -47,6 +47,7 @@ static const interrupt_row interrupt_rows[] = {
     { OP_PRINTF,                "printf",               op_printf },
     { OP_FLUSH,                 "flush",                op_flush },
     { OP_PRINT_BYTES,           "print_bytes",          op_print_bytes },
+    { OP_WHOLE_TEXT,            "whole_text",           op_whole_text },
     { OP_KBHIT,                 "kbhit",                op_kbhit },
     { OP_STRTOD,                "strtod",               op_strtod },
     { OP_STRTOL,                "strtol",               op_strtol },

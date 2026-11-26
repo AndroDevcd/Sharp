@@ -19,6 +19,21 @@ void op_printf(Int interrupt) {
 }
 
 //
+// whole_text(number, unsigned): the digits of a WHOLE number, as an array of characters pushed on
+// the stack. The number is read as the 64-bit whole number it is (registers[EBX].i) - printf above
+// takes every number as a decimal, which holds a whole number exactly only up to 2^53, so
+// 9007199254740993 came out as ...992. ECX is 1 when the 64 bits are an unsigned number.
+//
+void op_whole_text(Int interrupt) {
+    auto task = thread_self->task;
+
+    string digits = registers[ECX].i != 0 ? to_string((uint64_t) registers[EBX].i) : to_string((int64_t) registers[EBX].i);
+    auto text = create_object(digits.size(), type_int8);
+    copy_object(&push_stack_object, text);
+    assign_string_field(text, digits);
+}
+
+//
 // flush(): what the program printed so far is out when this returns. (Nothing has to call it for
 // output to be seen: the VM flushes on its own, console_helper.h.)
 //

@@ -1,9 +1,6 @@
 <div align="center">
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="doc/logo-dark.png">
-  <img src="doc/logo.png" alt="Sharp" width="340">
-</picture>
+<img src="doc/logo-dark.png" alt="Sharp" width="340">
 
 # The Sharp Programming Language
 

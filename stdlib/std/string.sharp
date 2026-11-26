@@ -344,15 +344,15 @@ class string : loopable<_int8> {
     }
 
     def operator+(num : _int16) : string {
-        return joined(digits_of('l', num));
+        return joined(whole_digits_of(num, 0));
     }
 
     def operator+(num : _int32) : string {
-        return joined(digits_of('l', num));
+        return joined(whole_digits_of(num, 0));
     }
 
     def operator+(num : _int64) : string {
-        return joined(digits_of('l', num));
+        return joined(whole_digits_of(num, 0));
     }
 
     def operator+(num : _uint8) : string {
@@ -360,18 +360,39 @@ class string : loopable<_int8> {
     }
 
     def operator+(num : _uint16) : string {
-        return joined(digits_of('l', num));
+        return joined(whole_digits_of(num, 0));
     }
 
     def operator+(num : _uint32) : string {
-        return joined(digits_of('l', num));
+        return joined(whole_digits_of(num, 0));
     }
 
     def operator+(num : _uint64) : string {
-        return joined(digits_of('L', num));
+        return joined(whole_digits_of(num, 1));
     }
 
-    /** the digits of a number, from the VM's formatter (snprintf): 'l' whole, 'L' unsigned whole, 'n' decimal */
+    /**
+     * The digits of a whole number, read as the 64-bit whole number it is. (It
+     * used to go through digits_of below, as a decimal - and a decimal holds a
+     * whole number exactly only up to 2^53: 9007199254740993 came out as ...992.)
+     *
+     * @param is_unsigned   1 when the 64 bits are an unsigned number (`_uint64`)
+     */
+    private def whole_digits_of(num: _int64, is_unsigned: _int64) : _int8[]? {
+        result : _int8[]? = null;
+        _num : _int64 = num;
+        _unsigned : _int64 = is_unsigned;
+        asm {
+            loadl ebx, [_num]
+            loadl ecx, [_unsigned]
+            int 0x69
+            movl [result]
+            popObj
+        }
+        return result;
+    }
+
+    /** the digits of a decimal, from the VM's formatter (snprintf): 'n' the fewest digits that read back the same */
     private def digits_of(kind: _int64, num: decimal) : _int8[]? {
         result : _int8[]? = null;
         _kind : _int64 = kind;

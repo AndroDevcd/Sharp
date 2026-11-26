@@ -107,6 +107,7 @@ enum interrupt_flag
     OP_GC_YOUNG = 0x66,              // ask for a minor collection, in either mode (memory/tracing_collector.h, MANUAL MODE)
     OP_GC_FACT = 0x67,               // ebx: which number about the collector; ebx: the number (tgc_fact)
     OP_MEMORY_HOOK = 0x68,           // ebx: a command of the out of memory hook, ecx: milliseconds; ebx: its answer (tgc_memory_hook)
+    OP_WHOLE_TEXT = 0x69,            // ebx: a whole number, ecx: 1 when it is unsigned; push: its digits (never by way of a decimal)
 };
 
 #endif //SHARP_VM_INTERRUPT_FLAG_H

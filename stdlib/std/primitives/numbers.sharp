@@ -604,7 +604,7 @@ public class number<T, NT> base base_number<NT> {
     def operator^=(num : _uint64)  : NT { value^=num; return self as NT; }
 
     override def to_string() : string? {
-        return snprintf('l', value, 0);
+        return new string("") + value;          // (string's own way to digits: exact for every whole number)
     }
 
     static def parse(s: string) : NT {
@@ -684,7 +684,7 @@ class ulong base number<_uint64, ulong> {
     init(initial_val : _uint64)  -> base(initial_val) { }
 
     override def to_string() : string? {
-        return snprintf('L', value, 0);
+        return new string("") + value;
     }
 }
 class long base number<_int64, long> {
