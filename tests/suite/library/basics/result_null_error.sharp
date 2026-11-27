@@ -1,0 +1,10 @@
+mod suite.library.basics.result_null_error;
+import ( std.testing )
+def result_null_error_tests() {
+    tests("result_null_error") {
+        test("result with a null error") {
+            r := new result<string, exception>("ok", null);
+            expect_true(r != null);
+        };
+    };
+}

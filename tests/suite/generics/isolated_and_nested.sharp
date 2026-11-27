@@ -1,0 +1,61 @@
+mod suite.generics.isolated_and_nested;
+
+import ( std.testing )
+
+/**
+ * Bugs found while writing generics/basics.sharp, both fixed; the checks
+ * below guard against them. Before the fix the file did not compile.
+ *
+ * BUG 1 (fixed) - a generic class saw the local variables of the function
+ *         that first used it, and they hid its own fields.
+ *   The first test below has a local called `one`. Inside holder<T>, the
+ *   assignment `one = a` was then taken to mean the test's local instead of
+ *   the field:
+ *       error S8026: incompatible types ... assigning `a: decimal` to expression of
+ *       type `main#closure_main#__srt_global.main.one: main#box<decimal>`
+ *   Renaming either the local or the field made it compile.
+ *
+ * BUG 2 (fixed) - `>>` at the end of a nested generic type was not read as
+ *         two closing brackets:
+ *       new box<box<decimal>>(...)
+ *       error S807: expected '[' or '(' or '{' after new expression
+ *   `new box<box<decimal> >(...)` with a space compiled and worked.
+ */
+
+class box<T> {
+    item : T;
+
+    box(first: T) {
+        item = first;
+    }
+
+    def take(): T {
+        return item;
+    }
+}
+
+class holder<T> {
+    one : T;
+
+    holder(a: T) {
+        one = a;                    // <- bug 1: was resolved to the local `one` of the function that used the class
+    }
+}
+
+def isolated_and_nested_tests() {
+    tests("isolated_and_nested") {
+        // ---- bug 1: the local `one` and the class's field `one` live side by side
+        test("the field of the generic class and the local of the same name") {
+            one := new box<decimal>(1);
+            h := new holder<decimal>(5);
+            expect(h.one).named("the field of the generic class").should_be(5);
+            expect(one.take()).named("the local of the same name").should_be(1);
+        };
+
+        // ---- bug 2
+        test("box<box<var>>") {
+            nested := new box<box<decimal>>(new box<decimal>(3));
+            expect(nested.take().take()).should_be(3);
+        };
+    };
+}

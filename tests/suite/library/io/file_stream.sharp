@@ -1,0 +1,230 @@
+mod suite.library.io.file_stream;
+
+import ( std.testing, std.io )
+
+/**
+ * std.io file_stream: a file written and read piece by piece - appending,
+ * lines, moving about in it, reading on from a position - and what is refused.
+ *
+ * Works only inside a folder of its own in the temporary directory, made
+ * fresh for every test and removed after it.
+ */
+
+/** "first line\n" + "second line\r\n" + "third": 29 bytes, three lines */
+def write_three_lines(at: string) {
+    out := file_stream.open(at, "w");
+    out.write_text("first line\n").write_text("second line\r\n").write_text("third");
+    out.close();
+}
+
+/** 400 blocks of the bytes 0 to 255, then the first 10 of a block once more: 102410 bytes */
+def write_blocks(at: string) {
+    block := new _int8[256];
+    for(i : decimal = 0; i < 256; i++) { block[i] = i; }
+    bytes := file_stream.open(at, "w");
+    for(i : decimal = 0; i < 400; i++) { bytes.write(block); }
+    bytes.write(block, 10);
+    bytes.close();
+}
+
+def file_stream_tests() {
+    tests("file_stream") {
+        folder : file;
+        path : string;
+        before_each {
+            folder = new file(temp_files.directory() + "/sharp_suite_io_stream");
+            folder.delete_recursively();
+            folder.mkdirs();
+            path = folder.path + "/stream.txt";
+        };
+        after_each { folder.delete_recursively(); };
+
+        // ---- write
+        test("open for writing") {
+            out := file_stream.open(path, "w");
+            expect_true(out.is_open());
+            out.close();
+        };
+        test("path") {
+            out := file_stream.open(path, "w");
+            expect(out.path()).should_be(path);
+            out.close();
+        };
+        test("position after writing") {
+            out := file_stream.open(path, "w");
+            out.write_text("first line\n").write_text("second line\r\n").write_text("third");
+            expect(out.position()).should_be(11 + 13 + 5);
+            out.close();
+        };
+        test("closed, and a second close does nothing") {
+            out := file_stream.open(path, "w");
+            out.write_text("first line\n");
+            out.close();
+            expect_false(out.is_open());
+            out.close();
+        };
+        test("the file is there") {
+            write_three_lines(path);
+            expect(new file(path).size()).should_be(29);
+        };
+
+        // ---- read back piece by piece
+        tests("reading") {
+            reader : file_stream;
+            before_each {
+                write_three_lines(path);
+                reader = file_stream.open(path, "r");
+            };
+            after_each { reader.close(); };
+
+            test("size") { expect(reader.size()).should_be(29); };
+            test("size leaves the position alone") {
+                reader.size();
+                expect(reader.position()).should_be(0);
+            };
+            test("read 5") { expect(reader.read_text(5)).should_be("first"); };
+            test("position") {
+                reader.read_text(5);
+                expect(reader.position()).should_be(5);
+            };
+            test("read_line from the middle of a line to the end of the file") {
+                reader.read_text(5);
+                expect(reader.read_line()!!).named("the rest of the line").should_be(" line");
+                expect(reader.read_line()!!).named("a line that ends \\r\\n").should_be("second line");
+                expect(reader.read_line()!!).named("the last line has no line end").should_be("third");
+                expect_null(reader.read_line());
+                expect_true(reader.at_end());
+                expect(sizeof(reader.read(10))).named("a read at the end gives nothing").should_be(0);
+            };
+
+            // ---- moving about
+            test("seek, then read") {
+                reader.seek(11);
+                expect(reader.read_text(6)).should_be("second");
+            };
+            test("skip back") {
+                reader.seek(11);
+                reader.read_text(6);
+                reader.skip(0 - 6);
+                expect(reader.read_text(6)).should_be("second");
+            };
+            test("seek_end") {
+                reader.seek_end();
+                expect(reader.position()).should_be(29);
+            };
+            test("a read that asks for more than there is") {
+                reader.seek_end();
+                reader.seek(0);
+                expect(sizeof(reader.read(1000))).should_be(29);
+            };
+        };
+
+        // ---- appending
+        test("append: four lines now, the last one appended") {
+            write_three_lines(path);
+            more := file_stream.open(path, "a");
+            more.write_text("\nfourth\n");
+            more.close();
+            again := file_stream.open(path, "r");
+            lines : decimal = 0;
+            last : string = "";
+            while(true) {
+                line := again.read_line();
+                if(line == null) { break; }
+                lines++;
+                last = line!!;
+            }
+            again.close();
+            expect(lines).should_be(4);
+            expect(last).should_be("fourth");
+        };
+
+        // ---- read and write in one stream: a part in the middle replaced
+        test("r+: what was written is read") {
+            write_three_lines(path);
+            both := file_stream.open(path, "r+");
+            both.seek(0);
+            both.write_text("FIRST");
+            both.seek(0);
+            line := both.read_line()!!;
+            both.close();
+            expect(line).should_be("FIRST line");
+        };
+
+        // ---- bytes: every value, in blocks, and a line longer than the stream's own buffer
+        tests("bytes") {
+            back : file_stream;
+            before_each {
+                write_blocks(folder.path + "/bytes.bin");
+                back = file_stream.open(folder.path + "/bytes.bin", "r");
+            };
+            after_each { back.close(); };
+
+            test("102410 bytes written") { expect(back.size()).should_be(102410); };
+            test("a read across the end of a block") {
+                back.seek(256 * 398 + 200);
+                part := back.read(100);
+                expect(sizeof(part)).should_be(100);
+                expect(part[0] & 0xFF).named("byte 200").should_be(200);
+                expect(part[55] & 0xFF).named("byte 255").should_be(255);
+                expect(part[56] & 0xFF).named("and 0 of the next").should_be(0);
+            };
+            test("read to the end in pieces") {
+                total : decimal = 0;
+                back.seek(0);
+                while(true) {
+                    piece := back.read(4096);
+                    if(sizeof(piece) == 0) { break; }
+                    total += sizeof(piece);
+                }
+                expect(total).should_be(102410);
+            };
+        };
+
+        test("a line of 10000 characters, and the line after it") {
+            long_path : string = folder.path + "/long.txt";
+            long_out := file_stream.open(long_path, "w");
+            for(i : decimal = 0; i < 1000; i++) { long_out.write_text("0123456789"); }
+            long_out.write_text("\nshort\n");
+            long_out.close();
+            long_in := file_stream.open(long_path, "r");
+            long_line := long_in.read_line()!!;
+            after : string = long_in.read_line()!!;
+            long_in.close();
+            expect(sizeof(long_line.data)).should_be(10000);
+            expect(long_line.data!![9999]).named("its end").should_be('9');
+            expect(after).named("the line after it").should_be("short");
+        };
+
+        // ---- what is refused
+        test("a file that is not there, a folder that is not there") {
+            expect_throws<io_exception>() { file_stream.open(folder.path + "/not_there.txt", "r"); };
+            expect_throws<io_exception>() { file_stream.open(folder.path + "/no/such/folder/x.txt", "w"); };
+        };
+        test("a mode that is none") {
+            write_three_lines(path);
+            expect_throws<illegal_argument_exception>() { file_stream.open(path, "x"); };
+        };
+        test("a closed stream refuses to be used") {
+            write_three_lines(path);
+            reader := file_stream.open(path, "r");
+            reader.close();
+            out := file_stream.open(folder.path + "/other.txt", "w");
+            out.close();
+            expect_throws<io_exception>() { reader.read(1); };
+            expect_throws<io_exception>() { reader.position(); };
+            expect_throws<io_exception>() { out.write_text("x"); };
+        };
+        test("a negative position") {
+            write_three_lines(path);
+            open_again := file_stream.open(path, "r");
+            expect_throws<illegal_argument_exception>() { open_again.seek(0 - 1); };
+            open_again.close();
+        };
+
+        test("cleanup") {
+            write_three_lines(path);
+            expect_true(folder.delete_recursively());
+        };
+    };
+}

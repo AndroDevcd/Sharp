@@ -1,0 +1,166 @@
+mod suite.functions.trailing_lambdas;
+
+import ( std.testing )
+
+/**
+ * Trailing lambdas: a `{ ... }` block right after a call is its last argument.
+ * Explicit parameters (`x -> ...`), no parameters, the implicit parameter `it`,
+ * and a single expression as the result.
+ */
+
+class counter {
+    value : decimal = 0;
+    def add(n: decimal) { value += n; }
+}
+
+total := new counter();
+
+def run(block: ()()) { block(); }
+def run_twice(block: ()()) { block(); block(); }
+def repeat(times: decimal, block: ()()) { for(i : decimal = 0; i < times; i++) { block(); } }
+def apply(x: decimal, f: (decimal)(decimal)) : decimal { return f(x); }
+def apply2(a: decimal, b: decimal, f: (decimal, decimal)(decimal)) : decimal { return f(a, b); }
+def each(items: decimal[], f: (decimal)()) { foreach(v in items) { f(v); } }
+def count_if(items: decimal[], test: (decimal)(decimal)) : decimal {
+    n : decimal = 0;
+    foreach(v in items) { if(test(v)) { n++; } }
+    return n;
+}
+def sum_by(items: decimal[], f: (decimal)(decimal)) : decimal {
+    s : decimal = 0;
+    foreach(v in items) { s += f(v); }
+    return s;
+}
+def with_text(s: string, f: (string)(decimal)) : decimal { return f(s); }
+def make(f: ()(decimal)) : decimal { return f(); }
+
+class pipeline {
+    items : decimal[];
+    pipeline(a: decimal[]) { items = a; }
+
+    def keep(test: (decimal)(decimal)) : pipeline {
+        n : decimal = 0;
+        foreach(v in items) { if(test(v)) { n++; } }
+        result := new decimal[n];
+        i : decimal = 0;
+        foreach(v in items) { if(test(v)) { result[i] = v; i++; } }
+        return new pipeline(result);
+    }
+
+    def change(f: (decimal)(decimal)) : pipeline {
+        result := new decimal[sizeof(items)];
+        for(i : decimal = 0; i < sizeof(items); i++) { result[i] = f(items[i]); }
+        return new pipeline(result);
+    }
+
+    def for_each(f: (decimal)()) { foreach(v in items) { f(v); } }
+    def sum() : decimal { s : decimal = 0; foreach(v in items) { s += v; } return s; }
+}
+
+def trailing_lambdas_tests() {
+    tests("trailing_lambdas") {
+        numbers : decimal[];
+        before_each {
+            numbers = new decimal[] { 1, 2, 3, 4, 5, 6 };
+            total.value = 0;
+        };
+
+        // ---- no parentheses, no parameters
+        test("f { statement; }") {
+            run { total.add(5); }
+            expect(total.value).should_be(5);
+        };
+
+        test("several statements") {
+            run { total.add(1); total.add(2); }
+            expect(total.value).should_be(3);
+        };
+
+        test("a single expression, result not wanted") {
+            run_twice { total.add(10) }
+            expect(total.value).should_be(20);
+        };
+
+        // ---- after an argument list
+        test("f(a) { ... }") {
+            repeat(4) { total.add(3); }
+            expect(total.value).should_be(12);
+        };
+
+        // ---- the implicit parameter
+        test("it in a single expression") { expect(apply(5) { it * 2 }).should_be(10); };
+        test("it with a return statement") { expect(apply(5) { return it + 1; }).should_be(6); };
+        test("it used twice") { expect(apply(7) { it * it }).should_be(49); };
+        test("count_if { it > 3 }") { expect(count_if(numbers) { it > 3 }).should_be(3); };
+        test("sum_by { it * 10 }") { expect(sum_by(numbers) { it * 10 }).should_be(210); };
+        test("it of a string") { expect(with_text("hello") { it.size() }).should_be(5); };
+
+        test("it in a statement body") {
+            each(numbers) { total.add(it); }
+            expect(total.value).should_be(21);
+        };
+
+        // ---- explicit parameters keep working
+        test("x -> expression statement body") { expect(apply(4) { x -> return x * 3; }).should_be(12); };
+        test("two parameters") { expect(apply2(3, 4) { a, b -> return a * b; }).should_be(12); };
+        test("typed parameters and return type") { expect(apply2(3, 4) { a: decimal, b: decimal -> (decimal) return a + b; }).should_be(7); };
+        test("no parameters with an arrow") { expect(make { -> return 42; }).should_be(42); };
+        test("no arrow, single expression result") { expect(make { 6 * 7 }).should_be(42); };
+
+        // ---- the old way is unchanged
+        test("lambda inside the parentheses") { expect(apply(5, { x -> return x - 1; })).should_be(4); };
+        test("lambda as the only argument in parentheses") {
+            run({ -> total.add(9); });
+            expect(total.value).should_be(9);
+        };
+
+        // ---- chains on objects
+        tests("chains") {
+            p : pipeline;
+            before_each { p = new pipeline(numbers); };
+
+            test("keep { }") { expect(p.keep { it % 2 == 0 }.sum()).should_be(12); };
+            test("keep { }.change { }") { expect(p.keep { it > 2 }.change { it * 2 }.sum()).should_be(36); };
+            test("three in a row") { expect(p.keep { it != 1 }.change { it + 1 }.keep { it % 2 == 1 }.sum()).should_be(15); };
+            test("ending in a statement lambda") {
+                p.change { it * 100 }.for_each { total.add(it); }
+                expect(total.value).should_be(2100);
+            };
+        };
+
+        // ---- nested: each lambda has its own `it`
+        test("an implicit lambda inside a lambda without it") {
+            run {
+                each(numbers) { total.add(it); }
+                total.add(count_if(numbers) { it < 3 });
+            }
+            expect(total.value).should_be(23);
+        };
+
+        test("a call with a trailing lambda inside an it lambda") { expect(apply(3) { it + count_if(new decimal[] { 1, 2, 3, 4 }) { it > 2 } }).should_be(5); };
+
+        // ---- statements that are followed by a block are not lambdas
+        test("if / while / foreach / for / when still take their blocks") {
+            hits : decimal = 0;
+            if(count_if(numbers) { it > 0 } == 6) { hits++; }
+            while(hits < 3) { hits++; }
+            foreach(v in numbers) { hits++; }
+            for(i : decimal = 0; i < apply(1) { it + 1 }; i++) { hits++; }
+            when(hits) {
+                11 -> { hits = 100; }
+                else -> { hits = 0 - 1; }
+            }
+            expect(hits).should_be(100);
+        };
+
+        // ---- literals with braces are still literals
+        test("vector array literal") {
+            arr := new decimal[] { 7, 8 };
+            expect(arr[1]).should_be(8);
+        };
+        test("dictionary literal") {
+            dict := { "a" : 1, "b" : 2 };
+            expect_not_null(dict);
+        };
+    };
+}

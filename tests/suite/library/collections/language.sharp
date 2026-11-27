@@ -1,0 +1,60 @@
+mod suite.library.collections.language;
+
+import ( std.testing )
+
+/**
+ * BUGS IN THE LANGUAGE that the collections library had to work around,
+ * both fixed; the checks below guard against them. The last two tests are
+ * about a rule that was decided, not a bug.
+ */
+
+class score {
+    points : int;
+    score(points: int) { self->points = points; }
+}
+
+def language_tests() {
+    tests("language") {
+        // ---- BUG 1 (fixed): an empty string on the RIGHT of `+` appended the word "null"
+        // (an empty string literal had no character array). "" + "a" was fine.
+        // collections.join_to_string therefore skipped empty pieces.
+        test("\"a\" + \"\"") {
+            left := "a";
+            expect(left + "").should_be("a");
+        };
+
+        // ---- BUG 2 (fixed): a local of a nullable NUMBER type that was declared
+        // without a value was not null (string?, class and decimal[]? locals were).
+        test("an int? local without a value is null") {
+            count : int?;
+            expect_true(count == null);
+        };
+        test("an int[]? local without a value is null") {
+            numbers : int[]?;
+            expect_true(numbers == null);
+        };
+
+        // ---- THE RULE (decided 2026-11-12): assigning a number to a field that
+        // holds a number object does not replace the object, it writes the number
+        // into it (the assignment calls the object's operator=) - so everybody who
+        // holds that same object sees the new number. To give one holder its own
+        // number, assign a new object: first.points = new int(500).
+        test("the other holder of the same number object sees 500 too") {
+            shared := new int(11);
+            first := new score(shared);
+            second := new score(shared);
+            first.points = 500;
+            expect(second.points.value).should_be(500);
+        };
+        test("a new object replaces only that holder's number") {
+            shared := new int(11);
+            first := new score(shared);
+            second := new score(shared);
+            first.points = 500;
+            third := new score(shared);
+            third.points = new int(7);
+            expect(second.points.value).named("the other holder").should_be(500);
+            expect(third.points.value).named("the holder that got it").should_be(7);
+        };
+    };
+}

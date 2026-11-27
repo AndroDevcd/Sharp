@@ -1,0 +1,92 @@
+mod suite.control.short_circuit;
+
+import ( std.testing )
+
+/**
+ * && and || stop early (short-circuit) whatever the operands are: native
+ * numbers, bool / int objects, or functions returning them.
+ */
+
+calls : decimal = 0;
+
+def counted_true(): bool { calls++; return true; }
+def counted_false(): bool { calls++; return false; }
+def boxed(v: decimal): int { return v; }
+def native_true(): decimal { calls++; return 1; }
+
+def short_circuit_tests() {
+    tests("short_circuit") {
+        before_each { calls = 0; };
+
+        test("&& with an object on the left skips the right side") {
+            if(boxed(0) > 0 && counted_true()) { fail_test("the body ran"); }
+            expect(calls).should_be(0);
+        };
+
+        test("|| with an object on the left skips the right side") {
+            if(counted_true() || counted_true()) { } else { fail_test("the else ran"); }
+            expect(calls).should_be(1);
+        };
+
+        test("false() && true() calls one function") {
+            if(counted_false() && counted_true()) { fail_test("the body ran"); }
+            expect(calls).should_be(1);
+        };
+
+        test("false() || true() calls both") {
+            if(counted_false() || counted_true()) { } else { fail_test("the else ran"); }
+            expect(calls).should_be(2);
+        };
+
+        test("a chain of && stops at the first false") {
+            if(counted_true() && counted_true() && counted_false() && counted_true()) { fail_test("the body ran"); }
+            expect(calls).should_be(3);
+        };
+
+        test("bool variables on the left") {
+            yes : bool = true;
+            no : bool = false;
+            if(no && counted_true()) { fail_test("no && f(): the body ran"); }
+            if(yes || counted_true()) { } else { fail_test("yes || f(): the else ran"); }
+            expect(calls).should_be(0);
+        };
+
+        test("native numbers on the left") {
+            zero : decimal = 0;
+            if(zero && native_true()) { fail_test("0 && f(): the body ran"); }
+            if(zero == 0 || native_true()) { } else { fail_test("1 || f(): the else ran"); }
+            expect(calls).should_be(0);
+        };
+
+        test("the usual bounds guard does not read past the end") {
+            items : decimal[] = new decimal[3];
+            i : decimal = 3;
+            hit : decimal = 0;
+            if(i < 3 && items[i] == 0) { hit = 1; }
+            expect(hit).should_be(0);
+        };
+
+        test("a bool variable from &&") {
+            yes : bool = true;
+            no : bool = false;
+            both : bool = yes && no;
+            expect_false(both);
+        };
+        test("a bool variable from ||") {
+            yes : bool = true;
+            no : bool = false;
+            either : bool = yes || no;
+            expect_true(either);
+        };
+        test("&& of two objects as a number") {
+            yes : bool = true;
+            no : bool = false;
+            expect(((yes && yes) as _int32) + ((yes && no) as _int32)).should_be(1);
+        };
+        test("mixed object and native") {
+            yes : bool = true;
+            no : bool = false;
+            expect(((yes && 1) as _int32) + ((0 || no) as _int32) + ((boxed(5) && yes) as _int32)).should_be(2);
+        };
+    };
+}

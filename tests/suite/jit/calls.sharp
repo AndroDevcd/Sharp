@@ -1,0 +1,126 @@
+mod suite.jit.calls;
+
+import ( std.testing )
+
+/**
+ * Calls made by compiled code, in loops hot enough to be compiled: overridden functions on more
+ * classes than one place remembers, function values with and without captured variables,
+ * exceptions that cross a call, and a recursion deep enough for the fiber's stack to grow (and
+ * so to move) while callers are waiting for their callees.
+ *
+ * (Written for the direct calls of the machine-code compiler: a caller puts its own state back
+ * after a callee returns, and finds an overridden function in a small cache per place.)
+ */
+
+class animal {
+    def legs() : _int64;
+}
+class bird base animal    { override def legs() : _int64 { return 2; } }
+class dog base animal     { override def legs() : _int64 { return 4; } }
+class ant base animal     { override def legs() : _int64 { return 6; } }
+class spider base animal  { override def legs() : _int64 { return 8; } }
+class crab base animal    { override def legs() : _int64 { return 10; } }
+class snail base animal   { override def legs() : _int64 { return 0; } }
+
+class puppy base dog { }      // inherits legs() from dog: found through the base class
+
+def count_legs(zoo: animal[], rounds: _int64) : _int64 {
+    total : _int64 = 0;
+    for(round : _int64 = 0; round < rounds; round++) {
+        for(i : _int64 = 0; i < sizeof(zoo); i++) {
+            total += zoo[i].legs();
+        }
+    }
+    return total;
+}
+
+def apply(f: (_int64)(_int64), count: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < count; i++) {
+        total += f(i % 10);
+    }
+    return total;
+}
+
+def triple(n: _int64) : _int64 { return n * 3; }
+
+def depth(n: _int64) : _int64 {
+    // (the locals are checked after the call: a caller's frame must be its own again)
+    before : _int64 = n * 7;
+    if(n == 0) { return 0; }
+    below : _int64 = depth(n - 1);
+    if(before != n * 7) { return 0 - 1000000; }
+    return below + 1;
+}
+
+def risky(n: _int64) : _int64 {
+    if(n % 5 == 0) { throw new illegal_state_exception("five"); }
+    return n;
+}
+
+def sum_with_catches(count: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 1; i <= count; i++) {
+        try { total += risky(i); } catch(e: illegal_state_exception) { total += 1000; }
+    }
+    return total;
+}
+
+/** seven classes for one place (it remembers four): every one must still get its own function */
+def make_zoo() : animal[] {
+    zoo := new animal[7];
+    zoo[0] = new bird();
+    zoo[1] = new dog();
+    zoo[2] = new ant();
+    zoo[3] = new spider();
+    zoo[4] = new crab();
+    zoo[5] = new snail();
+    zoo[6] = new puppy();
+    return zoo;
+}
+
+def calls_tests() {
+    tests("calls") {
+        test("legs of the zoo, once") { expect(count_legs(make_zoo(), 1)).should_be(34); };
+        test("legs of the zoo, many times") { expect(count_legs(make_zoo(), 20000)).should_be(680000); };
+
+        // a null receiver raises, also once the place is hot
+        test("an overridden call on null raises once the place is hot, and the place works again") {
+            zoo := make_zoo();
+            count_legs(zoo, 20000);         // makes the place hot
+            nobody := new animal[1];        // (its one element is null)
+            expect_throws<exception>() { count_legs(nobody, 1); };
+            expect(count_legs(zoo, 1)).named("the place works again").should_be(34);
+        };
+
+        // ---- function values: a function, a lambda, a lambda with a captured variable
+        test("a function as a value") {
+            plain : (_int64)(_int64) = triple;
+            expect(apply(plain, 100000)).should_be(1350000);
+        };
+        test("a lambda") {
+            squared : (_int64)(_int64) = { n: _int64 -> (_int64) return n * n; };
+            expect(apply(squared, 100000)).should_be(2850000);
+        };
+        test("a lambda with a captured variable, and captured again with another value") {
+            step : _int64 = 4;
+            stepped : (_int64)(_int64) = { n: _int64 -> (_int64) return n + step; };
+            expect(apply(stepped, 100000)).named("step 4").should_be(850000);
+            step = 9;
+            stepped = { n: _int64 -> (_int64) return n + step; };
+            expect(apply(stepped, 100000)).named("captured again, step 9").should_be(1350000);
+        };
+
+        // ---- a recursion that makes the stack grow under callers that are waiting
+        test("depth 100") { expect(depth(100)).should_be(100); };
+        test("depth 20000") { expect(depth(20000)).should_be(20000); };
+        test("depth 20000 again") {
+            depth(20000);                   // the first time: the stack has grown already
+            expect(depth(20000)).should_be(20000);
+        };
+
+        // ---- exceptions that cross a call, in a hot loop
+        test("every fifth call throws") { expect(sum_with_catches(50000)).should_be(1010000000); };
+
+    };
+}

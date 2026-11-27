@@ -1,0 +1,423 @@
+mod suite.classes.interfaces;
+
+import ( std.testing )
+
+/**
+ * Interfaces: a list of methods without bodies (delegates) that a class
+ * promises to have. A class names the interfaces after `:` and writes each
+ * method with `override`. A variable, parameter, field or array of the
+ * interface type can then hold any object whose class implements it.
+ */
+
+interface measurable {
+    def area(): decimal;
+    def perimeter(): decimal;
+}
+
+interface named {
+    def name(): string;
+}
+
+interface resizable {
+    def resize(factor: decimal);
+}
+
+/* delegates with parameters of several types, and one returning an object */
+interface calculator {
+    def apply(a: decimal, b: decimal): decimal;
+    def apply_all(numbers: decimal[]): decimal;
+    def label(prefix: string): string;
+    def boxed(a: decimal): int;
+}
+
+/* three interfaces on one class */
+class rectangle : measurable, named, resizable {
+    width : decimal = 0;
+    height : decimal = 0;
+
+    rectangle(w: decimal, h: decimal) {
+        width = w;
+        height = h;
+    }
+
+    override def area(): decimal {
+        return width * height;
+    }
+
+    override def perimeter(): decimal {
+        return 2 * (width + height);
+    }
+
+    override def name(): string {
+        return "rectangle";
+    }
+
+    override def resize(factor: decimal) {
+        width = width * factor;
+        height = height * factor;
+    }
+
+    /* a method that is not part of any interface */
+    def is_square(): decimal {
+        return width == height;
+    }
+}
+
+/* two interfaces */
+class right_triangle : measurable, named {
+    a : decimal = 0;
+    b : decimal = 0;
+    c : decimal = 0;
+
+    right_triangle(a: decimal, b: decimal, c: decimal) {
+        self->a = a;
+        self->b = b;
+        self->c = c;
+    }
+
+    override def area(): decimal {
+        return a * b / 2;
+    }
+
+    override def perimeter(): decimal {
+        return a + b + c;
+    }
+
+    override def name(): string {
+        return "triangle";
+    }
+}
+
+/* one interface */
+class dot : named {
+    override def name(): string {
+        return "dot";
+    }
+}
+
+class counter : resizable {
+    count : decimal = 1;
+    calls : decimal = 0;
+
+    override def resize(factor: decimal) {
+        count = count * factor;
+        calls++;
+    }
+}
+
+/* a base class and an interface together */
+class labelled_rectangle base rectangle : calculator {
+    text : string = "";
+
+    labelled_rectangle(w: decimal, h: decimal, text: string) -> base(w, h) {
+        self->text = text;
+    }
+
+    override def name(): string {
+        return text;
+    }
+
+    override def apply(a: decimal, b: decimal): decimal {
+        return a * width + b * height;
+    }
+
+    override def apply_all(numbers: decimal[]): decimal {
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(numbers); i++) {
+            total += numbers[i];
+        }
+        return total * width;
+    }
+
+    override def label(prefix: string): string {
+        return prefix + text;
+    }
+
+    override def boxed(a: decimal): int {
+        return new int(a + height);
+    }
+}
+
+class adder : calculator {
+    override def apply(a: decimal, b: decimal): decimal {
+        return a + b;
+    }
+
+    override def apply_all(numbers: decimal[]): decimal {
+        total : decimal = 0;
+        for(i : decimal = 0; i < sizeof(numbers); i++) {
+            total += numbers[i];
+        }
+        return total;
+    }
+
+    override def label(prefix: string): string {
+        return prefix + "adder";
+    }
+
+    override def boxed(a: decimal): int {
+        return new int(a + 1);
+    }
+}
+
+class multiplier : calculator {
+    override def apply(a: decimal, b: decimal): decimal {
+        return a * b;
+    }
+
+    override def apply_all(numbers: decimal[]): decimal {
+        total : decimal = 1;
+        for(i : decimal = 0; i < sizeof(numbers); i++) {
+            total *= numbers[i];
+        }
+        return total;
+    }
+
+    override def label(prefix: string): string {
+        return prefix + "multiplier";
+    }
+
+    override def boxed(a: decimal): int {
+        return new int(a * 2);
+    }
+}
+
+/* a class with a field of an interface type */
+class machine {
+    tool : calculator;
+    runs : decimal = 0;
+
+    machine(tool: calculator) {
+        self->tool = tool;
+    }
+
+    def run(a: decimal, b: decimal): decimal {
+        runs++;
+        return tool.apply(a, b);
+    }
+}
+
+def area_of(m: measurable): decimal {
+    return m.area();
+}
+
+def name_of(n: named): string {
+    return n.name();
+}
+
+def resize_twice(r: resizable, factor: decimal) {
+    r.resize(factor);
+    r.resize(factor);
+}
+
+def total_area(items: measurable[]): decimal {
+    total : decimal = 0;
+    for(i : decimal = 0; i < sizeof(items); i++) {
+        total += items[i].area();
+    }
+    return total;
+}
+
+def pick_calculator(multiply: decimal): calculator {
+    if(multiply) {
+        return new multiplier();
+    }
+    return new adder();
+}
+
+/* four shapes of two classes: areas 10, 24, 1, 6 and perimeters 14, 24, 4, 12 */
+def four_shapes(): measurable[] {
+    shapes : measurable[] = new measurable[4];
+    shapes[0] = new rectangle(2, 5);
+    shapes[1] = new right_triangle(6, 8, 10);
+    shapes[2] = new rectangle(1, 1);
+    shapes[3] = new right_triangle(3, 4, 5);
+    return shapes;
+}
+
+def interfaces_tests() {
+    tests("interfaces") {
+        // ---- the methods called on the class itself
+        test("an implemented method") { expect(new rectangle(3, 4).area()).should_be(12); };
+        test("a second method of the same interface") { expect(new rectangle(3, 4).perimeter()).should_be(14); };
+        test("a method of a second interface") { expect(new rectangle(3, 4).name()).should_be("rectangle"); };
+        test("a method of a third interface changed the object") {
+            r := new rectangle(3, 4);
+            r.resize(2);
+            expect(r.area()).should_be(48);
+        };
+        test("a method outside every interface") {
+            r := new rectangle(3, 4);
+            r.resize(2);
+            expect(r.is_square()).should_be(0);
+        };
+        test("another class, same interface") {
+            t := new right_triangle(3, 4, 5);
+            expect(t.area()).named("area").should_be(6);
+            expect(t.perimeter()).named("perimeter").should_be(12);
+            expect(t.name()).named("name").should_be("triangle");
+        };
+
+        // ---- through a variable of the interface type
+        test("interface variable holding a rectangle, then a triangle") {
+            r := new rectangle(6, 8);
+            m : measurable = r;
+            expect(m.area()).named("rectangle area").should_be(48);
+            expect(m.perimeter()).named("rectangle perimeter").should_be(28);
+            m = new right_triangle(3, 4, 5);
+            expect(m.area()).named("triangle area").should_be(6);
+            expect(m.perimeter()).named("triangle perimeter").should_be(12);
+        };
+        test("a second interface variable holding a rectangle, a triangle, then a dot") {
+            n : named = new rectangle(3, 4);
+            expect(n.name()).named("the rectangle seen through its second interface").should_be("rectangle");
+            n = new right_triangle(3, 4, 5);
+            expect(n.name()).named("the triangle seen through its second interface").should_be("triangle");
+            n = new dot();
+            expect(n.name()).named("a class with only this interface").should_be("dot");
+        };
+        test("a change made through the interface is a change to the object, seen through the other interface too") {
+            r := new rectangle(6, 8);
+            z : resizable = r;
+            z.resize(0.5);
+            expect(r.width).named("width").should_be(3);
+            expect(r.height).named("height").should_be(4);
+            expect(area_of(r)).named("area through measurable").should_be(12);
+        };
+
+        // ---- as a parameter
+        test("pass a rectangle as measurable") { expect(area_of(new rectangle(3, 4))).should_be(12); };
+        test("pass a triangle as measurable") { expect(area_of(new right_triangle(3, 4, 5))).should_be(6); };
+        test("pass a new object as measurable") { expect(area_of(new rectangle(10, 10))).should_be(100); };
+        test("pass a rectangle as named") { expect(name_of(new rectangle(3, 4))).should_be("rectangle"); };
+        test("pass a triangle as named") { expect(name_of(new right_triangle(3, 4, 5))).should_be("triangle"); };
+        test("pass a dot as named") { expect(name_of(new dot())).should_be("dot"); };
+        test("a function changing an object through an interface") {
+            r := new rectangle(3, 4);
+            resize_twice(r, 3);
+            expect(r.width).named("width").should_be(27);
+            expect(r.height).named("height").should_be(36);
+        };
+        test("the same function on an unrelated class, called twice") {
+            c := new counter();
+            resize_twice(c, 5);
+            expect(c.count).named("count").should_be(25);
+            expect(c.calls).named("calls").should_be(2);
+        };
+
+        // ---- several implementations in one array
+        test("array elements of two classes") {
+            shapes := four_shapes();
+            expect(shapes[0].area()).named("element 0 is a rectangle").should_be(10);
+            expect(shapes[1].area()).named("element 1 is a triangle").should_be(24);
+            expect(shapes[2].perimeter()).named("element 2 is a rectangle").should_be(4);
+            expect(shapes[3].perimeter()).named("element 3 is a triangle").should_be(12);
+        };
+        test("the array passed to a function: 10 + 24 + 1 + 6") { expect(total_area(four_shapes())).should_be(41); };
+        test("a loop over the array: 14 + 24 + 4 + 12") {
+            shapes := four_shapes();
+            perimeters : decimal = 0;
+            for(i : decimal = 0; i < sizeof(shapes); i++) {
+                perimeters += shapes[i].perimeter();
+            }
+            expect(perimeters).should_be(54);
+        };
+        test("a named array of three classes") {
+            names : named[] = new named[3];
+            names[0] = new dot();
+            names[1] = new right_triangle(3, 4, 5);
+            names[2] = new rectangle(1, 2);
+            expect(names[0].name()).named("element 0").should_be("dot");
+            expect(names[1].name()).named("element 1").should_be("triangle");
+            expect(names[2].name()).named("element 2").should_be("rectangle");
+        };
+        test("every element of a resizable array resized") {
+            c := new counter();
+            resize_twice(c, 5);
+            resizables : resizable[] = new resizable[2];
+            small := new rectangle(1, 2);
+            resizables[0] = small;
+            resizables[1] = c;
+            for(i : decimal = 0; i < 2; i++) {
+                resizables[i].resize(10);
+            }
+            expect(small.area()).named("the rectangle").should_be(200);
+            expect(c.count).named("the counter").should_be(250);
+        };
+
+        // ---- delegates with parameters
+        test("two parameters: adder") {
+            add : calculator = new adder();
+            expect(add.apply(6, 7)).should_be(13);
+        };
+        test("two parameters: multiplier") {
+            mul : calculator = new multiplier();
+            expect(mul.apply(6, 7)).should_be(42);
+        };
+        test("an array parameter: adder") {
+            add : calculator = new adder();
+            expect(add.apply_all(new decimal[] { 1, 2, 3, 4 })).should_be(10);
+        };
+        test("an array parameter: multiplier") {
+            mul : calculator = new multiplier();
+            expect(mul.apply_all(new decimal[] { 1, 2, 3, 4 })).should_be(24);
+        };
+        test("a string parameter and result: adder") {
+            add : calculator = new adder();
+            expect(add.label("an ")).should_be("an adder");
+        };
+        test("a string parameter and result: multiplier") {
+            mul : calculator = new multiplier();
+            expect(mul.label("a ")).should_be("a multiplier");
+        };
+        test("an object result: adder") {
+            add : calculator = new adder();
+            expect(add.boxed(9).value).should_be(10);
+        };
+        test("an object result: multiplier") {
+            mul : calculator = new multiplier();
+            expect(mul.boxed(9).value).should_be(18);
+        };
+
+        // ---- an interface as a return type
+        test("a function returning an interface: adder") { expect(pick_calculator(0).apply(3, 5)).should_be(8); };
+        test("a function returning an interface: multiplier") { expect(pick_calculator(1).apply(3, 5)).should_be(15); };
+        test("a function returning an interface, kept in a variable") {
+            chosen := pick_calculator(1);
+            expect(chosen.label("the ")).should_be("the multiplier");
+        };
+
+        // ---- an interface as a field
+        test("a field of an interface type: adder") {
+            add : calculator = new adder();
+            expect(new machine(add).run(20, 22)).should_be(42);
+        };
+        test("a field of an interface type: multiplier") { expect(new machine(new multiplier()).run(20, 22)).should_be(440); };
+        test("the field pointed at another implementation: the machine's own state is kept") {
+            adding_machine := new machine(new adder());
+            adding_machine.run(20, 22);
+            mul : calculator = new multiplier();
+            adding_machine.tool = mul;
+            expect(adding_machine.run(4, 5)).named("the new tool's answer").should_be(20);
+            expect(adding_machine.runs).named("runs").should_be(2);
+        };
+
+        // ---- a base class and an interface on one class
+        test("inherited implementation of an interface method") { expect(new labelled_rectangle(2, 3, "label").area()).should_be(6); };
+        test("an override of an inherited interface method") { expect(new labelled_rectangle(2, 3, "label").name()).should_be("label"); };
+        test("the class's own interface") {
+            l := new labelled_rectangle(2, 3, "label");
+            expect(l.apply(10, 100)).named("apply").should_be(320);
+            expect(l.apply_all(new decimal[] { 1, 2, 3 })).named("apply_all").should_be(12);
+            expect(l.label("my ")).named("label").should_be("my label");
+            expect(l.boxed(4).value).named("boxed").should_be(7);
+        };
+        test("seen as the base class's interface") { expect(area_of(new labelled_rectangle(2, 3, "label"))).should_be(6); };
+        test("seen as the base class's second interface") { expect(name_of(new labelled_rectangle(2, 3, "label"))).should_be("label"); };
+        test("seen as its own interface") {
+            as_calculator : calculator = new labelled_rectangle(2, 3, "label");
+            expect(as_calculator.apply(1, 1)).should_be(5);
+        };
+        test("used by a class that only knows the interface") { expect(new machine(new labelled_rectangle(2, 3, "label")).run(2, 2)).should_be(10); };
+    };
+}

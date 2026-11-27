@@ -16,7 +16,7 @@ tests/ide.sh runs the compiler and then this, once per case. The cases (doc/ide.
     bodies_both  bodies_for.txt lists one user file and one library file
     bodies_none   bodies_for.txt is empty
     bodies_auto   no bodies_for.txt: every file that is not a library file
-    suite_<name>  a program of the language's own test suite (tests/suite/cases): positions cut the right text out
+    suite_<name>  a file of the language's own test suite (tests/suite): positions cut the right text out
 
 Every check prints `FAIL <case>: what` and the script exits 1 when any failed.
 """

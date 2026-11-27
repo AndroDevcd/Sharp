@@ -1,0 +1,40 @@
+mod suite.generics.functions_library;
+
+import ( std.testing, std.collections )
+
+/**
+ * Generic functions declared in a library module (std/collection_functions.sharp:
+ * `list_of<T>` and the functions of a list that name a second type, `map<R>`)
+ * and used from another one: the instance is made in the library's module, and
+ * its body goes through the lazy library compilation.
+ */
+def functions_library_tests() {
+    tests("functions_library") {
+        tests("words") {
+            words : list<string>;
+            before_each { words = list_of<string>(new string[] { "alpha", "beta" }); };
+
+            test("list_of<string> size") { expect(words.size()).should_be(2); };
+            test("list_of<string> first") { expect(words.at(0)).should_be("alpha"); };
+            test("map<int>") {
+                lengths := words.map<int>({ s: string -> (int) return s.size(); });
+                expect(lengths.at(0).value + lengths.at(1).value).should_be(9);
+            };
+            test("map with a trailing lambda") {
+                shouted := words.map<string>() { it + "!" };
+                expect(shouted.at(1)).should_be("beta!");
+            };
+        };
+        test("list_of<string> of nothing") {
+            empty := list_of<string>(null);
+            expect(empty.size()).should_be(0);
+        };
+
+        test("map<int> of a list<int>") {
+            numbers := list_of<int>(new int[] { 4, 5 });
+            doubled := numbers.map<int>() { it * 2 };
+            expect(doubled.at(0).value + doubled.at(1).value).should_be(18);
+        };
+        test("called through the module name") { expect(std#list_of<int>(new int[] { 4, 5 }).at(0).value).should_be(4); };
+    };
+}

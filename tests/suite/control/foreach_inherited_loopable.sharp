@@ -1,0 +1,36 @@
+mod suite.control.foreach_inherited_loopable;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (compiler, fixed): `foreach` over an object whose BASE
+ * class implements loopable did not compile. It was rejected with
+ * "could not locate support function `get_elements()` inherited from
+ * expression ... via the `loopable<>` interface".
+ * Workaround that was used in std.io (file_reader): the derived class named
+ * loopable again and repeated get_elements().
+ */
+
+class numbers_base : loopable<decimal> {
+    override def get_elements() : decimal[]? {
+        numbers := new decimal[2];
+        numbers[0] = 4; numbers[1] = 5;
+        return numbers;
+    }
+}
+
+class numbers_derived base numbers_base {
+}
+
+def foreach_inherited_loopable_tests() {
+    tests("foreach_inherited_loopable") {
+        test("foreach over a class whose base is loopable") {
+            total : decimal = 0;
+            source := new numbers_derived();
+            foreach(n in source) {
+                total += n;
+            }
+            expect(total).should_be(9);
+        };
+    };
+}

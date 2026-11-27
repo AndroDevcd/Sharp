@@ -1,0 +1,62 @@
+mod suite.arrays.element_fields;
+
+import ( std.testing )
+
+/**
+ * Assigning through an array element: items[0].weight = 6 sets the field of the
+ * element (it used to overwrite the element), nested elements of fields, and a
+ * null element raises nullptr_exception.
+ */
+
+class item {
+    weight : decimal = 1;
+    name : string = "a";
+}
+
+def element_fields_tests() {
+    tests("element_fields") {
+        test("a field store through an array element sets the element's field") {
+            items : item[] = new item[3];
+            items[0] = new item();
+            items[0].weight = 6;
+            expect(items[0].weight).should_be(6);
+        };
+        test("field += through an array element") {
+            items : item[] = new item[3];
+            items[0] = new item();
+            items[0].weight = 6;
+            items[0].weight += 2;
+            expect(items[0].weight).should_be(8);
+        };
+        test("a field store through a null element throws nullptr_exception") {
+            items : item[] = new item[3];
+            expect_throws<nullptr_exception>() { items[1].weight = 5; };
+        };
+        test("a[1] = 3 stores into a number array") {
+            a : decimal[] = new decimal[4];
+            a[1] = 3;
+            expect(a[1]).should_be(3);
+        };
+        test("nested element stores") { expect(more()).should_be(13); };
+    };
+}
+
+class holder {
+    list : decimal[] = new decimal[3];
+    things : item[] = new item[2];
+}
+
+def more() : decimal {
+    hs : holder[] = new holder[2];
+    hs[1] = new holder();
+    hs[1].list[2] = 9;
+    hs[1].things[0] = new item();
+    hs[1].things[0].weight = 4;
+    hs[1].things[0].name = "zed";
+    names : string[] = new string[2];
+    names[1] = new string("one");
+    if(names[1] != "one") { return 0 - 1; }
+    if(hs[1].things[0].name != "zed") { return 0 - 2; }
+    if(hs[1].things[1] != null) { return 0 - 3; }
+    return hs[1].list[2] + hs[1].things[0].weight;
+}

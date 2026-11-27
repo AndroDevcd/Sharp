@@ -1,0 +1,21 @@
+mod suite.strings;
+
+import (
+    std.testing,
+    suite.strings.basics,
+    suite.strings.dollar_sign,
+    suite.strings.fixes,
+    suite.strings.methods,
+    suite.strings.plus_empty_literal
+)
+
+/** suite.strings: text in the language itself */
+def strings_tests() {
+    tests("strings") {
+        basics_tests();
+        dollar_sign_tests();
+        fixes_tests();
+        methods_tests();
+        plus_empty_literal_tests();
+    };
+}

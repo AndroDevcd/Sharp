@@ -1,0 +1,284 @@
+mod suite.functions.pointers;
+
+import ( std.testing )
+
+/**
+ * Function pointers: variables, fields, parameters, return values and array
+ * elements that hold a function.
+ *
+ * The type is written (parameter types)(return type):
+ *     (decimal)(decimal)         takes a number, returns a number
+ *     ()()               takes nothing, returns nothing
+ *     (int, int)(bool)   takes two int objects, returns a bool object
+ */
+
+calls : decimal = 0;
+
+def twice(x: decimal) : decimal { return x * 2; }
+def add_one(x: decimal) : decimal { return x + 1; }
+def subtract(a: decimal, b: decimal) : decimal { return a - b; }
+def count_call() { calls++; }
+def bigger(a: int, b: int) : bool { return a > b; }
+def length(s: string) : decimal { return s.size(); }
+def join(a: string, b: string) : string { return a + b; }
+
+class maths {
+    static def triple(x: decimal) : decimal { return x * 3; }
+    static def count_hundred() { calls += 100; }
+}
+
+/** a class with function pointer fields */
+class button {
+    on_press : ()();
+    scale : (decimal)(decimal);
+
+    def press() { on_press(); }
+    def scaled(x: decimal) : decimal { return scale(x); }
+}
+
+// ---- functions that take and return function pointers
+def apply(f: (decimal)(decimal), x: decimal) : decimal { return f(x); }
+def apply_twice(f: (decimal)(decimal), x: decimal) : decimal { return apply(f, apply(f, x)); }
+def hand_back(f: (decimal)(decimal)) : (decimal)(decimal) { return f; }
+def run(work: ()()) { work(); }
+def run_times(work: ()(), n: decimal) {
+    for(i : decimal = 0; i < n; i++) {
+        work();
+    }
+}
+def choose(which: decimal) : (decimal)(decimal) {
+    if(which == 0) { return twice; }
+    return add_one;
+}
+def fold(f: (decimal, decimal)(decimal), a: decimal, b: decimal, c: decimal) : decimal { return f(f(a, b), c); }
+
+/** a function pointer kept in a global variable */
+stored : (decimal)(decimal);
+
+/** twice, add_one, maths.triple */
+def filled_table() : (decimal)(decimal)[] {
+    table := new (decimal)(decimal)[3];
+    table[0] = twice;
+    table[1] = add_one;
+    table[2] = maths.triple;
+    return table;
+}
+
+def pointers_tests() {
+    tests("pointers") {
+        before_each { calls = 0; };
+
+        tests("variables") {
+            f : (decimal)(decimal);
+            g : (decimal)(decimal);
+            before_each {
+                f = twice;
+                g = add_one;
+            };
+
+            // ---- pointing at a global function
+            test("f(4)") { expect(f(4)).should_be(8); };
+            test("f(0)") { expect(f(0)).should_be(0); };
+            test("f(2.5)") { expect(f(2.5)).should_be(5); };
+            test("f(4) + f(5)") { expect(f(4) + f(5)).should_be(18); };
+            test("f(4) * 10 - 1") { expect(f(4) * 10 - 1).should_be(79); };
+
+            // ---- the result of one call as the argument of the next
+            test("f(f(4))") { expect(f(f(4))).should_be(16); };
+            test("f(f(f(1)))") { expect(f(f(f(1)))).should_be(8); };
+            test("f(g(1))") { expect(f(g(1))).should_be(4); };
+            test("g(f(1))") { expect(g(f(1))).should_be(3); };
+            test("g(g(g(g(0))))") { expect(g(g(g(g(0))))).should_be(4); };
+
+            // ---- pointing it at another function
+            test("after f = add_one") {
+                f = add_one;
+                expect(f(1)).should_be(2);
+            };
+            test("and back to twice") {
+                f = add_one;
+                f = twice;
+                expect(f(1)).should_be(2);
+                expect(f(10)).should_be(20);
+            };
+
+            // ---- comparing
+            test("f == twice") { expect_true(f == twice); };
+            test("f == add_one") { expect_false(f == add_one); };
+            test("f != g") { expect_true(f != g); };
+            test("a copy of the pointer is ==, and calls the same function") {
+                same := f;
+                expect_true(same == f);
+                expect(same(21)).should_be(42);
+            };
+
+            test("apply(f, 9)") { expect(apply(f, 9)).should_be(18); };
+            test("through two functions and back") {
+                passed := hand_back(hand_back(f));
+                expect(passed(8)).should_be(16);
+            };
+            test("apply_twice(hand_back(g), 0)") { expect(apply_twice(hand_back(g), 0)).should_be(2); };
+        };
+
+        // ---- no parameters, no result
+        test("()() called three times") {
+            h : ()() = count_call;
+            h();
+            h();
+            h();
+            expect(calls).should_be(3);
+        };
+
+        // ---- two parameters
+        tests("two_parameters") {
+            sub : (decimal, decimal)(decimal);
+            before_each { sub = subtract; };
+
+            test("sub(10, 4)") { expect(sub(10, 4)).should_be(6); };
+            test("sub(4, 10): the order of the arguments is kept") { expect(sub(4, 10)).should_be(0 - 6); };
+            test("sub(sub(10, 4), 1)") { expect(sub(sub(10, 4), 1)).should_be(5); };
+        };
+
+        // ---- objects as parameters and results
+        tests("objects") {
+            cmp : (int, int)(bool);
+            len : (string)(decimal);
+            glue : (string, string)(string);
+            before_each {
+                cmp = bigger;
+                len = length;
+                glue = join;
+            };
+
+            test("cmp(3, 2)") { expect_true(cmp(3, 2)); };
+            test("cmp(2, 3)") { expect_false(cmp(2, 3)); };
+            test("cmp(2, 2)") { expect_false(cmp(2, 2)); };
+            test("len(\"hello\")") { expect(len("hello")).should_be(5); };
+            test("glue(\"ab\", \"cd\")") { expect(glue("ab", "cd")).should_be("abcd"); };
+            test("len(glue(...))") { expect(len(glue("abc", "de"))).should_be(5); };
+        };
+
+        // ---- static methods
+        test("static method") {
+            s : (decimal)(decimal) = maths.triple;
+            expect(s(7)).should_be(21);
+            expect(s(s(2))).named("s(s(2))").should_be(18);
+        };
+        test("static method without a result") {
+            sn : ()() = maths.count_hundred;
+            sn();
+            expect(calls).should_be(100);
+        };
+
+        // ---- as arguments
+        test("apply(add_one, 9)") { expect(apply(add_one, 9)).should_be(10); };
+        test("apply(maths.triple, 5)") { expect(apply(maths.triple, 5)).should_be(15); };
+        test("apply_twice(twice, 3)") { expect(apply_twice(twice, 3)).should_be(12); };
+        test("apply_twice(add_one, 3)") { expect(apply_twice(add_one, 3)).should_be(5); };
+        test("fold(subtract, 10, 3, 2)") { expect(fold(subtract, 10, 3, 2)).should_be(5); };
+        test("run(count_call)") {
+            run(count_call);
+            expect(calls).should_be(1);
+        };
+        test("run_times(count_call, 5)") {
+            run_times(count_call, 5);
+            expect(calls).should_be(5);
+        };
+        test("run_times with a variable") {
+            h : ()() = count_call;
+            run_times(h, 4);
+            expect(calls).should_be(4);
+        };
+
+        // ---- as return values
+        test("choose(0)(5) calls the returned function at once") { expect(choose(0)(5)).should_be(10); };
+        test("choose(1) is add_one") {
+            chosen := choose(1);
+            expect(chosen(5)).should_be(6);
+            expect_true(chosen == add_one);
+        };
+        test("apply(choose(0), 6)") { expect(apply(choose(0), 6)).should_be(12); };
+
+        // ---- in a global variable
+        test("global function pointer") {
+            stored = twice;
+            expect(stored(6)).should_be(12);
+        };
+        test("global re-pointed") {
+            stored = twice;
+            stored = maths.triple;
+            expect(stored(6)).should_be(18);
+        };
+
+        // ---- in fields
+        test("field called from a method") {
+            b := new button();
+            b.on_press = count_call;
+            b.press();
+            b.press();
+            expect(calls).should_be(2);
+        };
+        tests("fields") {
+            b : button;
+            before_each {
+                b = new button();
+                b.scale = twice;
+            };
+
+            test("field called directly") { expect(b.scale(10)).should_be(20); };
+            test("field called through a method") { expect(b.scaled(7)).should_be(14); };
+            test("field re-pointed") {
+                b.scale = add_one;
+                expect(b.scaled(7)).should_be(8);
+            };
+            test("each object has its own pointer") {
+                b.scale = add_one;
+                other := new button();
+                other.scale = maths.triple;
+                expect(b.scaled(2) + other.scaled(2)).should_be(9);
+            };
+        };
+
+        // ---- arrays of function pointers
+        test("sizeof") {
+            table := new (decimal)(decimal)[3];
+            expect(sizeof(table)).should_be(3);
+        };
+        test("table[0] is twice") {
+            first := filled_table()[0];
+            expect(first(10)).should_be(20);
+        };
+        test("table[2] is maths.triple") {
+            last := filled_table()[2];
+            expect(last(10)).should_be(30);
+        };
+
+        test("20 + 11 + 30") {
+            table := filled_table();
+            total : decimal = 0;
+            for(i : decimal = 0; i < 3; i++) {
+                entry := table[i];
+                total += entry(10);
+            }
+            expect(total).should_be(61);
+        };
+
+        // run a value through every function in turn: ((1 * 2) + 1) * 3
+        test("pipeline") {
+            table := filled_table();
+            value : decimal = 1;
+            foreach(step in table) {
+                value = step(value);
+            }
+            expect(value).should_be(9);
+        };
+
+        test("an element copied from another") {
+            table := filled_table();
+            table[1] = table[0];
+            second := table[1];
+            expect(second(8)).named("second(8)").should_be(16);
+            expect(apply(second, 4)).named("apply(table element, 4)").should_be(8);
+        };
+    };
+}

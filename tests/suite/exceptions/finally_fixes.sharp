@@ -1,0 +1,52 @@
+mod suite.exceptions.finally_fixes;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (fixed): a try/finally nested INSIDE a finally body
+ * dropped the pending exception: when the outer finally was entered because
+ * an exception was on its way to a caller, and that finally body contained
+ * its own try/finally, the exception was gone after the inner statement -
+ * execution simply continued after the outer statement as if nothing had been
+ * thrown. Now the exception goes on to the caller.
+ */
+
+trail : string = "";
+
+def mark(letter: string) {
+    trail = trail + letter;
+}
+
+def cleanup_with_its_own_finally() {
+    try {
+        mark("1");
+        throw new illegal_state_exception("pending");
+    } finally {
+        mark("2");
+        try {
+            mark("3");
+        } finally {
+            mark("4");
+        }
+        mark("5");
+    }
+    mark("X");                                  // must NOT run: the exception is still pending
+}
+
+def finally_fixes_tests() {
+    tests("finally_fixes") {
+        before_each { trail = ""; };
+
+        test("a try/finally inside a finally body keeps the pending exception") {
+            caught : decimal = 0;
+            try {
+                cleanup_with_its_own_finally();
+            } catch(e: illegal_state_exception) {
+                caught = 1;
+            }
+            expect(caught).named("the exception still reaches the caller").should_be(1);
+            expect(trail).named("nothing after the outer statement runs").should_be("12345");
+        };
+
+    };
+}

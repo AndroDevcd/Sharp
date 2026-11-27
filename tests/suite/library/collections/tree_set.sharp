@@ -1,0 +1,281 @@
+mod suite.library.collections.tree_set;
+
+import ( std.testing, std.collections )
+
+/**
+ * std.collections - tree_set, and tree_map checked against a simple reference
+ * through 2000 pseudo random inserts and removes.
+ */
+
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+
+/** "1,2,3" for a list of ints */
+def join(items: list<int>) : string {
+    text := "";
+    for(i : decimal = 0; i < items.size(); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items.at(i);
+    }
+    return text;
+}
+
+/** the value of a nullable int, or -1 for null */
+def or_minus_one(value: int?) : decimal {
+    if(value == null) return 0 - 1;
+    return value!!.value;
+}
+
+/** the number after `seed` in the pseudo random run */
+def next_seed(seed: decimal) : decimal { return (seed * 7919 + 104729) % 1000003; }
+
+/**
+ * 2000 pseudo random inserts and removes on a tree_map, and the same on a
+ * plain array of flags: the reference the map is checked against
+ */
+class reference_run {
+    present : decimal[];        // the reference: present[k] = 1 when key k is in the map
+    stored : decimal[];         // ... and the value stored for it
+    count : decimal = 0;
+    m : tree_map<int, int>;
+
+    reference_run() {
+        present = new decimal[500];
+        stored = new decimal[500];
+        m = new tree_map<int, int>(ascending);
+        seed : decimal = 2024;
+        for(step : decimal = 0; step < 2000; step++) {
+            seed = next_seed(seed);
+            key : decimal = seed % 500;
+            seed = next_seed(seed);
+
+            if(seed % 3 == 0) {
+                if(present[key] != 0) { present[key] = 0; count--; }
+                m.remove(key);
+            } else {
+                if(present[key] == 0) { present[key] = 1; count++; }
+                stored[key] = step;
+                m.put(key, step);
+            }
+        }
+    }
+}
+
+def tree_set_tests() {
+    tests("tree_set") {
+        /** 2000 pseudo random inserts and removes, checked against a plain array of flags */
+        tests("tree_map_against_reference") {
+            run : reference_run;
+            before_each { run = new reference_run(); };
+
+            test("tree random put/remove results agree with the reference") {
+                present := new decimal[500];
+                count : decimal = 0;
+                m := new tree_map<int, int>(ascending);
+                seed : decimal = 2024;
+                for(step : decimal = 0; step < 2000; step++) {
+                    seed = next_seed(seed);
+                    key : decimal = seed % 500;
+                    seed = next_seed(seed);
+
+                    if(seed % 3 == 0) {
+                        // remove
+                        was_there : bool = present[key] != 0;
+                        if(was_there) { present[key] = 0; count--; }
+                        expect(m.remove(key)).named("step " + step + ": remove " + key).should_be(was_there);
+                    } else {
+                        // insert or replace
+                        was_new : bool = present[key] == 0;
+                        if(was_new) { present[key] = 1; count++; }
+                        expect(m.put(key, step)).named("step " + step + ": put " + key).should_be(was_new);
+                    }
+                    expect(m.size()).named("step " + step + ": size").should_be(count);
+                }
+            };
+            test("tree random size") { expect(run.m.size()).should_be(run.count); };
+            test("tree random height is logarithmic") { expect_true(run.m.height() <= 12); };
+
+            // every key: contains, value
+            test("tree random contents agree with the reference") {
+                for(key : decimal = 0; key < 500; key++) {
+                    expect(run.m.contains_key(key)).named("contains_key " + key).should_be(run.present[key] != 0);
+                    if(run.present[key]) {
+                        expect(run.m.at(key)!!.value).named("at " + key).should_be(run.stored[key]);
+                    }
+                }
+            };
+
+            // the iteration is exactly the present keys in ascending order
+            test("tree random iteration is sorted and complete") {
+                expected_key : decimal = 0;
+                walked : decimal = 0;
+                foreach(entry in run.m) {
+                    while(expected_key < 500 && !run.present[expected_key]) expected_key++;
+                    expect(entry.key.value).named("entry " + walked).should_be(expected_key);
+                    expected_key++;
+                    walked++;
+                }
+                expect(walked).named("iteration count").should_be(run.count);
+            };
+
+            // floor / ceiling / lower / higher for every possible key, against a linear scan
+            test("tree random neighbours agree with a linear scan") {
+                present := run.present;
+                for(key : decimal = 0; key < 500; key++) {
+                    floor : decimal = 0 - 1;
+                    for(k : decimal = key; k >= 0; k--) { if(present[k]) { floor = k; break; } }
+                    ceiling : decimal = 0 - 1;
+                    for(k : decimal = key; k < 500; k++) { if(present[k]) { ceiling = k; break; } }
+                    lower : decimal = 0 - 1;
+                    for(k : decimal = key - 1; k >= 0; k--) { if(present[k]) { lower = k; break; } }
+                    higher : decimal = 0 - 1;
+                    for(k : decimal = key + 1; k < 500; k++) { if(present[k]) { higher = k; break; } }
+
+                    expect(or_minus_one(run.m.floor_key(key))).named("floor_key " + key).should_be(floor);
+                    expect(or_minus_one(run.m.ceiling_key(key))).named("ceiling_key " + key).should_be(ceiling);
+                    expect(or_minus_one(run.m.lower_key(key))).named("lower_key " + key).should_be(lower);
+                    expect(or_minus_one(run.m.higher_key(key))).named("higher_key " + key).should_be(higher);
+                }
+            };
+
+            // a range, counted both ways
+            test("tree random range_keys and range_iterator") {
+                in_range : decimal = 0;
+                for(k : decimal = 100; k < 300; k++) in_range += run.present[k];
+                expect(run.m.range_keys(100, 300).size()).named("range_keys").should_be(in_range);
+                it := run.m.range_iterator(100, 300);
+                walked : decimal = 0;
+                while(it.has_next()) { it.next(); walked++; }
+                expect(walked).named("range_iterator").should_be(in_range);
+            };
+
+            // empty it from the front: keys must come out ascending
+            test("tree random poll_first order, and empty at the end") {
+                previous : decimal = 0 - 1;
+                while(!run.m.is_empty()) {
+                    key : decimal = run.m.poll_first().key.value;
+                    expect(key).named("poll after " + previous).should_be_above(previous);
+                    previous = key;
+                }
+                expect(run.m.height()).named("height at the end").should_be(0);
+            };
+        };
+
+        tests("tree_set") {
+            s : tree_set<int>;
+            before_each { s = new tree_set<int>(ascending); };
+
+            test("tset new size") { expect(s.size()).should_be(0); };
+            test("tset new is_empty") { expect(s.is_empty()).should_be(1); };
+            test("tset empty get_elements") { expect_null(s.get_elements()); };
+            test("tset floor on empty") { expect_null(s.floor(1)); };
+            test("tset tail on empty") { expect(s.tail(1).size()).should_be(0); };
+            test("tset first empty") { expect_throws<no_such_element_exception>() { s.first(); }; };
+            test("tset last empty") { expect_throws<no_such_element_exception>() { s.last(); }; };
+            test("tset poll_first empty") { expect_throws<no_such_element_exception>() { s.poll_first(); }; };
+            test("tset poll_last empty") { expect_throws<no_such_element_exception>() { s.poll_last(); }; };
+
+            test("tset add says whether it was new") {
+                expect(s.add(5)).named("add").should_be(1);
+                expect(s.add(1)).named("add 2").should_be(1);
+                expect(s.add(9)).named("add 3").should_be(1);
+                expect(s.add(5)).named("add duplicate").should_be(0);
+                expect(s.add(3)).named("add 4").should_be(1);
+                expect(s.add(7)).named("add 5").should_be(1);
+            };
+
+            // 5, 1, 9, 5 again, 3, 7 added: 1,3,5,7,9
+            tests("five") {
+                before_each { s.add(5); s.add(1); s.add(9); s.add(5); s.add(3); s.add(7); };
+
+                test("tset size") { expect(s.size()).should_be(5); };
+                test("tset sorted") { expect(join(s.to_list())).should_be("1,3,5,7,9"); };
+                test("tset to_array") { expect(s.to_array()[4].value).should_be(9); };
+                test("tset contains") { expect(s.contains(7)).should_be(1); };
+                test("tset contains missing") { expect(s.contains(6)).should_be(0); };
+                test("tset first") { expect(s.first().value).should_be(1); };
+                test("tset last") { expect(s.last().value).should_be(9); };
+                test("tset floor") { expect(or_minus_one(s.floor(6))).should_be(5); };
+                test("tset floor exact") { expect(or_minus_one(s.floor(7))).should_be(7); };
+                test("tset ceiling") { expect(or_minus_one(s.ceiling(6))).should_be(7); };
+                test("tset lower") { expect(or_minus_one(s.lower(5))).should_be(3); };
+                test("tset lower none") { expect(or_minus_one(s.lower(1))).should_be(0 - 1); };
+                test("tset higher") { expect(or_minus_one(s.higher(5))).should_be(7); };
+                test("tset higher none") { expect(or_minus_one(s.higher(9))).should_be(0 - 1); };
+                test("tset range") { expect(join(s.range(3, 9))).should_be("3,5,7"); };
+                test("tset range empty") { expect(join(s.range(4, 5))).should_be(""); };
+                test("tset head") { expect(join(s.head(5))).should_be("1,3"); };
+                test("tset head of everything") { expect(join(s.head(100))).should_be("1,3,5,7,9"); };
+                test("tset tail") { expect(join(s.tail(5))).should_be("5,7,9"); };
+                test("tset tail between") { expect(join(s.tail(8))).should_be("9"); };
+                test("tset tail of nothing") { expect(join(s.tail(10))).should_be(""); };
+
+                test("tset foreach") {
+                    digits : decimal = 0;
+                    foreach(x in s) { digits = digits * 10 + x.value; }
+                    expect(digits).should_be(13579);
+                };
+                test("tset iterator") {
+                    it := s.iterator();
+                    digits : decimal = 0;
+                    while(it.has_next()) digits = digits * 10 + it.next().value;
+                    expect(digits).should_be(13579);
+                };
+                test("tset descending_iterator") {
+                    back := s.descending_iterator();
+                    digits : decimal = 0;
+                    while(back.has_next()) digits = digits * 10 + back.next().value;
+                    expect(digits).should_be(97531);
+                };
+
+                test("tset remove") {
+                    expect(s.remove(5)).should_be(1);
+                    expect(s.remove(5)).named("remove again").should_be(0);
+                };
+                test("tset poll_first and poll_last") {
+                    s.remove(5);
+                    expect(s.poll_first().value).named("poll_first").should_be(1);
+                    expect(s.poll_last().value).named("poll_last").should_be(9);
+                    expect(join(s.to_list())).named("after removes").should_be("3,7");
+                };
+                test("tset add_all counts the new ones") {
+                    s.remove(5); s.poll_first(); s.poll_last();
+                    more := new list<int>();
+                    more.add(7); more.add(4); more.add(8); more.add(4);
+                    expect(s.add_all(more)).should_be(2);
+                    expect(join(s.to_list())).named("after add_all").should_be("3,4,7,8");
+                };
+                test("tset clear") {
+                    s.clear();
+                    expect(s.size()).should_be(0);
+                };
+            };
+
+            // scale: 3000 pseudo random numbers; the set must hold each once, sorted
+            tests("big") {
+                seen : decimal[];
+                distinct : decimal;
+                before_each {
+                    seen = new decimal[2000];
+                    distinct = 0;
+                    seed : decimal = 99;
+                    for(i : decimal = 0; i < 3000; i++) {
+                        seed = next_seed(seed);
+                        value : decimal = seed % 2000;
+                        if(!seen[value]) { seen[value] = 1; distinct++; }
+                        s.add(value);
+                    }
+                };
+
+                test("tset big size") { expect(s.size()).should_be(distinct); };
+                test("tset big is sorted and has no strangers") {
+                    previous : decimal = 0 - 1;
+                    foreach(x in s) {
+                        expect(x.value).named("the one after " + previous).should_be_above(previous);
+                        expect_true(seen[x.value]);
+                        previous = x.value;
+                    }
+                };
+            };
+        };
+    };
+}

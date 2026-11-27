@@ -1,0 +1,20 @@
+mod suite.classes.init_blocks_locals;
+
+import ( std.testing )
+
+class c {
+    a : decimal;
+    b : decimal;
+    total : decimal = 10;
+    init { i : decimal = 4; a = i; for(k : decimal = 0; k < 3; k++) { total += k; } }
+    init { b = 2; j : decimal = a + b; total += j; }
+    c() { }
+}
+
+def init_blocks_locals_tests() {
+    tests("init_blocks_locals") {
+        test("first init block with a local") { expect(new c().a).should_be(4); };
+        test("second init block") { expect(new c().b).should_be(2); };
+        test("both blocks ran in order after the initial value") { expect(new c().total).should_be(19); };
+    };
+}

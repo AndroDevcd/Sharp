@@ -1,0 +1,273 @@
+mod suite.isolated.subprocess;
+
+import ( std.testing, std.io, std.system, platform )
+
+/**
+ * std.system subprocess: a program started and talked to while it runs -
+ * its output read line by line, input written to it, its error output apart
+ * or merged, asked whether it runs, waited for, stopped.
+ *
+ * The commands are the shell's own on each system (sh on Linux, cmd.exe on
+ * Windows): what differs is said where it does.
+ */
+
+def on_windows() : bool {
+    return platform_info.is_windows();
+}
+
+/** a command that waits for input and copies it to its output when the input ends */
+def echo_back() : string {
+    if(on_windows()) { return "findstr x*"; }       // (every line has zero or more x in it)
+    return "cat";
+}
+
+/**
+ * This program started as `sharp suite isolated subprocess child`: it answers
+ * every line it reads at once, and ends with exit code 7 when its input does.
+ */
+def be_the_child() {
+    println("child ready");
+    std.io.console#flush();
+    while(true) {
+        line := console.read_line_or_null();
+        if(line == null) { break; }
+        println("child got: " + line!!);
+        std.io.console#flush();         // (output into a pipe is collected: say "now")
+    }
+    exit(7);
+}
+
+/** two commands in a row */
+def both(first: string, second: string) : string {
+    if(on_windows()) { return first + "& " + second; }
+    return first + "; " + second;
+}
+
+/** this program again, as the child that answers every line (be_the_child) */
+def talking_child() : subprocess {
+    return subprocess.run(program_path(), { "isolated", "subprocess", "child" });
+}
+
+/** `suite isolated subprocess [child | id | limit]`: the tests, or one of the three children */
+def subprocess_program(args: string[]) {
+    if(sizeof(args) > 0 && args[0] == "child") {
+        be_the_child();
+        return;
+    }
+    if(sizeof(args) > 0 && args[0] == "id") {
+        // (started to say the number the system knows it by)
+        println("" + process.id());
+        return;
+    }
+    if(sizeof(args) > 0 && args[0] == "limit") {
+        // (started to say how much memory its VM lets it have)
+        println("" + gc.memory_limit());
+        return;
+    }
+    show_only_failures();
+    tests("subprocess") {
+        child : subprocess?;           // the program the test started: stopped and let go of after it, whatever happened
+        after_each {
+            if(child != null) {
+                child!!.kill();
+                child!!.close();
+            }
+            child = null;
+        }
+
+        // ---- output, line by line
+        test("an id, and the command") {
+            started := subprocess.start(both("echo one", "echo two"));
+            child = started;
+            expect_true(started.id() > 0);
+            expect(started.command()).should_be(both("echo one", "echo two"));
+        };
+        test("the output line by line, then closed: null") {
+            started := subprocess.start(both("echo one", "echo two"));
+            child = started;
+            expect(io_strings.trim(started.read_line()!!)).named("the first line").should_be("one");
+            expect(io_strings.trim(started.read_line()!!)).named("the second line").should_be("two");
+            expect_null(started.read_line());
+        };
+        test("wait: the exit code; then not running, exit_code, and wait again gives the same") {
+            started := subprocess.start(both("echo one", "echo two"));
+            child = started;
+            started.read_all_text();
+            expect(started.wait()).should_be(0);
+            expect_false(started.is_running());
+            expect(started.exit_code()).should_be(0);
+            expect(started.wait()).should_be(0);
+        };
+        test("closing twice does nothing") {
+            started := subprocess.start(both("echo one", "echo two"));
+            started.wait();
+            started.close();
+            started.close();
+        };
+
+        // ---- an exit code
+        test("exit 3") {
+            failing := subprocess.start("exit 3");
+            child = failing;
+            expect(failing.wait()).should_be(3);
+        };
+
+        // ---- a program started by its file: its id is its own, not a shell's
+        test("the id of a started program is the one the program itself has, and not this program's") {
+            numbered := subprocess.run(program_path(), { "isolated", "subprocess", "id" });
+            child = numbered;
+            its_id : _int64 = numbered.id();
+            said_id := io_strings.trim(numbered.read_all_text());
+            expect(said_id).should_be("" + its_id);
+            expect_true(its_id != process.id());
+            numbered.wait();
+        };
+
+        // ---- options for the `sharp` that runs it: here a smaller memory limit
+        test("vm options reach the VM of the started program") {
+            small := subprocess.run(program_path(), { "isolated", "subprocess", "limit" }, { "-mem", "64mb" });
+            child = small;
+            expect(io_strings.trim(small.read_all_text())).named("the child's memory limit").should_be("" + (64 * 1024 * 1024));
+            expect(small.wait()).should_be(0);
+        };
+        test("vm options, with the error output merged") {
+            small := subprocess.run(program_path(), { "isolated", "subprocess", "limit" }, { "-mem", "32mb" }, true);
+            child = small;
+            expect(io_strings.trim(small.read_all_text())).named("the child's memory limit").should_be("" + (32 * 1024 * 1024));
+            expect(small.wait()).should_be(0);
+        };
+
+        // ---- a conversation with another Sharp program: this one, started again
+        test("a Sharp program started: its first line, and running while it waits for input") {
+            talker := talking_child();
+            child = talker;
+            expect(io_strings.trim(talker.read_line()!!)).should_be("child ready");
+            expect_true(talker.is_running());
+        };
+        test("exit_code of a running program is refused") {
+            talker := talking_child();
+            child = talker;
+            talker.read_line();
+            expect_throws<illegal_state_exception>() { talker.exit_code(); };
+        };
+        test("wait_for gives up on a program that waits for input") {
+            talker := talking_child();
+            child = talker;
+            talker.read_line();
+            expect_false(talker.wait_for(100));
+        };
+        test("a line written is answered at once, and the next; the rest up to the end; it ends with the code it chose") {
+            talker := talking_child();
+            child = talker;
+            talker.read_line();
+            talker.write_text("first\n");
+            expect(io_strings.trim(talker.read_line()!!)).should_be("child got: first");
+            talker.write_text("second\nthird\n");
+            expect(io_strings.trim(talker.read_line()!!)).should_be("child got: second");
+            talker.close_input();
+            expect(io_strings.trim(talker.read_all_text())).named("the rest, up to the end").should_be("child got: third");
+            expect(talker.wait()).named("it ended when its input did, with the code it chose").should_be(7);
+        };
+        test("a closed input refuses a write") {
+            talker := talking_child();
+            child = talker;
+            talker.read_line();
+            talker.close_input();
+            talker.wait();
+            expect_throws<io_exception>() { talker.write_text("more\n"); };
+        };
+
+        // ---- a system program fed its input, read to its end
+        test("input in, output out, and it ended") {
+            copier := subprocess.start(echo_back());
+            child = copier;
+            copier.write_text("copied\n");
+            copier.close_input();
+            expect(io_strings.trim(copier.read_all_text())).should_be("copied");
+            expect(copier.wait()).should_be(0);
+        };
+
+        // ---- a program by its file and arguments: each argument arrives as one
+        test("text with spaces and signs") {
+            spaced := talking_child();
+            child = spaced;
+            spaced.read_line();
+            spaced.write_text("an argument with spaces & signs\n");
+            expect(io_strings.trim(spaced.read_line()!!)).should_be("child got: an argument with spaces & signs");
+            spaced.close_input();
+            spaced.wait();
+        };
+
+        // ---- the error output: apart, and merged
+        test("output and errors apart") {
+            apart := subprocess.start(both("echo out", "echo err 1>&2"));
+            child = apart;
+            expect(io_strings.trim(apart.read_all_text())).should_be("out");
+            expect(io_strings.trim(apart.read_all_error_text())).should_be("err");
+            apart.wait();
+        };
+        test("merged: both in the output, nothing in the error output") {
+            merged := subprocess.start(both("echo out", "echo err 1>&2"), true);
+            child = merged;
+            all : string = merged.read_all_text();
+            expect_true(io_strings.contains(all, "out") && io_strings.contains(all, "err"));
+            expect(merged.read_all_error_text()).should_be("");
+            merged.wait();
+        };
+
+        // ---- a lot of output, read to the end
+        test("5000 lines read while the program runs, the last one whole") {
+            many : string = "seq 1 5000";
+            if(on_windows()) { many = "for /L %i in (1,1,5000) do @echo %i"; }
+            counter := subprocess.start(many);
+            child = counter;
+            lines : decimal = 0;
+            last : string = "";
+            while(true) {
+                line := counter.read_line();
+                if(line == null) { break; }
+                lines++;
+                last = io_strings.trim(line!!);
+            }
+            expect(lines).should_be(5000);
+            expect(last).should_be("5000");
+            counter.wait();
+        };
+
+        // ---- a program that is stopped from here
+        test("it runs; after kill it ends, not with 0; a second kill does nothing") {
+            waiting := subprocess.start(echo_back());
+            child = waiting;
+            expect_true(waiting.is_running());
+            waiting.kill();
+            expect_true(waiting.wait_for(5000));
+            expect_true(waiting.exit_code() != 0);
+            waiting.kill();
+        };
+
+        // ---- a command the shell does not know: the shell starts, says so, and ends with its own code
+        test("an unknown command: the shell's message, and not exit code 0") {
+            unknown := subprocess.start("this_command_does_not_exist_12345");
+            child = unknown;
+            said : string = unknown.read_all_error_text();
+            expect_true(sizeof(said.data) > 0);
+            expect_true(unknown.wait() != 0);
+        };
+
+        // ---- the environment reaches it
+        tests("environment") {
+            after_each { environment.remove("SHARP_SUITE_SUBPROCESS"); }
+
+            test("the program sees this program's environment") {
+                environment.put("SHARP_SUITE_SUBPROCESS", "handed on");
+                shown : string = "echo $$SHARP_SUITE_SUBPROCESS";
+                if(on_windows()) { shown = "echo %SHARP_SUITE_SUBPROCESS%"; }
+                heir := subprocess.start(shown);
+                child = heir;
+                expect(io_strings.trim(heir.read_all_text())).should_be("handed on");
+                heir.wait();
+            };
+        };
+    };
+    finish_tests("subprocess");
+}

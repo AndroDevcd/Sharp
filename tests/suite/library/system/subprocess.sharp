@@ -1,0 +1,18 @@
+mod suite.library.system.subprocess;
+
+import ( std.testing, suite.helpers )
+
+/**
+ * std.system subprocess. The tests talk to this program started again as a
+ * child, so they run in a process of their own: suite.isolated.subprocess
+ * (isolated/subprocess.sharp). Here they are one test.
+ */
+def subprocess_tests() {
+    tests("subprocess") {
+        test("the subprocess tests pass, in a process of their own") {
+            ran := run_isolated("subprocess");
+            expect(ran.code).named("suite isolated subprocess said:\n" + ran.said).should_be(0);
+            expect(ran.said).should_contain("RESULT PASS subprocess");
+        };
+    };
+}

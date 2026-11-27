@@ -1,0 +1,460 @@
+mod suite.control.switch_when;
+
+import ( std.testing )
+
+/**
+ * The `when` statement: Sharp's multi-way branch.
+ *
+ *     when(value) {
+ *         1 -> { ... }          runs when value == 1
+ *         2, 3 -> { ... }       runs when value is 2 or 3
+ *         else -> { ... }       runs when nothing above matched (optional)
+ *     }
+ *
+ * Only the first clause that matches runs; there is no fall through into the
+ * next clause. Without a value, `when { condition -> { ... } }` runs the
+ * first clause whose condition is true.
+ *
+ * (Sharp has no `switch` / `case` statement: `when` is used instead.)
+ */
+
+enum color {
+    red,
+    green,
+    blue
+}
+
+/** counts calls, to show what was (and was not) evaluated */
+calls : decimal = 0;
+
+def touch(result: decimal): decimal {
+    calls++;
+    return result;
+}
+
+/** the number of days in a month of an ordinary year, 0 for a month that does not exist */
+def days_in_month(month: decimal): decimal {
+    when(month) {
+        2 -> { return 28; }
+        4, 6, 9, 11 -> { return 30; }
+        1, 3, 5, 7, 8, 10, 12 -> { return 31; }
+    }
+    return 0;
+}
+
+def color_number(c: color): decimal {
+    when(c) {
+        color.red -> { return 10; }
+        color.green -> { return 20; }
+        else -> { return 30; }
+    }
+    return 0;
+}
+
+def animal_legs(animal: string): decimal {
+    when(animal) {
+        "bird" -> { return 2; }
+        "dog", "cat" -> { return 4; }
+        "spider" -> { return 8; }
+        else -> { return 0 - 1; }
+    }
+    return 0;
+}
+
+/** a when without a value: the first true condition wins */
+def size_class(n: decimal): decimal {
+    when {
+        n < 10 -> { return 1; }
+        n < 100 -> { return 2; }
+        n < 1000 -> { return 3; }
+        else -> { return 4; }
+    }
+    return 0;
+}
+
+def is_vowel(letter: decimal): decimal {
+    when(letter) {
+        'a', 'e', 'i', 'o', 'u' -> { return 1; }
+    }
+    return 0;
+}
+
+def switch_when_tests() {
+    tests("switch_when") {
+        before_each { calls = 0; };
+
+        // ---- the matching clause runs
+        test("the second clause") {
+            r : decimal = 0;
+            n : decimal = 2;
+            when(n) {
+                1 -> { r = 10; }
+                2 -> { r = 20; }
+                3 -> { r = 30; }
+            }
+            expect(r).should_be(20);
+        };
+
+        test("the first clause") {
+            r : decimal = 0;
+            n : decimal = 1;
+            when(n) {
+                1 -> { r = 10; }
+                2 -> { r = 20; }
+                3 -> { r = 30; }
+            }
+            expect(r).should_be(10);
+        };
+
+        test("the last clause") {
+            r : decimal = 0;
+            n : decimal = 3;
+            when(n) {
+                1 -> { r = 10; }
+                2 -> { r = 20; }
+                3 -> { r = 30; }
+            }
+            expect(r).should_be(30);
+        };
+
+        // ---- nothing matches
+        test("no match and no else does nothing") {
+            r : decimal = 0;
+            n : decimal = 9;
+            when(n) {
+                1 -> { r = 10; }
+                2 -> { r = 20; }
+            }
+            expect(r).should_be(0);
+        };
+
+        test("no match runs the else") {
+            r : decimal = 0;
+            n : decimal = 9;
+            when(n) {
+                1 -> { r = 10; }
+                2 -> { r = 20; }
+                else -> { r = 99; }
+            }
+            expect(r).should_be(99);
+        };
+
+        test("a match does not run the else") {
+            r : decimal = 0;
+            n : decimal = 2;
+            when(n) {
+                1 -> { r = 10; }
+                2 -> { r = 20; }
+                else -> { r = 99; }
+            }
+            expect(r).should_be(20);
+        };
+
+        // ---- no fall through: only one clause runs
+        test("only the matching clause runs") {
+            r : decimal = 0;
+            n : decimal = 1;
+            when(n) {
+                1 -> { r += 1; }
+                2 -> { r += 10; }
+                else -> { r += 100; }
+            }
+            expect(r).should_be(1);
+        };
+
+        test("of two clauses with the same value, only the first runs") {
+            r : decimal = 0;
+            n : decimal = 1;
+            when(n) {
+                1 -> { r += 1; }
+                1 -> { r += 10; }
+                else -> { r += 100; }
+            }
+            expect(r).should_be(1);
+        };
+
+        // ---- several values in one clause
+        test("1, 2 / 3, 4, 5 / else over 1 to 6") {
+            r : decimal = 0;
+            for(i : decimal = 1; i <= 6; i++) {
+                when(i) {
+                    1, 2 -> { r += 1; }
+                    3, 4, 5 -> { r += 10; }
+                    else -> { r += 100; }
+                }
+            }
+            expect(r).should_be(132);
+        };
+
+        // ---- a single clause
+        test("a when with one clause") {
+            r : decimal = 0;
+            n : decimal = 5;
+            when(n) {
+                5 -> { r = 1; }
+            }
+            expect(r).should_be(1);
+        };
+
+        // ---- expressions as the value and in the clauses
+        test("when(a + b) against expressions") {
+            a : decimal = 4;
+            b : decimal = 6;
+            r : decimal = 0;
+            when(a + b) {
+                a -> { r = 1; }
+                b -> { r = 2; }
+                a * 2 + 2 -> { r = 3; }
+                else -> { r = 4; }
+            }
+            expect(r).should_be(3);
+        };
+
+        test("a clause that is a variable expression") {
+            a : decimal = 4;
+            b : decimal = 6;
+            r : decimal = 0;
+            when(a) {
+                b - 2 -> { r = 1; }
+                else -> { r = 2; }
+            }
+            expect(r).should_be(1);
+        };
+
+        // ---- fractions and negative numbers
+        test("when on a fraction") {
+            half : decimal = 0.5;
+            r : decimal = 0;
+            when(half) {
+                0.25 -> { r = 1; }
+                0.5 -> { r = 2; }
+                else -> { r = 3; }
+            }
+            expect(r).should_be(2);
+        };
+
+        test("when on a negative number") {
+            minus : decimal = 0 - 3;
+            r : decimal = 0;
+            when(minus) {
+                3 -> { r = 1; }
+                -3 -> { r = 2; }
+                else -> { r = 3; }
+            }
+            expect(r).should_be(2);
+        };
+
+        // ---- the value is evaluated once, clauses only until one matches
+        test("when(touch(2)) picks the clause and calls touch once") {
+            r : decimal = 0;
+            when(touch(2)) {
+                1 -> { r = 1; }
+                2 -> { r = 2; }
+                3 -> { r = 3; }
+            }
+            expect(r).named("the clause that ran").should_be(2);
+            expect(calls).named("calls of touch").should_be(1);
+        };
+
+        test("the first clause matched, so the second clause was not evaluated") {
+            r : decimal = 0;
+            n : decimal = 5;
+            when(n) {
+                touch(5) -> { r = 1; }
+                touch(6) -> { r = 2; }
+            }
+            expect(r).named("the clause that ran").should_be(1);
+            expect(calls).named("clauses evaluated").should_be(1);
+        };
+
+        // ---- when without a value
+        test("the first true condition") {
+            v : decimal = 15;
+            r : decimal = 0;
+            when {
+                v < 10 -> { r = 1; }
+                v < 20 -> { r = 2; }
+                v < 30 -> { r = 3; }
+                else -> { r = 4; }
+            }
+            expect(r).should_be(2);
+        };
+
+        test("no true condition runs the else") {
+            v : decimal = 50;
+            r : decimal = 0;
+            when {
+                v < 10 -> { r = 1; }
+                v < 20 -> { r = 2; }
+                else -> { r = 4; }
+            }
+            expect(r).should_be(4);
+        };
+
+        test("no true condition and no else does nothing") {
+            v : decimal = 50;
+            r : decimal = 0;
+            when {
+                v < 10 -> { r = 1; }
+                v < 20 -> { r = 2; }
+            }
+            expect(r).should_be(0);
+        };
+
+        test("a condition with &&") {
+            v : decimal = 50;
+            r : decimal = 0;
+            when {
+                v > 10 && v < 100 -> { r = 1; }
+                else -> { r = 2; }
+            }
+            expect(r).should_be(1);
+        };
+
+        test("two conditions in one clause: either may be true") {
+            v : decimal = 50;
+            r : decimal = 0;
+            when {
+                v == 1, v == 50 -> { r = 5; }
+                else -> { r = 6; }
+            }
+            expect(r).should_be(5);
+        };
+
+        // ---- several statements in a clause
+        test("several statements in a clause all run") {
+            x : decimal = 0;
+            y : decimal = 0;
+            n : decimal = 2;
+            when(n) {
+                1 -> {
+                    x = 1;
+                    y = 1;
+                }
+                2 -> {
+                    x = 2;
+                    y = x * 10;
+                    if(y == 20) {
+                        y++;
+                    }
+                }
+            }
+            expect(x).named("x set in the clause").should_be(2);
+            expect(y).named("y set in the clause").should_be(21);
+        };
+
+        // ---- nested
+        test("a when inside a when") {
+            r : decimal = 0;
+            a : decimal = 1;
+            b : decimal = 2;
+            when(a) {
+                1 -> {
+                    when(b) {
+                        1 -> { r = 11; }
+                        2 -> { r = 12; }
+                        else -> { r = 19; }
+                    }
+                }
+                2 -> { r = 20; }
+                else -> { r = 90; }
+            }
+            expect(r).should_be(12);
+        };
+
+        // ---- inside a loop
+        test("inside a loop, each clause runs 3 times out of 9") {
+            ones : decimal = 0;
+            twos : decimal = 0;
+            others : decimal = 0;
+            for(i : decimal = 0; i < 9; i++) {
+                when(i % 3) {
+                    1 -> { ones++; }
+                    2 -> { twos += 2; }
+                    else -> { others += 3; }
+                }
+            }
+            expect(ones).named("clause 1").should_be(3);
+            expect(twos).named("clause 2").should_be(6);
+            expect(others).named("else").should_be(9);
+        };
+
+        // ---- continue inside a clause continues the loop around the when
+        test("continue from a clause") {
+            r : decimal = 0;
+            for(i : decimal = 0; i < 5; i++) {
+                when(i) {
+                    1, 3 -> { continue; }
+                }
+                r += i;
+            }
+            expect(r).should_be(6);
+        };
+
+        // ---- characters
+        test("is_vowel('a')") { expect(is_vowel('a')).should_be(1); };
+        test("is_vowel('u')") { expect(is_vowel('u')).should_be(1); };
+        test("is_vowel('x')") { expect(is_vowel('x')).should_be(0); };
+        test("vowels in a sentence") {
+            vowels : decimal = 0;
+            foreach(letter in "a quick brown fox") {
+                vowels += is_vowel(letter);
+            }
+            expect(vowels).should_be(5);
+        };
+
+        // ---- returning from a clause
+        test("days_in_month(2)") { expect(days_in_month(2)).should_be(28); };
+        test("days_in_month(4)") { expect(days_in_month(4)).should_be(30); };
+        test("days_in_month(11)") { expect(days_in_month(11)).should_be(30); };
+        test("days_in_month(1)") { expect(days_in_month(1)).should_be(31); };
+        test("days_in_month(12)") { expect(days_in_month(12)).should_be(31); };
+        test("days_in_month(13)") { expect(days_in_month(13)).should_be(0); };
+        test("days in a year") {
+            days : decimal = 0;
+            for(month : decimal = 1; month <= 12; month++) {
+                days += days_in_month(month);
+            }
+            expect(days).should_be(365);
+        };
+        test("size_class(5)") { expect(size_class(5)).should_be(1); };
+        test("size_class(10)") { expect(size_class(10)).should_be(2); };
+        test("size_class(999)") { expect(size_class(999)).should_be(3); };
+        test("size_class(1000)") { expect(size_class(1000)).should_be(4); };
+
+        // ---- enums
+        test("color.red") { expect(color_number(color.red)).should_be(10); };
+        test("color.green") { expect(color_number(color.green)).should_be(20); };
+        test("color.blue falls to the else") { expect(color_number(color.blue)).should_be(30); };
+        test("an enum in a variable") {
+            favourite := color.green;
+            r : decimal = 0;
+            when(favourite) {
+                color.red -> { r = 1; }
+                color.green -> { r = 2; }
+                color.blue -> { r = 3; }
+            }
+            expect(r).should_be(2);
+        };
+
+        // ---- strings
+        test("animal_legs(bird)") { expect(animal_legs("bird")).should_be(2); };
+        test("animal_legs(dog)") { expect(animal_legs("dog")).should_be(4); };
+        test("animal_legs(cat)") { expect(animal_legs("cat")).should_be(4); };
+        test("animal_legs(spider)") { expect(animal_legs("spider")).should_be(8); };
+        test("animal_legs(fish)") { expect(animal_legs("fish")).should_be(0 - 1); };
+        test("animal_legs of an empty string") { expect(animal_legs("")).should_be(0 - 1); };
+
+        // ---- number objects
+        test("when on an int object") {
+            boxed : int = 7;
+            r : decimal = 0;
+            when(boxed) {
+                6 -> { r = 1; }
+                7 -> { r = 2; }
+                else -> { r = 3; }
+            }
+            expect(r).should_be(2);
+        };
+    };
+}

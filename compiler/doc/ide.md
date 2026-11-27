@@ -2313,7 +2313,7 @@ Gradle Plugin 2.20.1, target `clion("2025.2")`, platform module only):
   `$name`, nested `${ }`, a lambda's braces inside `${ }`, nested block comments,
   unterminated forms, `?.`, `!!.`, `>>`, non-ASCII, states, restarts).
 - `SharpLexerOnRealFilesTest`: every file of `stdlib`,
-  `tests/suite/cases` and the bootstrap compiler (without its `tests/`): every
+  `tests/suite` (without its `known_bugs/`) and the bootstrap compiler (without its `tests/`): every
   character covered by exactly one token, no bad character, no unterminated
   string, restarts agree.
 - `SharpLexerBrokenTextTest`: every prefix of tricky text and randomly damaged library files are still covered by non-empty tokens (the lexer never fails or loops).

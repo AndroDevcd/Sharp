@@ -1,0 +1,500 @@
+mod suite.language.variables;
+
+import ( std.testing )
+
+/**
+ * Variables: local declarations with and without a type, globals that are
+ * read and written from functions, const, a local hiding a global, variables
+ * in blocks and loops, thread-local storage (`localized`), and declaring
+ * several variables in one statement.
+ */
+
+// ---- globals
+counter : decimal = 0;
+start : decimal = 100;
+twice_start : decimal = start * 2;
+ratio : decimal = 0.75;
+title := "global title";
+boxed_count : int = 40;
+table : decimal[] = new decimal[3];
+hidden : decimal = 7;
+unset_number : decimal;
+first : decimal = 1, second = 2, third = 3;
+
+const LIMIT : decimal = 10;
+const GREETING := "hello";
+const DOZEN := 12;
+
+/** `localized` gives every thread its own copy (Sharp's thread-local storage) */
+localized per_thread : decimal = 5;
+
+def next(): decimal {
+    counter++;
+    return counter;
+}
+
+def reset() {
+    counter = 0;
+}
+
+def read_start(): decimal { return start; }
+def read_hidden(): decimal { return hidden; }
+def read_per_thread(): decimal { return per_thread; }
+
+def change_globals() {
+    start = 150;
+    title = "changed";
+    boxed_count = 41;
+    table[1] = 8;
+    per_thread = 6;
+}
+
+/** assigning to a parameter changes only the function's own copy */
+def add_one(n: decimal): decimal {
+    n = n + 1;
+    return n;
+}
+
+/** a parameter with the name of a global hides the global */
+def use_parameter(hidden: decimal): decimal {
+    return hidden * 2;
+}
+
+/** every call starts with new locals */
+def fresh_local(): decimal {
+    n : decimal;
+    n += 3;
+    return n;
+}
+
+def area(width: decimal, height: decimal): decimal {
+    result : decimal = width * height;
+    return result;
+}
+
+/** puts back the globals that tests change, with the values they were declared with */
+def restore_globals() {
+    counter = 0;
+    start = 100;
+    title = "global title";
+    boxed_count = 40;
+    table = new decimal[3];
+    per_thread = 5;
+}
+
+def variables_tests() {
+    tests("variables") {
+        // ---- a local with a type
+        test("x : var = 1") {
+            x : decimal = 1;
+            expect(x).should_be(1);
+        };
+        test("assigned again") {
+            x : decimal = 1;
+            x = 2;
+            expect(x).should_be(2);
+        };
+        test("x = x + 10") {
+            x : decimal = 2;
+            x = x + 10;
+            expect(x).should_be(12);
+        };
+        test("a fraction") {
+            fraction : decimal = 2.5;
+            expect(fraction).should_be(2.5);
+        };
+        test("a negative number") {
+            negative : decimal = 0 - 8;
+            expect(negative).should_be(0 - 8);
+        };
+        test("declared from an expression") {
+            x : decimal = 12;
+            from_expression : decimal = x * 2 + 1;
+            expect(from_expression).should_be(25);
+        };
+        test("declared from a function call") {
+            from_call : decimal = area(3, 4);
+            expect(from_call).should_be(12);
+        };
+
+        // ---- a local without a value starts at 0
+        test("x : var; is 0") {
+            empty : decimal;
+            expect(empty).should_be(0);
+        };
+        test("x : var; can be assigned later") {
+            empty : decimal;
+            empty = 9;
+            expect(empty).should_be(9);
+        };
+
+        // ---- one variable does not follow another
+        test("b := a, then a = 6: a has the new value, b still has the old one") {
+            a : decimal = 5;
+            b : decimal = a;
+            a = 6;
+            expect(a).named("a").should_be(6);
+            expect(b).named("b").should_be(5);
+        };
+        test("b++ does not change a") {
+            a : decimal = 5;
+            b : decimal = a;
+            a = 6;
+            b++;
+            expect(a).should_be(6);
+        };
+
+        // ---- := takes the type from the value
+        test("s := \"a\" is a string") {
+            s := "a";
+            expect(s).should_be("a");
+        };
+        test("z := 1 is an int object") {
+            z := 1;
+            expect(z.value).should_be(1);
+        };
+        test("z := 1 prints without decimals") {
+            z := 1;
+            expect("$z").should_be("1");
+        };
+        test("d := 2.5 is a double object") {
+            d := 2.5;
+            expect(d.value).should_be(2.5);
+        };
+        test("c := 'a' is a char object") {
+            c := 'a';
+            expect(c.value).should_be(97);
+        };
+        test("c := 'a' prints as a character") {
+            c := 'a';
+            expect("$c").should_be("a");
+        };
+        test("t := true is a bool object") {
+            t := true;
+            expect(t).should_be(1);
+        };
+        test("t := true prints as a word") {
+            t := true;
+            expect("$t").should_be("true");
+        };
+        test("copy := s") {
+            s := "a";
+            copy := s;
+            expect(copy).should_be("a");
+        };
+
+        // ---- the number objects
+        test("int") {
+            i : int = 42;
+            expect(i.value).should_be(42);
+        };
+        test("long holds more than 32 bits") {
+            l : long = 5000000000;
+            expect(l.value).should_be(5000000000);
+        };
+        test("double") {
+            dd : double = 1.5;
+            expect(dd.value).should_be(1.5);
+        };
+        test("char") {
+            ch : char = 'z';
+            expect(ch.value).should_be(122);
+        };
+        test("bool") {
+            flag : bool = false;
+            expect(flag).should_be(0);
+        };
+        test("int assigned again") {
+            i : int = 42;
+            i = 43;
+            expect(i.value).should_be(43);
+        };
+        test("an object's number in a var") {
+            i : int = 42;
+            i = 43;
+            back : decimal = i.value;
+            expect(back).should_be(43);
+        };
+
+        // ---- globals: read in a test
+        test("a global") { expect(start).should_be(100); };
+        test("a global made from another global") { expect(twice_start).should_be(200); };
+        test("a global fraction") { expect(ratio).should_be(0.75); };
+        test("a global string") { expect(title).should_be("global title"); };
+        test("a global int object") { expect(boxed_count.value).should_be(40); };
+        test("a global array") { expect(sizeof(table)).should_be(3); };
+        test("a global without a value is 0") { expect(unset_number).should_be(0); };
+
+        // the tests that write globals: after each one they are put back as declared
+        tests("globals_written") {
+            after_each { restore_globals(); };
+
+            // ---- globals: written by functions
+            test("next() counts up, and main sees the counter") {
+                expect(next()).named("next()").should_be(1);
+                expect(next()).named("next() again").should_be(2);
+                expect(next()).named("next() a third time").should_be(3);
+                expect(counter).named("the counter in main").should_be(3);
+            };
+            test("reset()") {
+                next();
+                next();
+                reset();
+                expect(counter).should_be(0);
+            };
+            test("next() sees what main assigned") {
+                counter = 50;
+                expect(next()).should_be(51);
+            };
+
+            test("read_start()") { expect(read_start()).should_be(100); };
+            test("a number changed by a function") {
+                change_globals();
+                expect(start).should_be(150);
+            };
+            test("a number changed by a function is read back by a function") {
+                change_globals();
+                expect(read_start()).should_be(150);
+            };
+            test("a string changed by a function") {
+                change_globals();
+                expect(title).should_be("changed");
+            };
+            test("an int object changed by a function") {
+                change_globals();
+                expect(boxed_count.value).should_be(41);
+            };
+            test("an array item changed by a function") {
+                change_globals();
+                expect(table[1]).should_be(8);
+            };
+            test("a global made earlier does not follow") {
+                change_globals();
+                expect(twice_start).should_be(200);
+            };
+
+            // ---- globals with compound assignment
+            test("global +=") {
+                start = 150;
+                start += 5;
+                expect(start).should_be(155);
+            };
+            test("global *=") {
+                start = 155;
+                start *= 2;
+                expect(start).should_be(310);
+            };
+            test("global --") {
+                start = 310;
+                start--;
+                expect(start).should_be(309);
+            };
+
+            // ---- thread-local storage (one thread here, so it acts like any variable)
+            test("a localized global") {
+                change_globals();
+                expect(per_thread).should_be(6);
+            };
+            test("a localized global read by a function") {
+                change_globals();
+                expect(read_per_thread()).should_be(6);
+            };
+            test("a localized global assigned in main") {
+                per_thread = 7;
+                expect(read_per_thread()).should_be(7);
+            };
+            test("a localized global with +=") {
+                per_thread = 7;
+                per_thread += 3;
+                expect(per_thread).should_be(10);
+            };
+        };
+
+        // ---- const
+        test("a global const") { expect(LIMIT).should_be(10); };
+        test("a const in arithmetic") { expect(LIMIT * 2 + 1).should_be(21); };
+        test("a const string") { expect(GREETING).should_be("hello"); };
+        test("a const made with :=") { expect(DOZEN.value).should_be(12); };
+        test("a local const") {
+            const local_limit : decimal = 4;
+            expect(local_limit).should_be(4);
+        };
+        test("a local const made with :=") {
+            const local_dozen := 12;
+            expect(local_dozen.value).should_be(12);
+        };
+        test("consts in a loop") {
+            const local_limit : decimal = 4;
+            total : decimal = 0;
+            for(n : decimal = 0; n < LIMIT; n++) {
+                total += local_limit;
+            }
+            expect(total).should_be(40);
+        };
+
+        // ---- a local hides a global with the same name
+        test("the local") {
+            hidden : decimal = 99;
+            expect(hidden).should_be(99);
+        };
+        test("functions still see the global") {
+            hidden : decimal = 99;
+            expect(read_hidden()).should_be(7);
+        };
+        test("assigning changes the local, not the global") {
+            hidden : decimal = 99;
+            hidden = 100;
+            expect(hidden).named("the local").should_be(100);
+            expect(read_hidden()).named("the global").should_be(7);
+        };
+        test("a parameter hides the global too") { expect(use_parameter(4)).should_be(8); };
+
+        // ---- parameters are copies
+        test("add_one(original), and original did not change") {
+            original : decimal = 1;
+            expect(add_one(original)).should_be(2);
+            expect(original).named("original").should_be(1);
+        };
+
+        // ---- every call gets new locals
+        test("fresh_local()") { expect(fresh_local()).should_be(3); };
+        test("fresh_local() again") {
+            fresh_local();
+            expect(fresh_local()).should_be(3);
+        };
+        test("area(3, 4)") { expect(area(3, 4)).should_be(12); };
+        test("area(5, 6)") { expect(area(5, 6)).should_be(30); };
+
+        // ---- blocks: a variable lives until the end of its block, so two
+        //      blocks side by side can use the same name
+        test("two blocks side by side, one name") {
+            {
+                inner : decimal = 1;
+                expect(inner).named("first block").should_be(1);
+            }
+            {
+                inner : decimal = 2;
+                expect(inner).named("second block").should_be(2);
+            }
+        };
+        test("in an if branch") {
+            x : decimal = 12;
+            if(x == 12) {
+                branch : decimal = 3;
+                expect(branch).should_be(3);
+            } else {
+                branch : decimal = 4;
+                fail_test("the else branch ran");
+            }
+        };
+
+        // ---- a block can read and change the variables around it
+        test("changed in nested blocks") {
+            outside : decimal = 1;
+            {
+                outside = outside + 1;
+                {
+                    outside = outside * 10;
+                }
+            }
+            expect(outside).should_be(20);
+        };
+
+        // ---- a variable declared in a loop body is new every time round
+        test("locals of a loop body") {
+            total : decimal = 0;
+            for(n : decimal = 0; n < 3; n++) {
+                fresh : decimal;
+                fresh++;
+                total += fresh;
+                ten : decimal = 10;
+                ten += n;
+                total += ten;
+            }
+            expect(total).should_be(36);
+        };
+
+        // ---- thread-local storage in a local
+        test("a localized local") {
+            localized own : decimal = 3;
+            own++;
+            expect(own).should_be(4);
+        };
+
+        // ---- several variables in one statement
+        test("first of three globals") { expect(first).should_be(1); };
+        test("second of three globals") { expect(second).should_be(2); };
+        test("third of three globals") { expect(third).should_be(3); };
+        test("p : var = 1, q; gives p its value") {
+            p : decimal = 1, q;
+            expect(p).should_be(1);
+        };
+        test("p : var = 1, q; and q starts at 0") {
+            p : decimal = 1, q;
+            expect(q).should_be(0);
+        };
+        test("q assigned later") {
+            p : decimal = 1, q;
+            q = 2;
+            expect(q).should_be(2);
+        };
+        test("p unchanged when q is assigned") {
+            p : decimal = 1, q;
+            q = 2;
+            expect(p).should_be(1);
+        };
+
+        // ---- assignment is an expression
+        test("m = n = 5 sets m and n") {
+            m : decimal = 0;
+            n : decimal = 0;
+            m = n = 5;
+            expect(m).named("m").should_be(5);
+            expect(n).named("n").should_be(5);
+        };
+        test("(m = 7) + 1, and m is 7") {
+            m : decimal = 5;
+            k : decimal = (m = 7) + 1;
+            expect(k).should_be(8);
+            expect(m).named("m").should_be(7);
+        };
+
+        // ---- swapping through a third variable
+        test("swapping through a third variable") {
+            left : decimal = 1;
+            right : decimal = 2;
+            keep : decimal = left;
+            left = right;
+            right = keep;
+            expect(left).named("left after the swap").should_be(2);
+            expect(right).named("right after the swap").should_be(1);
+        };
+
+        // ---- names
+        test("names with _, capitals and digits") {
+            with_underscore : decimal = 1;
+            camelCase : decimal = 2;
+            name2 : decimal = 3;
+            UPPER : decimal = 4;
+            expect(with_underscore + camelCase + name2 + UPPER).should_be(10);
+        };
+
+        // ---- many locals at once
+        test("twelve locals") {
+            v1 : decimal = 1;
+            v2 : decimal = 2;
+            v3 : decimal = 3;
+            v4 : decimal = 4;
+            v5 : decimal = 5;
+            v6 : decimal = 6;
+            v7 : decimal = 7;
+            v8 : decimal = 8;
+            v9 : decimal = 9;
+            v10 : decimal = 10;
+            v11 : decimal = 11;
+            v12 : decimal = 12;
+            expect(v1 + v2 + v3 + v4 + v5 + v6 + v7 + v8 + v9 + v10 + v11 + v12).named("the sum").should_be(78);
+            expect(v1 * 100 + v12).named("the first and the last").should_be(112);
+        };
+    };
+}

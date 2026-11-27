@@ -1,0 +1,507 @@
+mod suite.classes.basics;
+
+import ( std.testing )
+
+/**
+ * Classes: fields, constructors, methods, `self`, objects that are
+ * independent of each other, and objects passed to and returned from
+ * functions.
+ */
+
+/* fields with and without an initial value, no constructor written */
+class defaults {
+    plain : decimal;                    // no initial value: starts at 0
+    with_value : decimal = 7;
+    fraction : decimal = 2.5;
+    negative : decimal = 0 - 3;
+    from_expression : decimal = 6 * 7;
+    text : string = "start";
+    other : defaults?;              // no initial value: starts as null (`?` = may be null,
+                                    // and is then read with `!!.`)
+    numbers : decimal[]?;               // no initial value: starts as null
+}
+
+/* several constructors, chosen by the arguments */
+class point {
+    x : decimal = 0;
+    y : decimal = 0;
+
+    point() {
+        x = 1;
+        y = 1;
+    }
+
+    point(both: decimal) {
+        x = both;
+        y = both;
+    }
+
+    point(px: decimal, py: decimal) {
+        x = px;
+        y = py;
+    }
+
+    point(other: point) {
+        x = other.x;
+        y = other.y;
+    }
+
+    def sum(): decimal {
+        return x + y;
+    }
+
+    /* a method that changes the object it is called on */
+    def move_by(dx: decimal, dy: decimal) {
+        x += dx;
+        y += dy;
+    }
+
+    def scale(factor: decimal) {
+        x = x * factor;
+        y = y * factor;
+    }
+
+    /* a method that calls other methods of the same object */
+    def sum_after_move(dx: decimal, dy: decimal): decimal {
+        move_by(dx, dy);
+        return sum();
+    }
+
+    def equals_point(other: point): decimal {
+        return x == other.x && y == other.y;
+    }
+
+    /* a method that returns a new object and leaves this one alone */
+    def plus(other: point): point {
+        return new point(x + other.x, y + other.y);
+    }
+
+    /* a method that returns the object it was called on, so calls can be chained */
+    def moved(dx: decimal, dy: decimal): point {
+        move_by(dx, dy);
+        return self;
+    }
+}
+
+/* `self` tells a field from a parameter with the same name */
+class account {
+    balance : decimal = 0;
+    owner : string = "";
+    deposits : decimal = 0;
+
+    account(owner: string, balance: decimal) {
+        self->owner = owner;
+        self->balance = balance;
+    }
+
+    def deposit(amount: decimal) {
+        self->balance = self->balance + amount;
+        deposits++;
+    }
+
+    /* returns 1 and takes the money if there is enough, otherwise 0 */
+    def withdraw(amount: decimal): decimal {
+        if(amount > balance) {
+            return 0;
+        }
+        balance -= amount;
+        return 1;
+    }
+
+    def transfer_to(other: account, amount: decimal): decimal {
+        if(withdraw(amount)) {
+            other.deposit(amount);
+            return 1;
+        }
+        return 0;
+    }
+
+    def describe(): string {
+        return owner + " account";
+    }
+}
+
+/* a constructor can do work, not only copy its arguments */
+class range {
+    low : decimal = 0;
+    high : decimal = 0;
+    length : decimal = 0;
+
+    range(a: decimal, b: decimal) {
+        if(a < b) {
+            low = a;
+            high = b;
+        } else {
+            low = b;
+            high = a;
+        }
+        length = high - low;
+    }
+
+    def contains(n: decimal): decimal {
+        return n >= low && n <= high;
+    }
+}
+
+/* a class whose fields are other objects and an array */
+class line {
+    from : point;
+    to : point;
+
+    line(a: point, b: point) {
+        from = a;
+        to = b;
+    }
+
+    def width(): decimal {
+        return to.x - from.x;
+    }
+}
+
+class stack {
+    items : decimal[];
+    count : decimal = 0;
+
+    stack(capacity: decimal) {
+        items = new decimal[capacity];
+    }
+
+    def push(n: decimal) {
+        items[count] = n;
+        count++;
+    }
+
+    def pop(): decimal {
+        count--;
+        return items[count];
+    }
+
+    def top(): decimal {
+        return items[count - 1];
+    }
+}
+
+/* a class with nothing in it can still be created */
+class empty_class {
+}
+
+class counter {
+    count : decimal = 0;
+
+    def next(): decimal {
+        count++;
+        return count;
+    }
+}
+
+def sum_of(p: point): decimal {
+    return p.x + p.y;
+}
+
+def reset(p: point) {
+    p.x = 0;
+    p.y = 0;
+}
+
+def make_point(n: decimal): point {
+    return new point(n, n * 2);
+}
+
+def same_point_back(p: point): point {
+    return p;
+}
+
+def nothing_to_give(): point? {
+    return null;
+}
+
+/* ann's account with 120 in it after one deposit of her own */
+def ann_after_a_deposit(): account {
+    a := new account("ann", 70);
+    a.deposit(50);
+    return a;
+}
+
+def basics_tests() {
+    tests("basics") {
+        // ---- fields start at their initial value, or at 0 / null
+        test("a field without a value starts at 0") { expect(new defaults().plain).should_be(0); };
+        test("a field with a value") { expect(new defaults().with_value).should_be(7); };
+        test("a field with a fraction") { expect(new defaults().fraction).should_be(2.5); };
+        test("a field with a negative value") { expect(new defaults().negative).should_be(0 - 3); };
+        test("a field set from an expression") { expect(new defaults().from_expression).should_be(42); };
+        test("a string field") { expect(new defaults().text).should_be("start"); };
+        test("an object field without a value starts as null") { expect_null(new defaults().other); };
+        test("an array field without a value starts as null") { expect_null(new defaults().numbers); };
+
+        // ---- fields can be read and written from outside
+        test("write then read a field") {
+            d := new defaults();
+            d.plain = 11;
+            expect(d.plain).should_be(11);
+        };
+        test("change a field using its old value") {
+            d := new defaults();
+            d.with_value = d.with_value + 1;
+            expect(d.with_value).should_be(8);
+        };
+        test("write a string field") {
+            d := new defaults();
+            d.text = "changed";
+            expect(d.text).should_be("changed");
+        };
+        test("write an object field, then read a field of that field") {
+            d := new defaults();
+            d.other = new defaults();
+            expect_not_null(d.other);
+            expect(d.other!!.with_value).should_be(7);
+        };
+        test("an array field") {
+            d := new defaults();
+            d.numbers = new decimal[] { 5, 6 };
+            expect(d.numbers[1]).should_be(6);
+        };
+        test("+= on a field") {
+            d := new defaults();
+            d.fraction += 0.5;
+            expect(d.fraction).should_be(3);
+        };
+        test("++ on a field") {
+            d := new defaults();
+            d.plain = 11;
+            d.plain++;
+            expect(d.plain).should_be(12);
+        };
+        test("write a field of a field: the outer object keeps its own") {
+            d := new defaults();
+            d.plain = 12;
+            d.other = new defaults();
+            d.other!!.plain = 500;
+            expect(d.other!!.plain).should_be(500);
+            expect(d.plain).named("the outer object's field").should_be(12);
+        };
+
+        // ---- constructors: the one that matches the arguments runs
+        test("constructor with no arguments") {
+            p := new point();
+            expect(p.x).named("x").should_be(1);
+            expect(p.y).named("y").should_be(1);
+        };
+        test("constructor with one number") {
+            five : decimal = 5;
+            p := new point(five);
+            expect(p.x).named("x").should_be(5);
+            expect(p.y).named("y").should_be(5);
+        };
+        test("constructor with two numbers") {
+            p := new point(3, 4);
+            expect(p.x).named("x").should_be(3);
+            expect(p.y).named("y").should_be(4);
+        };
+        test("constructor taking another point") {
+            p := new point(new point(3, 4));
+            expect(p.x).named("x").should_be(3);
+            expect(p.y).named("y").should_be(4);
+        };
+        test("a constructor that orders its arguments") {
+            r := new range(9, 2);
+            expect(r.low).named("low").should_be(2);
+            expect(r.high).named("high").should_be(9);
+        };
+        test("a constructor that computes a field") { expect(new range(9, 2).length).should_be(7); };
+        test("a class with no members") { expect_not_null(new empty_class()); };
+
+        // ---- methods
+        test("a method reading fields") { expect(new point(3, 4).sum()).should_be(7); };
+        test("a method changing fields") {
+            p := new point(3, 4);
+            p.move_by(10, 20);
+            expect(p.x).named("x").should_be(13);
+            expect(p.y).named("y").should_be(24);
+        };
+        test("a second change builds on the first") {
+            p := new point(3, 4);
+            p.move_by(10, 20);
+            p.scale(2);
+            expect(p.x).named("x").should_be(26);
+            expect(p.y).named("y").should_be(48);
+        };
+        test("a method calling other methods") { expect(new point(26, 48).sum_after_move(1, 1)).should_be(76); };
+        test("a method with a condition: inside") { expect(new range(9, 2).contains(5)).should_be(1); };
+        test("a method with a condition: on the edge") { expect(new range(9, 2).contains(9)).should_be(1); };
+        test("a method with a condition: outside") { expect(new range(9, 2).contains(10)).should_be(0); };
+        test("a method called on a new object") { expect(new point(20, 22).sum()).should_be(42); };
+
+        // ---- self
+        test("self->field = parameter of the same name") {
+            a := new account("ann", 100);
+            expect(a.owner).named("the string field").should_be("ann");
+            expect(a.balance).named("the number field").should_be(100);
+        };
+        test("self->field on both sides of an assignment") {
+            a := new account("ann", 100);
+            a.deposit(50);
+            expect(a.balance).should_be(150);
+        };
+        test("a method returning a string built from a field") { expect(new account("ann", 100).describe()).should_be("ann account"); };
+        test("a method returning self gives the same object, after doing its work") {
+            p := new point(5);
+            expect(p.moved(1, 2) == p).named("the same object").should_be(1);
+            expect(p.x).named("x").should_be(6);
+            expect(p.y).named("y").should_be(7);
+        };
+        test("chained calls through self") { expect(new point(6, 7).moved(1, 1).moved(1, 1).moved(1, 1).sum()).should_be(19); };
+
+        // ---- methods that return a result and change the object
+        test("withdraw less than the balance takes the money") {
+            a := new account("ann", 150);
+            expect(a.withdraw(30)).named("the answer").should_be(1);
+            expect(a.balance).named("the balance").should_be(120);
+        };
+        test("withdraw more than the balance leaves the money") {
+            a := new account("ann", 120);
+            expect(a.withdraw(500)).named("the answer").should_be(0);
+            expect(a.balance).named("the balance").should_be(120);
+        };
+
+        // ---- every object has its own fields
+        test("stepping one counter does not move the other") {
+            first := new counter();
+            second := new counter();
+            first.next();
+            first.next();
+            first.next();
+            second.next();
+            expect(first.count).named("first counter, stepped three times").should_be(3);
+            expect(second.count).named("second counter, stepped once").should_be(1);
+            expect(first.next()).named("stepping the first again").should_be(4);
+            expect(second.count).named("the second after that").should_be(1);
+        };
+        test("one object changing another: allowed") {
+            a := ann_after_a_deposit();
+            b := new account("bob", 10);
+            expect(a.transfer_to(b, 70)).named("the answer").should_be(1);
+            expect(a.balance).named("the giver").should_be(50);
+            expect(b.balance).named("the receiver").should_be(80);
+            expect(b.deposits).named("the receiver's own counter").should_be(1);
+            expect(a.deposits).named("the giver's own counter").should_be(1);
+        };
+        test("one object changing another: refused, nothing moved") {
+            a := new account("ann", 50);
+            b := new account("bob", 80);
+            expect(a.transfer_to(b, 51)).named("the answer").should_be(0);
+            expect(b.balance).named("the receiver").should_be(80);
+        };
+        test("each object keeps its own string") {
+            a := ann_after_a_deposit();
+            b := new account("bob", 10);
+            a.transfer_to(b, 70);
+            expect(b.owner).should_be("bob");
+        };
+
+        // ---- many objects in an array
+        test("many objects in an array, each with its own count") {
+            counters : counter[] = new counter[5];
+            for(i : decimal = 0; i < 5; i++) {
+                counters[i] = new counter();
+                for(j : decimal = 0; j < i * 2; j++) {
+                    counters[i].next();
+                }
+            }
+            expect(counters[0].count).named("object 0 of 5").should_be(0);
+            expect(counters[1].count).named("object 1 of 5").should_be(2);
+            expect(counters[4].count).named("object 4 of 5").should_be(8);
+        };
+
+        // ---- objects as fields
+        test("a method using two object fields") { expect(new line(new point(1, 2), new point(8, 2)).width()).should_be(7); };
+        test("reading through two objects") { expect(new line(new point(1, 2), new point(8, 2)).to.x).should_be(8); };
+        test("writing through two objects") {
+            l := new line(new point(1, 2), new point(8, 2));
+            l.from.x = 4;
+            expect(l.width()).should_be(4);
+        };
+        test("an array field filled by a method: push three, pop gives the last ones back") {
+            s := new stack(8);
+            s.push(10);
+            s.push(20);
+            s.push(30);
+            expect(s.count).named("count after three pushes").should_be(3);
+            expect(s.top()).named("top of the stack").should_be(30);
+            expect(s.pop()).named("pop gives the last one pushed").should_be(30);
+            expect(s.pop()).named("then the one before").should_be(20);
+            expect(s.count).named("one is left").should_be(1);
+        };
+
+        // ---- objects as parameters and return values
+        test("an object as a parameter") { expect(sum_of(new point(6, 9))).should_be(15); };
+        test("a function changing the object it was given") {
+            q := new point(6, 9);
+            reset(q);
+            expect(q.x).named("x").should_be(0);
+            expect(q.y).named("y").should_be(0);
+        };
+        test("an object as a return value") {
+            made := make_point(21);
+            expect(made.x).named("x").should_be(21);
+            expect(made.y).named("y").should_be(42);
+        };
+        test("a method taking an object") { expect(make_point(21).equals_point(new point(21, 42))).should_be(1); };
+        test("a method taking an object, different values") { expect(make_point(21).equals_point(new point(21, 43))).should_be(0); };
+        test("a method returning a new object leaves the original unchanged") {
+            made := make_point(21);
+            added := made.plus(new point(1, 1));
+            expect(added.x).named("the new one's x").should_be(22);
+            expect(added.y).named("the new one's y").should_be(43);
+            expect(made.x).named("the original's x").should_be(21);
+        };
+        test("a function returning null instead of an object") { expect_null(nothing_to_give()); };
+
+        // ---- identity: two variables can name one object
+        test("a variable assigned from another is the same object") {
+            original := new point(1, 2);
+            same := original;
+            expect(same == original).named("==").should_be(1);
+            expect(same != original).named("!=").should_be(0);
+        };
+        test("a copy with equal fields is a different object") {
+            original := new point(1, 2);
+            copy_of := new point(original);
+            expect(copy_of == original).named("==").should_be(0);
+            expect(copy_of != original).named("!=").should_be(1);
+        };
+        test("a change through one name is seen through the other, and not in the copy") {
+            original := new point(1, 2);
+            same := original;
+            copy_of := new point(original);
+            same.x = 50;
+            expect(original.x).named("through the other name").should_be(50);
+            expect(copy_of.x).named("in the copy").should_be(1);
+        };
+        test("a function returning its argument gives the same object") {
+            original := new point(1, 2);
+            expect(same_point_back(original) == original).should_be(1);
+        };
+        test("two new objects are never the same") { expect(new point(1, 1) == new point(1, 1)).should_be(0); };
+        test("an object is not null") {
+            original := new point(1, 2);
+            expect(original != null).should_be(1);
+        };
+        test("a variable can be pointed at another object, which leaves the first alone") {
+            original := new point(1, 2);
+            same := original;
+            copy_of := new point(original);
+            same.x = 50;
+            same = copy_of;
+            expect(same.x).named("the variable").should_be(1);
+            expect(original.x).named("the first object").should_be(50);
+        };
+        test("a variable holding null, then an object") {
+            original := new point(50, 2);
+            empty : point? = null;
+            expect(empty == null).named("while null").should_be(1);
+            empty = original;
+            expect(empty!!.x).named("then the object").should_be(50);
+        };
+    };
+}

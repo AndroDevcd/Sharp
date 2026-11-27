@@ -1,0 +1,324 @@
+mod suite.library.collections.tree_map;
+
+import ( std.testing, std.collections )
+
+/**
+ * std.collections - tree_map (an AVL tree): lookups, sorted views, neighbours,
+ * ranges, removal, and that the tree stays balanced.
+ */
+
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+def descending(a: int, b: int) : decimal { return b.value - a.value; }
+
+/** "1,2,3" for a list of ints */
+def join(items: list<int>) : string {
+    text := "";
+    for(i : decimal = 0; i < items.size(); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items.at(i);
+    }
+    return text;
+}
+
+/** "1,2,3" for the keys an entry iterator still has to give */
+def drain_keys(it: iterator<map_entry<int, string> >) : string {
+    text := "";
+    first : decimal = 1;
+    while(it.has_next()) {
+        if(!first) text = text + ",";
+        first = 0;
+        text = text + it.next().key;
+    }
+    return text;
+}
+
+/** the value of a nullable int, or -1 for null */
+def or_minus_one(value: int?) : decimal {
+    if(value == null) return 0 - 1;
+    return value!!.value;
+}
+
+/** 20 .. 80 in steps of 10, put in an order that keeps the tree balanced */
+def seven_keys() : tree_map<int, string> {
+    m := new tree_map<int, string>(ascending);
+    m.put(50, "fifty");
+    m.put(30, "thirty");
+    m.put(70, "seventy");
+    m.put(20, "twenty");
+    m.put(40, "forty");
+    m.put(60, "sixty");
+    m.put(80, "eighty");
+    return m;
+}
+
+/** seven_keys() with 40 replaced by "FORTY" and 10 put if absent: 10 .. 80 */
+def eight_keys() : tree_map<int, string> {
+    m := seven_keys();
+    m.put(40, "FORTY");
+    m.put_if_absent(40, "x");
+    m.put_if_absent(10, "ten");
+    return m;
+}
+
+def tree_map_tests() {
+    tests("tree_map") {
+        m : tree_map<int, string>;
+
+        tests("empty") {
+            before_each { m = new tree_map<int, string>(ascending); };
+
+            test("tree new size") { expect(m.size()).should_be(0); };
+            test("tree new is_empty") { expect(m.is_empty()).should_be(1); };
+            test("tree new height") { expect(m.height()).should_be(0); };
+            test("tree at on empty") { expect_null(m.at(1)); };
+            test("tree empty get_elements") { expect_null(m.get_elements()); };
+            test("tree first_entry empty") { expect_null(m.first_entry()); };
+            test("tree last_entry empty") { expect_null(m.last_entry()); };
+            test("tree floor_key empty") { expect_null(m.floor_key(5)); };
+            test("tree ceiling_key empty") { expect_null(m.ceiling_key(5)); };
+            test("tree empty keys") { expect(m.keys().size()).should_be(0); };
+            test("tree empty iterator") { expect(m.iterator().has_next()).should_be(0); };
+            test("tree empty descending_iterator") { expect(m.descending_iterator().has_next()).should_be(0); };
+            test("tree remove on empty") { expect(m.remove(1)).should_be(0); };
+            test("tree first_key empty") { expect_throws<no_such_element_exception>() { m.first_key(); }; };
+            test("tree last_key empty") { expect_throws<no_such_element_exception>() { m.last_key(); }; };
+            test("tree poll_first empty") { expect_throws<no_such_element_exception>() { m.poll_first(); }; };
+            test("tree poll_last empty") { expect_throws<no_such_element_exception>() { m.poll_last(); }; };
+
+            test("tree put of a new key says so") {
+                expect(m.put(50, "fifty")).named("put new").should_be(1);
+                expect(m.put(30, "thirty")).named("put new 2").should_be(1);
+                expect(m.put(70, "seventy")).named("put new 3").should_be(1);
+                expect(m.put(20, "twenty")).named("put new 4").should_be(1);
+                expect(m.put(40, "forty")).named("put new 5").should_be(1);
+                expect(m.put(60, "sixty")).named("put new 6").should_be(1);
+                expect(m.put(80, "eighty")).named("put new 7").should_be(1);
+            };
+        };
+
+        tests("seven_keys") {
+            before_each { m = seven_keys(); };
+
+            test("tree size") { expect(m.size()).should_be(7); };
+            test("tree height of 7 balanced nodes") { expect(m.height()).should_be(3); };
+            test("tree at") { expect(m.at(40)!!).should_be("forty"); };
+            test("tree at missing") { expect_null(m.at(45)); };
+            test("tree at_or_default hit") { expect(m.at_or_default(20, "none")).should_be("twenty"); };
+            test("tree at_or_default miss") { expect(m.at_or_default(21, "none")).should_be("none"); };
+            test("tree contains_key") { expect(m.contains_key(80)).should_be(1); };
+            test("tree contains_key missing") { expect(m.contains_key(81)).should_be(0); };
+            test("tree contains_value") { expect(m.contains_value("sixty")).should_be(1); };
+            test("tree contains_value missing") { expect(m.contains_value("ninety")).should_be(0); };
+
+            test("tree put existing replaces the value, not the size") {
+                expect(m.put(40, "FORTY")).should_be(0);
+                expect(m.at(40)!!).named("replaced value").should_be("FORTY");
+                expect(m.size()).named("size after replace").should_be(7);
+            };
+            test("tree put_if_absent existing keeps the value") {
+                m.put(40, "FORTY");
+                expect(m.put_if_absent(40, "x")).should_be(0);
+                expect(m.at(40)!!).named("the value").should_be("FORTY");
+            };
+            test("tree put_if_absent new") { expect(m.put_if_absent(10, "ten")).should_be(1); };
+        };
+
+        // 10 .. 80, 40 holding "FORTY"
+        tests("eight_keys") {
+            before_each { m = eight_keys(); };
+
+            // sorted views
+            test("tree keys ascending") { expect(join(m.keys())).should_be("10,20,30,40,50,60,70,80"); };
+            test("tree key_array") {
+                expect(sizeof(m.key_array())).should_be(8);
+                expect(m.key_array()[7].value).named("key_array[7]").should_be(80);
+            };
+            test("tree values in key order") {
+                expect(m.values().at(0)).named("[0]").should_be("ten");
+                expect(m.values().at(7)).named("[7]").should_be("eighty");
+            };
+            test("tree entries") {
+                expect(m.entries().size()).named("size").should_be(8);
+                expect(m.entries().at(2).key.value).named("[2].key").should_be(30);
+                expect(m.entries().at(2).value).named("[2].value").should_be("thirty");
+            };
+            test("tree first_key") { expect(m.first_key().value).should_be(10); };
+            test("tree last_key") { expect(m.last_key().value).should_be(80); };
+            test("tree first_entry") { expect(m.first_entry()!!.key.value).should_be(10); };
+            test("tree last_entry") { expect(m.last_entry()!!.value).should_be("eighty"); };
+            test("tree iterator") { expect(drain_keys(m.iterator())).should_be("10,20,30,40,50,60,70,80"); };
+            test("tree descending_iterator") { expect(drain_keys(m.descending_iterator())).should_be("80,70,60,50,40,30,20,10"); };
+            test("tree foreach") {
+                digits : decimal = 0;
+                foreach(entry in m) { digits = digits * 10 + entry.key.value / 10; }
+                expect(digits).should_be(12345678);
+            };
+            test("tree next on finished iterator") {
+                finished := m.iterator();
+                while(finished.has_next()) finished.next();
+                expect_throws<no_such_element_exception>() { finished.next(); };
+            };
+
+            // neighbours
+            test("tree floor_key exact") { expect(or_minus_one(m.floor_key(40))).should_be(40); };
+            test("tree floor_key between") { expect(or_minus_one(m.floor_key(45))).should_be(40); };
+            test("tree floor_key below all") { expect(or_minus_one(m.floor_key(5))).should_be(0 - 1); };
+            test("tree floor_key above all") { expect(or_minus_one(m.floor_key(99))).should_be(80); };
+            test("tree ceiling_key exact") { expect(or_minus_one(m.ceiling_key(40))).should_be(40); };
+            test("tree ceiling_key between") { expect(or_minus_one(m.ceiling_key(45))).should_be(50); };
+            test("tree ceiling_key above all") { expect(or_minus_one(m.ceiling_key(81))).should_be(0 - 1); };
+            test("tree ceiling_key below all") { expect(or_minus_one(m.ceiling_key(1))).should_be(10); };
+            test("tree lower_key exact") { expect(or_minus_one(m.lower_key(40))).should_be(30); };
+            test("tree lower_key between") { expect(or_minus_one(m.lower_key(45))).should_be(40); };
+            test("tree lower_key of the smallest") { expect(or_minus_one(m.lower_key(10))).should_be(0 - 1); };
+            test("tree higher_key exact") { expect(or_minus_one(m.higher_key(40))).should_be(50); };
+            test("tree higher_key between") { expect(or_minus_one(m.higher_key(45))).should_be(50); };
+            test("tree higher_key of the largest") { expect(or_minus_one(m.higher_key(80))).should_be(0 - 1); };
+
+            // ranges: from is included, to is not
+            test("tree range_keys") { expect(join(m.range_keys(30, 60))).should_be("30,40,50"); };
+            test("tree range_keys between keys") { expect(join(m.range_keys(25, 65))).should_be("30,40,50,60"); };
+            test("tree range_keys empty") { expect(join(m.range_keys(41, 49))).should_be(""); };
+            test("tree range_keys everything") { expect(join(m.range_keys(0, 100))).should_be("10,20,30,40,50,60,70,80"); };
+            test("tree range_iterator") { expect(drain_keys(m.range_iterator(30, 60))).should_be("30,40,50"); };
+            test("tree range_iterator to the end") { expect(drain_keys(m.range_iterator(65, 100))).should_be("70,80"); };
+            test("tree range_iterator empty") { expect(drain_keys(m.range_iterator(41, 49))).should_be(""); };
+            test("tree range_iterator from == to") { expect(drain_keys(m.range_iterator(30, 30))).should_be(""); };
+            test("tree sub_map") { expect(join(m.sub_map(20, 50).keys())).should_be("20,30,40"); };
+            test("tree head_map") { expect(join(m.head_map(30).keys())).should_be("10,20"); };
+            test("tree tail_map") { expect(join(m.tail_map(60).keys())).should_be("60,70,80"); };
+            test("tree sub_map is independent, and copies the values") {
+                part := m.sub_map(20, 50);
+                part.put(25, "new");
+                expect(m.contains_key(25)).named("the new key in the map").should_be(0);
+                expect(part.at(40)!!).named("a copied value").should_be("FORTY");
+            };
+
+            // removing: a leaf, a node with one child, a node with two children, the root
+            test("tree remove leaf") {
+                expect(m.remove(10)).should_be(1);
+                expect(m.remove(10)).named("remove again").should_be(0);
+            };
+            test("tree remove node with two children") {
+                m.remove(10);
+                expect(m.remove(30)).should_be(1);
+                expect(join(m.keys())).named("keys after removes").should_be("20,40,50,60,70,80");
+            };
+
+            // 20,40,50,60,70,80 after removing 10 and 30; the tests take 50 first
+            tests("removed") {
+                before_each { m.remove(10); m.remove(30); };
+
+                test("tree take") {
+                    expect(m.take(50)!!).should_be("fifty");
+                    expect_null(m.take(50));                     // take missing
+                    expect(join(m.keys())).named("keys after take").should_be("20,40,60,70,80");
+                };
+                test("tree values survive removes") {
+                    m.take(50);
+                    expect(m.at(60)!!).should_be("sixty");
+                    expect(m.at(40)!!).should_be("FORTY");
+                };
+                test("tree poll_first") {
+                    m.take(50);
+                    first := m.poll_first();
+                    expect(first.key.value).named("key").should_be(20);
+                    expect(first.value).named("value").should_be("twenty");
+                };
+                test("tree poll_last, and what is left after the polls") {
+                    m.take(50);
+                    m.poll_first();
+                    last := m.poll_last();
+                    expect(last.key.value).named("poll_last key").should_be(80);
+                    expect(join(m.keys())).named("keys after polls").should_be("40,60,70");
+                    expect(m.size()).named("size after polls").should_be(3);
+                    expect(drain_keys(m.descending_iterator())).named("backwards after removes").should_be("70,60,40");
+                };
+            };
+
+            test("tree clear") {
+                m.clear();
+                expect(m.size()).should_be(0);
+                expect_null(m.at(40));
+            };
+            test("tree usable after clear") {
+                m.clear();
+                m.put(1, "one");
+                expect(m.at(1)!!).should_be("one");
+            };
+        };
+
+        // the comparison decides the order: descending, and strings by their text
+        tests("descending") {
+            down : tree_map<int, string>;
+            before_each {
+                down = new tree_map<int, string>(descending);
+                down.put(1, "a"); down.put(3, "c"); down.put(2, "b");
+            };
+
+            test("tree descending comparison") { expect(join(down.keys())).should_be("3,2,1"); };
+            test("tree descending first_key") { expect(down.first_key().value).should_be(3); };
+            test("tree descending floor_key (the nearest key at or BEFORE in map order)") { expect(or_minus_one(down.ceiling_key(0))).should_be(0 - 1); };
+        };
+
+        tests("by_length") {
+            by_length : tree_map<string, int>;
+            before_each {
+                by_length = new tree_map<string, int>({ a: string, b: string -> (decimal) return a.size() - b.size(); });
+                by_length.put("ccc", 3); by_length.put("a", 1); by_length.put("bb", 2);
+            };
+
+            test("tree same length is the same key") { expect(by_length.put("zz", 22)).should_be(0); };
+            test("tree<string> size") {
+                by_length.put("zz", 22);
+                expect(by_length.size()).should_be(3);
+            };
+            test("tree<string> first_key") { expect(by_length.first_key()).should_be("a"); };
+            test("tree<string> last_key") { expect(by_length.last_key()).should_be("ccc"); };
+            test("tree<string> at") {
+                by_length.put("zz", 22);
+                expect(by_length.at("xx")!!.value).should_be(22);
+            };
+        };
+
+        /** insert order that would turn an unbalanced tree into a linked list */
+        tests("ascending_inserts") {
+            up : tree_map<int, int>;
+            before_each {
+                up = new tree_map<int, int>(ascending);
+                for(i : decimal = 1; i <= 1023; i++) up.put(i, i * 2);
+            };
+
+            test("tree ascending inserts size") { expect(up.size()).should_be(1023); };
+            test("tree ascending inserts stay perfectly balanced") { expect(up.height()).should_be(10); };
+            test("tree ascending inserts first") { expect(up.first_key().value).should_be(1); };
+            test("tree ascending inserts last") { expect(up.last_key().value).should_be(1023); };
+            test("tree ascending inserts at") { expect(up.at(777)!!.value).should_be(1554); };
+        };
+
+        tests("descending_inserts") {
+            down : tree_map<int, int>;
+            before_each {
+                down = new tree_map<int, int>(ascending);
+                for(i : decimal = 2000; i >= 1; i--) down.put(i, i);
+            };
+
+            test("tree descending inserts size") { expect(down.size()).should_be(2000); };
+            test("tree descending inserts height <= 12") { expect_true(down.height() <= 12); };
+
+            // remove from one side only: the tree must shrink and stay balanced
+            tests("one_sided_removes") {
+                before_each { for(i : decimal = 1; i <= 1900; i++) down.remove(i); };
+
+                test("tree one sided removes size") { expect(down.size()).should_be(100); };
+                test("tree one sided removes height <= 8") { expect_true(down.height() <= 8); };
+                test("tree one sided removes first") { expect(down.first_key().value).should_be(1901); };
+                test("tree one sided removes sum (1901..2000)") {
+                    sum : decimal = 0;
+                    foreach(entry in down) { sum += entry.value.value; }
+                    expect(sum).should_be(195050);
+                };
+            };
+        };
+    };
+}

@@ -1,0 +1,326 @@
+mod suite.library.basics.string_builder;
+
+import ( std.testing )
+
+/**
+ * std string_builder: collects text piece by piece.
+ *
+ * This file reads what is in the builder one character at a time with at(),
+ * through text_of() below (it was written when size(), to_string(), ==, +,
+ * ends_with, substring and the copy constructor were wrong; those are checked
+ * in string_builder_fixes.sharp).
+ * Everything that is checked here is the content: appending
+ * every supported type, replacing a character, starting again with `=`, and
+ * building long texts.
+ */
+
+class version : printable {
+    major : decimal = 0;
+
+    version(m: decimal) { major = m; }
+
+    override def to_string() : string? = new string("version");
+}
+
+/** the first `count` characters of the builder, as a string */
+def text_of(builder: string_builder, count: decimal): string {
+    text : string = "";
+    for(i : decimal = 0; i < count; i++) {
+        text = text + builder.at(i);
+    }
+    return text;
+}
+
+/** "abcdef", appended in pieces (one of them empty) */
+def abcdef_builder() : string_builder {
+    sb := new string_builder();
+    sb.append("abc");
+    sb.append("de");
+    sb.append("");
+    sb.append("f");
+    return sb;
+}
+
+/** "hello world": constructor text, then an append */
+def hello_world_builder() : string_builder {
+    sb := new string_builder("hello");
+    sb.append(" world");
+    return sb;
+}
+
+/** 1000 times "0123456789" */
+def digits_builder() : string_builder {
+    digits := new string_builder();
+    for(i : decimal = 0; i < 1000; i++) {
+        digits.append("0123456789");
+    }
+    return digits;
+}
+
+/** 200 times a 45 character sentence */
+def story_builder() : string_builder {
+    piece : string = "The quick brown fox jumps over the lazy dog. ";      // 45 characters
+    story := new string_builder();
+    for(i : decimal = 0; i < 200; i++) {
+        story.append(piece);
+    }
+    return story;
+}
+
+def string_builder_tests() {
+    tests("string_builder") {
+        // ---- append a string
+        test("append(string)") {
+            sb := new string_builder();
+            sb.append("abc");
+            expect(text_of(sb, 3)).should_be("abc");
+        };
+        test("a second append goes after the first") {
+            sb := new string_builder();
+            sb.append("abc");
+            sb.append("de");
+            expect(text_of(sb, 5)).should_be("abcde");
+        };
+        test("appending an empty string adds nothing") { expect(text_of(abcdef_builder(), 6)).should_be("abcdef"); };
+
+        // ---- at: one character
+        test("at(0)") { expect(abcdef_builder().at(0).value).should_be('a'); };
+        test("at(3)") { expect(abcdef_builder().at(3).value).should_be('d'); };
+        test("at(5), the last character") { expect(abcdef_builder().at(5).value).should_be('f'); };
+        test("[] is the same as at") {
+            sb := abcdef_builder();
+            expect(sb[1].value).should_be('b');
+        };
+
+        // ---- append a character
+        test("append of character literals and of a char object") {
+            letters := new string_builder();
+            letters.append('x');
+            letters.append('y');
+            boxed : char = 'z';
+            letters.append(boxed);
+            expect(text_of(letters, 3)).should_be("xyz");
+        };
+
+        // ---- append a string variable and a string built at run time
+        test("append of string variables leaves the appended string unchanged") {
+            word : string = "left";
+            other := "right";
+            joined := new string_builder();
+            joined.append(word);
+            joined.append("-" + other);
+            expect(text_of(joined, 10)).should_be("left-right");
+            expect(word).named("the appended string itself").should_be("left");
+        };
+
+        // ---- append returns the builder, so calls can be chained
+        test("chained appends") {
+            chain := new string_builder();
+            chain.append("one").append(",").append("two").append(',').append("three");
+            expect(text_of(chain, 13)).should_be("one,two,three");
+        };
+        test("append returns the builder itself") {
+            chain := new string_builder();
+            chain.append("one").append(",").append("two").append(',').append("three");
+            returned := chain.append("!");
+            returned.append("?");                       // goes into `chain`: append returned the builder itself
+            expect(chain.at(13).value).named("first append").should_be('!');
+            expect(chain.at(14).value).named("append through the returned value").should_be('?');
+        };
+
+        // ---- += with a string
+        test("+= string") {
+            plus := new string_builder();
+            plus += "ab";
+            plus += "cd";
+            expect(text_of(plus, 4)).should_be("abcd");
+        };
+
+        // ---- += with numbers and other printable objects: their text is appended
+        test("+= int") {
+            whole : int = 42;
+            typed := new string_builder();
+            typed += "n=";
+            typed += whole;
+            expect(text_of(typed, 4)).should_be("n=42");
+        };
+        test("+= negative int") {
+            whole : int = 42;
+            negative : int = 0 - 7;
+            typed := new string_builder();
+            typed += "n=";
+            typed += whole;
+            typed += negative;
+            expect(text_of(typed, 6)).should_be("n=42-7");
+        };
+        test("+= long") {
+            big_number : long = 1234567890;
+            longs := new string_builder();
+            longs += big_number;
+            expect(text_of(longs, 10)).should_be("1234567890");
+        };
+        test("+= bool") {
+            yes : bool = true;
+            no : bool = false;
+            flags := new string_builder();
+            flags += yes;
+            flags += "/";
+            flags += no;
+            expect(text_of(flags, 10)).should_be("true/false");
+        };
+        test("+= double starts with its digits") {
+            fraction : double = 1.5;
+            doubles := new string_builder();
+            doubles += fraction;
+            expect(text_of(doubles, 3)).should_be("1.5");
+        };
+        test("a char object between two strings") {
+            letter : char = 'q';
+            chars := new string_builder();
+            chars += "<";
+            chars.append(letter);
+            chars += ">";
+            expect(text_of(chars, 3)).should_be("<q>");
+        };
+        test("+= an object of a printable class uses its to_string()") {
+            custom := new string_builder();
+            release : printable = new version(3);
+            custom += release;
+            expect(text_of(custom, 7)).should_be("version");
+        };
+
+        // ---- += with another builder
+        test("constructor text followed by +=, the other builder is not touched") {
+            front := new string_builder("front");
+            back := new string_builder("back");
+            front += "+";
+            expect(text_of(front, 6)).should_be("front+");
+            expect(text_of(back, 4)).named("the other builder").should_be("back");
+        };
+
+        // ---- constructors
+        test("string_builder(string)") { expect(text_of(new string_builder("hello"), 5)).should_be("hello"); };
+        test("append after the constructor text") { expect(text_of(hello_world_builder(), 11)).should_be("hello world"); };
+        test("string_builder(string variable)") {
+            word : string = "left";
+            from_variable := new string_builder(word);
+            expect(text_of(from_variable, 4)).should_be("left");
+        };
+
+        // ---- starts_with
+        tests("starts_with") {
+            text : string_builder;
+            before_each { text = hello_world_builder(); };
+
+            test("starts_with: the first characters") { expect_true(text.starts_with("hello")); };
+            test("starts_with: one character") { expect_true(text.starts_with("h")); };
+            test("starts_with: the whole text") { expect_true(text.starts_with("hello world")); };
+            test("starts_with: other text") { expect_false(text.starts_with("world")); };
+            test("starts_with: a difference in the last character") { expect_false(text.starts_with("hellp")); };
+            test("starts_with: longer than the text") { expect_false(text.starts_with("hello world and more")); };
+        };
+
+        // ---- replace one character
+        test("replace(0)") {
+            text := hello_world_builder();
+            text.replace(0, 'J');
+            expect(text_of(text, 11)).should_be("Jello world");
+        };
+        test("replace is chainable") {
+            text := hello_world_builder();
+            text.replace(0, 'J');
+            text.replace(10, 'D').replace(5, '_');
+            expect(text_of(text, 11)).should_be("Jello_worlD");
+        };
+
+        // ---- at past the end throws
+        test("at() far past the end throws out_of_bounds_exception, and the builder is unchanged") {
+            short_text := new string_builder("abc");
+            expect_throws<out_of_bounds_exception>() { short_text.at(10); };
+            expect(text_of(short_text, 3)).named("the builder after").should_be("abc");
+        };
+
+        // ---- starting again with =
+        test("= replaces the text") {
+            reused := new string_builder("first text");
+            reused = "second";
+            expect(text_of(reused, 6)).should_be("second");
+        };
+        test("append after =") {
+            reused := new string_builder("first text");
+            reused = "second";
+            reused.append("!");
+            expect(text_of(reused, 7)).should_be("second!");
+        };
+
+        // ---- two builders are independent
+        test("two builders are independent") {
+            one := new string_builder();
+            two := new string_builder();
+            one.append("111");
+            two.append("222");
+            one.append("1");
+            expect(text_of(one, 4)).named("builder one").should_be("1111");
+            expect(text_of(two, 3)).named("builder two").should_be("222");
+        };
+
+        // ---- building a long text: past the first capacity (255 characters)
+        tests("long_text") {
+            digits : string_builder;
+            before_each { digits = digits_builder(); };
+
+            test("long text: the start") { expect(text_of(digits, 12)).should_be("012345678901"); };
+            test("long text: character 254") { expect(digits.at(254).value).should_be('4'); };
+            test("long text: character 255 (first one past the first capacity)") { expect(digits.at(255).value).should_be('5'); };
+            test("long text: character 256") { expect(digits.at(256).value).should_be('6'); };
+            test("long text: character 5005") { expect(digits.at(5005).value).should_be('5'); };
+            test("long text: the last character, 9999") { expect(digits.at(9999).value).should_be('9'); };
+
+            // every one of the 10000 characters: 1000 times the digits 0..9, their sum is 45000
+            test("long text: every character is the right digit") {
+                sum : decimal = 0;
+                for(i : decimal = 0; i < 10000; i++) {
+                    sum += digits.at(i).value - '0';
+                }
+                expect(sum).should_be(45000);
+            };
+        };
+
+        // ---- a long text built one character at a time
+        test("3000 single characters, and the one after them") {
+            stars := new string_builder();
+            for(i : decimal = 0; i < 3000; i++) {
+                stars.append('*');
+            }
+            stars.append('#');
+            count : decimal = 0;
+            for(i : decimal = 0; i < 3000; i++) {
+                if(stars.at(i).value == '*') count++;
+            }
+            expect(count).named("stars").should_be(3000);
+            expect(stars.at(3000).value).named("the one after them").should_be('#');
+        };
+
+        // ---- a long text made of long pieces
+        tests("long_pieces") {
+            story : string_builder;
+            before_each { story = story_builder(); };
+
+            test("long pieces: first character") { expect(story.at(0).value).should_be('T'); };
+            test("long pieces: start of the last piece (199 * 45)") { expect(story.at(8955).value).should_be('T'); };
+            test("long pieces: the last full stop (9000 - 2)") { expect(story.at(8998).value).should_be('.'); };
+            test("long pieces: starts_with") { expect_true(story.starts_with("The quick brown fox")); };
+        };
+
+        // ---- many builders
+        test("200 short-lived builders") {
+            made : decimal = 0;
+            for(i : decimal = 0; i < 200; i++) {
+                temp := new string_builder("item");
+                temp.append("-ok");
+                if(temp.at(6).value == 'k') made++;
+            }
+            expect(made).should_be(200);
+        };
+    };
+}

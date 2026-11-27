@@ -1,0 +1,51 @@
+mod suite.classes;
+
+import (
+    std.testing,
+    suite.classes.basics,
+    suite.classes.compound_assign_methods,
+    suite.classes.enums,
+    suite.classes.enums_explicit_values,
+    suite.classes.enums_inside_classes,
+    suite.classes.inheritance,
+    suite.classes.init_blocks,
+    suite.classes.init_blocks_locals,
+    suite.classes.init_blocks_order,
+    suite.classes.interfaces,
+    suite.classes.interfaces_base_calls,
+    suite.classes.interfaces_fixes,
+    suite.classes.interfaces_through_interfaces,
+    suite.classes.nested_names,
+    suite.classes.objects_without_new,
+    suite.classes.properties,
+    suite.classes.properties_fixes,
+    suite.classes.properties_getter_only_assignment,
+    suite.classes.static_members,
+    suite.classes.with_apply
+)
+
+/** suite.classes: classes, inheritance, interfaces, properties, init blocks, enums */
+def classes_tests() {
+    tests("classes") {
+        basics_tests();
+        compound_assign_methods_tests();
+        enums_tests();
+        enums_explicit_values_tests();
+        enums_inside_classes_tests();
+        inheritance_tests();
+        init_blocks_tests();
+        init_blocks_locals_tests();
+        init_blocks_order_tests();
+        interfaces_tests();
+        interfaces_base_calls_tests();
+        interfaces_fixes_tests();
+        interfaces_through_interfaces_tests();
+        nested_names_tests();
+        objects_without_new_tests();
+        properties_tests();
+        properties_fixes_tests();
+        properties_getter_only_assignment_tests();
+        static_members_tests();
+        with_apply_tests();
+    };
+}

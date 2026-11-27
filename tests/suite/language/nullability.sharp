@@ -1,0 +1,341 @@
+mod suite.language.nullability;
+
+import ( std.testing )
+
+/**
+ * null and nullable types.
+ *
+ *   T?        a variable, field, parameter or result that may be null
+ *   x!!.y     "I know x is not null": raises nullptr_exception if it is
+ *   x?.y      null when x is null, otherwise x.y
+ *   x ?: y    x when x is not null, otherwise y
+ *
+ * The compiler refuses `x.y` on a nullable x - one of `!!.` or `?.` has to
+ * be written.
+ */
+
+class node {
+    value : decimal;
+    label : string?;
+    next : node?;
+    numbers : decimal[]?;
+
+    def self_or_null(give: decimal) : node? {
+        if(give) { return self; }
+        return null;
+    }
+}
+
+/** a parameter that may be null */
+def value_or(n: node?, fallback: decimal) : decimal {
+    if(n == null) { return fallback; }
+    return n!!.value;
+}
+
+/** walks a chain of nodes until `next` is null */
+def chain_length(first: node?) : decimal {
+    count : decimal = 0;
+    current : node? = first;
+    while(current != null) {
+        count++;
+        current = current!!.next;
+    }
+    return count;
+}
+
+def nullability_tests() {
+    tests("nullability") {
+        // ---- object fields start out null
+        test("string? field") {
+            a := new node();
+            expect_null(a.label);
+        };
+        test("node? field") {
+            a := new node();
+            expect_null(a.next);
+        };
+        test("var[]? field") {
+            a := new node();
+            expect_null(a.numbers);
+        };
+        test("a number field starts at 0, it cannot be null") {
+            a := new node();
+            expect(a.value).should_be(0);
+        };
+
+        // ---- comparing with null
+        test("null == null") {
+            nothing : node? = null;
+            expect_true(nothing == null);
+        };
+        test("null != null") {
+            nothing : node? = null;
+            expect_false(nothing != null);
+        };
+        test("object != null") {
+            a := new node();
+            expect_true(a != null);
+        };
+        test("object == null") {
+            a := new node();
+            expect_false(a == null);
+        };
+        test("null field == null") {
+            a := new node();
+            expect_true(a.next == null);
+        };
+        test("if(x == null)") {
+            nothing : node? = null;
+            taken : decimal = 0;
+            if(nothing == null) { taken = 1; }
+            expect(taken).should_be(1);
+        };
+        test("if(x != null)") {
+            a := new node();
+            taken : decimal = 0;
+            if(a != null) { taken = 1; }
+            expect(taken).should_be(1);
+        };
+
+        // ---- giving a nullable variable an object, and null again
+        test("starts null") {
+            maybe : node? = null;
+            expect_null(maybe);
+        };
+        test("after = a") {
+            a := new node();
+            maybe : node? = null;
+            maybe = a;
+            expect_not_null(maybe);
+        };
+        test("!! reads through it") {
+            a := new node();
+            maybe : node? = a;
+            a.value = 6;
+            expect(maybe!!.value).should_be(6);
+        };
+        test("!! writes through it") {
+            a := new node();
+            maybe : node? = a;
+            maybe!!.value = 7;
+            expect(a.value).should_be(7);
+        };
+        test("after = null: null, and the object itself is untouched") {
+            a := new node();
+            maybe : node? = a;
+            maybe!!.value = 7;
+            maybe = null;
+            expect_null(maybe);
+            expect(a.value).named("the object").should_be(7);
+        };
+
+        // ---- fields
+        test("label set") {
+            a := new node();
+            a.label = new string("first");
+            expect_not_null(a.label);
+        };
+        test("label read with !!") {
+            a := new node();
+            a.label = new string("first");
+            expect(a.label!!).should_be("first");
+        };
+        test("label set back to null") {
+            a := new node();
+            a.label = new string("first");
+            a.label = null;
+            expect_null(a.label);
+        };
+        test("field of a field with !!") {
+            a := new node();
+            a.next = new node();
+            a.next!!.value = 4;
+            expect(a.next!!.value).should_be(4);
+        };
+        test("array field set") {
+            a := new node();
+            a.numbers = new decimal[2];
+            expect_not_null(a.numbers);
+        };
+        test("sizeof the array field") {
+            a := new node();
+            a.numbers = new decimal[2];
+            expect(sizeof(a.numbers)).should_be(2);
+        };
+        test("array field set back to null") {
+            a := new node();
+            a.numbers = new decimal[2];
+            a.numbers = null;
+            expect_null(a.numbers);
+        };
+        test("sizeof a null array is 0") {
+            a := new node();
+            a.numbers = new decimal[2];
+            a.numbers = null;
+            expect(sizeof(a.numbers)).should_be(0);
+        };
+
+        // a (value 7) -> a.next (value 4, label "second"), b (value 77) alone,
+        // and nothing, a node? that is null: new for every test
+        tests("linked") {
+            a : node;
+            b : node;
+            nothing : node?;
+            before_each {
+                a = new node();
+                a.value = 7;
+                a.next = new node();
+                a.next!!.value = 4;
+                a.next!!.label = new string("second");
+                b = new node();
+                b.value = 77;
+                nothing = null;
+            };
+
+            // ---- ?. on something that is not null reads the member
+            test("?. number field") { expect(a.next?.value).should_be(4); };
+            test("?. object field") {
+                second_label := a.next?.label;
+                expect(second_label!!).should_be("second");
+            };
+
+            // ---- ?. on null gives null
+            test("?. object field of null") {
+                label_of_nothing := nothing?.label;
+                expect_null(label_of_nothing);
+            };
+            test("?. node field of null") {
+                next_of_nothing := nothing?.next;
+                expect_null(next_of_nothing);
+            };
+            test("?. twice from null") {
+                two_steps := nothing?.next?.next;
+                expect_null(two_steps);
+            };
+            test("?. reads a field that is null") {
+                past_the_end := a.next?.next;
+                expect_null(past_the_end);
+            };
+            test("?. stops at the first null") {
+                three_steps := a.next?.next?.next;
+                expect_null(three_steps);
+            };
+
+            // ---- ?: picks the right side when the left is null
+            test("null ?: \"default\"") {
+                missing : string? = null;
+                expect(missing ?: "default").should_be("default");
+            };
+            test("\"given\" ?: \"default\"") {
+                missing : string? = null;
+                missing = new string("given");
+                expect(missing ?: "default").should_be("given");
+            };
+            test("null ?: b is b, the very same object") {
+                picked := nothing ?: b;
+                expect(picked.value).should_be(77);
+                expect_true(picked == b);
+            };
+            test("a ?: b is a") {
+                maybe : node? = a;
+                picked := maybe ?: b;
+                expect(picked.value).should_be(7);
+            };
+            test("?. and ?: together") { expect(nothing?.label ?: "none").should_be("none"); };
+            test("?. and ?: together, not null") { expect(a.next?.label ?: "none").should_be("second"); };
+
+            // ---- nullable parameters
+            test("null argument") { expect(value_or(null, 8)).should_be(8); };
+            test("null variable as argument") { expect(value_or(nothing, 8)).should_be(8); };
+            test("object as argument") { expect(value_or(a, 8)).should_be(7); };
+            test("null field as argument") { expect(value_or(b.next, 9)).should_be(9); };
+
+            // ---- nullable results
+            test("a function returning null") { expect_null(a.self_or_null(0)); };
+            test("a function returning an object, used with !!") {
+                result := a.self_or_null(1);
+                expect_not_null(result);
+                expect(result!!.value).should_be(7);
+            };
+            test("value_or(function result)") { expect(value_or(a.self_or_null(0), 5)).should_be(5); };
+
+            // ---- null ends a chain of objects
+            test("chain of nothing") { expect(chain_length(null)).should_be(0); };
+            test("b alone") { expect(chain_length(b)).should_be(1); };
+            test("a -> a.next") { expect(chain_length(a)).should_be(2); };
+            test("b -> a -> a.next") {
+                b.next = a;
+                expect(chain_length(b)).should_be(3);
+            };
+            test("after cutting a.next") {
+                b.next = a;
+                a.next = null;
+                expect(chain_length(b)).should_be(2);
+            };
+
+            // ---- null elements of an array
+            test("element before it is set") {
+                nodes := new node[3];
+                expect_null(nodes[1]);
+            };
+            test("element after it is set") {
+                nodes := new node[3];
+                nodes[1] = a;
+                expect_not_null(nodes[1]);
+            };
+            test("a null array variable") {
+                nullable_array : decimal[]? = null;
+                expect_null(nullable_array);
+            };
+            test("a null array variable given an array") {
+                nullable_array : decimal[]? = null;
+                nullable_array = new decimal[2];
+                expect(sizeof(nullable_array)).should_be(2);
+            };
+
+            // ---- !! on null raises nullptr_exception
+            test("write through null") {
+                expect_throws<nullptr_exception>() { nothing!!.value = 2; };
+            };
+
+            // (the catching itself is what is checked here)
+            test("read through null: the rest of the try block is skipped") {
+                reached : decimal = 0;
+                try {
+                    reached = 1;
+                    reached = nothing!!.value + 2;
+                    reached = 3;
+                } catch(e: nullptr_exception) {
+                    reached += 10;
+                }
+                expect(reached).should_be(11);
+            };
+
+            test("caught as its base class") {
+                expect_throws<exception>() { nothing!!.value = 2; };
+            };
+
+            test("element of a null array") {
+                expect_throws<nullptr_exception>() {
+                    elements := a.numbers!!;
+                    elements[0] = 2;
+                };
+            };
+
+            test("null field with !!") {
+                a.next = null;
+                expect_throws<nullptr_exception>() { a.next!!.value = 1; };
+            };
+
+            // ---- everything still works afterwards
+            test("after the exceptions, a, b and nothing are as they were") {
+                expect_throws<nullptr_exception>() { nothing!!.value = 2; };
+                a.next = null;
+                expect_throws<nullptr_exception>() { a.next!!.value = 1; };
+                expect(a.value).named("a").should_be(7);
+                expect(b.value).named("b").should_be(77);
+                expect_null(nothing);
+            };
+        };
+    };
+}

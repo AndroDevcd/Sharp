@@ -1,0 +1,21 @@
+mod suite.jit;
+
+import (
+    std.testing,
+    suite.jit.calls,
+    suite.jit.constants,
+    suite.jit.numbers,
+    suite.jit.optimizer_loop_guards,
+    suite.jit.remainder_and_text_hash
+)
+
+/** suite.jit: what the JIT and the optimizer must not change */
+def jit_tests() {
+    tests("jit") {
+        calls_tests();
+        constants_tests();
+        numbers_tests();
+        optimizer_loop_guards_tests();
+        remainder_and_text_hash_tests();
+    };
+}

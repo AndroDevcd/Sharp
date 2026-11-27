@@ -1,0 +1,17 @@
+mod suite.library.util;
+
+import (
+    std.testing,
+    suite.library.util.holders,
+    suite.library.util.identity,
+    suite.library.util.ordering
+)
+
+/** suite.library.util: std.util */
+def util_tests() {
+    tests("util") {
+        holders_tests();
+        identity_tests();
+        ordering_tests();
+    };
+}

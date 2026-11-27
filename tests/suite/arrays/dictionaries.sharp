@@ -1,0 +1,383 @@
+mod suite.arrays.dictionaries;
+
+import ( std.testing )
+
+/**
+ * Dictionary literals and the standard library class hash_map.
+ *
+ * A dictionary literal `{ key : value, ... }` makes a std `dictionary<k, v>`:
+ * values under keys, in the order they were added, read and written with
+ * `d[key]` (`size()`, `keys()`, `values()`, `at(key)`, `remove(key)`).
+ *
+ *   { "a" : 1 }                     keys and values in their object form: string and int
+ *   { as <string, int> "a" : 1 }    keys and values are the classes named after `as`
+ *
+ * hash_map<k, v> is the class to look values up by key: put, at, size, clear.
+ */
+
+/** a class of our own used as a key: hash() says which slot of the table it goes in */
+class badge {
+    id : decimal;
+    badge(i: decimal) { id = i; }
+    override def hash() : int { return id; }
+}
+
+/** a class of our own used as a value */
+class person {
+    name : string;
+    age : decimal;
+    person(n: string, a: decimal) { name = n; age = a; }
+}
+
+def count_pairs(d: dictionary<string, int>) : decimal { return d.size(); }
+
+def sum_values(d: dictionary<string, int>) : decimal {
+    total : decimal = 0;
+    foreach(entry in d) {
+        total += entry.second.value;
+    }
+    return total;
+}
+
+def make_scores() : dictionary<string, int> {
+    return { as <string, int> "x" : 10, "y" : 20, "z" : 30 };
+}
+
+def dictionaries_tests() {
+    tests("dictionaries") {
+        // ---- a plain literal: string keys and int values, in the order written
+        tests("plain") {
+            ages : dictionary<string, int>;
+            before_each { ages = { "ann" : 31, "bob" : 45 }; };
+
+            test("two pairs") { expect(ages.size()).should_be(2); };
+            test("first key") { expect(ages.keys().at(0)).should_be("ann"); };
+            test("first value") { expect(ages.values().at(0).value).should_be(31); };
+            test("second key") { expect(ages.keys().at(1)).should_be("bob"); };
+            test("second value") { expect(ages.values().at(1).value).should_be(45); };
+            test("[] with a key") { expect(ages["bob"].value).should_be(45); };
+            test("foreach over the pairs: 31 + 45") {
+                total : decimal = 0;
+                foreach(entry in ages) {
+                    total += entry.second;
+                }
+                expect(total).should_be(76);
+            };
+        };
+
+        // ---- other kinds of keys and values
+        tests("number_keys") {
+            names : dictionary<int, string>;
+            before_each { names = { 1 : "one", 2 : "two", 3 : "three" }; };
+
+            test("number keys: size") { expect(names.size()).should_be(3); };
+            test("number keys: first key") { expect(names.keys().at(0).value).should_be(1); };
+            test("number keys: last value") { expect(names.values().at(2)).should_be("three"); };
+        };
+        test("fraction values") {
+            constants := { "half" : 0.5, "quarter" : 0.25 };
+            expect(constants.values().at(0).value + constants.values().at(1).value).should_be(0.75);
+        };
+        test("a single pair") {
+            one_pair := { "only" : 7 };
+            expect(one_pair.size()).should_be(1);
+        };
+
+        // values can be any expression
+        test("expression values: 4 * 4 and 4 + 1") {
+            x : decimal = 4;
+            computed := { "square" : x * x, "next" : x + 1 };
+            expect(computed.values().at(0).value).named("4 * 4").should_be(16);
+            expect(computed.values().at(1).value).named("4 + 1").should_be(5);
+        };
+
+        // a key written twice is one key: the later value is kept
+        test("the same key twice is one key, with the later value") {
+            twice := { "a" : 1, "a" : 2 };
+            expect(twice.size()).named("size").should_be(1);
+            expect(twice["a"].value).named("the value").should_be(2);
+        };
+
+        // reading, writing and removing by key
+        tests("by_key") {
+            stock : dictionary<string, int>;
+            before_each {
+                stock = { "tea" : 4, "cake" : 0 };
+                stock["tea"] = 3;
+                stock["milk"] = 9;
+            };
+
+            test("a value replaced") { expect(stock["tea"].value).should_be(3); };
+            test("a key added: size") { expect(stock.size()).should_be(3); };
+            test("a key added goes last") { expect(stock.keys().at(2)).should_be("milk"); };
+            test("contains_key: there") { expect(stock.contains_key("cake") ? 1 : 0).should_be(1); };
+            test("contains_key: not there") { expect(stock.contains_key("jam") ? 1 : 0).should_be(0); };
+            test("at: null for a key that is not there") { expect(stock.at("jam") == null ? 1 : 0).should_be(1); };
+            test("at_or_default") { expect(stock.at_or_default("jam", 7).value).should_be(7); };
+            test("[] throws for a key that is not there") {
+                expect_throws<no_such_element_exception>() { n := stock["jam"]; };
+            };
+            test("remove: was there") { expect(stock.remove("tea") ? 1 : 0).should_be(1); };
+            test("remove: not there (any more)") {
+                stock.remove("tea");
+                expect(stock.remove("tea") ? 1 : 0).should_be(0);
+            };
+            test("the order after a removal") {
+                stock.remove("tea");
+                expect(stock.keys().at(0)).should_be("cake");
+            };
+            test("take gives the value") { expect(stock.take("milk")!!.value).should_be(9); };
+            test("size after two removals") {
+                stock.remove("tea");
+                stock.take("milk");
+                expect(stock.size()).should_be(1);
+            };
+        };
+
+        // many keys: the table grows, the order stays
+        tests("many") {
+            many : dictionary<int, int>;
+            before_each {
+                many = { as <int, int> : };
+                for(i : _int64 = 0; i < 2000; i++) { many[i] = i * 3; }
+            };
+
+            test("2000 keys") { expect(many.size()).should_be(2000); };
+            test("the last one") { expect(many[1999].value).should_be(5997); };
+            test("the first key is still first") { expect(many.keys().at(0).value).should_be(0); };
+            test("half removed: the odd keys stay, in order") {
+                for(i : _int64 = 0; i < 2000; i = i + 2) { many.remove(i); }
+                expect(many.size()).named("half removed").should_be(1000);
+                expect(many[1001].value).named("an odd key is still there").should_be(3003);
+                expect(many.keys().at(0).value).named("the first key is now 1").should_be(1);
+            };
+            test("cleared") {
+                many.clear();
+                expect(many.size()).should_be(0);
+            };
+        };
+
+        // ---- a typed literal: keys and values are objects
+        tests("typed") {
+            scores : dictionary<string, int>;
+            before_each { scores = { as <string, int> "a" : 1, "b" : 2 }; };
+
+            test("typed: size") { expect(scores.size()).should_be(2); };
+            test("typed: key is a string object") { expect(scores.keys().at(1)).should_be("b"); };
+            test("typed: key size") { expect(scores.keys().at(1).size()).should_be(1); };
+            test("typed: value is an int object") { expect(scores.values().at(1).value).should_be(2); };
+            test("typed: sum of the values") { expect(sum_values(scores)).should_be(3); };
+
+            // the values are objects, so they can be changed in place
+            test("a value changed through the pair: the other is untouched, the sum follows") {
+                scores.values().at(0) += 10;
+                expect(scores.values().at(0).value).named("value changed through the pair").should_be(11);
+                expect(scores.values().at(1).value).named("the other pair").should_be(2);
+                expect(sum_values(scores)).named("the sum").should_be(13);
+            };
+
+            // pairs can be added afterwards
+            test("a pair added afterwards") {
+                scores["z"] = 26;
+                expect(scores.size()).named("size").should_be(3);
+                expect(scores.values().at(2).value).named("value").should_be(26);
+            };
+
+            // ---- dictionaries as arguments and results
+            test("as an argument") {
+                scores["z"] = 26;
+                expect(count_pairs(scores)).should_be(3);
+            };
+        };
+
+        test("string values") {
+            words := { as <string, string> "hello" : "bonjour", "bye" : "au revoir" };
+            expect(words.values().at(0)).named("first value").should_be("bonjour");
+            expect(words.values().at(1).size()).named("string value size").should_be(9);
+        };
+
+        test("a literal as an argument") { expect(count_pairs({ as <string, int> "k" : 1 })).should_be(1); };
+        test("as a result") {
+            made := make_scores();
+            expect(made.size()).named("size").should_be(3);
+            expect(made.values().at(2).value).named("last value").should_be(30);
+            expect(sum_values(made)).named("sum").should_be(60);
+        };
+        test("result passed straight on") { expect(sum_values(make_scores())).should_be(60); };
+
+        // ---- a pair on its own
+        test("a pair holds first and second") {
+            p := new pair<string, int>("k", 5);
+            expect(p.first).named("pair.first").should_be("k");
+            expect(p.second.value).named("pair.second").should_be(5);
+        };
+
+        // ---- hash_map: put and at
+        test("a new map is empty") {
+            m := new hash_map<string, int>();
+            expect(m.size()).should_be(0);
+        };
+        test("put a new key says true") {
+            m := new hash_map<string, int>();
+            expect_true(m.put("one", 1));
+        };
+        tests("hash_map") {
+            m : hash_map<string, int>;
+            before_each {
+                m = new hash_map<string, int>();
+                m.put("one", 1);
+                m.put("two", 2);
+                m.put("three", 3);
+            };
+
+            test("size after three puts") { expect(m.size()).should_be(3); };
+            test("at(\"one\")") { expect(m.at("one")!!.value).should_be(1); };
+            test("at(\"two\")") { expect(m.at("two")!!.value).should_be(2); };
+            test("at(\"three\")") { expect(m.at("three")!!.value).should_be(3); };
+            test("at gives an object for a key that is there") {
+                looked_up := m.at("two");
+                expect_not_null(looked_up);
+            };
+
+            // the key is compared by its characters, not by which string object it is
+            test("a key built at run time") {
+                built := new string("tw");
+                built += "o";
+                expect(m.at(built)!!.value).should_be(2);
+            };
+
+            // ---- putting a key again replaces its value
+            test("put an existing key says false and replaces only its value") {
+                expect_false(m.put("one", 11));
+                expect(m.at("one")!!.value).named("the new value").should_be(11);
+                expect(m.size()).named("the size did not change").should_be(3);
+                expect(m.at("two")!!.value + m.at("three")!!.value).named("the other keys are untouched").should_be(5);
+            };
+            test("a key replaced three times keeps the last value") {
+                m.put("one", 11);
+                m.put("one", 12);
+                m.put("one", 13);
+                expect(m.at("one")!!.value).named("replaced twice more").should_be(13);
+                expect(m.size()).named("still three keys").should_be(3);
+            };
+
+            // ---- keys that are permutations of each other stay apart
+            test("keys that are permutations of each other stay apart") {
+                m.put("abc", 100);
+                m.put("bca", 200);
+                m.put("cab", 300);
+                expect(m.at("abc")!!.value).named("abc").should_be(100);
+                expect(m.at("bca")!!.value).named("bca").should_be(200);
+                expect(m.at("cab")!!.value).named("cab").should_be(300);
+            };
+        };
+
+        // ---- many keys
+        tests("big") {
+            big : hash_map<string, int>;
+            before_each {
+                big = new hash_map<string, int>();
+                for(i := 0; i < 300; i++) {
+                    big.put("k" + i, i * 2);
+                }
+            };
+
+            test("300 keys") { expect(big.size()).should_be(300); };
+            test("k0") { expect(big.at("k0")!!.value).should_be(0); };
+            test("k7") { expect(big.at("k7")!!.value).should_be(14); };
+            test("k250") { expect(big.at("k250")!!.value).should_be(500); };
+            test("k299") { expect(big.at("k299")!!.value).should_be(598); };
+
+            // ---- clear
+            test("clear empties the map, and it can be used again") {
+                big.clear();
+                expect(big.size()).named("size after clear").should_be(0);
+                big.put("again", 5);
+                expect(big.at("again")!!.value).named("usable after clear").should_be(5);
+                expect(big.size()).named("one key after clear").should_be(1);
+            };
+        };
+
+        // ---- number keys. 5, 133 and 261 land in the same slot of the table (128 slots)
+        tests("number_slots") {
+            by_number : hash_map<int, string>;
+            before_each {
+                by_number = new hash_map<int, string>();
+                by_number.put(5, "five");
+                by_number.put(133, "one hundred thirty three");
+                by_number.put(261, "two hundred sixty one");
+                by_number.put(6, "six");
+            };
+
+            test("int keys: size") { expect(by_number.size()).should_be(4); };
+            test("int key 5") { expect(by_number.at(5)!!).should_be("five"); };
+            test("int key 133") { expect(by_number.at(133)!!).should_be("one hundred thirty three"); };
+            test("int key 261") { expect(by_number.at(261)!!).should_be("two hundred sixty one"); };
+            test("int key 6") { expect(by_number.at(6)!!).should_be("six"); };
+            test("replacing the middle one leaves its neighbours and the size alone") {
+                by_number.put(133, "replaced");
+                expect(by_number.at(133)!!).named("the middle one").should_be("replaced");
+                expect(by_number.at(5)!!).named("its neighbour 5").should_be("five");
+                expect(by_number.at(261)!!).named("its neighbour 261").should_be("two hundred sixty one");
+                expect(by_number.size()).named("the size").should_be(4);
+            };
+        };
+
+        // ---- string values
+        test("string values in a hash_map") {
+            capitals := new hash_map<string, string>();
+            capitals.put("france", "paris");
+            capitals.put("japan", "tokyo");
+            expect(capitals.at("japan")!!).should_be("tokyo");
+            expect(capitals.at("france")!!).should_be("paris");
+        };
+
+        // ---- our own class as the value: the map holds the object itself
+        tests("object_values") {
+            people : hash_map<string, person>;
+            ann : person;
+            before_each {
+                people = new hash_map<string, person>();
+                ann = new person("ann", 31);
+                people.put("a", ann);
+                people.put("b", new person("bob", 45));
+            };
+
+            test("object value: field") { expect(people.at("b")!!.age).should_be(45); };
+            test("object value: string field") { expect(people.at("b")!!.name).should_be("bob"); };
+            test("at gives back the very object that was put") { expect_true(people.at("a") == ann); };
+            test("a change to the object is seen through the map") {
+                ann.age = 32;
+                expect(people.at("a")!!.age).should_be(32);
+            };
+            test("a change through the map") {
+                people.at("b")!!.age = 46;
+                expect(people.at("b")!!.age).should_be(46);
+            };
+        };
+
+        // ---- our own class as the key
+        test("our own class as the key") {
+            doors := new hash_map<badge, int>();
+            red := new badge(1);
+            blue := new badge(2);
+            doors.put(red, 100);
+            doors.put(blue, 200);
+            expect(doors.at(red)!!.value).named("object key: red").should_be(100);
+            expect(doors.at(blue)!!.value).named("object key: blue").should_be(200);
+            expect(doors.size()).named("object keys: size").should_be(2);
+        };
+
+        // ---- a small starting capacity
+        test("a map with a starting capacity of 4 holds three keys") {
+            small := new hash_map<string, int>(4);
+            small.put("a", 1);
+            small.put("b", 2);
+            small.put("c", 3);
+            expect(small.at("a")!!.value).named("a").should_be(1);
+            expect(small.at("b")!!.value).named("b").should_be(2);
+            expect(small.at("c")!!.value).named("c").should_be(3);
+            expect(small.size()).named("size").should_be(3);
+        };
+    };
+}

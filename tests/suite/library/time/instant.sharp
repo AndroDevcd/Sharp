@@ -1,0 +1,288 @@
+mod suite.library.time.instant;
+
+import ( std.testing, std.time )
+
+/**
+ * std.time.instant, zone_offset and offset_date_time: points on the UTC time
+ * line stored as seconds + nanoseconds, fixed offsets from UTC, and the
+ * conversions between them.
+ *
+ * Nothing here asserts on the real current time, except for properties that
+ * always hold (the clock is after 2020, an offset is within 18 hours).
+ */
+
+def itext(i: instant): string {
+    return i.to_string()!!;
+}
+
+def otext(o: zone_offset): string {
+    return o.to_string()!!;
+}
+
+def odt(o: offset_date_time): string {
+    return o.to_string()!!;
+}
+
+def instant_tests() {
+    tests("instant") {
+        t : instant;                    // 2024-02-29T13:00:00Z
+        a : instant;                    // two instants 1 ns apart
+        b : instant;
+        plus2 : zone_offset;
+        x : offset_date_time;           // t, at +02:00
+        same_moment : offset_date_time; // t, at UTC
+        before_each {
+            t = instant.of_epoch_second(1709211600);
+            a = instant.of_epoch_second(1700000000, 123456789);
+            b = instant.of_epoch_second(1700000000, 123456790);
+            plus2 = zone_offset.of_hours(2);
+            x = offset_date_time.parse("2024-02-29T15:00:00+02:00");
+            same_moment = offset_date_time.parse("2024-02-29T13:00:00Z");
+        };
+
+        // ================= instant =================
+
+        // ---- creating
+        test("of_epoch_second: seconds") { expect(instant.of_epoch_second(1709211600).epoch_second()).should_be(1709211600); };
+        test("of_epoch_second: nanos") { expect(instant.of_epoch_second(1709211600).nano()).should_be(0); };
+        test("of_epoch_milli: seconds") { expect(instant.of_epoch_milli(1709211600123).epoch_second()).should_be(1709211600); };
+        test("of_epoch_milli: nanos") { expect(instant.of_epoch_milli(1709211600123).nano()).should_be(123000000); };
+        test("adjustment carries: seconds") { expect(instant.of_epoch_second(10, 2500000000).epoch_second()).should_be(12); };
+        test("adjustment carries: nanos") { expect(instant.of_epoch_second(10, 2500000000).nano()).should_be(500000000); };
+        test("negative adjustment: seconds") { expect(instant.of_epoch_second(10, 0 - 1).epoch_second()).should_be(9); };
+        test("negative adjustment: nanos") { expect(instant.of_epoch_second(10, 0 - 1).nano()).should_be(999999999); };
+        test("the epoch constant") { expect(instant.epoch.epoch_second()).should_be(0); };
+
+        // ---- before 1970: seconds round down, nanos stay positive
+        test("-1 ms: seconds") { expect(instant.of_epoch_milli(0 - 1).epoch_second()).should_be(0 - 1); };
+        test("-1 ms: nanos") { expect(instant.of_epoch_milli(0 - 1).nano()).should_be(999000000); };
+        test("-1500 ms: seconds") { expect(instant.of_epoch_milli(0 - 1500).epoch_second()).should_be(0 - 2); };
+        test("-1500 ms: nanos") { expect(instant.of_epoch_milli(0 - 1500).nano()).should_be(500000000); };
+        test("-1500 ms back to millis") { expect(instant.of_epoch_milli(0 - 1500).to_epoch_milli()).should_be(0 - 1500); };
+
+        // ---- to_epoch_milli
+        test("to_epoch_milli") { expect(instant.of_epoch_second(1709211600, 123456789).to_epoch_milli()).should_be(1709211600123); };
+        test("to_epoch_milli of the epoch") { expect(instant.epoch.to_epoch_milli()).should_be(0); };
+        test("milli round trip") { expect(instant.of_epoch_milli(946684800999).to_epoch_milli()).should_be(946684800999); };
+
+        // ---- text (known timestamps)
+        test("the epoch") { expect(itext(instant.epoch)).should_be("1970-01-01T00:00:00Z"); };
+        test("1709211600") { expect(itext(instant.of_epoch_second(1709211600))).should_be("2024-02-29T13:00:00Z"); };
+        test("946684800") { expect(itext(instant.of_epoch_second(946684800))).should_be("2000-01-01T00:00:00Z"); };
+        test("one billion seconds") { expect(itext(instant.of_epoch_second(1000000000))).should_be("2001-09-09T01:46:40Z"); };
+        test("1234567890") { expect(itext(instant.of_epoch_second(1234567890))).should_be("2009-02-13T23:31:30Z"); };
+        test("2^31 - 1") { expect(itext(instant.of_epoch_second(2147483647))).should_be("2038-01-19T03:14:07Z"); };
+        test("-1") { expect(itext(instant.of_epoch_second(0 - 1))).should_be("1969-12-31T23:59:59Z"); };
+        test("1900") {
+            // seconds from 1900-01-01 to 1970-01-01 (70 years with 17 leap days)
+            seconds_1900_to_1970 : decimal = 2208988800;
+            expect(itext(instant.of_epoch_second(0 - seconds_1900_to_1970))).should_be("1900-01-01T00:00:00Z");
+        };
+        test("9999") { expect(itext(instant.of_epoch_second(253402300799))).should_be("9999-12-31T23:59:59Z"); };
+        test("milliseconds") { expect(itext(instant.of_epoch_milli(1))).should_be("1970-01-01T00:00:00.001Z"); };
+        test("nanoseconds") { expect(itext(instant.of_epoch_second(0, 1))).should_be("1970-01-01T00:00:00.000000001Z"); };
+        test("half a second before the epoch") { expect(itext(instant.of_epoch_milli(0 - 500))).should_be("1969-12-31T23:59:59.500Z"); };
+
+        // ---- arithmetic
+        test("+ 11 hours") { expect(itext(t + duration.of_hours(11))).should_be("2024-03-01T00:00:00Z"); };
+        test("- 1 day") { expect(itext(t - duration.of_days(1))).should_be("2024-02-28T13:00:00Z"); };
+        test("plus(duration) with nanos") { expect(itext(t.plus(duration.of_millis(1500)))).should_be("2024-02-29T13:00:01.500Z"); };
+        test("minus(duration) borrows") { expect(itext(t.minus(duration.of_nanos(1)))).should_be("2024-02-29T12:59:59.999999999Z"); };
+        test("plus a negative duration") { expect(itext(t.plus(duration.of_seconds(0 - 3600)))).should_be("2024-02-29T12:00:00Z"); };
+        test("plus_seconds") { expect(t.plus_seconds(60).epoch_second()).should_be(1709211660); };
+        test("minus_seconds") { expect(t.minus_seconds(60).epoch_second()).should_be(1709211540); };
+        test("plus_millis") { expect(t.plus_millis(2500).to_epoch_milli()).should_be(1709211602500); };
+        test("minus_millis") { expect(t.minus_millis(1).to_epoch_milli()).should_be(1709211599999); };
+        test("plus_nanos carries") { expect(t.plus_nanos(1000000001).epoch_second()).should_be(1709211601); };
+        test("plus_nanos carries: nanos") { expect(t.plus_nanos(1000000001).nano()).should_be(1); };
+        test("minus_nanos borrows: nanos") { expect(t.minus_nanos(1).nano()).should_be(999999999); };
+        test("the original is unchanged") {
+            t.plus(duration.of_millis(1500));
+            t.minus(duration.of_nanos(1));
+            t.plus_seconds(60);
+            t.plus_nanos(1000000001);
+            expect(itext(t)).should_be("2024-02-29T13:00:00Z");
+        };
+        test("truncated_to_seconds") { expect(itext(instant.of_epoch_second(5, 999999999).truncated_to_seconds())).should_be("1970-01-01T00:00:05Z"); };
+        test("truncated_to_millis") { expect(instant.of_epoch_second(5, 123456789).truncated_to_millis().nano()).should_be(123000000); };
+
+        // ---- exact differences, also where one number of nanoseconds could not hold the value
+        test("two instants 1 ns apart") { expect(duration.between(a, b).to_nanos()).should_be(1); };
+        test("...and backwards") { expect(duration.between(b, a).to_nanos()).should_be(0 - 1); };
+        test("until") { expect(a.until(b).nanos()).should_be(1); };
+        test("they are different instants") { expect_true(a != b); };
+        test("and ordered") { expect_true(a < b); };
+        test("between: seconds") { expect(duration.between(instant.epoch, t).seconds()).should_be(1709211600); };
+        test("between over a second boundary") { expect(duration.between(instant.of_epoch_second(1, 900000000), instant.of_epoch_second(2, 100000000)).to_millis()).should_be(200); };
+        test("a day apart") { expect(duration.between(t, t + duration.of_days(1)).to_hours()).should_be(24); };
+
+        // ---- comparing
+        test("==") { expect_true(t == instant.of_epoch_milli(1709211600000)); };
+        test("== different") { expect_false(t == instant.epoch); };
+        test("<") { expect_true(instant.epoch < t); };
+        test("<=") { expect_true(t <= t); };
+        test(">") { expect_true(t > instant.epoch); };
+        test(">=") { expect_true(t >= t); };
+        test("before 1970 is less than the epoch") { expect_true(instant.of_epoch_milli(0 - 1) < instant.epoch); };
+        test("compare_to") { expect(instant.epoch.compare_to(t)).should_be(0 - 1); };
+        test("compare_to equal") { expect(t.compare_to(t)).should_be(0); };
+        test("is_before") { expect_true(instant.epoch.is_before(t)); };
+        test("is_after") { expect_true(t.is_after(instant.epoch)); };
+
+        // ---- parsing
+        test("parse Z") { expect(instant.parse("2024-02-29T13:00:00Z").epoch_second()).should_be(1709211600); };
+        test("parse +02:00 is the same moment") { expect(instant.parse("2024-02-29T15:00:00+02:00").epoch_second()).should_be(1709211600); };
+        test("parse -05:00 is the same moment") { expect(instant.parse("2024-02-29T08:00:00-05:00").epoch_second()).should_be(1709211600); };
+        test("parse a fraction") { expect(instant.parse("1970-01-01T00:00:01.5Z").to_epoch_milli()).should_be(1500); };
+        test("parse before the epoch") { expect(instant.parse("1969-12-31T23:59:59.5Z").to_epoch_milli()).should_be(0 - 500); };
+        test("format -> parse round trip") { expect_true(instant.parse(itext(a)) == a); };
+        test("parse rejects a missing offset") { expect_throws<date_time_exception>() { instant.parse("2024-02-29T13:00:00"); }; };
+        test("parse rejects a date") { expect_throws<date_time_exception>() { instant.parse("2024-02-29"); }; };
+        test("parse rejects words") { expect_throws<date_time_exception>() { instant.parse("now"); }; };
+
+        // ---- the real clock: only properties that always hold
+        test("the clock is after 2020-01-01") { expect_true(instant.now().epoch_second() > 1577836800); };
+        test("nano is in range") {
+            now1 := instant.now();
+            expect_true(now1.nano() >= 0 && now1.nano() <= 999999999);
+        };
+        test("two readings are less than a minute apart") {
+            now1 := instant.now();
+            now2 := instant.now();
+            expect_true(time_math.abs(duration.between(now1, now2).seconds()) < 60);
+        };
+
+        // ================= zone_offset =================
+
+        test("utc") { expect(zone_offset.utc.total_seconds()).should_be(0); };
+        test("utc is_utc") { expect_true(zone_offset.utc.is_utc()); };
+        test("of_hours(2)") { expect(zone_offset.of_hours(2).total_seconds()).should_be(7200); };
+        test("of_hours(-5)") { expect(zone_offset.of_hours(0 - 5).total_seconds()).should_be(0 - 18000); };
+        test("of_hours_minutes(5, 30)") { expect(zone_offset.of_hours_minutes(5, 30).total_seconds()).should_be(19800); };
+        test("of_hours_minutes(-5, -30)") { expect(zone_offset.of_hours_minutes(0 - 5, 0 - 30).total_seconds()).should_be(0 - 19800); };
+        test("of_hours_minutes(0, -30)") { expect(zone_offset.of_hours_minutes(0, 0 - 30).total_seconds()).should_be(0 - 1800); };
+        test("of_total_seconds") { expect(zone_offset.of_total_seconds(20700).total_seconds()).should_be(20700); };
+        test("hours") { expect(zone_offset.of_hours_minutes(0 - 5, 0 - 30).hours()).should_be(0 - 5); };
+        test("minutes") { expect(zone_offset.of_hours_minutes(0 - 5, 0 - 30).minutes()).should_be(0 - 30); };
+        test("seconds") { expect(zone_offset.of_total_seconds(3630).seconds()).should_be(30); };
+        test("+02:00 is not utc") { expect_false(zone_offset.of_hours(2).is_utc()); };
+        test("of_hours(0) is the utc object") { expect_true(zone_offset.of_hours(0) == zone_offset.utc); };
+
+        test("utc text") { expect(otext(zone_offset.utc)).should_be("Z"); };
+        test("+02:00") { expect(otext(zone_offset.of_hours(2))).should_be("+02:00"); };
+        test("-05:00") { expect(otext(zone_offset.of_hours(0 - 5))).should_be("-05:00"); };
+        test("+05:30") { expect(otext(zone_offset.of_hours_minutes(5, 30))).should_be("+05:30"); };
+        test("-00:30") { expect(otext(zone_offset.of_hours_minutes(0, 0 - 30))).should_be("-00:30"); };
+        test("+05:45 (Nepal)") { expect(otext(zone_offset.of_total_seconds(20700))).should_be("+05:45"); };
+        test("+14:00") { expect(otext(zone_offset.of_hours(14))).should_be("+14:00"); };
+        test("-12:00") { expect(otext(zone_offset.of_hours(0 - 12))).should_be("-12:00"); };
+        test("seconds are shown when not zero") { expect(otext(zone_offset.of_total_seconds(3630))).should_be("+01:00:30"); };
+        test("the limits") { expect(otext(zone_offset.of_hours(18))).should_be("+18:00"); };
+
+        test("parse Z") { expect(zone_offset.parse("Z").total_seconds()).should_be(0); };
+        test("parse z") { expect(zone_offset.parse("z").total_seconds()).should_be(0); };
+        test("parse +02:00") { expect(zone_offset.parse("+02:00").total_seconds()).should_be(7200); };
+        test("parse -05:30") { expect(zone_offset.parse("-05:30").total_seconds()).should_be(0 - 19800); };
+        test("parse +0530") { expect(zone_offset.parse("+0530").total_seconds()).should_be(19800); };
+        test("parse +02") { expect(zone_offset.parse("+02").total_seconds()).should_be(7200); };
+        test("parse +2") { expect(zone_offset.parse("+2").total_seconds()).should_be(7200); };
+        test("parse +01:00:30") { expect(zone_offset.parse("+01:00:30").total_seconds()).should_be(3630); };
+        test("parse +010030") { expect(zone_offset.parse("+010030").total_seconds()).should_be(3630); };
+        test("parse +00:00") { expect(zone_offset.parse("+00:00").total_seconds()).should_be(0); };
+        test("parse -00:00") { expect(zone_offset.parse("-00:00").total_seconds()).should_be(0); };
+        test("format -> parse round trip") { expect(otext(zone_offset.parse(otext(zone_offset.of_hours_minutes(0 - 9, 0 - 30))))).should_be("-09:30"); };
+        test("parse rejects a missing sign") { expect_throws<date_time_exception>() { zone_offset.parse("02:00"); }; };
+        test("parse rejects +19:00") { expect_throws<date_time_exception>() { zone_offset.parse("+19:00"); }; };
+        test("parse rejects +18:01") { expect_throws<date_time_exception>() { zone_offset.parse("+18:01"); }; };
+        test("parse rejects minute 60") { expect_throws<date_time_exception>() { zone_offset.parse("+02:60"); }; };
+        test("parse rejects a name") { expect_throws<date_time_exception>() { zone_offset.parse("UTC"); }; };
+        test("parse rejects the empty string") { expect_throws<date_time_exception>() { zone_offset.parse(""); }; };
+        test("parse rejects trailing text") { expect_throws<date_time_exception>() { zone_offset.parse("+02:00x"); }; };
+
+        test("of_hours(19) throws") { expect_throws<date_time_exception>() { zone_offset.of_hours(19); }; };
+        test("mixed signs throw") { expect_throws<date_time_exception>() { zone_offset.of_hours_minutes(5, 0 - 30); }; };
+        test("beyond 18 hours throws") { expect_throws<date_time_exception>() { zone_offset.of_hours_minutes(18, 1); }; };
+        test("minute 60 throws") { expect_throws<date_time_exception>() { zone_offset.of_hours_minutes(1, 60); }; };
+
+        test("== by value") { expect_true(zone_offset.of_hours(2) == zone_offset.of_total_seconds(7200)); };
+        test("!=") { expect_true(zone_offset.of_hours(2) != zone_offset.of_hours(3)); };
+        test("compare_to") { expect(zone_offset.of_hours(0 - 5).compare_to(zone_offset.of_hours(2))).should_be(0 - 1); };
+
+        test("the system offset is within 18 hours") {
+            system := zone_offset.system_default();
+            expect_true(system.total_seconds() >= (0 - 64800) && system.total_seconds() <= 64800);
+        };
+        test("the system offset is a whole number of minutes") { expect(zone_offset.system_default().total_seconds() % 60).should_be(0); };
+
+        // ================= offset_date_time =================
+
+        test("year") { expect(x.year()).should_be(2024); };
+        test("month_value") { expect(x.month_value()).should_be(2); };
+        test("day") { expect(x.day()).should_be(29); };
+        test("hour is the local hour") { expect(x.hour()).should_be(15); };
+        test("minute") { expect(x.minute()).should_be(0); };
+        test("offset") { expect(x.offset().total_seconds()).should_be(7200); };
+        test("to_epoch_second") { expect(x.to_epoch_second()).should_be(1709211600); };
+        test("to_instant") { expect(x.to_instant().epoch_second()).should_be(1709211600); };
+        test("to_string") { expect(odt(x)).should_be("2024-02-29T15:00:00+02:00"); };
+        test("to_date_time drops the offset") { expect(x.to_date_time().to_string()!!).should_be("2024-02-29T15:00:00"); };
+        test("to_date") { expect(x.to_date().to_string()!!).should_be("2024-02-29"); };
+        test("to_time") { expect(x.to_time().to_string()!!).should_be("15:00:00"); };
+        test("day_of_week") { expect_true(x.day_of_week() == day_of_week.thursday); };
+
+        // ---- the same moment at other offsets
+        test("in UTC") { expect(odt(x.with_offset_same_instant(zone_offset.utc))).should_be("2024-02-29T13:00:00Z"); };
+        test("in New York (-05:00)") { expect(odt(x.with_offset_same_instant(zone_offset.of_hours(0 - 5)))).should_be("2024-02-29T08:00:00-05:00"); };
+        test("in India (+05:30)") { expect(odt(x.with_offset_same_instant(zone_offset.of_hours_minutes(5, 30)))).should_be("2024-02-29T18:30:00+05:30"); };
+        test("in Tokyo (+09:00)") { expect(odt(x.with_offset_same_instant(zone_offset.of_hours(9)))).should_be("2024-02-29T22:00:00+09:00"); };
+        test("in Kiritimati (+14:00) it is already tomorrow") { expect(odt(x.with_offset_same_instant(zone_offset.of_hours(14)))).should_be("2024-03-01T03:00:00+14:00"); };
+        test("in Baker Island (-12:00)") { expect(odt(x.with_offset_same_instant(zone_offset.of_hours(0 - 12)))).should_be("2024-02-29T01:00:00-12:00"); };
+        test("the instant does not change") { expect(x.with_offset_same_instant(zone_offset.of_hours(9)).to_epoch_second()).should_be(1709211600); };
+        test("with_offset_same_local keeps the fields") { expect(odt(x.with_offset_same_local(zone_offset.utc))).should_be("2024-02-29T15:00:00Z"); };
+        test("...and moves the instant") { expect(x.with_offset_same_local(zone_offset.utc).to_epoch_second()).should_be(1709218800); };
+        test("a year boundary") { expect(odt(offset_date_time.parse("2023-12-31T23:30:00-01:00").with_offset_same_instant(zone_offset.utc))).should_be("2024-01-01T00:30:00Z"); };
+
+        // ---- from an instant
+        test("of_instant") { expect(odt(offset_date_time.of_instant(t, plus2))).should_be("2024-02-29T15:00:00+02:00"); };
+        test("instant.at_offset") { expect(odt(t.at_offset(zone_offset.utc))).should_be("2024-02-29T13:00:00Z"); };
+        test("of_instant before 1970") { expect(odt(offset_date_time.of_instant(instant.of_epoch_second(0 - 1), plus2))).should_be("1970-01-01T01:59:59+02:00"); };
+        test("of(date_time, offset)") { expect(odt(offset_date_time.of(date_time.of(2000, 1, 1, 0, 0), plus2))).should_be("2000-01-01T00:00:00+02:00"); };
+        test("of(date, time, offset)") { expect(odt(offset_date_time.of(date.of(2000, 1, 1), time_of_day.noon, zone_offset.utc))).should_be("2000-01-01T12:00:00Z"); };
+        test("of(fields)") { expect(odt(offset_date_time.of(2000, 1, 1, 1, 2, 3, 4000000, zone_offset.of_hours(0 - 3)))).should_be("2000-01-01T01:02:03.004-03:00"); };
+        test("date_time.at_offset") { expect(odt(date_time.of(2000, 1, 1, 0, 0).at_offset(plus2))).should_be("2000-01-01T00:00:00+02:00"); };
+        test("date_time.to_instant") { expect(date_time.of(2024, 2, 29, 15, 0, 0).to_instant(plus2).epoch_second()).should_be(1709211600); };
+
+        // ---- arithmetic keeps the offset
+        test("+ duration") { expect(odt(x + duration.of_hours(10))).should_be("2024-03-01T01:00:00+02:00"); };
+        test("- duration") { expect(odt(x - duration.of_minutes(1))).should_be("2024-02-29T14:59:00+02:00"); };
+        test("plus(period)") { expect(odt(x.plus(period.of_years(1)))).should_be("2025-02-28T15:00:00+02:00"); };
+        test("minus(period)") { expect(odt(x.minus(period.of_days(29)))).should_be("2024-01-31T15:00:00+02:00"); };
+        test("plus_days") { expect(odt(x.plus_days(1))).should_be("2024-03-01T15:00:00+02:00"); };
+        test("plus_months") { expect(odt(x.plus_months(12))).should_be("2025-02-28T15:00:00+02:00"); };
+        test("plus_hours") { expect(odt(x.plus_hours(9))).should_be("2024-03-01T00:00:00+02:00"); };
+        test("plus_minutes") { expect(odt(x.plus_minutes(0 - 1))).should_be("2024-02-29T14:59:00+02:00"); };
+        test("plus_seconds") { expect(odt(x.plus_seconds(1))).should_be("2024-02-29T15:00:01+02:00"); };
+        test("until across offsets") { expect(x.until(offset_date_time.parse("2024-02-29T15:00:00Z")).to_hours()).should_be(2); };
+
+        // ---- comparing is by the moment, not by the fields
+        test("15:00+02:00 == 13:00Z") { expect_true(x == same_moment); };
+        test("...but the fields differ") { expect_false(x.same_fields(same_moment)); };
+        test("same_fields with itself") { expect_true(x.same_fields(offset_date_time.parse("2024-02-29T15:00:00+02:00"))); };
+        test("14:00+02:00 is before 13:00Z") { expect_true(offset_date_time.parse("2024-02-29T14:00:00+02:00") < same_moment); };
+        test("15:00Z is after 15:00+02:00") { expect_true(offset_date_time.parse("2024-02-29T15:00:00Z") > x); };
+        test("!=") { expect_true(x != x.plus_seconds(1)); };
+        test("<=") { expect_true(x <= same_moment); };
+        test(">=") { expect_true(x >= same_moment); };
+        test("compare_to") { expect(x.compare_to(same_moment)).should_be(0); };
+        test("is_before") { expect_true(x.is_before(x.plus_seconds(1))); };
+        test("is_after") { expect_true(x.plus_seconds(1).is_after(x)); };
+
+        // ---- parsing
+        test("parse Z") { expect(odt(offset_date_time.parse("2024-02-29T13:00:00Z"))).should_be("2024-02-29T13:00:00Z"); };
+        test("parse a basic offset") { expect(odt(offset_date_time.parse("2024-02-29T13:00:00-0530"))).should_be("2024-02-29T13:00:00-05:30"); };
+        test("parse a fraction") { expect(odt(offset_date_time.parse("2024-02-29T13:00:00.25+01:00"))).should_be("2024-02-29T13:00:00.250+01:00"); };
+        test("format -> parse round trip") { expect_true(offset_date_time.parse(odt(x)).same_fields(x)); };
+        test("parse without an offset throws") { expect_throws<date_time_exception>() { offset_date_time.parse("2024-02-29T13:00:00"); }; };
+        test("parse with a bad offset throws") { expect_throws<date_time_exception>() { offset_date_time.parse("2024-02-29T13:00:00+25:00"); }; };
+    };
+}

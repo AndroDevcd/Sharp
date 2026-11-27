@@ -23,3 +23,6 @@ __pycache__/
 
 # what benchmark/game/run.sh measures on this machine (results.json, results.md, chart.html)
 /benchmark/game/results/
+
+# the test suite built as a project (sharpc -P tests/suite)
+tests/suite/build/

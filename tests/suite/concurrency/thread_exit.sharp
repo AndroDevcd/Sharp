@@ -1,0 +1,46 @@
+mod suite.concurrency.thread_exit;
+
+import ( std.io, std.testing )
+
+/**
+ * thread.exit(code) ends the thread that calls it, there and then, with that code - and the
+ * program still ends when `main` does. (The thread used to spin on the instruction for ever: the
+ * join came back, but the program never finished.)
+ */
+
+reached : decimal = 0;
+
+def worker(args: object[]) : int {
+    reached = 1;
+    thread.exit(7);
+    reached = 2;            // never
+    return 1;
+}
+
+def thread_exit_tests() {
+    tests("thread_exit") {
+        test("the thread ran up to exit, ended with its code and has exited") {
+            reached = 0;
+            first := new thread("worker", worker);
+            first.start();
+            first.join();
+            expect(reached).named("ran up to exit").should_be(1);
+            expect_true(first.get_exit_code() == 7);
+            expect_true(first.is_exited());
+        };
+
+        test("a second thread that exits does not find the first one in its way") {
+            reached = 0;
+            first := new thread("worker", worker);
+            first.start();
+            first.join();
+
+            reached = 0;
+            second := new thread("worker again", worker);
+            second.start();
+            second.join();
+            expect(reached).named("the second thread ran up to exit").should_be(1);
+            expect_true(second.get_exit_code() == 7);
+        };
+    };
+}

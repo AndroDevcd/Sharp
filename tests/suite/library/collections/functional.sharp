@@ -1,0 +1,80 @@
+mod suite.library.collections.functional;
+
+import ( std.testing, std.collections )
+
+/**
+ * std.collections - collections<T>: chunked, windowed and flatten, the three
+ * helpers that give or take lists of lists. They take any `loopable`, so the
+ * sources here are a list, a linked_list, a deque and a tree_set.
+ *
+ * (filter, map, sorted_by ... are functions of a list: collections/functions.sharp.)
+ */
+
+/** a list<int> with the numbers from..to (both included) */
+def numbers(from: decimal, to: decimal) : list<int> {
+    result := new list<int>();
+    for(i : decimal = from; i <= to; i++) result.add(new int(i));
+    return result;
+}
+
+/** "1,2,3" for a list of ints */
+def join(items: list<int>) : string {
+    return items.join_to_string(",");
+}
+
+def functional_tests() {
+    tests("functional") {
+        n : list<int>;
+        before_each { n = numbers(1, 5); };
+
+        test("chunked: the pieces, the last one what remains") {
+            chunks := collections<int>.chunked(n, 2);
+            expect(chunks.size()).named("count").should_be(3);
+            expect(join(chunks.at(0))).named("first").should_be("1,2");
+            expect(join(chunks.at(1))).named("second").should_be("3,4");
+            expect(join(chunks.at(2))).named("remainder").should_be("5");
+        };
+        test("chunked exact") { expect(collections<int>.chunked(numbers(1, 6), 3).size()).should_be(2); };
+        test("chunked bigger than the source") { expect(collections<int>.chunked(n, 10).size()).should_be(1); };
+        test("chunked empty") { expect(collections<int>.chunked(new list<int>(), 2).size()).should_be(0); };
+        test("chunked 0") { expect_throws<illegal_argument_exception>() { collections<int>.chunked(n, 0); }; };
+        test("chunked leaves the source") {
+            collections<int>.chunked(n, 2);
+            expect(join(n)).should_be("1,2,3,4,5");
+        };
+
+        test("flatten") { expect(join(collections<int>.flatten(collections<int>.chunked(n, 2)))).should_be("1,2,3,4,5"); };
+        test("flatten empty") { expect(join(collections<int>.flatten(new list<list<int> >()))).should_be(""); };
+
+        test("windowed: every run of 3") {
+            windows := collections<int>.windowed(n, 3);
+            expect(windows.size()).named("count").should_be(3);
+            expect(join(windows.at(0))).named("first").should_be("1,2,3");
+            expect(join(windows.at(2))).named("last").should_be("3,4,5");
+        };
+        test("windowed too long") { expect(collections<int>.windowed(n, 6).size()).should_be(0); };
+        test("windowed 0") { expect_throws<illegal_argument_exception>() { collections<int>.windowed(n, 0); }; };
+
+        // any collection is a source
+        test("chunked of a linked_list") {
+            chain := new linked_list<int>();
+            foreach(x in numbers(1, 4)) chain.add(x);
+            expect(join(collections<int>.chunked(chain, 3).at(0))).should_be("1,2,3");
+        };
+        test("windowed of a deque") {
+            ring := new deque<int>();
+            foreach(x in numbers(1, 4)) ring.add_last(x);
+            expect(join(collections<int>.windowed(ring, 2).at(2))).should_be("3,4");
+        };
+        test("chunked of a tree_set: in its order") {
+            sorted := new tree_set<int>({ a: int, b: int -> (decimal) return a.value - b.value; });
+            foreach(x in numbers(1, 4)) sorted.add(new int(5 - x.value));
+            expect(join(collections<int>.chunked(sorted, 4).at(0))).should_be("1,2,3,4");
+        };
+
+        // what the three give are lists: the functions of a list go on from there
+        test("chunked, then the sum of each") {
+            expect(collections<int>.chunked(n, 2).map<int>() { new int(it.sum()) }.join_to_string(",")).should_be("3,7,5");
+        };
+    };
+}

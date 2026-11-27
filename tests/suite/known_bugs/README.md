@@ -1,9 +1,10 @@
 # Known bugs
 
 What is still open, and what is the way it is on purpose. A bug that has a reproduction gets a file
-in this folder, **expected to fail** (a failed check, a compile error, a crash or a hang) and not
-run with the normal suite; when it is fixed, its checks move into `../cases/` and it leaves this
-list. Right now no open bug has a file: each one below is described in its row.
+in this folder, **expected to fail** (a failed check, a compile error, a crash or a hang). A file
+here is a program of its own, run by hand, and not part of the suite's project (`settings.json`
+leaves this folder out); when the bug is fixed, its checks move into the group they belong to under
+`tests/suite/` and the file leaves this list. Right now no open bug has a file: each one below is described in its row.
 
 Status below was checked on 2026-11-25 with Sharp 0.5.13 (VM 4.0.13), each entry by a small
 program, on Linux with the JIT and on Windows ("Checked on 2026-11-25" at the end says what left
@@ -22,12 +23,12 @@ bash test.sh try my_program.sharp
   and without `override` the function below only hides the one above (W1041) - a call through the
   base type runs the base's version.
 - The operands of a binary operator are evaluated RIGHT TO LEFT: in
-  `f() + g()` g runs first (decided 2026-11-12; `cases/operators_evaluation_order.sharp`).
+  `f() + g()` g runs first (decided 2026-11-12; `language/operators_evaluation_order.sharp`).
   Write calls with side effects as separate statements when the order matters.
 - Assigning a number to a field or variable that holds a number OBJECT writes
   the number into that object (it calls the object's `operator=`), so every
   holder of the same object sees it (decided 2026-11-12;
-  `cases/lib_collections_language.sharp`). Assign `new int(n)` to replace the
+  `library/collections/language.sharp`). Assign `new int(n)` to replace the
   object for one holder only. (A string is different since 0.5.12: assigning to a
   string variable or field points it at the new string.)
 - Block comments nest: `/* a /* b */` is still open, the tokenizer counts
@@ -52,7 +53,7 @@ bash test.sh try my_program.sharp
 
 ## Checked on 2026-11-25 (what left the list)
 
-Found by the check and fixed the same day (VM 4.0.14, `cases/whole_numbers_as_text.sharp`):
+Found by the check and fixed the same day (VM 4.0.14, `language/whole_numbers_as_text.sharp`):
 
 - **A whole number above 2^53 lost its low digits when it became TEXT**: `n : _int64 = 9007199254740990; n = n + 3;`
   printed 9007199254740992 with `"" + n`, with `"$n"` and with `new long(n).to_string()`. The number
@@ -115,99 +116,103 @@ Fixed on 2026-11-15 (runtime), found by the bootstrap's completeness critics (co
   (multitasking/thread/thread_controller.cpp), and an exception nobody caught on the main thread
   ends the process with 1, not 0.
 
-Moved into `../cases/` after they started to pass: `threads.sharp` (scheduler
-deadlock, `join()` and `start()` results), `logic_precedence.sharp`,
-`variables_multiple.sharp`, `operators_on_new.sharp`, `casts_of_expressions.sharp`,
-`new_in_condition.sharp`, `foreach_over_new.sharp`, `foreach_inherited_loopable.sharp`,
-`thread_fiber_id.sharp`, `fiber_recursive_suspend.sharp`, `lock_exception_and_nesting.sharp`, `string_plus_empty_literal.sharp`, `arrays_sized_elements.sharp`,
-`non_null_index*.sharp`, `generics_isolated_and_nested.sharp` (a generic class seeing the caller's locals; `box<box<var>>`), `init_blocks_order.sharp`, `init_blocks_locals.sharp`,
-and the `*_fixes.sharp` files.
+Moved into the suite after they started to pass (the groups under `tests/suite/`):
+`concurrency/threads.sharp` (scheduler deadlock, `join()` and `start()` results),
+`language/logic_precedence.sharp`, `language/variables_multiple.sharp`,
+`language/operators_on_new.sharp`, `language/casts_of_expressions.sharp`,
+`control/new_in_condition.sharp`, `control/foreach_over_new.sharp`,
+`control/foreach_inherited_loopable.sharp`, `concurrency/thread_fiber_id.sharp`,
+`concurrency/fiber_recursive_suspend.sharp`, `concurrency/lock_exception_and_nesting.sharp`,
+`strings/plus_empty_literal.sharp`, `arrays/sized_elements.sharp`,
+`language/non_null_index*.sharp`, `generics/isolated_and_nested.sharp` (a generic class seeing the
+caller's locals; `box<box<var>>`), `classes/init_blocks_order.sharp`,
+`classes/init_blocks_locals.sharp`, and the `*_fixes.sharp` files.
 
-Fixed in the compiler / library round of 2026-11-12 (the files moved to `../cases/`):
+Fixed in the compiler / library round of 2026-11-12 (the files moved into the suite):
 
-- **Compiler crash on `"literal" + s` in a lambda** (`lib_*_lambda_concat`):
+- **Compiler crash on `"literal" + s` in a lambda** (`library/*/lambda_concat.sharp`):
   `sharp_type` had no copy assignment, so `a = b` shared the list of unresolved
   items and the first to be destroyed freed it under the other. Also found
   with the address sanitizer: a context item made with `new` was released with
   `free()`.
-- **`(a < b) + (c > d)` gave garbage** (`comparison_sum`): the left operand of
+- **`(a < b) + (c > d)` gave garbage** (`language/comparison_sum.sharp`): the left operand of
   the addition was read from `bmr`, but a comparison leaves its result in `cmt`.
-- **`0.1 + 0.2 == 0.3` folded differently than at run time** (`comparison_fixes`):
+- **`0.1 + 0.2 == 0.3` folded differently than at run time** (`language/comparison_fixes.sharp`):
   literals are folded with 64-bit doubles, like the VM computes.
-- **`"n" + (2 + 3)` printed `n5.0000000000000000`** (`strings_basic_fixes`): two
+- **`"n" + (2 + 3)` printed `n5.0000000000000000`** (`strings/fixes.sharp`): two
   whole-number literals fold to a whole number. **`text + 4294967296` printed
   0**: a whole-number literal that does not fit in 32 bits is an `_int64`.
   **`s += s`, `s += 5`, `s += 2.5`** work (library).
-- **`x == null` on a class with its own `==`** (`lib_io_language`, `std_misc_fixes`,
-  `strings_basic_fixes`): it is always a test for "no object" and never calls
+- **`x == null` on a class with its own `==`** (`library/io/language.sharp`, `library/basics/misc_fixes.sharp`,
+  `strings/fixes.sharp`): it is always a test for "no object" and never calls
   the class's operator. `"" == null` is false; a null string can be compared.
-- **`put(')')` and `return ';'`** (`lib_time_paren_char_literal`): a string or
+- **`put(')')` and `return ';'`** (`library/time/paren_char_literal.sharp`): a string or
   character literal never counts as punctuation, whatever its text.
 - **`names : string[] = { "a", "b", "c" }`** makes three strings
-  (`lib_time_array_initializer`), and **a string literal is no longer accepted
+  (`library/time/array_initializer.sharp`), and **a string literal is no longer accepted
   for a `string[]`** (it was, and crashed at run time): now a compile error.
-- **`def f(x: _int8)` called with 200** sees -56 (`casts_fixes`): an argument
+- **`def f(x: _int8)` called with 200** sees -56 (`language/casts_fixes.sharp`): an argument
   is cut to the parameter's size, as a cast would do.
-- **`n : int?;` and `n : int[]?;`** start as null (`lib_collections_language`
+- **`n : int?;` and `n : int[]?;`** start as null (`library/collections/language.sharp`
   bug 2); only a plain `n : int;` is given an object.
 - **A try/finally inside a finally block** no longer loses the pending
-  exception (`finally_fixes`): the inner statement has its own hidden local.
-- **A failing cast throws `class_cast_exception`** (`exceptions_cast_fixes`),
+  exception (`exceptions/finally_fixes.sharp`): the inner statement has its own hidden local.
+- **A failing cast throws `class_cast_exception`** (`exceptions/cast_fixes.sharp`),
   which is now an `illegal_state_exception`, so old `catch` clauses still work.
-- **`NaN != NaN` on `double` objects** is true (`lib_math_literals`):
+- **`NaN != NaN` on `double` objects** is true (`library/math/literals.sharp`):
   `number` had `operator==(double)` but no `operator!=(double)`.
-- **Ambiguous calls with a number** (`functions_fixes`,
-  `lib_time_implicit_number_to_class`): a plain number is passed to the
+- **Ambiguous calls with a number** (`functions/fixes.sharp`,
+  `library/time/implicit_number_to_class.sharp`): a plain number is passed to the
   overload that takes a plain number rather than to one that wraps it in an
   object (`backend/dependency/overload_preference.h`).
-- `lib_coroutines_localized_arithmetic` and `lib_coroutines_jit_fiber_frames`
+- `library/coroutines/localized_arithmetic.sharp` and `library/coroutines/jit_fiber_frames.sharp`
   pass since the typed VM and the new JIT.
 
 Second part of the same round:
 
 - **An interface method overridden in a subclass** is found through the class
-  in between as well (`interfaces_fixes`, `interfaces_base_calls`): a call to a
+  in between as well (`classes/interfaces_fixes.sharp`, `classes/interfaces_base_calls.sharp`): a call to a
   function that implements an interface method goes through that method (a
   run-time lookup) when a class derived from the function's class has its own
   version; `base->f()` stays a direct call. See "Direct call or run-time
   lookup?" in `compiler/expressions/expression.cpp`.
-- **Properties** (`properties_fixes`): an assignment from outside no longer
+- **Properties** (`classes/properties_fixes.sharp`): an assignment from outside no longer
   runs the getter (and is no longer lost under `-O`); `p.value += 5`,
   `p.value++`, `--p.value` call the getter and then the setter.
-- **`"abc".size()`** (`lib_io_syntax`): a function can be called on a string
+- **`"abc".size()`** (`library/io/syntax.sharp`): a function can be called on a string
   literal; the literal becomes a `string` object first.
 - **A number where a `string` is expected is a compile error**
-  (`lib_text_literals`). Only a character ('a', an `_int8` / `_uint8`) still
+  (`library/text/literals.sharp`). Only a character ('a', an `_int8` / `_uint8`) still
   becomes a string by itself; write `"" + n` for the text of a number.
 
-- **`mutate` on a generic class** (`lib_collections_mutate_generic`): a
+- **`mutate` on a generic class** (`library/collections/mutate_generic.sharp`): a
   top-level `mutate list { ... }` was applied to the `list<T>` classes that
   existed at that moment and then forgotten, so a `list<card>` first used
   further down never got the members. The mutation is now recorded on the
   generic class and every later instance receives it (fields included).
 
 Third part: the entries that had no reproduction file. Each got one; four
-already worked (`dictionary_one_pair`, `negative_literal_in_condition`,
-`generics_nested_lists`, `properties_getter_only_assignment` are now tests).
+already worked (`arrays/dictionary_one_pair.sharp`, `control/negative_literal_in_condition.sharp`,
+`generics/nested_lists.sharp`, `classes/properties_getter_only_assignment.sharp` are now tests).
 
 - **A class or enum written inside a class could not be named from outside**
-  (`classes_nested_names`, `enums_inside_classes`): `holder.part.count`,
+  (`classes/nested_names.sharp`, `classes/enums_inside_classes.sharp`): `holder.part.count`,
   `holder.inner.off`. A class found inside the class being compiled was marked
   "a value", not "a type", and nothing nested in it could be reached.
-- **`fns[0](4)`** (`function_pointers_in_arrays`): a call on an array element
+- **`fns[0](4)`** (`functions/pointers_in_arrays.sharp`): a call on an array element
   was parsed as a call of the array's name and the index was dropped.
-- **`flag ? "text" : name`** (`ternary_string_literal`): a string literal on
+- **`flag ? "text" : name`** (`control/ternary_string_literal.sharp`): a string literal on
   one side of `?:` and a string object on the other.
-- **`$` in a string** (`strings_dollar_sign`): only `$name`, `${...}` and `$$`
+- **`$` in a string** (`strings/dollar_sign.sharp`): only `$name`, `${...}` and `$$`
   mean something; `"cost: $5"` is the text it looks like.
-- **`abs(3.5)`** (`lib_math_abs_plain_number`): `abs` has a version for a plain
+- **`abs(3.5)`** (`library/math/abs_plain_number.sharp`): `abs` has a version for a plain
   number.
-- **`atomic`** (`lib_io_atomic_comparisons`): the functions named `operator<=`
+- **`atomic`** (`library/io/atomic_comparisons.sharp`): the functions named `operator<=`
   compared with `>=`; they are `operator>=` now, and a real `operator<=` exists.
-- **`new result<T, E>(data, null)`** (`std_result_null_error`).
+- **`new result<T, E>(data, null)`** (`library/basics/result_null_error.sharp`).
 
-Fourth part: lambdas carry what they captured (`lambdas_capture_per_call`,
-`lib_coroutines_closure_across_fibers`).
+Fourth part: lambdas carry what they captured (`functions/lambdas_capture_per_call.sharp`,
+`library/coroutines/closure_across_fibers.sharp`).
 
 - **A captured variable was null on another fiber, and shared between the
   calls of a function that calls itself.** The captured variables of a
@@ -227,13 +232,13 @@ Fourth part: lambdas carry what they captured (`lambdas_capture_per_call`,
 Found while doing the fourth part:
 
 - **`x = x + n` on a fiber-local (`localized`) number stored a meaningless
-  number** (`lib_coroutines_localized_arithmetic`). The value was loaded into
+  number** (`library/coroutines/localized_arithmetic.sharp`). The value was loaded into
   `ebx`, the addition read the register it had asked for, and the copy between
   the two was behind a test written the wrong way round
   (`code_context.cpp`, `numeric_tls_field`). The test only passed before
   because that register happened to hold the right value.
 - **A coroutine cancelled right after it was continued killed its worker
-  thread, and whoever joined it waited for ever** (`lib_coroutines_core`,
+  thread, and whoever joined it waited for ever** (`library/coroutines/core.sharp`,
   about one run in three with the JIT, never without). After a context switch
   the interpreter can be running a function whose caller is compiled code
   that has no machine frame yet. When that function threw and did not catch,
@@ -246,7 +251,7 @@ Found while doing the fourth part:
   (`jit/x64/sections/entry.cpp`).
 
 - **A fiber was sometimes switched out the moment it started**
-  (`lib_coroutines_sync`, "waiters got the mutex in the order they arrived":
+  (`library/coroutines/sync.sharp`, "waiters got the mutex in the order they arrived":
   `bcda`; one run in three with the JIT, about one round in 300 without). The
   scheduler's monitor thread reads the clock once per round and then tests
   every thread's time slice with `now - startedAt > slice`. A fiber that
@@ -259,7 +264,7 @@ Found running several bootstrap compilers at once (2026-11-14):
 
 - **"(SIGSEGV) found" in about one run in 150** of `compiler`,
   a different suite case each time, always passing when run again
-  (`lib_coroutines_resume_after_compile`, and `lib_coroutines_resume_shapes`
+  (`library/coroutines/resume_after_compile.sharp`, and `library/coroutines/resume_shapes.sharp`
   for the other mixes of frames). A fiber continued after a context
   switch gets the machine frames of its compiled functions back; the walk
   (`main_vm_loop`, `invoke_next_frame`) entered every function compiled at
@@ -276,17 +281,17 @@ Found porting `compiler` (2026-11-12):
 
 - **`names[0] = other` on a list stopped the compiler** ("attempting to assign
   stack data!"), and with a literal it wrote into the object the list held
-  (`list_index_assignment`). `object[index] = value` now stores the value: it
+  (`arrays/list_index_assignment.sharp`). `object[index] = value` now stores the value: it
   is compiled as `object.put(index, value)` (`assign_expression.cpp`).
 - **`cond ? a : b` with a `T` and a `T?`** was a "nullability mismatch"
-  (`ternary_nullable_side`); the result is a `T?` now.
+  (`control/ternary_nullable_side.sharp`); the result is a `T?` now.
 
 From the typed VM and the new JIT (November 2026):
 
-- **`lib_coroutines_jit_fiber_frames.sharp`** (crash in `return_method()` when two
+- **`library/coroutines/jit_fiber_frames.sharp`** (crash in `return_method()` when two
   sibling coroutines take turns and one yields twice) passes with the new JIT;
-  the file is still here and can move to `../cases/`.
-- **`std_serialization` failing with the address sanitizer and the JIT on** was a
+  the file is in the suite now.
+- **`library/basics/serialization.sharp` failing with the address sanitizer and the JIT on** was a
   bug of the old JIT, which is gone.
 - **`DUP` wrote one slot past the end of the fiber's stack** when the stack was
   exactly full: it was the one push without the "grow the stack" check
@@ -299,7 +304,7 @@ From the typed VM and the new JIT (November 2026):
 Found with the address sanitizer while the tracing garbage collector was tested
 (all three were in the runtime before it, and explain rare crashes):
 
-- **Crash or hang inside `start_fiber`** (about 1 run in 12 of `lib_coroutines_sync`):
+- **Crash or hang inside `start_fiber`** (about 1 run in 12 of `library/coroutines/sync.sharp`):
   the fiber start code read the new fiber's id after handing the fiber to the
   scheduler, and another thread could run it to its end and free it first.
 - **Crash when a short thread is started or joined**: the scheduler freed the

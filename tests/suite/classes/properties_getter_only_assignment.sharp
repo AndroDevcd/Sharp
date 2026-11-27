@@ -1,0 +1,15 @@
+mod suite.classes.properties_getter_only_assignment;
+import ( std.testing )
+class getter_only {
+    value : decimal = 5;
+        get { return value; }
+}
+def properties_getter_only_assignment_tests() {
+    tests("properties_getter_only_assignment") {
+        test("assigned from outside") {
+            g := new getter_only();
+            g.value = 50;
+            expect(g.value).should_be(50);
+        };
+    };
+}

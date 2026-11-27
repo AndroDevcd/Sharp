@@ -3,7 +3,8 @@
 # A PART OF release.sh (its step 3) - it can be run alone, after build.sh: it starts from the compiler
 # that made.
 #
-#     bash build-scripts/internal/release_compilers.sh        about 8 minutes; must end "release compilers: OK"
+#     bash build-scripts/internal/release_compilers.sh        must end "release compilers: OK"   (it was about 8
+#                                                             minutes; not measured since the suite became one program)
 #
 #
 #     <OUT>/plain/sharpc     the compiler compiled by itself WITHOUT the optimizer   (sharpc-unoptimized-v<version>)
@@ -12,8 +13,9 @@
 #                            that look inside the compiler                           (sharpc-debug-v<version>)
 #
 # and then checks, in a few minutes, that the two behave the same: every program of tests/backend/fail
-# gets the same messages from both, and a handful of suite cases are written as the same bytes by both,
-# plain and with -O. (The full proof is the gates' self-hosting step; this is the quick form.)
+# gets the same messages from both, and the suite (tests/suite, one program) is built to the same bytes
+# by both, plain and with -O, and passes. (The full proof is the gates' self-hosting step; this is the
+# quick form.)
 #
 #     STAGE1   the compiler to start from   (default ~/sharp_work/out/boot/sharpc_boot, built by build.sh)
 #     SOURCES  the bootstrap's sources      (default ~/sharp_work/src/compiler)
@@ -59,16 +61,19 @@ for f in "$HERE"/compiler/tests/backend/fail/*.sharp; do
 done
 echo "refused programs: $n compared, $bad different"
 total_bad=$bad; bad=0; n=0
-for c in lib_data_json lambdas_closures nullability lib_collections_functional lib_coroutines_core operators_unary_minus lib_math_linear; do
-  f=$W/suite/cases/$c.sharp; [ -f $f ] || continue
-  for flag in "" "-O"; do
-    n=$((n+1))
-    (cd $OUT/s1 && $VM $OUT/plain/sharpc $LIB $W/suite/testing.sharp $f -j 1 $flag -o case > out.txt 2>&1)
-    (cd $OUT/s2 && $VM $OUT/O/sharpc $LIB $W/suite/testing.sharp $f -j 1 $flag -o case > out.txt 2>&1)
-    if [ -f $OUT/s1/case ] && cmp -s $OUT/s1/case $OUT/s2/case && $SHARP $OUT/s1/case 2>&1 | grep -qE "RESULT PASS| tests passed"; then :
-    else bad=$((bad+1)); echo "DIFFERENT or failing: $c $flag ($(tail -1 $OUT/s2/out.txt | cut -c1-120))"; fi
-    rm -f $OUT/s1/case $OUT/s2/case
-  done
+# the suite (one project, tests/suite/README.md): built by both compilers in one folder, a copy of the
+# suite's, one after the other - so nothing but the compiler differs - and the first one's program run
+source "$REPO/compiler/tests/suite_program.sh"
+PROJECT=$OUT/suite_project; mkdir -p $PROJECT
+rsync -a --delete --exclude /build $W/suite/ $PROJECT/
+for flag in "" "-O"; do
+  n=$((n+1))
+  suite_build $PROJECT $OUT/s1/suite $OUT/s1/out.txt $VM $OUT/plain/sharpc -P $PROJECT -j 1 -L $LIBRARY $flag > /dev/null
+  suite_build $PROJECT $OUT/s2/suite $OUT/s2/out.txt $VM $OUT/O/sharpc -P $PROJECT -j 1 -L $LIBRARY $flag > /dev/null
+  if [ -f $OUT/s1/suite ] && cmp -s $OUT/s1/suite $OUT/s2/suite \
+     && verdict=$(suite_way "the suite ${flag:-plain}" $PROJECT $OUT/s1/run${flag}.txt 900 $SHARP $OUT/s1/suite); then :
+  else bad=$((bad+1)); echo "DIFFERENT or failing: the suite ${flag:-plain} ($(tail -1 $OUT/s2/out.txt | cut -c1-120)) $(echo "$verdict" | head -4)"; fi
+  verdict=""; rm -f $OUT/s1/suite $OUT/s2/suite
 done
 echo "suite builds: $n compared (same bytes from both compilers, and the program passes), $bad different"
 # THE STANDARD COMPILERS ARE QUIET, THE DEBUG ONE TALKS (compiler/configuration/build_kind.sharp):

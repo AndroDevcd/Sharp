@@ -1,0 +1,9 @@
+mod suite.library.math.abs_plain_number;
+import ( std.testing, std.math )
+def abs_plain_number_tests() {
+    tests("abs_plain_number") {
+        test("abs(3.5)") { expect(abs(3.5)).should_be(3.5); };
+        test("abs(0 - 4)") { expect(abs(0 - 4)).should_be(4); };
+        test("abs(0 - 2.5)") { expect(abs(0 - 2.5)).should_be(2.5); };
+    };
+}

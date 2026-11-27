@@ -1,0 +1,70 @@
+mod suite.library.collections.mutate_generic;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (compiler, fixed): `mutate` on a GENERIC class. This
+ * file did not compile.
+ *
+ * `mutate list { ... }` adds members to std list<T>. They were there on the
+ * instantiations the library itself also makes (list<string>, list<int>),
+ * but missing on an instantiation that only this program makes (list<card>):
+ *
+ *     error S8017: could not resolve symbol `is_blank(): unknown`
+ *
+ * It made no difference whether the mutate block was in the program, in a
+ * library file, in module std or in another module. A top-level mutate was
+ * applied to the list<T> classes that existed at that moment and then
+ * forgotten; now it is recorded on the generic class and every later
+ * instance receives it.
+ *
+ * Because of this std.collections offered the extra list operations as static
+ * helpers (lists<T>) instead of adding them to list with mutate.
+ */
+
+class card { rank : decimal; }
+
+class shelf { label : string = "empty"; }
+
+mutate list {
+    // a field the class did not have, private to it like any of its own
+    private touched : decimal = 0;
+
+    def is_blank() : decimal { return size() == 0; }
+    def touch() { touched = touched + 1; }
+    def touches() : decimal { return touched; }
+}
+
+// the same on a class that is not generic
+mutate shelf {
+    private opened : decimal = 0;
+
+    def open() : decimal { opened = opened + 1; return opened; }
+}
+
+def mutate_generic_tests() {
+    tests("mutate_generic") {
+        test("list<string> (also instantiated inside the library)") { expect(new list<string>().is_blank()).should_be(1); };
+        test("list<card> (only instantiated here)") { expect(new list<card>().is_blank()).should_be(1); };
+        // a field added by mutate: each list has its own
+        test("a mutated field on list<card>, separate for every list") {
+            a := new list<string>();
+            b := new list<card>();
+            b.touch();
+            b.touch();
+            expect(b.touches()).should_be(2);
+            expect(a.touches()).named("the other list").should_be(0);
+        };
+        test("a third kind of list, made last") {
+            c := new list<shelf>();
+            c.touch();
+            expect(c.touches()).should_be(1);
+        };
+
+        test("a mutated field on a plain class") {
+            s := new shelf();
+            s.open();
+            expect(s.open()).should_be(2);
+        };
+    };
+}

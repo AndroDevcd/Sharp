@@ -1,0 +1,73 @@
+mod suite.library.text.string_fixes;
+
+import ( std.testing )
+
+/**
+ * std/string.sharp - three corrections to the existing `string` class:
+ *   - an EMPTY string was concatenated and interpolated as "null"
+ *     ("head" + "" gave "headnull"), because `str == null` inside the class
+ *     called operator==(_int8[]?), which is true for every empty string
+ *   - ends_with() was false for a postfix as long as the string itself
+ *   - at() accepted a negative position
+ *
+ * NEEDS the corrected std/string.sharp; with the old one the checks below fail.
+ */
+
+def string_fixes_tests() {
+    tests("string_fixes") {
+        hello : string;
+        empty : string;
+        before_each {
+            hello = "hello";
+            empty = "";
+        };
+
+        // ---- std/string.sharp: an empty string used to be printed as "null"
+        test("literal + empty") { expect("head" + empty).should_be("head"); };
+        test("empty + literal") { expect(empty + "tail").should_be("tail"); };
+        test("empty + empty") { expect(empty + empty).should_be(""); };
+        test("empty string in the middle") { expect("[" + empty + "]").should_be("[]"); };
+        test("empty string interpolated") { expect("[$empty]").should_be("[]"); };
+        test("new string() concatenated") {
+            fresh := new string();
+            expect("<" + fresh + ">").should_be("<>");
+        };
+        test("empty substring concatenated") {
+            cut := hello.substring(2, 2);
+            expect("<" + cut + ">").should_be("<>");
+        };
+        test("+= with an empty string") {
+            grown : string = "a";
+            grown += empty;
+            expect(grown).should_be("a");
+        };
+        test("a null string still prints as null") {
+            nothing : string? = null;
+            expect("is " + nothing).should_be("is null");
+        };
+
+        // ---- std/string.sharp: ends_with with a postfix as long as the string
+        test("ends_with the whole string") { expect_true(hello.ends_with("hello")); };
+        test("ends_with a real postfix") { expect_true(hello.ends_with("llo")); };
+        test("ends_with something longer") { expect_false(hello.ends_with("xhello")); };
+        test("ends_with a different postfix") { expect_false(hello.ends_with("lla")); };
+
+        // ---- std/string.sharp: at() with a negative position
+        test("at(-1)") { expect_throws<out_of_bounds_exception>() { hello.at(0 - 1); }; };
+
+        // ---- the same through other paths
+        test("empty string returned by a method") { expect("[" + hello.substring(3, 3) + "]").should_be("[]"); };
+        test("several empty strings in a row, and the size after") {
+            joined : string = "";
+            joined = joined + empty;
+            joined = joined + "x";
+            joined = joined + empty;
+            expect(joined).should_be("x");
+            expect(joined.size()).named("size").should_be(1);
+        };
+        test("an empty string still equals \"\"") { expect_true((empty == "")); };
+        test("ends_with \"\"") { expect_true(hello.ends_with("")); };
+        test("at(4) still works") { expect(hello.at(4).value).should_be('o'); };
+        test("at(length)") { expect_throws<out_of_bounds_exception>() { hello.at(5); }; };
+    };
+}

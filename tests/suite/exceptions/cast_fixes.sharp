@@ -1,0 +1,32 @@
+mod suite.exceptions.cast_fixes;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (runtime, fixed): a failing cast raised
+ * illegal_state_exception; std defines class_cast_exception for this but the
+ * runtime never threw it (cast_object in runtime/memory/sharp_object.cpp
+ * used vm.illegal_state_exception). It behaved the same with and without -O,
+ * with and without the JIT.
+ */
+
+class shape { sides : decimal = 0; }
+
+def cast_fixes_tests() {
+    tests("cast_fixes") {
+        // ---- the bug: see the comment at the top of the file
+        test("a failing cast throws class_cast_exception") {
+            where : decimal = 0;
+            try {
+                anything : object = new decimal[2];         // an array of numbers is not a shape
+                s := anything as shape;
+            } catch(e: class_cast_exception) {
+                where = 1;                              // now
+            } catch(e: exception) {
+                where = 2;                              // before the fix (an illegal_state_exception)
+            }
+            expect(where).should_be(1);
+        };
+
+    };
+}

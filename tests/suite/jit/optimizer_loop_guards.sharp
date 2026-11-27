@@ -1,0 +1,173 @@
+mod suite.jit.optimizer_loop_guards;
+import ( std.testing )
+
+/**
+ * A loop whose body begins with a field read (`items` of `items[i]`) gets a
+ * GUARD with -O: the test is written once more on the way in, and the field
+ * is read once, between the guard and the body (the optimizer's
+ * passes/control/loop_rotation.sharp). Nothing a program can see may change:
+ *
+ *   - a loop that never runs reads nothing: no exception for a null object;
+ *   - a loop that runs raises as before, at its first round;
+ *   - a field the loop itself changes is read again each round;
+ *   - what was done before the first round stays done when the read raises.
+ */
+
+class basket {
+    items : decimal[] = new decimal[8];
+    spare : decimal[] = new decimal[8];
+    inner : basket?;
+    count : _int64 = 0;
+
+    basket() {
+        for(i : _int64 = 0; i < 8; i++) {
+            items[i] = i + 1;
+            spare[i] = 100;
+        }
+    }
+
+    /** the field read begins the body; the test does not touch the object */
+    def total(rounds: _int64) : decimal {
+        sum : decimal = 0;
+        for(i : _int64 = 0; i < rounds; i++) {
+            sum += items[i];
+        }
+        return sum;
+    }
+
+    /** two loops inside each other, both over fields */
+    def pairs(rounds: _int64) : decimal {
+        sum : decimal = 0;
+        for(i : _int64 = 0; i < rounds; i++) {
+            for(j : _int64 = i + 1; j < rounds; j++) {
+                sum += items[i] * spare[j];
+            }
+        }
+        return sum;
+    }
+
+    /** the loop changes the field it reads: the second round must see the other array */
+    def swapping(rounds: _int64) : decimal {
+        sum : decimal = 0;
+        for(i : _int64 = 0; i < rounds; i++) {
+            sum += items[i];
+            kept := items;
+            items = spare;
+            spare = kept;
+        }
+        return sum;
+    }
+
+    /** a call in the loop that changes the field */
+    def swap() {
+        kept := items;
+        items = spare;
+        spare = kept;
+    }
+
+    def swapping_by_call(rounds: _int64) : decimal {
+        sum : decimal = 0;
+        for(i : _int64 = 0; i < rounds; i++) {
+            sum += items[i];
+            swap();
+        }
+        return sum;
+    }
+
+    /** a field of a field: a.b.c */
+    def deep(rounds: _int64) : decimal {
+        sum : decimal = 0;
+        for(i : _int64 = 0; i < rounds; i++) {
+            sum += inner!!.inner!!.items[i];
+        }
+        return sum;
+    }
+
+    /** `continue` jumps to the test: the read was made once all the same */
+    def odd_ones(rounds: _int64) : decimal {
+        sum : decimal = 0;
+        for(i : _int64 = 0; i < rounds; i++) {
+            if(i % 2 == 1) { continue; }
+            sum += items[i];
+        }
+        return sum;
+    }
+
+    /** something is done before the loop: it stays done when the loop's read raises */
+    def counted(other: basket, rounds: _int64) : decimal {
+        count = count + 1;
+        sum : decimal = 0;
+        for(i : _int64 = 0; i < rounds; i++) {
+            sum += other.items[i];
+        }
+        return sum;
+    }
+
+    /** a while loop that writes through the field */
+    def fill(value: decimal, rounds: _int64) {
+        i : _int64 = 0;
+        while(i < rounds) {
+            spare[i] = value;
+            i++;
+        }
+    }
+}
+
+class holder {
+    missing : basket;       // never given an object: null
+}
+
+def optimizer_loop_guards_tests() {
+    tests("optimizer_loop_guards") {
+        test("a loop over a field") { expect(new basket().total(8)).should_be(36); };
+        test("the same loop, no rounds") { expect(new basket().total(0)).should_be(0); };
+        test("the same loop, one round") { expect(new basket().total(1)).should_be(1); };
+        test("loops inside each other") { expect(new basket().pairs(4)).should_be(1000); };
+        test("loops inside each other, the inner one never runs") { expect(new basket().pairs(1)).should_be(0); };
+        test("the loop changes the field") { expect(new basket().swapping(4)).should_be(204); };
+        test("a call in the loop changes the field") { expect(new basket().swapping_by_call(4)).should_be(204); };
+        test("a field of a field") {
+            a := new basket();
+            a.inner = new basket();
+            a.inner!!.inner = new basket();
+            expect(a.deep(3)).should_be(6);
+        };
+        test("continue") { expect(new basket().odd_ones(8)).should_be(16); };
+        test("a while loop that writes") {
+            b := new basket();
+            b.fill(7, 3);
+            expect(b.spare[0] + b.spare[2] + b.spare[3]).should_be(114);
+        };
+
+        test("a null object, no rounds: nothing is read, nothing raises") {
+            h := new holder();
+            expect(h.missing.total(0)).should_be(0);
+        };
+        test("a null object, loops inside each other, no rounds") {
+            h := new holder();
+            expect(h.missing.pairs(1)).should_be(0);
+        };
+        test("a null object, a round: nullptr_exception") {
+            h := new holder();
+            expect_throws<nullptr_exception>() { h.missing.total(2); };
+        };
+        test("a null object in the middle of a.b.c, no rounds") {
+            a := new basket();
+            expect(a.deep(0)).should_be(0);
+        };
+        test("a null object in the middle of a.b.c, a round") {
+            a := new basket();
+            a.inner = new basket();
+            expect_throws<throwable>() { a.deep(1); };
+        };
+        test("what was done before the loop stays done when the read raises") {
+            b := new basket();
+            h := new holder();
+            expect_throws<nullptr_exception>() { b.counted(h.missing, 3); };
+            expect(b.count).named("what was done before the loop").should_be(1);
+        };
+        test("a position outside the array still raises") {
+            expect_throws<throwable>() { new basket().total(9); };
+        };
+    };
+}

@@ -1,0 +1,19 @@
+mod suite.library.testing.ide;
+
+import ( std.testing, suite.helpers )
+
+/**
+ * std.testing for an editor (-ide-tests) and -test-only. The tests read
+ * what a small test program, this one started again as a child, reports, so
+ * they run in a process of their own: suite.isolated.testing_ide
+ * (isolated/testing_ide.sharp). Here they are one test.
+ */
+def ide_tests() {
+    tests("ide") {
+        test("the tests of -ide-tests and -test-only pass, in a process of their own") {
+            ran := run_isolated("testing_ide");
+            expect(ran.code).named("suite isolated testing_ide said:\n" + ran.said).should_be(0);
+            expect(ran.said).should_contain("RESULT PASS testing_ide");
+        };
+    };
+}

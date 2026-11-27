@@ -1,0 +1,68 @@
+mod suite.classes.interfaces_fixes;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (fixed), found while writing interfaces.sharp:
+ * a method that comes from an interface can be overridden again in a class
+ * further down. Called through the INTERFACE type the object's own override
+ * ran, as it should. Called through a variable of the class in between (or
+ * from a method inherited from that class) the override was ignored and the
+ * in-between class's version ran: the same object gave two different
+ * answers to the same call.
+ *
+ *     n : named = l;       n.name()    gives "label"
+ *     r : rectangle = l;   r.name()    gave "rectangle", now gives "label"
+ *
+ * The same in all four configurations ({no -O, -O} x {JIT, -nojit}).
+ */
+
+interface named {
+    def name(): string;
+}
+
+class rectangle : named {
+    override def name(): string {
+        return "rectangle";
+    }
+
+    /* inherited by labelled_rectangle; calls name() on the object itself */
+    def describe(): string {
+        return "a " + name();
+    }
+}
+
+class labelled_rectangle base rectangle {
+    override def name(): string {
+        return "label";
+    }
+}
+
+def name_through_interface(n: named): string {
+    return n.name();
+}
+
+def name_through_class(r: rectangle): string {
+    return r.name();
+}
+
+def interfaces_fixes_tests() {
+    tests("interfaces_fixes") {
+        // ---- these always worked
+        test("called on the object's own type") { expect(new labelled_rectangle().name()).should_be("label"); };
+        test("called through the interface") {
+            as_interface : named = new labelled_rectangle();
+            expect(as_interface.name()).should_be("label");
+        };
+        test("passed as the interface") { expect(name_through_interface(new labelled_rectangle())).should_be("label"); };
+
+        // ---- these gave "rectangle" before the fix
+        test("called through the class in between") {
+            as_rectangle : rectangle = new labelled_rectangle();
+            expect(as_rectangle.name()).should_be("label");
+        };
+        test("passed as the class in between") { expect(name_through_class(new labelled_rectangle())).should_be("label"); };
+        test("called from an inherited method") { expect(new labelled_rectangle().describe()).should_be("a label"); };
+
+    };
+}

@@ -1,0 +1,378 @@
+mod suite.library.basics.maps;
+
+import ( std.testing )
+
+/**
+ * The key/value containers of std:
+ *
+ *   hash_map<k, v>     put, at, size, clear
+ *   dictionary<k, v>   what a dictionary literal { key : value, ... } makes:
+ *                      values under keys, in the order they were added
+ *
+ * In other files:
+ *   - hash_map.remove, at() for a missing key, the empty dictionary literal:
+ *     maps_fixes.sharp (they used to be wrong)
+ *   - a dictionary literal with exactly one pair used to not compile; it does
+ *     now (arrays/dictionary_one_pair.sharp)
+ *   - hash_table: maps_hash_table.sharp
+ *
+ * A new hash_map has 128 buckets and an int key goes to bucket `key % 128`, so the
+ * int keys 1, 129, 257 share a bucket; that is used below to test collisions.
+ */
+
+class city {
+    name : string = "";
+    population : decimal = 0;
+
+    city(city_name: string, people: decimal) {
+        name = city_name;
+        population = people;
+    }
+}
+
+/** the squares of 0 .. 499 under their numbers */
+def squares_map(): hash_map<int, int> {
+    squares := new hash_map<int, int>();
+    for(i : decimal = 0; i < 500; i++) {
+        squares.put(i, i * i);
+    }
+    return squares;
+}
+
+/** "key0" .. "key299" with the values 1000 .. 1299 */
+def lengths_map(): hash_map<string, int> {
+    lengths := new hash_map<string, int>();
+    for(i : decimal = 0; i < 300; i++) {
+        number : int = i;
+        lengths.put("key" + number, i + 1000);
+    }
+    return lengths;
+}
+
+def maps_tests() {
+    tests("maps") {
+        // ================= hash_map with string keys and number values
+        test("a new map has size 0") { expect(new hash_map<string, int>().size()).should_be(0); };
+
+        // ---- put says whether the key is new
+        test("put of a new key returns true, for each new key") {
+            ages := new hash_map<string, int>();
+            expect_true(ages.put("ann", 31));
+            expect_true(ages.put("bob", 45));
+            expect_true(ages.put("cy", 8));
+        };
+
+        tests("string_keys") {
+            ages : hash_map<string, int>;
+            before_each {
+                ages = new hash_map<string, int>();
+                ages.put("ann", 31);
+                ages.put("bob", 45);
+                ages.put("cy", 8);
+            };
+
+            test("size after three puts") { expect(ages.size()).should_be(3); };
+
+            // ---- at
+            test("at(ann)") { expect(ages.at("ann")!!.value).should_be(31); };
+            test("at(bob)") { expect(ages.at("bob")!!.value).should_be(45); };
+            test("at(cy)") { expect(ages.at("cy")!!.value).should_be(8); };
+
+            // ---- the key is compared by its characters, not by which string object it is
+            test("a key built at run time finds the entry") {
+                built := "a" + "nn";
+                expect(ages.at(built)!!.value).should_be(31);
+            };
+
+            // ---- overwrite
+            test("put of an existing key returns false") { expect_false(ages.put("bob", 46)); };
+            test("overwriting replaces the value, not the size or the other entries") {
+                ages.put("bob", 46);
+                expect(ages.at("bob")!!.value).named("the value").should_be(46);
+                expect(ages.size()).named("size").should_be(3);
+                expect(ages.at("ann")!!.value).named("ann").should_be(31);
+                expect(ages.at("cy")!!.value).named("cy").should_be(8);
+            };
+            test("overwritten three times: the last value, still three entries") {
+                ages.put("bob", 46);
+                ages.put("bob", 47);
+                ages.put("bob", 48);
+                expect(ages.at("bob")!!.value).should_be(48);
+                expect(ages.size()).named("size").should_be(3);
+            };
+
+            // ---- keys are case sensitive, and "" is a key like any other
+            test("Ann and ann are two keys, each with its own value") {
+                ages.put("Ann", 99);
+                expect(ages.size()).named("size").should_be(4);
+                expect(ages.at("ann")!!.value).named("ann").should_be(31);
+                expect(ages.at("Ann")!!.value).named("Ann").should_be(99);
+            };
+            test("the empty string as a key") {
+                ages.put("Ann", 99);
+                ages.put("", 1);
+                expect(ages.at("")!!.value).should_be(1);
+                expect(ages.size()).named("size with the empty key").should_be(5);
+            };
+
+            // ---- clear
+            test("clear: size 0") {
+                ages.clear();
+                expect(ages.size()).should_be(0);
+            };
+            test("after clear a key is new again") {
+                ages.clear();
+                expect_true(ages.put("ann", 1));
+                expect(ages.at("ann")!!.value).named("value put after clear").should_be(1);
+                expect(ages.size()).named("size after clear and one put").should_be(1);
+            };
+        };
+
+        // ================= hash_map with object values
+        tests("object_values") {
+            cities : hash_map<string, city>;
+            paris : city;
+            before_each {
+                cities = new hash_map<string, city>();
+                paris = new city("paris", 2100000);
+                cities.put("fr", paris);
+                cities.put("it", new city("rome", 2800000));
+            };
+
+            test("object values: size") { expect(cities.size()).should_be(2); };
+            test("object values: field of at(fr)") { expect(cities.at("fr")!!.name).should_be("paris"); };
+            test("object values: field of at(it)") { expect(cities.at("it")!!.population).should_be(2800000); };
+            test("at gives the object that was put, not a copy") { expect_true(cities.at("fr") == paris); };
+
+            // changing the object changes what the map gives back
+            test("the map holds the object itself") {
+                paris.population = 5;
+                expect(cities.at("fr")!!.population).should_be(5);
+            };
+
+            // ---- a missing key gives null
+            test("a missing key gives null") { expect_null(cities.at("de")); };
+            test("a missing key in an empty map gives null") { expect_null(new hash_map<string, city>().at("x")); };
+            test("looking up a missing key adds nothing") {
+                cities.at("de");
+                expect(cities.size()).should_be(2);
+            };
+
+            // ---- a null value can be stored
+            test("a null value counts as an entry, and comes back as null") {
+                cities.put("xx", null);
+                expect(cities.size()).should_be(3);
+                expect_null(cities.at("xx"));
+            };
+            test("a null value can be overwritten, without adding an entry") {
+                cities.put("xx", null);
+                cities.put("xx", new city("atlantis", 0));
+                expect(cities.at("xx")!!.name).should_be("atlantis");
+                expect(cities.size()).named("size").should_be(3);
+            };
+        };
+
+        // ================= hash_map with int keys
+        tests("int_keys") {
+            names : hash_map<int, string>;
+            before_each {
+                names = new hash_map<int, string>();
+                names.put(1, "one");
+                names.put(2, "two");
+                names.put(30, "thirty");
+            };
+
+            test("int keys: size") { expect(names.size()).should_be(3); };
+            test("int keys: at(1)") { expect(names.at(1)!!).should_be("one"); };
+            test("int keys: at(2)") { expect(names.at(2)!!).should_be("two"); };
+            test("int keys: at(30)") { expect(names.at(30)!!).should_be("thirty"); };
+
+            // ---- the key is compared by its number
+            test("an int variable as the key") {
+                two : int = 2;
+                expect(names.at(two)!!).should_be("two");
+            };
+            test("a computed key") { expect(names.at(15 * 2)!!).should_be("thirty"); };
+            test("overwrite with an int key") {
+                expect_false(names.put(1, "ONE"));
+                expect(names.at(1)!!).named("the overwritten key").should_be("ONE");
+            };
+
+            // ---- zero and negative keys
+            test("zero and a negative key") {
+                names.put(0, "zero");
+                names.put(0 - 7, "minus seven");
+                expect(names.at(0)!!).named("key 0").should_be("zero");
+                expect(names.at(0 - 7)!!).named("key -7").should_be("minus seven");
+                expect(names.size()).named("size").should_be(5);
+            };
+
+            // ---- keys that share a bucket (1, 129 and 257 are all 1 modulo 128)
+            tests("one_bucket") {
+                before_each {
+                    names.put(129, "one hundred twenty nine");
+                    names.put(257, "two hundred fifty seven");
+                };
+
+                test("colliding keys are separate entries") {
+                    expect(names.size()).should_be(5);
+                    expect(names.at(1)!!).named("first key of the bucket").should_be("one");
+                    expect(names.at(129)!!).named("second key of the bucket").should_be("one hundred twenty nine");
+                    expect(names.at(257)!!).named("third key of the bucket").should_be("two hundred fifty seven");
+                };
+                test("overwriting the middle key of a bucket") { expect_false(names.put(129, "129")); };
+                test("overwriting the middle key of a bucket changes that key only, and the size stays") {
+                    names.put(129, "129");
+                    expect(names.at(129)!!).named("that key").should_be("129");
+                    expect(names.at(1)!!).named("the one before it").should_be("one");
+                    expect(names.at(257)!!).named("the one after it").should_be("two hundred fifty seven");
+                    expect(names.size()).named("size").should_be(5);
+                };
+            };
+        };
+
+        // ================= many entries: 500 int keys in 128 buckets
+        test("500 puts: every key was new") {
+            squares := new hash_map<int, int>();
+            new_keys : decimal = 0;
+            for(i : decimal = 0; i < 500; i++) {
+                if(squares.put(i, i * i)) new_keys++;
+            }
+            expect(new_keys).should_be(500);
+        };
+
+        tests("squares") {
+            squares : hash_map<int, int>;
+            before_each { squares = squares_map(); };
+
+            test("500 puts: size") { expect(squares.size()).should_be(500); };
+            test("500 puts: at(0)") { expect(squares.at(0)!!.value).should_be(0); };
+            test("500 puts: at(7)") { expect(squares.at(7)!!.value).should_be(49); };
+            test("500 puts: at(128), the second key of bucket 0") { expect(squares.at(128)!!.value).should_be(16384); };
+            test("500 puts: at(321)") { expect(squares.at(321)!!.value).should_be(103041); };
+            test("500 puts: at(499)") { expect(squares.at(499)!!.value).should_be(249001); };
+
+            // every key gives its own value: the sum of i * i for i = 0..499
+            test("500 puts: the sum of all values") {
+                sum : decimal = 0;
+                for(i : decimal = 0; i < 500; i++) {
+                    sum += squares.at(i)!!.value;
+                }
+                expect(sum).should_be(41541750);
+            };
+
+            // overwrite every second key
+            test("250 overwrites: none was a new key, the size is unchanged") {
+                replaced : decimal = 0;
+                for(i : decimal = 0; i < 500; i += 2) {
+                    if(!squares.put(i, 1)) replaced++;
+                }
+                expect(replaced).should_be(250);
+                expect(squares.size()).named("size").should_be(500);
+                expect(squares.at(200)!!.value).named("an overwritten key").should_be(1);
+                expect(squares.at(201)!!.value).named("a key that was not overwritten").should_be(40401);
+            };
+        };
+
+        // ================= many entries with string keys
+        tests("string_keys_many") {
+            lengths : hash_map<string, int>;
+            before_each { lengths = lengths_map(); };
+
+            test("300 string keys: size") { expect(lengths.size()).should_be(300); };
+            test("300 string keys: at(key0)") { expect(lengths.at("key0")!!.value).should_be(1000); };
+            test("300 string keys: at(key42)") { expect(lengths.at("key42")!!.value).should_be(1042); };
+            test("300 string keys: at(key299)") { expect(lengths.at("key299")!!.value).should_be(1299); };
+            test("300 string keys: the sum of all values") {
+                sum : decimal = 0;
+                for(i : decimal = 0; i < 300; i++) {
+                    number : int = i;
+                    sum += lengths.at("key" + number)!!.value;
+                }
+                expect(sum).should_be(344850);
+            };
+            test("clear of a big map") {
+                lengths.clear();
+                expect(lengths.size()).should_be(0);
+            };
+        };
+
+        // ================= a map with a chosen number of buckets
+        test("20 keys in 4 buckets") {
+            buckets : int = 4;
+            tiny := new hash_map<int, string>(buckets);
+            for(i : decimal = 0; i < 20; i++) {
+                tiny.put(i, "value");
+            }
+            tiny.put(13, "thirteen");
+            expect(tiny.size()).named("size").should_be(20);
+            expect(tiny.at(13)!!).named("an overwritten key").should_be("thirteen");
+            expect(tiny.at(17)!!).named("another key").should_be("value");
+        };
+
+        // ================= two maps are independent
+        test("same key in two maps") {
+            first := new hash_map<string, int>();
+            second := new hash_map<string, int>();
+            first.put("k", 1);
+            second.put("k", 2);
+            expect(first.at("k")!!.value).named("first").should_be(1);
+            expect(second.at("k")!!.value).named("second").should_be(2);
+        };
+
+        // ================= dictionary literals
+        tests("dictionary") {
+            digits : dictionary<string, int>;
+            before_each { digits = { "one" : 1, "two" : 2, "three" : 3 }; };
+
+            test("dictionary literal: number of pairs") { expect(digits.size()).should_be(3); };
+            test("first pair") {
+                expect(digits.keys().at(0)).named("key").should_be("one");
+                expect(digits.values().at(0).value).named("value").should_be(1);
+            };
+            test("second pair") {
+                expect(digits.keys().at(1)).named("key").should_be("two");
+                expect(digits.values().at(1).value).named("value").should_be(2);
+            };
+            test("third pair") {
+                expect(digits.keys().at(2)).named("key").should_be("three");
+                expect(digits.values().at(2).value).named("value").should_be(3);
+            };
+
+            // going through the pairs with foreach
+            test("foreach over a dictionary: the values, and the keys in the order written") {
+                total : decimal = 0;
+                keys : string = "";
+                foreach(entry in digits) {
+                    total += entry.second;
+                    keys = keys + entry.first + " ";
+                }
+                expect(total).named("values").should_be(6);
+                expect(keys).named("keys").should_be("one two three ");
+            };
+        };
+
+        test("dictionary literal with int keys") {
+            words := { 10 : "ten", 20 : "twenty" };
+            expect(words.size()).named("number of pairs").should_be(2);
+            expect(words.keys().at(0).value).named("first key").should_be(10);
+            expect(words.values().at(0)).named("first value").should_be("ten");
+            expect(words.keys().at(1).value).named("second key").should_be(20);
+            expect(words.values().at(1)).named("second value").should_be("twenty");
+        };
+
+        test("dictionary literal with object values") {
+            capitals := { "fr" : new city("paris", 1), "jp" : new city("tokyo", 2) };
+            expect(capitals.size()).named("number of pairs").should_be(2);
+            expect(capitals.values().at(1).name).named("field of the second value").should_be("tokyo");
+        };
+
+        // keys and values can be expressions
+        test("dictionary literal with computed values") {
+            five : decimal = 5;
+            computed := { "double" : five * 2, "square" : five * five };
+            expect(computed.values().at(0).value).named("computed value 1").should_be(10);
+            expect(computed.values().at(1).value).named("computed value 2").should_be(25);
+        };
+    };
+}

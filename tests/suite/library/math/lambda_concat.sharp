@@ -1,0 +1,31 @@
+mod suite.library.math.lambda_concat;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (compiler, fixed): the COMPILER crashed (segmentation
+ * fault) on this file.
+ *
+ * A lambda whose body assigns `"literal" + parameter` to a field of a
+ * captured object crashed the compiler. Assigning the parameter alone
+ * (`note.text = s;`) worked, and so did returning the concatenation from a
+ * lambda with a return type (`{ s: string -> (string) return s + "!"; }`).
+ */
+
+class holder {
+    text : string = "";
+}
+
+def run(action: (string)(), argument: string) {
+    action(argument);
+}
+
+def lambda_concat_tests() {
+    tests("lambda_concat") {
+        test("literal + parameter assigned inside a lambda") {
+            note := new holder();
+            run({ s: string -> note.text = "left " + s; }, "side");     // the compiler crashed here
+            expect(note.text).should_be("left side");
+        };
+    };
+}

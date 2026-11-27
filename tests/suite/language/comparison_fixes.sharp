@@ -1,0 +1,36 @@
+mod suite.language.comparison_fixes;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (fixed): comparing fractions. The compiler works out
+ * `0.1 + 0.2 == 0.3` itself when all three are literals, and got a different
+ * answer from the running program (the same with and without -O, with and
+ * without the JIT):
+ *
+ *     0.1 + 0.2 == 0.3     written with literals   -> 1 (true) before the fix
+ *     x + y == z           the same numbers in decimal -> 0 (false)
+ *
+ * 0 is the usual floating point answer (0.1 + 0.2 is a hair above 0.3).
+ * Whichever is meant, the two must agree; now both give 0.
+ */
+
+def same(a: decimal, b: decimal): decimal { return a == b; }
+
+def comparison_fixes_tests() {
+    tests("comparison_fixes") {
+        x : decimal;
+        y : decimal;
+        z : decimal;
+        before_each {
+            x = 0.1;
+            y = 0.2;
+            z = 0.3;
+        };
+
+        test("x + y == z (variables)") { expect(x + y == z).should_be(0); };
+        test("same(x + y, z)") { expect(same(x + y, z)).should_be(0); };
+        test("0.1 + 0.2 == 0.3 (literals)") { expect(0.1 + 0.2 == 0.3).should_be(0); };
+        test("0.1 + 0.2 != 0.3 (literals)") { expect(0.1 + 0.2 != 0.3).should_be(1); };
+    };
+}

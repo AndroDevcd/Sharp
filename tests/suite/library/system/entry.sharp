@@ -1,0 +1,25 @@
+mod suite.library.system;
+
+import (
+    std.testing,
+    suite.library.system.args_logger,
+    suite.library.system.environment,
+    suite.library.system.gc,
+    suite.library.system.gc_limit,
+    suite.library.system.process,
+    suite.library.system.signals,
+    suite.library.system.subprocess
+)
+
+/** suite.library.system: std.system */
+def system_tests() {
+    tests("system") {
+        args_logger_tests();
+        environment_tests();
+        gc_tests();
+        gc_limit_tests();
+        process_tests();
+        signals_tests();
+        subprocess_tests();
+    };
+}

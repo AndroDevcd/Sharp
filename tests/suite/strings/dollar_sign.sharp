@@ -1,0 +1,15 @@
+mod suite.strings.dollar_sign;
+import ( std.testing )
+def dollar_sign_tests() {
+    tests("dollar_sign") {
+        test("dollar in a literal") {
+            price := "cost: $5";
+            expect(price.size()).should_be(8);
+        };
+        test("interpolation still works") {
+            name := "x";
+            expect("a $name b").should_be("a x b");
+        };
+        test("dollar at the end") { expect("5$").should_be("5" + "$$"); };
+    };
+}

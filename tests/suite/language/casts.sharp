@@ -1,0 +1,271 @@
+mod suite.language.casts;
+
+import ( std.testing )
+
+/**
+ * Casts with `as`.
+ *
+ * Numbers:  `x as _int8`, `_uint8`, `_int16`, `_uint16`, `_int32`, `_uint32`,
+ *           `_int64` cut the fraction off (towards zero) and then keep only
+ *           the low bits, exactly like a cast in C.
+ * Objects:  `thing as dog` views an object through another class of its
+ *           hierarchy; `value as decimal[]` gets an array back out of an `object`.
+ */
+
+class animal {
+    name : string;
+    animal(n: string) { name = n; }
+}
+
+class dog base animal {
+    tricks : decimal = 3;
+    dog(n: string) -> base(n) {}
+    def fetch() : decimal { return 1; }
+}
+
+class puppy base dog {
+    age : decimal = 2;
+    puppy(n: string) -> base(n) {}
+    def chew() : decimal { return 7; }
+}
+
+class sized_fields {
+    tiny : _int8;
+    small : _int16;
+}
+
+def name_of(a: animal) : string { return a.name; }
+def give(x: decimal) : decimal { return x; }
+def as_tiny(x: decimal) : _int8 { return x; }
+def as_small(x: decimal) : _int16 { return x; }
+
+def casts_tests() {
+    tests("casts") {
+        // ---- _int8: -128 .. 127
+        test("127 as _int8 fits") { x : decimal = 127; expect(x as _int8).should_be(127); };
+        test("128 as _int8") { x : decimal = 128; expect(x as _int8).should_be(0 - 128); };
+        test("200 as _int8") { x : decimal = 200; expect(x as _int8).should_be(0 - 56); };
+        test("255 as _int8") { x : decimal = 255; expect(x as _int8).should_be(0 - 1); };
+        test("256 as _int8") { x : decimal = 256; expect(x as _int8).should_be(0); };
+        test("300 as _int8") { x : decimal = 300; expect(x as _int8).should_be(44); };
+        test("-1 as _int8 fits") { x : decimal = 0 - 1; expect(x as _int8).should_be(0 - 1); };
+        test("-128 as _int8 fits") { x : decimal = 0 - 128; expect(x as _int8).should_be(0 - 128); };
+        test("-129 as _int8") { x : decimal = 0 - 129; expect(x as _int8).should_be(127); };
+
+        // ---- _uint8: 0 .. 255
+        test("255 as _uint8 fits") { x : decimal = 255; expect(x as _uint8).should_be(255); };
+        test("256 as _uint8") { x : decimal = 256; expect(x as _uint8).should_be(0); };
+        test("511 as _uint8") { x : decimal = 511; expect(x as _uint8).should_be(255); };
+        test("-1 as _uint8") { x : decimal = 0 - 1; expect(x as _uint8).should_be(255); };
+
+        // ---- _int16: -32768 .. 32767
+        test("32767 as _int16 fits") { x : decimal = 32767; expect(x as _int16).should_be(32767); };
+        test("32768 as _int16") { x : decimal = 32768; expect(x as _int16).should_be(0 - 32768); };
+        test("40000 as _int16") { x : decimal = 40000; expect(x as _int16).should_be(0 - 25536); };
+        test("65535 as _int16") { x : decimal = 65535; expect(x as _int16).should_be(0 - 1); };
+        test("70000 as _int16") { x : decimal = 70000; expect(x as _int16).should_be(4464); };
+
+        // ---- _uint16: 0 .. 65535
+        test("65535 as _uint16 fits") { x : decimal = 65535; expect(x as _uint16).should_be(65535); };
+        test("65536 as _uint16") { x : decimal = 65536; expect(x as _uint16).should_be(0); };
+        test("100000 as _uint16") { x : decimal = 100000; expect(x as _uint16).should_be(34464); };
+        test("-1 as _uint16") { x : decimal = 0 - 1; expect(x as _uint16).should_be(65535); };
+
+        // ---- _int32: -2147483648 .. 2147483647
+        test("2^31 - 1 as _int32 fits") { x : decimal = 2147483647; expect(x as _int32).should_be(2147483647); };
+        test("2^31 as _int32") { x : decimal = 2147483648; expect(x as _int32).should_be(0 - 2147483648); };
+        test("3000000000 as _int32") { x : decimal = 3000000000; expect(x as _int32).should_be(0 - 1294967296); };
+        test("2^32 - 1 as _int32") { x : decimal = 4294967295; expect(x as _int32).should_be(0 - 1); };
+        test("2^32 + 1 as _int32") { x : decimal = 4294967297; expect(x as _int32).should_be(1); };
+
+        // ---- _uint32: 0 .. 4294967295
+        test("2^32 - 1 as _uint32 fits") { x : decimal = 4294967295; expect(x as _uint32).should_be(4294967295); };
+        test("2^32 as _uint32") { x : decimal = 4294967296; expect(x as _uint32).should_be(0); };
+        test("-1 as _uint32") { x : decimal = 0 - 1; expect(x as _uint32).should_be(4294967295); };
+
+        // ---- fractions are cut off towards zero
+        test("3.99 as _int32") { x : decimal = 3.99; expect(x as _int32).should_be(3); };
+        test("3.99 as _int16") { x : decimal = 3.99; expect(x as _int16).should_be(3); };
+        test("3.99 as _int8") { x : decimal = 3.99; expect(x as _int8).should_be(3); };
+        test("3.99 as _uint8") { x : decimal = 3.99; expect(x as _uint8).should_be(3); };
+        test("3.99 as _int64") { x : decimal = 3.99; expect(x as _int64).should_be(3); };
+        test("-3.99 as _int32") { x : decimal = 0 - 3.99; expect(x as _int32).should_be(0 - 3); };
+        test("-3.99 as _int64") { x : decimal = 0 - 3.99; expect(x as _int64).should_be(0 - 3); };
+        test("1000.5 as _int8: 1000 is cut to 8 bits") { x : decimal = 1000.5; expect(x as _int8).should_be(0 - 24); };
+        test("5.5 as var changes nothing") { x : decimal = 5.5; expect(x as decimal).should_be(5.5); };
+
+        // ---- _int64 holds large whole numbers
+        test("2^40 as _int64 fits") { x : decimal = 1099511627776; expect(x as _int64).should_be(1099511627776); };
+        test("2^40 + 0.75 as _int64") { x : decimal = 1099511627776.75; expect(x as _int64).should_be(1099511627776); };
+
+        // ---- what is being cast can be any expression
+        test("a literal expression") { expect((100 + 100) as _int8).should_be(0 - 56); };
+        test("a variable expression") { x : decimal = 100; expect((x + x) as _int8).should_be(0 - 56); };
+        test("a function call") { expect(give(300) as _uint8).should_be(44); };
+        test("the value of an int object") {
+            box := new int(300);
+            expect(box.value as _int8).should_be(44);
+        };
+        test("one cast after another") { expect((70000 as _int16) as _int8).should_be(112); };
+        test("the result used in arithmetic") { x : decimal = 300; expect((x as _int8) + 1000).should_be(1044); };
+        test("widening keeps the value") {
+            tiny_local : _int8 = 100;
+            expect((tiny_local as _int16) * 400).should_be(40000);
+        };
+        test("the result stored in a var, and the variable that was cast is unchanged") {
+            x : decimal = 300;
+            kept : decimal = x as _int8;
+            expect(kept).named("the result").should_be(44);
+            expect(x).named("the variable that was cast").should_be(300);
+        };
+
+        // ---- storing into a sized variable cuts the same way, without `as`
+        test("_int8 local = 200") {
+            x : decimal = 200;
+            local8 : _int8 = x;
+            expect(local8).should_be(0 - 56);
+        };
+        test("_int8 local -56 + 100") {
+            x : decimal = 200;
+            local8 : _int8 = x;
+            local8 = local8 + 100;
+            expect(local8).should_be(44);
+        };
+        test("_int8 local 127 ++") {
+            local8 : _int8 = 127;
+            local8++;
+            expect(local8).should_be(0 - 128);
+        };
+        test("_int8 local -128 + 300") {
+            local8 : _int8 = 127;
+            local8++;
+            local8 += 300;
+            expect(local8).should_be(0 - 84);
+        };
+        test("_uint8 local 255 ++") {
+            localu8 : _uint8 = 255;
+            localu8++;
+            expect(localu8).should_be(0);
+        };
+        test("_int8 field = 200") {
+            x : decimal = 200;
+            fields := new sized_fields();
+            fields.tiny = x;
+            expect(fields.tiny).should_be(0 - 56);
+        };
+        test("_int16 field = 40000") {
+            fields := new sized_fields();
+            fields.small = 40000;
+            expect(fields.small).should_be(0 - 25536);
+        };
+        test("_int16 field 32767 ++") {
+            fields := new sized_fields();
+            fields.small = 32767;
+            fields.small++;
+            expect(fields.small).should_be(0 - 32768);
+        };
+        test("returned as _int8") { expect(as_tiny(200)).should_be(0 - 56); };
+        test("returned as _int16") { expect(as_small(70000)).should_be(4464); };
+
+        // rex, a puppy, and the same object in an animal variable: new for every test
+        tests("objects") {
+            rex : puppy;
+            as_animal : animal;
+            before_each {
+                rex = new puppy("rex");
+                as_animal = rex;
+            };
+
+            // ---- objects: up the hierarchy (always allowed, no cast needed)
+            test("a puppy where an animal is expected") { expect(name_of(rex)).should_be("rex"); };
+            test("puppy in an animal variable") { expect(as_animal.name).should_be("rex"); };
+            test("explicit cast up") {
+                explicit := rex as animal;
+                expect(explicit.name).should_be("rex");
+            };
+            test("puppy in a dog variable") {
+                as_dog : dog = rex;
+                expect(as_dog.fetch()).should_be(1);
+            };
+            test("it is still the same object") { expect_true(as_animal == rex); };
+
+            // ---- objects: down the hierarchy
+            test("animal as dog: method") {
+                back_to_dog := as_animal as dog;
+                expect(back_to_dog.fetch()).should_be(1);
+            };
+            test("animal as dog: field") {
+                back_to_dog := as_animal as dog;
+                expect(back_to_dog.tricks).should_be(3);
+            };
+            test("animal as puppy (two levels): method") {
+                back_to_puppy := as_animal as puppy;
+                expect(back_to_puppy.chew()).should_be(7);
+            };
+            test("animal as puppy: its own field") {
+                back_to_puppy := as_animal as puppy;
+                expect(back_to_puppy.age).should_be(2);
+            };
+            test("animal as puppy: inherited field") {
+                back_to_puppy := as_animal as puppy;
+                expect(back_to_puppy.tricks).should_be(3);
+            };
+            test("animal as puppy: field of the base class") {
+                back_to_puppy := as_animal as puppy;
+                expect(back_to_puppy.name).should_be("rex");
+            };
+            test("cast used directly") { expect((as_animal as puppy).chew()).should_be(7); };
+            test("cast used directly, one level") { expect((as_animal as dog).fetch()).should_be(1); };
+            test("casting does not copy the object") {
+                back_to_puppy := as_animal as puppy;
+                expect_true(back_to_puppy == rex);
+            };
+            test("a change through the cast is seen by all names") {
+                back_to_dog := as_animal as dog;
+                back_to_dog.tricks = 10;
+                expect(rex.tricks).should_be(10);
+            };
+        };
+
+        // ---- out of an `object` variable
+        test("object as dog") {
+            anything : object = new puppy("rex");
+            from_object := anything as dog;
+            expect(from_object.fetch()).should_be(1);
+        };
+        test("object as puppy") {
+            anything : object = new puppy("rex");
+            expect((anything as puppy).chew()).should_be(7);
+        };
+        test("object as string") {
+            anything : object = new string("txt");
+            text := anything as string;
+            expect(text).should_be("txt");
+        };
+        test("object as int") {
+            anything : object = new int(12);
+            number := anything as int;
+            expect(number.value).should_be(12);
+        };
+        test("object as var[]") {
+            anything : object = new decimal[3];
+            numbers := anything as decimal[];
+            expect(sizeof(numbers)).should_be(3);
+        };
+        test("object as var[] is the same array") {
+            anything : object = new decimal[3];
+            numbers := anything as decimal[];
+            numbers[2] = 8;
+            expect((anything as decimal[])[2]).should_be(8);
+        };
+
+        // ---- a cast that cannot work raises an exception, and the program carries on
+        test("var[] as dog throws, and the program carries on after the failed cast") {
+            anything : object = new decimal[3];
+            numbers := anything as decimal[];
+            numbers[2] = 8;
+            expect_throws<exception>() { wrong := anything as dog; };
+            expect((anything as decimal[])[2]).should_be(8);
+        };
+    };
+}

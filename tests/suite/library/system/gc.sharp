@@ -1,0 +1,268 @@
+mod suite.library.system.gc;
+
+import ( std.testing, std.io, std.system )
+
+/**
+ * std.system gc: the program decides when the garbage collector runs.
+ *
+ *      the mode        normal and manual, set for good and for one block (gc.during)
+ *      manual mode     nothing is collected until the program asks, however much is made
+ *      collecting      gc.collect() looks at everything, gc.collect_young() at what is new
+ *      the numbers     memory in use, the limit, what was made since, how many collections, how long
+ *      threads         every function from several threads at once: the mode ends as it began
+ */
+kept : _int8[]?;                // the last piece of garbage made: the optimizer may not drop a `new` nobody keeps
+wrong_modes : _int64 = 0;       // threads: how often a block saw a mode it must not see
+finished : _int64 = 0;          // threads: how many came to their end
+guard : string = "gc case";     // locked while a thread changes the two counts
+
+/** make `megabytes` of objects nobody refers to afterwards */
+def make_garbage(megabytes: _int64) {
+    for(i : _int64 = 0; i < megabytes * 16; i++) {
+        piece := new _int8[64 * 1024];
+        piece[0] = 1;
+        kept = piece;
+    }
+    kept = null;
+}
+
+def megabytes(bytes: _int64) : _int64 {
+    return bytes / (1024 * 1024);
+}
+
+def test_modes() {
+    tests("modes") {
+        test("a program starts in normal mode") { expect_true(gc.mode() == gc_mode.normal); };
+
+        test("set_mode(manual) is manual, and again is still manual") {
+            gc.set_mode(gc_mode.manual);
+            expect_true(gc.mode() == gc_mode.manual);
+            gc.set_mode(gc_mode.manual);
+            expect_true(gc.mode() == gc_mode.manual);
+        };
+        test("set_mode(normal) is normal again") {
+            gc.set_mode(gc_mode.manual);
+            gc.set_mode(gc_mode.normal);
+            expect_true(gc.mode() == gc_mode.normal);
+        };
+
+        test("during(manual): manual inside the block, and as before after it") {
+            inside : gc_mode = gc_mode.normal;
+            gc.during(gc_mode.manual) { inside = gc.mode(); };
+            expect_true(inside == gc_mode.manual);
+            expect_true(gc.mode() == gc_mode.normal);
+        };
+
+        test("a block in a block: manual in both, and normal after the outer one") {
+            deep : gc_mode = gc_mode.normal;
+            between : gc_mode = gc_mode.normal;
+            gc.during(gc_mode.manual) {
+                gc.during(gc_mode.manual) { deep = gc.mode(); };
+                between = gc.mode();
+            };
+            expect_true(deep == gc_mode.manual && between == gc_mode.manual);
+            expect_true(gc.mode() == gc_mode.normal);
+        };
+
+        test("during(normal) in a manual program: normal inside, and manual again after it") {
+            inside : gc_mode = gc_mode.manual;
+            gc.set_mode(gc_mode.manual);
+            gc.during(gc_mode.normal) { inside = gc.mode(); };
+            expect_true(inside == gc_mode.normal);
+            expect_true(gc.mode() == gc_mode.manual);
+        };
+
+        test("a block that throws: the same exception comes out, and the mode was put back first") {
+            expect_throws<illegal_state_exception>() {
+                gc.during(gc_mode.manual) { throw new illegal_state_exception("from the block"); };
+            };
+            expect_true(gc.mode() == gc_mode.normal);
+        };
+
+        test("thrown through two blocks: its message is whole, and the mode is normal") {
+            message := "";
+            try {
+                gc.during(gc_mode.manual) {
+                    gc.during(gc_mode.manual) { throw new illegal_state_exception("deep"); };
+                };
+            } catch(problem: illegal_state_exception) {
+                message = problem.get_message();
+            }
+            expect(message).should_be("deep");
+            expect_true(gc.mode() == gc_mode.normal);
+        };
+    };
+}
+
+def test_manual_mode() {
+    tests("manual") {
+        collections : _int64;
+        full : _int64;
+        in_use : _int64;
+        before_each {
+            gc.collect();
+            gc.set_mode(gc_mode.manual);
+            collections = gc.collections();
+            full = gc.full_collections();
+            in_use = gc.memory_in_use();
+        }
+
+        test("manual: 40 MB of garbage and no collection ran, all of it still there and counted as made") {
+            make_garbage(40);                       // five times what a collection is due after in normal mode
+            expect(gc.collections() - collections).named("collections").should_be(0);
+            expect(megabytes(gc.memory_in_use() - in_use)).named("still in use").should_be_at_least(39);
+            expect(megabytes(gc.allocated_since_collection())).named("made since the last collection").should_be_at_least(39);
+        };
+
+        test("collect_young: one collection, not a full one, the new garbage gone and the count started again") {
+            make_garbage(40);
+            gc.collect_young();
+            expect(gc.collections() - collections).named("collections").should_be(1);
+            expect(gc.full_collections() - full).named("full collections").should_be(0);
+            expect(megabytes(gc.memory_in_use() - in_use)).named("still in use").should_be_at_most(2);
+            expect(megabytes(gc.allocated_since_collection())).named("made since the last collection").should_be_at_most(1);
+        };
+
+        test("collect: one more collection, a full one, the garbage gone, and still manual") {
+            make_garbage(40);
+            gc.collect_young();
+            make_garbage(20);
+            gc.collect();
+            expect(gc.collections() - collections).named("collections").should_be(2);
+            expect(gc.full_collections() - full).named("full collections").should_be(1);
+            expect(megabytes(gc.memory_in_use() - in_use)).named("still in use").should_be_at_most(2);
+            expect_true(gc.mode() == gc_mode.manual);
+        };
+
+        test("normal again: the collector runs on its own, and memory does not pile up") {
+            gc.set_mode(gc_mode.normal);
+            collections = gc.collections();
+            make_garbage(40);
+            expect(gc.collections() - collections).named("collections").should_be_at_least(1);
+            expect(megabytes(gc.memory_in_use() - in_use)).named("in use").should_be_at_most(20);
+        };
+
+        test("collect in normal mode: a full collection") {
+            gc.set_mode(gc_mode.normal);
+            collections = gc.collections();
+            full = gc.full_collections();
+            gc.collect();
+            expect(gc.collections() - collections).should_be_at_least(1);
+            expect(gc.full_collections() - full).should_be_at_least(1);
+        };
+    };
+}
+
+def test_numbers() {
+    tests("numbers") {
+        before_each { gc.collect(); }
+
+        test("the limit is above what is in use") { expect_true(gc.memory_limit() > gc.memory_in_use() && gc.memory_in_use() > 0); };
+        test("pressure is between 0 and 1, and is in use / limit") {
+            expect(gc.pressure()).should_be_between(0, 1);
+            limit : decimal = gc.memory_limit();
+            expect(gc.pressure()).should_be_near(gc.memory_in_use() / limit, 0.01);
+        };
+        test("a pause is not negative") { expect(gc.last_pause()).should_be_at_least(0); };
+        test("the longest pause is at least the last") { expect(gc.longest_pause()).should_be_at_least(gc.last_pause()); };
+        test("all pauses together are at least the longest") { expect(gc.total_pause()).should_be_at_least(gc.longest_pause()); };
+        test("full collections are some of the collections") { expect(gc.full_collections()).should_be_at_most(gc.collections()); };
+
+        tests("stats") {
+            now : gc_stats?;
+            before_each {
+                gc.set_mode(gc_mode.manual);        // (manual: nothing changes between the two readings)
+                now = gc.stats();
+            }
+
+            test("stats: the mode") { expect_true(now!!.mode == gc_mode.manual); };
+            test("stats: the counts") { expect_true(now!!.collections == gc.collections() && now!!.full_collections == gc.full_collections()); };
+            test("stats: the pauses") {
+                expect_true(now!!.last_pause == gc.last_pause() && now!!.longest_pause == gc.longest_pause() && now!!.total_pause == gc.total_pause());
+            };
+            test("stats: the limit") { expect_true(now!!.memory_limit == gc.memory_limit()); };
+            test("stats: memory in use") { expect(megabytes(gc.memory_in_use() - now!!.memory_in_use)).should_be_at_most(1); };
+            test("stats: pressure") { expect(now!!.pressure()).should_be_between(0, 1); };
+        };
+    };
+}
+
+/** a thread that asks for manual blocks, makes garbage in them and collects it */
+def manual_worker(args: object[]) : int {
+    for(i : _int64 = 0; i < 150; i++) {
+        gc.during(gc_mode.manual) {
+            if(gc.mode() != gc_mode.manual) { lock(guard) { wrong_modes++; } }
+            make_garbage(1);
+            if(i % 10 == 0) { gc.collect_young(); }
+            if(i % 50 == 0) { gc.collect(); }
+        };
+        now := gc.stats();
+        if(now.full_collections > now.collections || now.memory_in_use <= 0) { lock(guard) { wrong_modes++; } }
+    }
+    lock(guard) { finished++; }
+    return 0;
+}
+
+/** a thread that asks for normal blocks beside them, and one of whose blocks throws now and then */
+def normal_worker(args: object[]) : int {
+    for(i : _int64 = 0; i < 150; i++) {
+        try {
+            gc.during(gc_mode.normal) {
+                make_garbage(1);
+                if(i % 7 == 0) { throw new illegal_state_exception("on purpose"); }
+            };
+        } catch(problem: illegal_state_exception) { }
+        gc.pressure();
+        gc.allocated_since_collection();
+    }
+    lock(guard) { finished++; }
+    return 0;
+}
+
+/** six threads, four asking for manual blocks and two for normal ones; waits for all of them */
+def run_six_workers() {
+    workers := new thread[6];
+    for(i : _int64 = 0; i < 6; i++) {
+        if(i % 3 == 2) { workers[i] = new thread("gc normal " + i, normal_worker); }
+        else { workers[i] = new thread("gc manual " + i, manual_worker); }
+    }
+    for(i : _int64 = 0; i < 6; i++) { workers[i].start(); }
+    for(i : _int64 = 0; i < 6; i++) { workers[i].join(); }
+}
+
+def test_threads() {
+    tests("threads") {
+        before_each {
+            wrong_modes = 0;
+            finished = 0;
+        }
+
+        test("six threads, 900 blocks: every thread came to its end, a manual block never saw normal mode, and the mode ends as it began") {
+            run_six_workers();
+            expect(finished).named("threads that came to their end").should_be(6);
+            expect(wrong_modes).named("a manual block saw normal mode, or a reading was nonsense").should_be(0);
+            expect_true(gc.mode() == gc_mode.normal);
+        };
+
+        test("after them, set_mode still works and the collector runs on its own again") {
+            run_six_workers();
+            gc.set_mode(gc_mode.manual);
+            expect_true(gc.mode() == gc_mode.manual);
+            gc.set_mode(gc_mode.normal);
+            collections : _int64 = gc.collections();
+            make_garbage(40);
+            expect(gc.collections() - collections).should_be_at_least(1);
+        };
+    };
+}
+
+def gc_tests() {
+    tests("gc") {
+        after_each { gc.set_mode(gc_mode.normal); }    // every test leaves the program as it found it
+
+        test_modes();
+        test_manual_mode();
+        test_numbers();
+        test_threads();
+    };
+}

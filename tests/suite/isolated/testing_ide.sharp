@@ -1,0 +1,182 @@
+mod suite.isolated.testing_ide;
+
+import ( std.io, std.testing, std.system, platform )
+
+/**
+ * std.testing for an editor: a test program started with `-ide-tests`
+ * reports each group and test as lines an editor's test view reads
+ * (`##teamcity[...]`), with where each is written.
+ *
+ * The program starts ITSELF as a child (`sharp suite isolated testing_ide child -ide-tests`):
+ * the child is a small test program with a test that passes, one whose check
+ * fails and one that throws; this program reads what the child printed.
+ * Started without the argument, the same child reports for a person.
+ */
+def be_the_child() {
+    tests("basket") {
+        test("it's empty [at first]") {
+            expect(0).should_be(0);
+        };
+        test("adding puts one in") {
+            expect(2).should_be(1);
+        };
+        test("something throws") {
+            throw new illegal_state_exception("no | milk");
+        };
+    };
+    tests("second_group") {
+        test("fine") { expect("a").should_be("a"); };
+        tests("inner") {
+            test("deep") { expect(1).should_be(1); };
+        };
+    };
+    if(sizeof(program_arguments()) > 3 && program_arguments()[3] == "bad-name") {     // (after `isolated testing_ide child`)
+        tests("a bad name!") {
+            test("never reached") { };
+        };
+    }
+    finish_tests();
+}
+
+/** how a child ended, and what it printed */
+class child_run {
+    said : string = "";
+    code : _int64 = 0;
+}
+
+/** run this program again with `arguments`, to its end */
+def run_child(arguments: string[]) : child_run {
+    child := subprocess.run(program_path(), arguments, true);
+    ran := new child_run();
+    ran.said = child.read_all_text();
+    ran.code = child.wait();
+    child.close();
+    return ran;
+}
+
+/** the child as an editor starts it */
+def for_an_editor() : child_run {
+    return run_child({"isolated", "testing_ide", "child", "-ide-tests" });
+}
+
+/** the child as a person starts it */
+def for_a_person() : child_run {
+    return run_child({"isolated", "testing_ide", "child" });
+}
+
+/** the child, running only the test "basket > it's empty [at first]" */
+def one_test_of_it() : child_run {
+    return run_child({"isolated", "testing_ide", "child", "-test-only", "basket > it's empty [at first]" });
+}
+
+/** `suite isolated testing_ide [child ...]`: the tests, or the child */
+def testing_ide_program(args: string[]) {
+    if(sizeof(args) > 0 && args[0] == "child") {
+        be_the_child();
+        return;
+    }
+    show_only_failures();
+    tests("testing_ide") {
+        test("program_arguments() is what main was handed") {
+            // (main was handed `isolated testing_ide` and these)
+            expect(sizeof(program_arguments())).should_be(sizeof(args) + 2);
+            expect(program_arguments()[1]).should_be("testing_ide");
+        };
+
+        tests("editor") {
+            ran : child_run?;
+            before_each { ran = for_an_editor(); }
+
+            test("a group starts and ends") {
+                expect(ran!!.said).should_contain("##teamcity[testSuiteStarted name='basket' locationHint='sharp://");
+                expect(ran!!.said).should_contain("##teamcity[testSuiteFinished name='basket']");
+                expect(ran!!.said).should_contain("##teamcity[testSuiteStarted name='second_group'");
+            };
+            test("a test starts and ends, with the signs in its name escaped") {
+                expect(ran!!.said).should_contain("##teamcity[testStarted name='it|'s empty |[at first|]' locationHint='sharp://");
+                expect(ran!!.said).should_contain("##teamcity[testFinished name='it|'s empty |[at first|]' duration='");
+            };
+            test("where a test is written: this file and a line") {
+                expect(ran!!.said).should_contain("testing_ide.sharp:17']");          // the line of test("it's empty ...")
+                expect(ran!!.said).should_contain("testing_ide.sharp:16']");          // the line of tests("basket")
+            };
+            test("a failed check hands over what was expected and what it was") {
+                expect(ran!!.said).should_contain("##teamcity[testFailed name='adding puts one in' message='expected 1'");
+                expect(ran!!.said).should_contain("type='comparisonFailure' expected='1' actual='2']");
+            };
+            test("an exception is a failure with its words, a bar doubled") {
+                expect(ran!!.said).should_contain("##teamcity[testFailed name='something throws'");
+                expect(ran!!.said).should_contain("|nno || milk|nat ");
+            };
+            test("no line for a person about a test") {
+                expect(ran!!.said.find("  ok    ")).should_be(false);
+                expect(ran!!.said.find("  FAIL  ")).should_be(false);
+            };
+            test("the summary and the exit code stay") {
+                expect(ran!!.said).should_contain("2 failed, 3 passed (5 tests)");
+                expect(ran!!.code).should_be(1);
+            };
+        };
+
+        test("without the argument it reports for a person") {
+            plain_said := for_a_person().said;
+            expect(plain_said).should_contain("  FAIL  adding puts one in");
+            expect(plain_said.find("##teamcity")).should_be(false);
+        };
+
+        // ---- -test-only: a part of the tests
+        test("one test named: it alone is run") {
+            one := one_test_of_it();
+            expect(one.said).should_contain("  ok    it's empty [at first]");
+            expect(one.said).should_contain("all 1 tests passed");
+            expect(one.said.find("adding puts one in")).should_be(false);
+            expect(one.said.find("second_group")).should_be(false);
+            expect(one.code).should_be(0);
+        };
+
+        test("a group named, and a test of another: the group whole, the other group's one test") {
+            group_said := run_child({"isolated", "testing_ide", "child", "-test-only", "second_group", "-test-only", "basket > something throws" }).said;
+            expect(group_said).should_contain("  ok    fine");
+            expect(group_said).should_contain("  FAIL  something throws");
+            expect(group_said).should_contain("1 failed, 2 passed (3 tests)");
+            expect(group_said.find("adding puts one in")).should_be(false);
+        };
+
+        test("a name that fits nothing runs nothing, says which name, and is a failure") {
+            nothing := run_child({"isolated", "testing_ide", "child", "-test-only", "no such group" });
+            expect(nothing.said).should_contain("no tests were run");
+            expect(nothing.said).should_contain("-test-only: no such group or test:");
+            expect(nothing.said).should_contain("no such group");
+            expect(nothing.code).should_be(1);
+        };
+        test("a part of the tests: the summary says so") {
+            expect(one_test_of_it().said).should_contain("only a part of the tests was run (-test-only)");
+            expect(for_a_person().said.find("only a part")).should_be(false);
+        };
+
+        // ---- a group inside a group: named with dots
+        test("a group in a group, by its dotted name: it alone") {
+            inner := run_child({"isolated", "testing_ide", "child", "-test-only", "second_group.inner" });
+            expect(inner.said).should_contain("  ok    deep");
+            expect(inner.said).should_contain("all 1 tests passed");
+            expect(inner.said.find("  ok    fine")).should_be(false);
+            expect(inner.code).should_be(0);
+        };
+
+        test("one test of it; and the beginning of a name is not the name") {
+            deep := run_child({"isolated", "testing_ide", "child", "-test-only", "second_group.inner > deep", "-test-only", "second_group.inne" });
+            expect(deep.said).should_contain("all 1 tests passed");
+            expect(deep.said).should_contain("second_group.inne");
+            expect(deep.code).should_be(1);
+        };
+
+        // ---- a group's name is one word
+        test("a group's name with a space or a sign in it is refused, with the name to write") {
+            bad_said := run_child({"isolated", "testing_ide", "child", "bad-name" }).said;
+            expect(bad_said).should_contain("a group's name is one word of letters, digits and _");
+            expect(bad_said).should_contain("tests(\"a_bad_name\")");
+            expect(bad_said.find("never reached")).should_be(false);
+        };
+    };
+    finish_tests("testing_ide");
+}

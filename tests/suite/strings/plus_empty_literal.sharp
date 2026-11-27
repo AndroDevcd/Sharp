@@ -1,0 +1,29 @@
+mod suite.strings.plus_empty_literal;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (fixed), found while writing functions/recursion.sharp:
+ * string + "" appended the text "null".
+ *   An empty string literal on the right of + was treated as a null array:
+ *       t : string = "abc";
+ *       t + ""              gave "abcnull", now gives "abc"
+ *   An empty string that came out of a function (`return "";`) was added
+ *   correctly; only the literal written directly after + went wrong.
+ *   The same result in all four configurations ({no -O, -O} x {JIT, -nojit}).
+ */
+
+def empty_literal(): string { return ""; }
+
+def plus_empty_literal_tests() {
+    tests("plus_empty_literal") {
+        test("string + function returning an empty literal") {
+            t : string = "abc";
+            expect(t + empty_literal()).should_be("abc");
+        };
+        test("string + empty literal") {
+            t : string = "abc";
+            expect(t + "").should_be("abc");        // was "abcnull"
+        };
+    };
+}

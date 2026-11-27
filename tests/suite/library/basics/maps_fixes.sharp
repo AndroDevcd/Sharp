@@ -1,0 +1,85 @@
+mod suite.library.basics.maps_fixes;
+
+import ( std.testing )
+
+/**
+ * std hash_map and dictionary: behaviour that used to be wrong and was fixed -
+ * remove, missing keys, and the empty dictionary literal. Kept as its own file
+ * so the old bugs stay covered. (The everyday behaviour is in maps.sharp.)
+ *
+ * A dictionary literal with exactly one pair used to be a COMPILE error, so it
+ * could not be a check here:
+ *
+ *     single := { "only" : "entry" };     // error S807: not a statement
+ *
+ * It compiles now; see arrays/dictionary_one_pair.sharp.
+ */
+
+class city {
+    name : string = "";
+
+    city(city_name: string) {
+        name = city_name;
+    }
+}
+
+def maps_fixes_tests() {
+    tests("maps_fixes") {
+        // ---- fixed, used to be wrong (1): hash_map.remove never removes anything and always returns false.
+        // (std/hash_map.sharp, remove(): the search is inside `if(data[index] == null)`,
+        // i.e. it only looks when the bucket is EMPTY; the test should be `!= null`.)
+        tests("remove") {
+            cities : hash_map<string, city>;
+
+            before_each {
+                cities = new hash_map<string, city>();
+                cities.put("fr", new city("paris"));
+                cities.put("it", new city("rome"));
+            };
+
+            test("remove of an existing key returns true") { expect_true(cities.remove("fr")); };
+            test("remove makes the map smaller") {
+                cities.remove("fr");
+                expect(cities.size()).should_be(1);
+            };
+            test("a removed key is gone") {
+                cities.remove("fr");
+                expect_null(cities.at("fr"));
+            };
+            test("the other key is still there") {
+                cities.remove("fr");
+                expect_not_null(cities.at("it"));
+            };
+        };
+
+        // ---- fixed, used to be wrong (2): at() of a missing key gives the value of ANOTHER key when the
+        // bucket of the missing key is not empty. Int keys 1, 129 and 257 share a bucket
+        // (key % 128). (at() walks the chain until `entry.next == null` and then returns
+        // that last entry without comparing its key.)
+        test("a missing key in a bucket that holds other keys gives null") {
+            by_number := new hash_map<int, city>();
+            by_number.put(1, new city("one"));
+            by_number.put(129, new city("one hundred twenty nine"));
+            expect_null(by_number.at(257));
+        };
+
+        // ---- fixed, used to be wrong (3): for value types that are created by default (string, int, ...) a
+        // missing key gives an empty value instead of null, although at() returns `v?`.
+        test("a missing key in a map of strings gives null") {
+            names := new hash_map<int, string>();
+            names.put(1, "one");
+            expect_null(names.at(3));
+        };
+
+        // ---- fixed, used to be wrong (4): a map never grows: resize() exists but nothing calls it, so the
+        // number of buckets stays 128 however many entries are put (it still works,
+        // the chains just get longer). Nothing to check from outside.
+
+        // ---- fixed, used to be wrong (5): an EMPTY dictionary literal throws nullptr_exception while it is
+        // being built (dictionary() -> list.add_all() -> copy() of a null array).
+        test("an empty dictionary literal can be built and has no pairs") {
+            empty := { as <string, city> : };
+            expect(empty.size()).should_be(0);
+        };
+    };
+}

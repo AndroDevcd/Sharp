@@ -1,0 +1,164 @@
+mod suite.jit.remainder_and_text_hash;
+import ( std.testing, std.collections )
+
+/**
+ * `%` on whole numbers is done in machine code by the x64 JIT (the runtime is
+ * asked only for a divisor of 0, which raises), and a text's hash() is worked
+ * out in whole numbers with it. Both must give what they always gave: the
+ * remainder its sign rules and its exception, the hash the very same numbers
+ * (a map of texts lists its entries in the order its hashes give).
+ */
+
+/** many remainders in one loop: long enough for the JIT to take the loop over */
+def sum_of_remainders(count: _int64, by: _int64) : _int64 {
+    sum : _int64 = 0;
+    for(i : _int64 = 0 - count; i < count; i++) {
+        sum += i % by;
+    }
+    return sum;
+}
+
+def sum_of_remainders_by_seven(count: _int64) : _int64 {
+    sum : _int64 = 0;
+    for(i : _int64 = 0 - count; i < count; i++) {
+        sum += i % 7;
+    }
+    return sum;
+}
+
+/** a counter kept below a bound with `%=`: the remainder straight on a local */
+def wrapped(count: _int64, bound: _int64) : _int64 {
+    at : _int64 = 0;
+    for(i : _int64 = 0; i < count; i++) {
+        at = at + 3;
+        at %= bound;
+    }
+    return at;
+}
+
+/** the loop divides by `by` in its last round only when `by` is 0: the exception comes from compiled code */
+def remainder_that_fails(count: _int64) : _int64 {
+    sum : _int64 = 0;
+    for(i : _int64 = count; i >= 0; i--) {
+        sum += 100 % i;
+    }
+    return sum;
+}
+
+def remainder_and_text_hash_tests() {
+    tests("remainder_and_text_hash") {
+        test("the remainder has the sign of the number divided") {
+            a : _int64 = 17;
+            b : _int64 = 5;
+            expect(a % b).should_be(2);
+            expect((0 - a) % b).should_be(0 - 2);
+            expect(a % (0 - b)).should_be(2);
+            expect((0 - a) % (0 - b)).should_be(0 - 2);
+            expect(b % a).should_be(5);
+            expect(0 % b).should_be(0);
+        };
+        test("a divisor of 1 and of -1") {
+            a : _int64 = 17;
+            one : _int64 = 1;
+            expect(a % one).should_be(0);
+            expect(a % (0 - one)).should_be(0);
+            least : _int64 = 0 - 9223372036854775807;
+            least = least - 1;
+            expect(least % (0 - one)).should_be(0);
+            expect(least % 2).should_be(0);
+        };
+        test("large numbers") {
+            big : _int64 = 9223372036854775807;
+            expect(big % 1000000009).should_be(844428230);
+            expect(big % 10).should_be(7);
+        };
+        test("a divisor of 0 raises") {
+            a : _int64 = 17;
+            zero : _int64 = 0;
+            expect_throws<invalid_operation_exception>() { a = a % zero; };
+            expect(a).should_be(17);
+        };
+        test("two hundred thousand remainders in a loop, by a variable") {
+            expect(sum_of_remainders(100000, 7)).should_be(0 - 5);
+            expect(sum_of_remainders(100000, 0 - 7)).should_be(0 - 5);
+            expect(sum_of_remainders(100000, 1)).should_be(0);
+            expect(sum_of_remainders(100000, 0 - 1)).should_be(0);
+        };
+        test("... and by a number written in the loop") { expect(sum_of_remainders_by_seven(100000)).should_be(0 - 5); };
+        test("%= on a local in a loop") {
+            expect(wrapped(100000, 7)).should_be(1);
+            expect(wrapped(100001, 1000)).should_be(3);
+        };
+        test("a divisor that becomes 0 in a hot loop raises there") {
+            expect_throws<invalid_operation_exception>() { remainder_that_fails(50000); };
+        };
+        test("the hash of a text is the number it always was") {
+            expect("a".hash().value).should_be(1);
+            expect("b".hash().value).should_be(2);
+            expect("z".hash().value).should_be(26);
+            expect("ab".hash().value).should_be(63);
+            expect("hello".hash().value).should_be(14222002);
+            expect("Hello".hash().value).should_be(14221970);
+            expect("HELLO WORLD".hash().value).should_be(247269851);
+            expect("key number 17".hash().value).should_be(403516878);
+            expect("0123456789".hash().value).should_be(797509375);
+            expect("the quick brown fox jumps over the lazy dog".hash().value).should_be(0 - 872591776);
+            expect(" ".hash().value).should_be(0 - 64);
+            expect("A".hash().value).should_be(0 - 31);
+            expect("".hash().value).should_be(0);
+        };
+        test("equal texts have equal hashes, however they were made") {
+            joined := "key number " + 17;
+            expect(joined.hash().value).should_be("key number 17".hash().value);
+        };
+        test("a map of texts finds every one of a thousand keys") {
+            names := new hash_map<string, int>();
+            for(i : _int64 = 0; i < 1000; i++) { names.put("name " + i, i); }
+            found : _int64 = 0;
+            for(i : _int64 = 0; i < 1000; i++) {
+                value := names.at("name " + i);
+                if(value != null && value!!.value == i) { found++; }
+            }
+            expect(found).should_be(1000);
+            expect(names.size()).should_be(1000);
+            expect(names.at("name 1000") == null).should_be(true);
+            expect(names.remove("name 500")).should_be(true);
+            expect(names.contains_key("name 500")).should_be(false);
+            expect(names.size()).should_be(999);
+        };
+        test("a map made with a number of buckets that is no power of two works the same") {
+            odd := new hash_map<int, int>(37);
+            for(i : _int64 = 0 - 500; i < 500; i++) { odd.put(i, i * 2); }
+            right : _int64 = 0;
+            for(i : _int64 = 0 - 500; i < 500; i++) {
+                if(odd.at(i)!!.value == i * 2) { right++; }
+            }
+            expect(right).should_be(1000);
+            expect(odd.size()).should_be(1000);
+        };
+        test("a map lists its keys in the order it always did") {
+            small := new hash_map<int, int>();
+            for(i : _int64 = 0; i < 40; i++) { small.put(i * 3, i); }
+            keys := small.keys();
+            listed := new string_builder();
+            for(i : _int64 = 0; i < 8; i++) { listed.append("" + keys.at(i) + " "); }
+            expect(listed.to_string()!!).should_be("0 66 3 69 6 72 9 75 ");
+        };
+        test("... a map of texts too") {
+            names := new hash_map<string, int>();
+            for(i : _int64 = 0; i < 30; i++) { names.put("name " + i, i); }
+            keys := names.keys();
+            listed := new string_builder();
+            for(i : _int64 = 0; i < 6; i++) { listed.append(keys.at(i) + ","); }
+            expect(listed.to_string()!!).should_be("name 15,name 10,name 16,name 28,name 1,name 3,");
+        };
+        test("... and one whose number of buckets is no power of two, with keys below 0") {
+            odd := new hash_map<int, int>(37);
+            for(i : _int64 = 0 - 20; i < 20; i++) { odd.put(i, i); }
+            keys := odd.keys();
+            listed := new string_builder();
+            for(i : _int64 = 0; i < 9; i++) { listed.append("" + keys.at(i) + " "); }
+            expect(listed.to_string()!!).should_be("0 -1 1 -2 2 -3 3 -4 4 ");
+        };
+    };
+}

@@ -1,0 +1,410 @@
+mod suite.concurrency.threads;
+
+import ( std.testing, std.io )
+
+/**
+ * Threads - only what must come out the same on every run:
+ *
+ *   - a thread is started, the main thread waits until it has finished, and the
+ *     result the thread left behind is checked
+ *   - several threads each work on their OWN object; the results are added up
+ *     after all of them have finished
+ *   - several threads change ONE shared counter inside lock(...) { }; the final
+ *     total is checked
+ *
+ * Nothing here depends on which thread runs first or how long anything takes.
+ *
+ * History: this file sat in known_bugs until three runtime bugs were fixed -
+ * a lock-order deadlock between the scheduler and get_thread() that hung about
+ * one run in 40, join() returning result_ill_thread_join at once, and start()
+ * returning result_max_spin for a thread that had started. The last section
+ * below checks the values start() and join() give back.
+ */
+
+/** a place for one thread to leave its result */
+class slot {
+    value : decimal = 0;
+    text : string = "";
+}
+
+class tally {
+    count : decimal = 0;
+}
+
+/** remembers the exception a thread died of */
+class catcher : uncaught_exception_handler {
+    message : string = "";
+    calls : decimal = 0;
+
+    override def uncaught_exception(err: throwable) {
+        calls++;
+        message = "" + err.get_message();
+    }
+}
+
+shared := new tally();          // changed by many threads, always inside lock(shared)
+unguarded := new slot();        // written by exactly one thread at a time
+hits := new atomic<int>(0);     // the std counter that locks by itself
+
+def wait_for(t: thread) {
+    while(!t.is_exited()) {
+        thread.yield();
+    }
+}
+
+def wait_for_all(threads: thread[]) {
+    for(i : decimal = 0; i < sizeof(threads); i++) {
+        wait_for(threads[i]);
+    }
+}
+
+// ---- thread bodies. A thread body takes object[] and returns a number.
+
+/** args[0] is a slot: leaves 1 + 2 + ... + 1000 in it */
+def sum_to_thousand(args: object[]) : decimal {
+    out := args[0] as slot;
+    total : decimal = 0;
+    for(i : decimal = 1; i <= 1000; i++) {
+        total += i;
+    }
+    out.value = total;
+    return 0;
+}
+
+/** args[0] is a slot holding n: replaces it by n * n */
+def square_own_slot(args: object[]) : decimal {
+    own := args[0] as slot;
+    own.value = own.value * own.value;
+    return 0;
+}
+
+/** args[0] is a slot: adds 1 to it 10000 times (nobody else touches that slot) */
+def count_in_own_slot(args: object[]) : decimal {
+    own := args[0] as slot;
+    for(i : decimal = 0; i < 10000; i++) {
+        own.value++;
+    }
+    return 0;
+}
+
+/** adds 1 to the shared tally 20000 times, each time inside the lock */
+def count_in_shared(args: object[]) : decimal {
+    for(i : decimal = 0; i < 20000; i++) {
+        lock(shared) {
+            shared.count++;
+        }
+    }
+    return 0;
+}
+
+/** the same, but the lock is taken by a function that is called, and left by return */
+def bump_shared(): decimal {
+    lock(shared) {
+        shared.count += 2;
+        return shared.count;
+    }
+}
+
+def count_in_shared_through_calls(args: object[]) : decimal {
+    for(i : decimal = 0; i < 5000; i++) {
+        bump_shared();
+    }
+    return 0;
+}
+
+/** an exception thrown and caught inside the lock, on every trip */
+def count_in_shared_with_exceptions(args: object[]) : decimal {
+    for(i : decimal = 0; i < 2000; i++) {
+        try {
+            lock(shared) {
+                shared.count++;
+                throw new illegal_state_exception("out of the lock");
+            }
+        } catch(e: illegal_state_exception) {
+        }
+    }
+    return 0;
+}
+
+/** args: a slot, then two strings; joins the strings into the slot */
+def join_words(args: object[]) : decimal {
+    out := args[0] as slot;
+    first := args[1] as string;
+    second := args[2] as string;
+    out.text = first + " " + second;
+    out.value = sizeof(args);
+    return 0;
+}
+
+def count_with_atomic(args: object[]) : decimal {
+    for(i : decimal = 0; i < 5000; i++) {
+        hits++;
+    }
+    return 0;
+}
+
+def always_fails(args: object[]) : decimal {
+    throw new illegal_state_exception("thread failed on purpose");
+}
+
+/** a thread that handles its own exception and still leaves a result */
+def recovers(args: object[]) : decimal {
+    out := args[0] as slot;
+    try {
+        throw new illegal_argument_exception("inside the thread");
+    } catch(e: illegal_argument_exception) {
+        out.text = "" + e.get_message();
+    } finally {
+        out.value = 1;
+    }
+    return 0;
+}
+
+def one_argument(value: object): object[] {
+    args := new object[1];
+    args[0] = value;
+    return args;
+}
+
+def threads_tests() {
+    tests("threads") {
+        // ================= one thread
+        test("a new thread has not started, has not exited, and nothing has run yet") {
+            result := new slot();
+            worker := new thread("worker", sum_to_thousand);
+            expect_false(worker.is_started());
+            expect_false(worker.is_exited());
+            expect(result.value).named("nothing has run yet").should_be(0);
+        };
+
+        test("after waiting: the thread has exited, is not active, and left 1 + ... + 1000 behind") {
+            result := new slot();
+            worker := new thread("worker", sum_to_thousand);
+            worker.start(one_argument(result));
+            wait_for(worker);
+            expect_true(worker.is_exited());
+            expect_false(worker.is_active());
+            expect(result.value).named("the result the thread left behind").should_be(500500);
+        };
+
+        test("the main thread still computes after a thread ran") {
+            worker := new thread("worker", sum_to_thousand);
+            worker.start(one_argument(new slot()));
+            wait_for(worker);
+            own : decimal = 0;
+            for(i : decimal = 1; i <= 100; i++) {
+                own += i;
+            }
+            expect(own).should_be(5050);
+        };
+
+        // ================= a thread whose body is written in place
+        test("a lambda as the thread body") {
+            unguarded.value = 0;
+            unguarded.text = "";
+            inline_thread := new thread("inline", { args: object[] -> (decimal)
+                unguarded.value = 77;
+                unguarded.text = "from a lambda";
+                return 0;
+            });
+            inline_thread.start();
+            wait_for(inline_thread);
+            expect(unguarded.value).named("number").should_be(77);
+            expect(unguarded.text).named("text").should_be("from a lambda");
+        };
+
+        // ================= arguments
+        test("two strings passed to a thread, and it saw all three arguments") {
+            words := new slot();
+            word_args := new object[3];
+            word_args[0] = words;
+            hello : string = "hello";                   // (a bare "hello" would go into the array as raw characters, not as a string)
+            word_args[1] = hello;
+            name : string = "thread";
+            word_args[2] = name;
+            talker := new thread("talker", join_words);
+            talker.start(word_args);
+            wait_for(talker);
+            expect(words.text).should_be("hello thread");
+            expect(words.value).named("arguments seen").should_be(3);
+        };
+
+        // ================= one thread after the other
+        test("four threads in a row, each squaring: 2 -> 4 -> 16 -> 256 -> 65536") {
+            chain := new slot();
+            chain.value = 2;
+            for(i : decimal = 0; i < 4; i++) {
+                t := new thread("squarer", square_own_slot);
+                t.start(one_argument(chain));
+                wait_for(t);                            // the next one starts only after this one is done
+            }
+            expect(chain.value).should_be(65536);
+        };
+
+        test("20 short threads one after the other, all with the right result") {
+            finished : decimal = 0;
+            for(i : decimal = 0; i < 20; i++) {
+                t := new thread("short", sum_to_thousand);
+                s := new slot();
+                t.start(one_argument(s));
+                wait_for(t);
+                if(s.value == 500500) finished++;
+            }
+            expect(finished).should_be(20);
+        };
+
+        // ================= several threads at once, each with its own slot
+        test("four threads at once, each counting in its own slot") {
+            slots := new slot[4];
+            counters := new thread[4];
+            for(i : decimal = 0; i < 4; i++) {
+                slots[i] = new slot();
+                counters[i] = new thread("counter", count_in_own_slot);
+            }
+            for(i : decimal = 0; i < 4; i++) {
+                counters[i].start(one_argument(slots[i]));
+            }
+            wait_for_all(counters);
+            expect(slots[0].value).named("own slot of thread 0").should_be(10000);
+            expect(slots[1].value).named("own slot of thread 1").should_be(10000);
+            expect(slots[2].value).named("own slot of thread 2").should_be(10000);
+            expect(slots[3].value).named("own slot of thread 3").should_be(10000);
+            expect(slots[0].value + slots[1].value + slots[2].value + slots[3].value).named("the four slots added up").should_be(40000);
+        };
+
+        test("five threads at once, each squaring its own number") {
+            numbers := new slot[5];
+            squarers := new thread[5];
+            for(i : decimal = 0; i < 5; i++) {
+                numbers[i] = new slot();
+                numbers[i].value = i + 1;               // 1 2 3 4 5
+                squarers[i] = new thread("squarer", square_own_slot);
+                squarers[i].start(one_argument(numbers[i]));
+            }
+            wait_for_all(squarers);
+            expect(numbers[0].value).named("thread 0 squared 1").should_be(1);
+            expect(numbers[2].value).named("thread 2 squared 3").should_be(9);
+            expect(numbers[4].value).named("thread 4 squared 5").should_be(25);
+            expect(numbers[0].value + numbers[1].value + numbers[2].value + numbers[3].value + numbers[4].value).named("1 + 4 + 9 + 16 + 25").should_be(55);
+        };
+
+        // ================= a shared counter protected by lock
+        tests("shared_counter") {
+            before_each { shared.count = 0; };
+
+            test("4 threads x 20000 increments inside lock") {
+                lockers := new thread[4];
+                for(i : decimal = 0; i < 4; i++) {
+                    lockers[i] = new thread("locker", count_in_shared);
+                    lockers[i].start();
+                }
+                wait_for_all(lockers);
+                expect(shared.count).should_be(80000);
+            };
+
+            test("2 threads and the main thread, 20000 each") {
+                helpers := new thread[2];
+                for(i : decimal = 0; i < 2; i++) {
+                    helpers[i] = new thread("helper", count_in_shared);
+                    helpers[i].start();
+                }
+                for(i : decimal = 0; i < 20000; i++) {
+                    lock(shared) {
+                        shared.count++;
+                    }
+                }
+                wait_for_all(helpers);
+                expect(shared.count).should_be(60000);
+            };
+
+            test("3 threads x 5000 calls adding 2, lock left by return") {
+                callers := new thread[3];
+                for(i : decimal = 0; i < 3; i++) {
+                    callers[i] = new thread("caller", count_in_shared_through_calls);
+                    callers[i].start();
+                }
+                wait_for_all(callers);
+                expect(shared.count).should_be(30000);
+            };
+
+            test("3 threads x 2000 increments, lock left by an exception: the main thread can still take the lock afterwards") {
+                throwers := new thread[3];
+                for(i : decimal = 0; i < 3; i++) {
+                    throwers[i] = new thread("thrower", count_in_shared_with_exceptions);
+                    throwers[i].start();
+                }
+                wait_for_all(throwers);
+                expect(shared.count).named("3 threads x 2000 increments").should_be(6000);
+                lock(shared) {
+                    shared.count++;
+                }
+                expect(shared.count).named("one more by the main thread").should_be(6001);
+            };
+        };
+
+        // ================= atomic<int>: a counter that needs no lock statement
+        test("4 threads x 5000 increments of an atomic") {
+            hits = new atomic<int>(0);
+            atomics := new thread[4];
+            for(i : decimal = 0; i < 4; i++) {
+                atomics[i] = new thread("atomic", count_with_atomic);
+                atomics[i].start();
+            }
+            wait_for_all(atomics);
+            expect(hits.read().value).should_be(20000);
+        };
+
+        // ================= exceptions in a thread
+        test("handled inside the thread: try/catch and finally ran there") {
+            recovered := new slot();
+            careful := new thread("careful", recovers);
+            careful.start(one_argument(recovered));
+            wait_for(careful);
+            expect(recovered.text).named("try/catch inside a thread").should_be("inside the thread");
+            expect(recovered.value).named("finally inside a thread").should_be(1);
+        };
+
+        test("not handled inside the thread: its exception handler is called once, with the exception, and the thread has exited") {
+            handler := new catcher();
+            failing := new thread("failing", always_fails);
+            failing.set_exception_handler(handler);
+            failing.start();
+            wait_for(failing);
+            expect(handler.calls).named("calls of the handler").should_be(1);
+            expect(handler.message).should_be("thread failed on purpose");
+            expect_true(failing.is_exited());
+        };
+
+        test("a thread started after another one failed still works") {
+            failing := new thread("failing", always_fails);
+            failing.set_exception_handler(new catcher());
+            failing.start();
+            wait_for(failing);
+
+            after := new slot();
+            late := new thread("late", sum_to_thousand);
+            late.start(one_argument(after));
+            wait_for(late);
+            expect(after.value).should_be(500500);
+        };
+
+        // ================= the main thread itself
+        test("thread.current() in main: there, started, not exited") {
+            expect_not_null(thread.current());
+            expect_true(thread.current().is_started());
+            expect_false(thread.current().is_exited());
+        };
+
+        // ================= the values start() and join() give back
+        test("start() and join() return result_ok (0), and after join() the thread has exited") {
+            answer := new slot();
+            joined := new thread("joined", sum_to_thousand);
+            started := joined.start(one_argument(answer));
+            expect(started.ordinal).named("start()").should_be(0);
+            waited := joined.join();
+            expect(waited.ordinal).named("join()").should_be(0);
+            expect_true(joined.is_exited());
+            wait_for(joined);
+        };
+    };
+}

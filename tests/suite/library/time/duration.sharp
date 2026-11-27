@@ -1,0 +1,252 @@
+mod suite.library.time.duration;
+
+import ( std.testing, std.time )
+
+/**
+ * std.time.duration: creating durations in every unit, the seconds + nanos
+ * representation (also for negative values), arithmetic, comparison,
+ * conversion to one unit, the readable and the ISO-8601 text forms, and
+ * parsing both.
+ */
+
+def text(d: duration): string {
+    return d.to_string()!!;
+}
+
+/** 300 years (109575 days) and one nanosecond: in nanoseconds that is over 2^53 */
+def long_time(): duration {
+    return duration.of_days(109575).plus(duration.of_nanos(1));
+}
+
+def duration_tests() {
+    tests("duration") {
+        a : duration;           // 1.5 s
+        b : duration;           // 0.7 s
+        d : duration;           // 1 day 2 h 3 min 4.5 s
+        negative : duration;    // minus that
+        tiny : duration;        // 123456789 ns
+        before_each {
+            a = duration.of_millis(1500);
+            b = duration.of_millis(700);
+            d = duration.of_seconds(93784, 500000000);
+            negative = duration.of_seconds(0 - 93784, 0 - 500000000);
+            tiny = duration.of_nanos(123456789);
+        };
+
+        // ---- creating: every unit lands in seconds + nanos
+        test("of_seconds: seconds") { expect(duration.of_seconds(90).seconds()).should_be(90); };
+        test("of_seconds: nanos") { expect(duration.of_seconds(90).nanos()).should_be(0); };
+        test("of_minutes") { expect(duration.of_minutes(2).seconds()).should_be(120); };
+        test("of_hours") { expect(duration.of_hours(2).seconds()).should_be(7200); };
+        test("of_days") { expect(duration.of_days(2).seconds()).should_be(172800); };
+        test("of_millis: seconds") { expect(duration.of_millis(1500).seconds()).should_be(1); };
+        test("of_millis: nanos") { expect(duration.of_millis(1500).nanos()).should_be(500000000); };
+        test("of_micros: seconds") { expect(duration.of_micros(2000001).seconds()).should_be(2); };
+        test("of_micros: nanos") { expect(duration.of_micros(2000001).nanos()).should_be(1000); };
+        test("of_nanos: seconds") { expect(duration.of_nanos(3000000007).seconds()).should_be(3); };
+        test("of_nanos: nanos") { expect(duration.of_nanos(3000000007).nanos()).should_be(7); };
+        test("of_seconds with adjustment: seconds") { expect(duration.of_seconds(3, 1500000000).seconds()).should_be(4); };
+        test("of_seconds with adjustment: nanos") { expect(duration.of_seconds(3, 1500000000).nanos()).should_be(500000000); };
+        test("of_seconds(1.5): seconds") { expect(duration.of_seconds(1.5).seconds()).should_be(1); };
+        test("of_seconds(1.5): nanos") { expect(duration.of_seconds(1.5).nanos()).should_be(500000000); };
+        test("of_seconds(0.25): nanos") { expect(duration.of_seconds(0.25).nanos()).should_be(250000000); };
+        test("zero: seconds") { expect(duration.zero.seconds()).should_be(0); };
+        test("zero: nanos") { expect(duration.zero.nanos()).should_be(0); };
+
+        // ---- negative durations: seconds round down, nanos stay 0 .. 999,999,999
+        test("-1500 ms: seconds") { expect(duration.of_millis(0 - 1500).seconds()).should_be(0 - 2); };
+        test("-1500 ms: nanos") { expect(duration.of_millis(0 - 1500).nanos()).should_be(500000000); };
+        test("-1 ns: seconds") { expect(duration.of_nanos(0 - 1).seconds()).should_be(0 - 1); };
+        test("-1 ns: nanos") { expect(duration.of_nanos(0 - 1).nanos()).should_be(999999999); };
+        test("of_seconds(3, -1): seconds") { expect(duration.of_seconds(3, 0 - 1).seconds()).should_be(2); };
+        test("of_seconds(3, -1): nanos") { expect(duration.of_seconds(3, 0 - 1).nanos()).should_be(999999999); };
+        test("of_seconds(-0.5): seconds") { expect(duration.of_seconds(0 - 0.5).seconds()).should_be(0 - 1); };
+        test("of_seconds(-0.5): nanos") { expect(duration.of_seconds(0 - 0.5).nanos()).should_be(500000000); };
+        test("-1 micro: nanos") { expect(duration.of_micros(0 - 1).nanos()).should_be(999999000); };
+
+        // ---- sign
+        test("zero is_zero") { expect_true(duration.zero.is_zero()); };
+        test("zero is not negative") { expect_false(duration.zero.is_negative()); };
+        test("zero is not positive") { expect_false(duration.zero.is_positive()); };
+        test("1 ns is positive") { expect_true(duration.of_nanos(1).is_positive()); };
+        test("-1 ns is negative") { expect_true(duration.of_nanos(0 - 1).is_negative()); };
+        test("-1 ns is not zero") { expect_false(duration.of_nanos(0 - 1).is_zero()); };
+
+        // ---- arithmetic
+        test("plus carries nanos into seconds") { expect(a.plus(b).to_millis()).should_be(2200); };
+        test("plus: seconds") { expect(a.plus(b).seconds()).should_be(2); };
+        test("plus: nanos") { expect(a.plus(b).nanos()).should_be(200000000); };
+        test("minus") { expect(a.minus(b).to_millis()).should_be(800); };
+        test("minus below zero") { expect(b.minus(a).to_millis()).should_be(0 - 800); };
+        test("minus borrows: seconds") { expect(duration.of_seconds(2).minus(duration.of_nanos(1)).seconds()).should_be(1); };
+        test("minus borrows: nanos") { expect(duration.of_seconds(2).minus(duration.of_nanos(1)).nanos()).should_be(999999999); };
+        test("operator +") { expect((a + b).to_millis()).should_be(2200); };
+        test("operator -") { expect((a - b).to_millis()).should_be(800); };
+        test("operator *") { expect((a * 3).to_millis()).should_be(4500); };
+        test("operator /") { expect((a / 3).to_millis()).should_be(500); };
+        test("multiplied_by a negative") { expect(a.multiplied_by(0 - 2).to_millis()).should_be(0 - 3000); };
+        test("multiplied_by 0") { expect(a.multiplied_by(0).to_millis()).should_be(0); };
+        test("multiplied_by carries: seconds") { expect(duration.of_nanos(999999999).multiplied_by(3).seconds()).should_be(2); };
+        test("multiplied_by carries: nanos") { expect(duration.of_nanos(999999999).multiplied_by(3).nanos()).should_be(999999997); };
+        test("divided_by 2") { expect(duration.of_seconds(3).divided_by(2).to_millis()).should_be(1500); };
+        test("divided_by 3: seconds") { expect(duration.of_seconds(10).divided_by(3).seconds()).should_be(3); };
+        test("divided_by 3: nanos (rounded down)") { expect(duration.of_seconds(10).divided_by(3).nanos()).should_be(333333333); };
+        test("divided_by a negative") { expect(duration.of_seconds(3).divided_by(0 - 2).to_millis()).should_be(0 - 1500); };
+        test("1 hour / 7: seconds") { expect(duration.of_hours(1).divided_by(7).seconds()).should_be(514); };
+        test("1 hour / 7: nanos") { expect(duration.of_hours(1).divided_by(7).nanos()).should_be(285714285); };
+        test("duration / duration") { expect(duration.of_minutes(90).divided_by(duration.of_hours(1))).should_be(1.5); };
+        test("negated") { expect(a.negated().to_millis()).should_be(0 - 1500); };
+        test("negated twice is the original") { expect_true(a.negated().negated() == a); };
+        test("abs of a negative") { expect(duration.of_millis(0 - 1500).abs().to_millis()).should_be(1500); };
+        test("abs of a positive") { expect(a.abs().to_millis()).should_be(1500); };
+        test("plus_hours") { expect(a.plus_hours(1).to_millis()).should_be(3601500); };
+        test("plus_minutes") { expect(a.plus_minutes(1).to_millis()).should_be(61500); };
+        test("plus_seconds") { expect(a.plus_seconds(1).to_millis()).should_be(2500); };
+        test("plus_millis") { expect(a.plus_millis(0 - 500).to_millis()).should_be(1000); };
+        test("plus_nanos") { expect(a.plus_nanos(500000000).seconds()).should_be(2); };
+        test("plus_days") { expect(duration.zero.plus_days(1).seconds()).should_be(86400); };
+        test("with_seconds keeps nanos") { expect(a.with_seconds(10).to_millis()).should_be(10500); };
+        test("with_nanos keeps seconds") { expect(a.with_nanos(1).nanos()).should_be(1); };
+        test("the operands are unchanged") {
+            a.plus(b);
+            a.minus(b);
+            a.multiplied_by(3);
+            a.negated();
+            a.plus_hours(1);
+            a.with_seconds(10);
+            expect(a.to_millis()).should_be(1500);
+        };
+
+        // ---- beyond what one number could hold: 300 years in nanoseconds is over 2^53
+        test("300 years + 1 ns: seconds") { expect(long_time().seconds()).should_be(9467280000); };
+        test("300 years + 1 ns: the nanosecond is kept") { expect(long_time().nanos()).should_be(1); };
+        test("...and comes back out") { expect(long_time().minus(duration.of_days(109575)).to_nanos()).should_be(1); };
+
+        // ---- errors
+        test("divided_by(0) throws") { expect_throws<date_time_exception>() { a.divided_by(0); }; };
+        test("divided_by(zero duration) throws") { expect_throws<date_time_exception>() { a.divided_by(duration.zero); }; };
+        test("multiplied_by a fraction throws") { expect_throws<date_time_exception>() { a.multiplied_by(1.5); }; };
+        test("of_hours(0.5) throws") { expect_throws<date_time_exception>() { duration.of_hours(0.5); }; };
+        test("with_nanos out of range throws") { expect_throws<date_time_exception>() { a.with_nanos(1000000000); }; };
+
+        // ---- comparing
+        test("==") { expect_true(duration.of_minutes(1) == duration.of_seconds(60)); };
+        test("== across units") { expect_true(duration.of_millis(1000) == duration.of_nanos(1000000000)); };
+        test("== different") { expect_false(a == b); };
+        test("!=") { expect_true(a != b); };
+        test("<") { expect_true(b < a); };
+        test("< the other way") { expect_false(a < b); };
+        test("<=") { expect_true(b <= a); };
+        test("<= equal") { expect_true(a <= duration.of_millis(1500)); };
+        test(">") { expect_true(a > b); };
+        test(">=") { expect_true(a >= b); };
+        test("nanos decide when seconds are equal") { expect_true(duration.of_seconds(1, 1) > duration.of_seconds(1)); };
+        test("a negative is less than zero") { expect_true(duration.of_nanos(0 - 1) < duration.zero); };
+        test("-2 s is less than -1.5 s") { expect_true(duration.of_seconds(0 - 2) < duration.of_millis(0 - 1500)); };
+        test("compare_to less") { expect(b.compare_to(a)).should_be(0 - 1); };
+        test("compare_to equal") { expect(a.compare_to(duration.of_millis(1500))).should_be(0); };
+        test("compare_to greater") { expect(a.compare_to(b)).should_be(1); };
+
+        // ---- conversion to one unit drops the fraction (rounds towards zero)
+        // (d is 1 day 2 h 3 min 4.5 s)
+        test("to_days") { expect(d.to_days()).should_be(1); };
+        test("to_hours") { expect(d.to_hours()).should_be(26); };
+        test("to_minutes") { expect(d.to_minutes()).should_be(1563); };
+        test("to_seconds") { expect(d.to_seconds()).should_be(93784); };
+        test("to_millis") { expect(d.to_millis()).should_be(93784500); };
+        test("to_micros") { expect(d.to_micros()).should_be(93784500000); };
+        test("to_nanos") { expect(d.to_nanos()).should_be(93784500000000); };
+        test("to_fractional_seconds") { expect(d.to_fractional_seconds()).should_be(93784.5); };
+        test("hours_part") { expect(d.hours_part()).should_be(2); };
+        test("minutes_part") { expect(d.minutes_part()).should_be(3); };
+        test("seconds_part") { expect(d.seconds_part()).should_be(4); };
+        test("millis_part") { expect(d.millis_part()).should_be(500); };
+        test("nanos_part") { expect(d.nanos_part()).should_be(500000000); };
+        test("90 s is 1 minute") { expect(duration.of_seconds(90).to_minutes()).should_be(1); };
+        test("-90 s is -1 minute") { expect(duration.of_seconds(0 - 90).to_minutes()).should_be(0 - 1); };
+        test("-0.5 s is 0 whole seconds") { expect(duration.of_millis(0 - 500).to_seconds()).should_be(0); };
+        test("-1500 ms to_seconds") { expect(duration.of_millis(0 - 1500).to_seconds()).should_be(0 - 1); };
+        test("-1500 ms to_millis") { expect(duration.of_millis(0 - 1500).to_millis()).should_be(0 - 1500); };
+        test("-1.5 ms to_micros") { expect(duration.of_micros(0 - 1500).to_micros()).should_be(0 - 1500); };
+        test("-36 h to_days") { expect(duration.of_hours(0 - 36).to_days()).should_be(0 - 1); };
+        test("parts ignore the sign") { expect(duration.of_seconds(0 - 3723).minutes_part()).should_be(2); };
+
+        // ---- readable text
+        test("zero") { expect(text(duration.zero)).should_be("0s"); };
+        test("seconds") { expect(text(duration.of_seconds(45))).should_be("45s"); };
+        test("minutes") { expect(text(duration.of_minutes(5))).should_be("5m"); };
+        test("hours") { expect(text(duration.of_hours(3))).should_be("3h"); };
+        test("days") { expect(text(duration.of_days(2))).should_be("2d"); };
+        test("h m s with a fraction") { expect(text(duration.of_millis(3723500))).should_be("1h 2m 3.5s"); };
+        test("days and hours") { expect(text(duration.of_hours(60))).should_be("2d 12h"); };
+        test("all four units") { expect(text(d)).should_be("1d 2h 3m 4.5s"); };
+        test("a millisecond") { expect(text(duration.of_millis(1))).should_be("0.001s"); };
+        test("a nanosecond") { expect(text(duration.of_nanos(1))).should_be("0.000000001s"); };
+        test("no trailing zeros") { expect(text(duration.of_millis(1250))).should_be("1.25s"); };
+        test("negative") { expect(text(duration.of_minutes(0 - 90))).should_be("-1h 30m"); };
+        test("negative fraction") { expect(text(duration.of_millis(0 - 500))).should_be("-0.5s"); };
+        test("interpolation") { expect("took $a").should_be("took 1.5s"); };
+
+        // ---- ISO-8601 text
+        test("iso zero") { expect(duration.zero.to_iso_string()).should_be("PT0S"); };
+        test("iso seconds") { expect(duration.of_seconds(45).to_iso_string()).should_be("PT45S"); };
+        test("iso minutes") { expect(duration.of_minutes(5).to_iso_string()).should_be("PT5M"); };
+        test("iso h m s") { expect(duration.of_millis(3723500).to_iso_string()).should_be("PT1H2M3.5S"); };
+        test("iso has no days") { expect(duration.of_days(2).to_iso_string()).should_be("PT48H"); };
+        test("iso millisecond") { expect(duration.of_millis(1).to_iso_string()).should_be("PT0.001S"); };
+        test("iso negative") { expect(duration.of_minutes(0 - 90).to_iso_string()).should_be("PT-1H-30M"); };
+        test("iso negative fraction") { expect(duration.of_millis(0 - 500).to_iso_string()).should_be("PT-0.5S"); };
+        test("iso hours and seconds") { expect(duration.of_seconds(3601).to_iso_string()).should_be("PT1H1S"); };
+
+        // ---- parsing the ISO form
+        test("parse PT1H2M3.5S") { expect(duration.parse("PT1H2M3.5S").to_millis()).should_be(3723500); };
+        test("parse PT45S") { expect(duration.parse("PT45S").to_seconds()).should_be(45); };
+        test("parse PT0S") { expect(duration.parse("PT0S").to_nanos()).should_be(0); };
+        test("parse days") { expect(duration.parse("P2D").to_hours()).should_be(48); };
+        test("parse days and time") { expect(duration.parse("P2DT12H").to_hours()).should_be(60); };
+        test("parse PT48H") { expect(duration.parse("PT48H").to_days()).should_be(2); };
+        test("parse a fraction with 9 digits") { expect(duration.parse("PT0.000000001S").to_nanos()).should_be(1); };
+        test("parse a comma fraction") { expect(duration.parse("PT1,5S").to_millis()).should_be(1500); };
+        test("parse signed parts") { expect(duration.parse("PT-1H-30M").to_minutes()).should_be(0 - 90); };
+        test("parse a leading minus") { expect(duration.parse("-PT1H30M").to_minutes()).should_be(0 - 90); };
+        test("parse minus of a minus") { expect(duration.parse("-PT-10S").to_seconds()).should_be(10); };
+        test("parse mixed signs") { expect(duration.parse("PT1H-30M").to_minutes()).should_be(30); };
+        test("parse lower case") { expect(duration.parse("pt1h2m3s").to_seconds()).should_be(3723); };
+        test("parse PT-0.5S") { expect(duration.parse("PT-0.5S").to_millis()).should_be(0 - 500); };
+
+        // ---- parsing the readable form
+        test("parse 1h 2m 3.5s") { expect(duration.parse("1h 2m 3.5s").to_millis()).should_be(3723500); };
+        test("parse 2d 12h") { expect(duration.parse("2d 12h").to_hours()).should_be(60); };
+        test("parse without spaces") { expect(duration.parse("1h30m").to_minutes()).should_be(90); };
+        test("parse -1h 30m") { expect(duration.parse("-1h 30m").to_minutes()).should_be(0 - 90); };
+        test("parse 250ms") { expect(duration.parse("250ms").to_millis()).should_be(250); };
+        test("parse 10us") { expect(duration.parse("10us").to_nanos()).should_be(10000); };
+        test("parse 5ns") { expect(duration.parse("5ns").to_nanos()).should_be(5); };
+        test("parse 0s") { expect(duration.parse("0s").to_nanos()).should_be(0); };
+        test("parse 1m 500ms") { expect(duration.parse("1m 500ms").to_millis()).should_be(60500); };
+
+        // ---- round trips
+        test("to_string -> parse") { expect_true(duration.parse(text(d)) == d); };
+        test("to_iso_string -> parse") { expect_true(duration.parse(d.to_iso_string()) == d); };
+        test("negative to_string -> parse") { expect_true(duration.parse(text(negative)) == negative); };
+        test("negative to_iso_string -> parse") { expect_true(duration.parse(negative.to_iso_string()) == negative); };
+        test("nanosecond precision survives to_string") { expect_true(duration.parse(text(tiny)) == tiny); };
+        test("nanosecond precision survives to_iso_string") { expect_true(duration.parse(tiny.to_iso_string()) == tiny); };
+
+        // ---- text that is not a duration
+        test("rejects the empty string") { expect_throws<date_time_exception>() { duration.parse(""); }; };
+        test("rejects P alone") { expect_throws<date_time_exception>() { duration.parse("P"); }; };
+        test("rejects PT alone") { expect_throws<date_time_exception>() { duration.parse("PT"); }; };
+        test("rejects a number without unit") { expect_throws<date_time_exception>() { duration.parse("15"); }; };
+        test("rejects hours before the T") { expect_throws<date_time_exception>() { duration.parse("P1H"); }; };
+        test("rejects days after the T") { expect_throws<date_time_exception>() { duration.parse("PT1D"); }; };
+        test("rejects units out of order") { expect_throws<date_time_exception>() { duration.parse("PT1S1M"); }; };
+        test("rejects a repeated unit") { expect_throws<date_time_exception>() { duration.parse("PT1H2H"); }; };
+        test("rejects a fraction of an hour") { expect_throws<date_time_exception>() { duration.parse("PT1.5H"); }; };
+        test("rejects years") { expect_throws<date_time_exception>() { duration.parse("P1Y"); }; };
+        test("rejects an unknown readable unit") { expect_throws<date_time_exception>() { duration.parse("5 parsecs"); }; };
+        test("rejects a fraction of a minute") { expect_throws<date_time_exception>() { duration.parse("1.5m"); }; };
+        test("rejects trailing junk") { expect_throws<date_time_exception>() { duration.parse("PT1Sx"); }; };
+        test("rejects words") { expect_throws<date_time_exception>() { duration.parse("soon"); }; };
+    };
+}

@@ -1,0 +1,465 @@
+mod suite.library.collections.list;
+
+import ( std.testing, std.collections )
+
+/**
+ * the functions of a `list<T>` that search, order and change it by position
+ * class (sorting, searching, ranges, bulk removal, conversions), and the
+ * read-only immutable_list.
+ */
+
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+def descending(a: int, b: int) : decimal { return b.value - a.value; }
+def is_even(n: int) : bool { return n.value % 2 == 0; }
+def is_big(n: int) : bool { return n.value > 100; }
+
+/** a list<int> from an array literal of numbers */
+def list_of(items: int[]) : list<int> {
+    result := new list<int>();
+    for(i : decimal = 0; i < sizeof(items); i++) result.add(items[i]);
+    return result;
+}
+
+/** "1,2,3" for a list of ints */
+def join(items: list<int>) : string {
+    text := "";
+    for(i : decimal = 0; i < items.size(); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items.at(i);
+    }
+    return text;
+}
+
+/** "1,2,3" for an array of ints */
+def join_array(items: int[]) : string {
+    text := "";
+    for(i : decimal = 0; i < sizeof(items); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items[i];
+    }
+    return text;
+}
+
+class card {
+    rank : decimal;
+    label : string;
+    card(rank: decimal, label: string) { self->rank = rank; self->label = label; }
+}
+
+def by_rank(a: card, b: card) : decimal { return a.rank - b.rank; }
+
+/** 0,1,2,3,4,5,6,7,8: made from 1,2,5 with insert_all in the middle, at the front, at the end, of nothing, and an add */
+def inserted_target() : list<int> {
+    target := list_of(new int[] { 1, 2, 5 });
+    target.insert_all(2, list_of(new int[] { 3, 4 }));
+    target.insert_all(0, list_of(new int[] { 0 }));
+    target.insert_all(6, list_of(new int[] { 6, 7 }));
+    target.insert_all(3, new list<int>());
+    target.add(8);
+    return target;
+}
+
+def list_tests() {
+    tests("list") {
+        empty : list<int>;
+        l : list<int>;
+
+        tests("search") {
+            before_each {
+                empty = new list<int>();
+                l = list_of(new int[] { 4, 7, 4, 9, 2, 4 });
+            };
+
+            test("is_empty yes") { expect(empty.is_empty()).should_be(1); };
+            test("is_empty no") { expect(l.is_empty()).should_be(0); };
+            test("contains") { expect(l.contains(9)).should_be(1); };
+            test("contains missing") { expect(l.contains(5)).should_be(0); };
+            test("contains in empty") { expect(empty.contains(5)).should_be(0); };
+            test("index_of") { expect(l.index_of(4)).should_be(0); };
+            test("index_of later element") { expect(l.index_of(2)).should_be(4); };
+            test("index_of missing") { expect(l.index_of(5)).should_be(0 - 1); };
+            test("last_index_of") { expect(l.last_index_of(4)).should_be(5); };
+            test("last_index_of single") { expect(l.last_index_of(7)).should_be(1); };
+            test("last_index_of missing") { expect(l.last_index_of(5)).should_be(0 - 1); };
+            test("count_of") { expect(l.count_of(4)).should_be(3); };
+            test("count_of missing") { expect(l.count_of(5)).should_be(0); };
+            test("index_where") { expect(l.index_of_first({ x: int -> (bool) return x.value > 6; })).should_be(1); };
+            test("index_where none") { expect(l.index_of_first(is_big)).should_be(0 - 1); };
+            test("first_or_null") { expect(l.first_or_null()!!.value).should_be(4); };
+            test("last_or_null") { expect(l.last_or_null()!!.value).should_be(4); };
+            test("first_or_null of empty") { expect_null(empty.first_or_null()); };
+            test("last_or_null of empty") { expect_null(empty.last_or_null()); };
+            test("at_or_null") { expect(l.at_or_null(3)!!.value).should_be(9); };
+            test("at_or_null past the end") { expect_null(l.at_or_null(6)); };
+            test("at_or_null negative") { expect_null(l.at_or_null(0 - 1)); };
+
+            test("contains compares strings by value") {
+                words := new list<string>();
+                words.add("a"); words.add("b");
+                expect(words.contains("" + "b")).should_be(1);
+                expect(words.index_of("b")).named("index_of on strings").should_be(1);
+            };
+
+            // the storage is longer than the list: slots beyond the end must not be looked at
+            test("last_index_of and count_of after pop_back") {
+                l.pop_back();
+                expect(l.last_index_of(4)).named("last_index_of").should_be(2);
+                expect(l.count_of(4)).named("count_of").should_be(2);
+            };
+        };
+
+        tests("ordering") {
+            before_each {
+                empty = new list<int>();
+                l = list_of(new int[] { 5, 3, 9, 1, 4 });
+            };
+
+            test("sort") {
+                l.sort(ascending);
+                expect(join(l)).should_be("1,3,4,5,9");
+                expect(l.is_sorted_with(ascending)).named("is_sorted").should_be(1);
+                expect(l.is_sorted_with(descending)).named("is_sorted the other way").should_be(0);
+            };
+            test("sort descending") {
+                l.sort(ascending);
+                l.sort(descending);
+                expect(join(l)).should_be("9,5,4,3,1");
+            };
+
+            test("sort of empty") {
+                empty.sort(ascending);
+                expect(empty.size()).should_be(0);
+                expect(empty.is_sorted_with(ascending)).named("is_sorted of empty").should_be(1);
+            };
+            test("sort of one") {
+                one := list_of(new int[] { 7 });
+                one.sort(ascending);
+                expect(join(one)).should_be("7");
+            };
+
+            test("sorted gives a sorted copy and leaves the list") {
+                source := list_of(new int[] { 2, 3, 1 });
+                copy := source.sorted_with(ascending);
+                expect(join(copy)).named("the copy").should_be("1,2,3");
+                expect(join(source)).named("the list").should_be("2,3,1");
+            };
+
+            // stable, on objects
+            test("sort is stable") {
+                cards := new list<card>();
+                cards.add(new card(2, "a")); cards.add(new card(1, "b")); cards.add(new card(2, "c")); cards.add(new card(1, "d"));
+                cards.sort(by_rank);
+                order := "";
+                for(i : decimal = 0; i < 4; i++) order = order + cards.at(i).label;
+                expect(order).should_be("bdac");
+            };
+
+            tests("binary_search") {
+                sorted : list<int>;
+                before_each { sorted = list_of(new int[] { 10, 20, 30, 40 }); };
+
+                test("binary_search found") { expect(sorted.binary_search(30, ascending)).should_be(2); };
+                test("binary_search first") { expect(sorted.binary_search(10, ascending)).should_be(0); };
+                test("binary_search missing: -(2) - 1") { expect(sorted.binary_search(25, ascending)).should_be(0 - 3); };
+                test("binary_search above all: -(4) - 1") { expect(sorted.binary_search(50, ascending)).should_be(0 - 5); };
+                test("reverse") {
+                    sorted.reverse();
+                    expect(join(sorted)).should_be("40,30,20,10");
+                };
+            };
+            test("binary_search in empty") { expect(empty.binary_search(1, ascending)).should_be(0 - 1); };
+
+            // 1,2,3 reversed: 3,2,1
+            tests("odd_length") {
+                odd : list<int>;
+                before_each {
+                    odd = list_of(new int[] { 1, 2, 3 });
+                    odd.reverse();
+                };
+
+                test("reverse odd length") { expect(join(odd)).should_be("3,2,1"); };
+                test("reversed gives a copy and leaves the list") {
+                    expect(join(odd.reversed())).named("the copy").should_be("1,2,3");
+                    expect(join(odd)).named("the list").should_be("3,2,1");
+                };
+                test("swap") {
+                    odd.swap(0, 2);
+                    expect(join(odd)).should_be("1,2,3");
+                };
+                test("swap out of bounds") { expect_throws<out_of_bounds_exception>() { odd.swap(0, 3); }; };
+                test("swap negative") { expect_throws<out_of_bounds_exception>() { odd.swap(0 - 1, 0); }; };
+            };
+
+            // scale: 5000 pseudo random numbers
+            tests("sort_5000") {
+                big : list<int>;
+                sum_before : decimal;
+                before_each {
+                    big = new list<int>();
+                    seed : decimal = 8086;
+                    sum_before = 0;
+                    for(i : decimal = 0; i < 5000; i++) {
+                        seed = (seed * 7919 + 104729) % 1000003;
+                        big.add(new int(seed));
+                        sum_before += seed;
+                    }
+                    big.sort(ascending);
+                };
+
+                test("sort 5000: size") { expect(big.size()).should_be(5000); };
+                test("sort 5000: ascending") {
+                    for(i : decimal = 1; i < 5000; i++) {
+                        expect(big.at(i).value).named("element " + i).should_be_at_least(big.at(i - 1).value);
+                    }
+                };
+                test("sort 5000: nothing lost") {
+                    sum_after : decimal = 0;
+                    for(i : decimal = 0; i < 5000; i++) sum_after += big.at(i).value;
+                    expect(sum_after).should_be(sum_before);
+                };
+                test("sort 5000: binary_search finds an element") { expect_true(big.binary_search(big.at(4321), ascending) >= 0); };
+            };
+        };
+
+        tests("ranges") {
+            before_each {
+                empty = new list<int>();
+                l = list_of(new int[] { 0, 1, 2, 3, 4, 5 });
+            };
+
+            test("sub_list") { expect(join(l.sub_list(2, 5))).should_be("2,3,4"); };
+            test("sub_list everything") { expect(join(l.sub_list(0, 6))).should_be("0,1,2,3,4,5"); };
+            test("sub_list empty") { expect(l.sub_list(3, 3).size()).should_be(0); };
+            test("sub_list is independent") {
+                part := l.sub_list(0, 2);
+                part.add(99);
+                expect(l.size()).should_be(6);
+            };
+            test("sub_list past the end") { expect_throws<out_of_bounds_exception>() { l.sub_list(0, 7); }; };
+            test("sub_list from > to") { expect_throws<out_of_bounds_exception>() { l.sub_list(4, 3); }; };
+            test("sub_list negative") { expect_throws<out_of_bounds_exception>() { l.sub_list(0 - 1, 3); }; };
+
+            test("copy_of is a list of its own") {
+                copy := l.to_list();
+                copy.put(0, 50);
+                expect(join(copy)).named("the copy").should_be("50,1,2,3,4,5");
+                expect(l.at(0).value).named("the list").should_be(0);
+            };
+
+            test("to_array has exactly size() slots") {
+                expect(join_array(l.to_array())).should_be("0,1,2,3,4,5");
+                expect(sizeof(l.to_array())).named("slots").should_be(6);
+            };
+            test("to_array of empty is not null") { expect(sizeof(empty.to_array())).should_be(0); };
+
+            test("add_array") {
+                grown := list_of(new int[] { 1 });
+                grown.add_all(list_of(new int[] { 2, 3 }));
+                expect(join(grown)).should_be("1,2,3");
+                grown.add_all(list_of(new int[0]));
+                expect(join(grown)).named("add_array empty").should_be("1,2,3");
+            };
+
+            test("insert_all in the middle, at the front, at the end") {
+                target := list_of(new int[] { 1, 2, 5 });
+                target.insert_all(2, list_of(new int[] { 3, 4 }));
+                expect(join(target)).named("in the middle").should_be("1,2,3,4,5");
+                target.insert_all(0, list_of(new int[] { 0 }));
+                expect(join(target)).named("at the front").should_be("0,1,2,3,4,5");
+                target.insert_all(6, list_of(new int[] { 6, 7 }));
+                expect(join(target)).named("at the end").should_be("0,1,2,3,4,5,6,7");
+            };
+            test("insert_all of an empty list") {
+                target := list_of(new int[] { 0, 1, 2, 3, 4, 5, 6, 7 });
+                target.insert_all(3, empty);
+                expect(target.size()).should_be(8);
+            };
+            test("add after insert_all") { expect(join(inserted_target())).should_be("0,1,2,3,4,5,6,7,8"); };
+            test("insert_all of the list itself") {
+                twice := list_of(new int[] { 1, 2 });
+                twice.insert_all(1, twice);
+                expect(join(twice)).should_be("1,1,2,2");
+            };
+            test("insert_all past the end") {
+                target := inserted_target();
+                expect_throws<out_of_bounds_exception>() { target.insert_all(10, list_of(new int[] { 1, 1, 2, 2 })); };
+            };
+
+            // remove_range, from 0,1,2,3,4,5,6,7,8
+            test("remove_range in the middle, at the front, at the end") {
+                target := inserted_target();
+                target.remove_range(2, 5);
+                expect(join(target)).named("remove_range").should_be("0,1,5,6,7,8");
+                target.remove_range(0, 1);
+                expect(join(target)).named("at the front").should_be("1,5,6,7,8");
+                target.remove_range(3, 5);
+                expect(join(target)).named("at the end").should_be("1,5,6");
+            };
+            test("remove_range empty") {
+                target := list_of(new int[] { 1, 5, 6 });
+                target.remove_range(1, 1);
+                expect(target.size()).should_be(3);
+            };
+            test("remove_range everything, and usable after it") {
+                target := list_of(new int[] { 1, 5, 6 });
+                target.remove_range(0, 3);
+                expect(target.size()).should_be(0);
+                target.add(1);
+                expect(join(target)).named("usable after remove_range").should_be("1");
+            };
+            test("remove_range past the end") {
+                target := list_of(new int[] { 1 });
+                expect_throws<out_of_bounds_exception>() { target.remove_range(0, 2); };
+            };
+
+            test("remove_all of a value returns the count") {
+                r := list_of(new int[] { 4, 7, 4, 9, 4 });
+                expect(r.remove_every(4)).should_be(3);
+                expect(join(r)).named("what is left").should_be("7,9");
+                expect(r.remove_every(4)).named("remove_all missing").should_be(0);
+                expect(r.size()).named("size").should_be(2);
+            };
+
+            test("remove_if returns the count") {
+                f := list_of(new int[] { 1, 2, 3, 4, 5, 6 });
+                expect(f.remove_all(is_even)).should_be(3);
+                expect(join(f)).named("what is left").should_be("1,3,5");
+                expect(f.remove_all(is_even)).named("remove_if nothing").should_be(0);
+            };
+            test("retain_if returns the count") {
+                g := list_of(new int[] { 1, 2, 3, 4, 5, 6 });
+                expect(g.retain_all(is_even)).should_be(3);
+                expect(join(g)).named("what is left").should_be("2,4,6");
+            };
+            test("retain_if when nothing matches empties the list") {
+                g := list_of(new int[] { 2, 4, 6 });
+                expect(g.retain_all(is_big)).should_be(3);
+                expect(g.size()).named("size").should_be(0);
+            };
+
+            test("fill") {
+                h := list_of(new int[] { 1, 2, 3 });
+                h.fill(7);
+                expect(join(h)).should_be("7,7,7");
+            };
+
+            test("iterator") {
+                it := l.iterator();
+                digits : decimal = 0;
+                while(it.has_next()) digits = digits * 10 + it.next().value;
+                expect(digits).should_be(12345);
+            };
+            test("iterator of empty") { expect(empty.iterator().has_next()).should_be(0); };
+            test("iterator walks a snapshot") {
+                snapshot := l.iterator();
+                l.clear();
+                expect(snapshot.next().value).should_be(0);
+            };
+
+            // of / equals
+            test("of") { expect(join(list_of(new int[] { 1, 2, 3 }))).should_be("1,2,3"); };
+            test("of an empty array") { expect(list_of(new int[0]).size()).should_be(0); };
+            test("equals") { expect(list_of(new int[] { 1, 2, 3 }).equals(list_of(new int[] { 1, 2, 3 }))).should_be(1); };
+            test("equals one difference") { expect(list_of(new int[] { 1, 2, 3 }).equals(list_of(new int[] { 1, 2, 4 }))).should_be(0); };
+            test("equals different size") { expect(list_of(new int[] { 1, 2, 3 }).equals(list_of(new int[] { 1, 2 }))).should_be(0); };
+            test("equals both empty") { expect(new list<int>().equals(new list<int>())).should_be(1); };
+        };
+
+        tests("immutable_list") {
+            source : list<int>;
+            frozen : immutable_list<int>;
+            before_each {
+                source = list_of(new int[] { 3, 1, 4, 1, 5 });
+                frozen = new immutable_list<int>(source);
+            };
+
+            test("size") { expect(frozen.size()).should_be(5); };
+            test("is_empty") { expect(frozen.is_empty()).should_be(0); };
+            test("at") { expect(frozen.at(2).value).should_be(4); };
+            test("first") { expect(frozen.first().value).should_be(3); };
+            test("last") { expect(frozen.last().value).should_be(5); };
+            test("index_of") { expect(frozen.index_of(1)).should_be(1); };
+            test("last_index_of") { expect(frozen.last_index_of(1)).should_be(3); };
+            test("index_of missing") { expect(frozen.index_of(9)).should_be(0 - 1); };
+            test("contains") { expect(frozen.contains(4)).should_be(1); };
+            test("contains missing") { expect(frozen.contains(9)).should_be(0); };
+            test("at(size)") { expect_throws<out_of_bounds_exception>() { frozen.at(5); }; };
+            test("at(-1)") { expect_throws<out_of_bounds_exception>() { frozen.at(0 - 1); }; };
+
+            // changes to the source, or to what the list hands out, do not show through
+            test("independent of its source") {
+                source.put(0, 99);
+                source.add(6);
+                expect(frozen.at(0).value).named("element").should_be(3);
+                expect(frozen.size()).named("size").should_be(5);
+            };
+            test("to_array is a copy") {
+                handed_out := frozen.to_array();
+                handed_out[0] = new int(77);
+                expect(frozen.at(0).value).should_be(3);
+            };
+            test("get_elements is a copy") {
+                elements := frozen.get_elements()!!;
+                elements[1] = new int(77);
+                expect(frozen.at(1).value).should_be(1);
+            };
+            test("to_list is a copy") {
+                as_list := frozen.to_list();
+                as_list.clear();
+                expect(frozen.size()).should_be(5);
+            };
+
+            // "changing" functions make new lists
+            test("plus makes a new list and leaves the original") {
+                longer := frozen.plus(9);
+                expect(longer.size()).named("new list").should_be(6);
+                expect(longer.last().value).named("last").should_be(9);
+                expect(frozen.size()).named("original").should_be(5);
+            };
+            test("sub_list") { expect(join(frozen.sub_list(1, 4).to_list())).should_be("1,4,1"); };
+            test("sub_list empty") { expect(frozen.sub_list(2, 2).size()).should_be(0); };
+            test("sub_list past the end") { expect_throws<out_of_bounds_exception>() { frozen.sub_list(2, 6); }; };
+            test("reversed makes a new list and leaves the original") {
+                expect(join(frozen.reversed().to_list())).should_be("5,1,4,1,3");
+                expect(join(frozen.to_list())).named("the original").should_be("3,1,4,1,5");
+            };
+
+            test("foreach") {
+                digits : decimal = 0;
+                foreach(x in frozen) { digits = digits * 10 + x.value; }
+                expect(digits).should_be(31415);
+            };
+            test("iterator") {
+                it := frozen.iterator();
+                digits : decimal = 0;
+                while(it.has_next()) digits = digits * 10 + it.next().value;
+                expect(digits).should_be(31415);
+            };
+        };
+
+        // other ways to make one
+        test("immutable_list from an array") { expect(new immutable_list<int>(new int[] { 1, 2 }).size()).should_be(2); };
+        test("immutable_list from any collection") {
+            ring := new deque<int>();
+            ring.add_last(8); ring.add_first(7);
+            from_deque := new immutable_list<int>(ring);
+            expect(join(from_deque.to_list())).should_be("7,8");
+        };
+        test("immutable_list from an empty collection") { expect(new immutable_list<int>(new list<int>()).size()).should_be(0); };
+
+        tests("empty_immutable_list") {
+            nothing : immutable_list<int>;
+            before_each { nothing = new immutable_list<int>(); };
+
+            test("empty: size") { expect(nothing.size()).should_be(0); };
+            test("empty: is_empty") { expect(nothing.is_empty()).should_be(1); };
+            test("empty: get_elements") { expect_null(nothing.get_elements()); };
+            test("empty: to_array") { expect(sizeof(nothing.to_array())).should_be(0); };
+            test("empty: iterator") { expect(nothing.iterator().has_next()).should_be(0); };
+            test("empty: contains") { expect(nothing.contains(1)).should_be(0); };
+            test("empty: plus") { expect(nothing.plus(1).size()).should_be(1); };
+            test("first of empty") { expect_throws<no_such_element_exception>() { nothing.first(); }; };
+            test("last of empty") { expect_throws<no_such_element_exception>() { nothing.last(); }; };
+        };
+    };
+}

@@ -1,0 +1,303 @@
+mod suite.library.collections.linked_list;
+
+import ( std.testing, std.collections )
+
+/**
+ * std.collections - linked_list (with linked_list_iterator) and array_iterator:
+ * the iterator / iterable protocol every collection of the module shares.
+ */
+
+/** "1,2,3" for an array of ints ("" for null or empty) */
+def join(items: int[]?) : string {
+    text := "";
+    if(items == null) return text;
+    for(i : decimal = 0; i < sizeof(items); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items[i];
+    }
+    return text;
+}
+
+/** "1,2,3" for everything an iterator still has to give */
+def drain(it: iterator<int>) : string {
+    text := "";
+    first : decimal = 1;
+    while(it.has_next()) {
+        if(!first) text = text + ",";
+        first = 0;
+        text = text + it.next();
+    }
+    return text;
+}
+
+/** works with ANY collection of the module: that is the point of `iterable` */
+def total(numbers: iterable<int>) : decimal {
+    sum : decimal = 0;
+    it := numbers.iterator();
+    while(it.has_next()) sum += it.next().value;
+    return sum;
+}
+
+/** 1,2,3: added at the back, at the back again and at the front */
+def one_two_three() : linked_list<int> {
+    l := new linked_list<int>();
+    l.add(2);
+    l.add_last(3);
+    l.add_first(1);
+    return l;
+}
+
+/** 0,1,9,2,3,4: one_two_three() with inserts at the front, the back and the middle */
+def inserted() : linked_list<int> {
+    l := one_two_three();
+    l.insert(0, 0);
+    l.insert(4, 4);
+    l.insert(2, 9);
+    return l;
+}
+
+/** 1,3,5,8: inserted() after a put, removes from everywhere and two adds */
+def one_three_five_eight() : linked_list<int> {
+    l := inserted();
+    l.put(2, 7);
+    l.remove_at(2);
+    l.remove_first();
+    l.remove_last();
+    l.remove(2);
+    l.add(5); l.add(8);
+    return l;
+}
+
+/** 8,5,3,1 */
+def reversed_list() : linked_list<int> {
+    l := one_three_five_eight();
+    l.reverse();
+    return l;
+}
+
+def linked_list_tests() {
+    tests("linked_list") {
+        l : linked_list<int>;
+
+        tests("empty") {
+            before_each { l = new linked_list<int>(); };
+
+            test("ll new size") { expect(l.size()).should_be(0); };
+            test("ll new is_empty") { expect(l.is_empty()).should_be(1); };
+            test("ll empty get_elements") { expect_null(l.get_elements()); };
+            test("ll empty to_array") { expect(sizeof(l.to_array())).should_be(0); };
+            test("ll first_or_null empty") { expect_null(l.first_or_null()); };
+            test("ll last_or_null empty") { expect_null(l.last_or_null()); };
+            test("ll empty iterator") { expect(l.iterator().has_next()).should_be(0); };
+        };
+
+        tests("one_two_three") {
+            before_each { l = one_two_three(); };
+
+            test("ll add order") { expect(join(l.to_array())).should_be("1,2,3"); };
+            test("ll size 3") { expect(l.size()).should_be(3); };
+            test("ll is_empty 0") { expect(l.is_empty()).should_be(0); };
+            test("ll first") { expect(l.first().value).should_be(1); };
+            test("ll last") { expect(l.last().value).should_be(3); };
+            test("ll first_or_null") { expect(l.first_or_null()!!.value).should_be(1); };
+            test("ll last_or_null") { expect(l.last_or_null()!!.value).should_be(3); };
+        };
+
+        // insert at the front, the middle, the back: 0,1,9,2,3,4
+        tests("inserted") {
+            before_each { l = inserted(); };
+
+            test("ll insert") { expect(join(l.to_array())).should_be("0,1,9,2,3,4"); };
+            test("ll at 0") { expect(l.at(0).value).should_be(0); };
+            test("ll at 2") { expect(l.at(2).value).should_be(9); };
+            test("ll at 5 (walks from the tail)") { expect(l.at(5).value).should_be(4); };
+            test("ll at 4") { expect(l.at(4).value).should_be(3); };
+
+            test("ll put returns old") { expect(l.put(2, 7).value).should_be(9); };
+
+            // 0,1,7,2,3,4
+            tests("after_put") {
+                before_each { l.put(2, 7); };
+
+                test("ll after put") { expect(join(l.to_array())).should_be("0,1,7,2,3,4"); };
+                test("ll index_of") { expect(l.index_of(7)).should_be(2); };
+                test("ll index_of last") { expect(l.index_of(4)).should_be(5); };
+                test("ll index_of missing") { expect(l.index_of(42)).should_be(0 - 1); };
+                test("ll contains") { expect(l.contains(3)).should_be(1); };
+                test("ll contains missing") { expect(l.contains(8)).should_be(0); };
+
+                test("ll removes from the middle, the front and the back") {
+                    expect(l.remove_at(2).value).named("remove_at middle").should_be(7);
+                    expect(l.remove_first().value).named("remove_first").should_be(0);
+                    expect(l.remove_last().value).named("remove_last").should_be(4);
+                    expect(join(l.to_array())).named("after removes").should_be("1,2,3");
+                };
+                test("ll remove value") {
+                    l.remove_at(2); l.remove_first(); l.remove_last();
+                    expect(l.remove(2)).should_be(1);
+                    expect(l.remove(2)).named("remove missing value").should_be(0);
+                    expect(join(l.to_array())).named("after remove value").should_be("1,3");
+                    expect(l.size()).named("size after removes").should_be(2);
+                };
+            };
+        };
+
+        // foreach and both iterators, over 1,3,5,8
+        tests("one_three_five_eight") {
+            before_each { l = one_three_five_eight(); };
+
+            test("ll foreach") {
+                digits : decimal = 0;
+                foreach(x in l) { digits = digits * 10 + x.value; }
+                expect(digits).should_be(1358);
+            };
+            test("ll iterator") { expect(drain(l.iterator())).should_be("1,3,5,8"); };
+            test("ll descending_iterator") { expect(drain(l.descending_iterator())).should_be("8,5,3,1"); };
+            test("ll through iterable") { expect(total(l)).should_be(17); };
+        };
+
+        // 8,5,3,1
+        tests("reversed") {
+            before_each { l = reversed_list(); };
+
+            test("ll reverse") { expect(join(l.to_array())).should_be("8,5,3,1"); };
+            test("ll reverse first") { expect(l.first().value).should_be(8); };
+            test("ll reverse last") { expect(l.last().value).should_be(1); };
+            test("ll reverse backwards") { expect(drain(l.descending_iterator())).should_be("1,3,5,8"); };
+
+            test("ll to_list") {
+                as_list := l.to_list();
+                expect(as_list.size()).named("size").should_be(4);
+                expect(as_list.at(1).value).named("[1]").should_be(5);
+            };
+
+            // 8,5,3,1,8,5,3,1
+            tests("doubled") {
+                before_each { l.add_all(l.to_list()); };
+
+                test("ll add_all") { expect(join(l.to_array())).should_be("8,5,3,1,8,5,3,1"); };
+                test("ll index_of finds the first") { expect(l.index_of(1)).should_be(3); };
+
+                // errors
+                test("ll at(size)") { expect_throws<out_of_bounds_exception>() { l.at(8); }; };
+                test("ll at(-1)") { expect_throws<out_of_bounds_exception>() { l.at(0 - 1); }; };
+                test("ll insert(size+1)") { expect_throws<out_of_bounds_exception>() { l.insert(9, 1); }; };
+                test("ll remove_at(size)") { expect_throws<out_of_bounds_exception>() { l.remove_at(8); }; };
+                test("ll put(size)") { expect_throws<out_of_bounds_exception>() { l.put(8, 1); }; };
+
+                test("ll clear") {
+                    l.clear();
+                    expect(l.size()).should_be(0);
+                };
+
+                // a list that was cleared: what needs an element throws
+                tests("cleared") {
+                    before_each { l.clear(); };
+
+                    test("ll first empty") { expect_throws<no_such_element_exception>() { l.first(); }; };
+                    test("ll last empty") { expect_throws<no_such_element_exception>() { l.last(); }; };
+                    test("ll remove_first empty") { expect_throws<no_such_element_exception>() { l.remove_first(); }; };
+                    test("ll remove_last empty") { expect_throws<no_such_element_exception>() { l.remove_last(); }; };
+                    test("ll next on finished iterator") {
+                        it := l.iterator();
+                        expect_throws<no_such_element_exception>() { it.next(); };
+                    };
+
+                    // a single element is both head and tail
+                    test("ll single element is first and last") {
+                        l.add_first(6);
+                        expect(l.first().value).named("first").should_be(6);
+                        expect(l.last().value).named("last").should_be(6);
+                    };
+                    test("ll single remove_last empties the list") {
+                        l.add_first(6);
+                        expect(l.remove_last().value).should_be(6);
+                        expect(l.is_empty()).named("empty again").should_be(1);
+                    };
+                    test("ll usable after becoming empty") {
+                        l.add_first(6);
+                        l.remove_last();
+                        l.add(1);
+                        expect(join(l.to_array())).should_be("1");
+                    };
+                };
+            };
+        };
+
+        // from an array, and with strings (compared by value)
+        tests("strings") {
+            words : linked_list<string>;
+            before_each {
+                words = new linked_list<string>(new string[] { "b", "c" });
+                words.add_first("a");
+            };
+
+            test("ll<string> size") { expect(words.size()).should_be(3); };
+            test("ll<string> at") { expect(words.at(1)).should_be("b"); };
+            test("ll<string> index_of") { expect(words.index_of("c")).should_be(2); };
+            test("ll<string> remove") {
+                expect(words.remove("b")).should_be(1);
+                expect(words.last()).named("last").should_be("c");
+            };
+        };
+
+        // scale: 3000 elements, sum of 0..2999 = 4498500
+        tests("big") {
+            big : linked_list<int>;
+            before_each {
+                big = new linked_list<int>();
+                for(i : decimal = 0; i < 3000; i++) {
+                    if(i % 2 == 0) big.add_last(i);
+                    else big.add_first(i);
+                }
+            };
+
+            test("ll big size") { expect(big.size()).should_be(3000); };
+            test("ll big sum") { expect(total(big)).should_be(4498500); };
+            test("ll big first") { expect(big.first().value).should_be(2999); };
+            test("ll big last") { expect(big.last().value).should_be(2998); };
+            test("ll big at(1499) is the last odd one") { expect(big.at(1499).value).should_be(1); };
+            test("ll big at(1500) is the first even one") { expect(big.at(1500).value).should_be(0); };
+            test("ll big removed from both ends down to the middle") {
+                removed : decimal = 0;
+                while(big.size() > 10) { big.remove_first(); big.remove_last(); removed += 2; }
+                expect(removed).named("removed").should_be(2990);
+                expect(join(big.to_array())).named("the middle").should_be("9,7,5,3,1,0,2,4,6,8");
+            };
+        };
+
+        tests("array_iterator") {
+            numbers : int[];
+            before_each { numbers = new int[] { 4, 5, 6, 7 }; };
+
+            test("array_iterator remaining") { expect(new array_iterator<int>(numbers).remaining()).should_be(4); };
+            test("array_iterator next, and what remains after it") {
+                it := new array_iterator<int>(numbers);
+                expect(it.next().value).should_be(4);
+                expect(it.remaining()).named("remaining after next").should_be(3);
+            };
+            test("array_iterator rest, and then it is finished") {
+                it := new array_iterator<int>(numbers);
+                it.next();
+                expect(drain(it)).should_be("5,6,7");
+                expect(it.has_next()).named("finished").should_be(0);
+            };
+            test("array_iterator next when finished") {
+                it := new array_iterator<int>(numbers);
+                drain(it);
+                expect_throws<no_such_element_exception>() { it.next(); };
+            };
+
+            test("array_iterator range") { expect(drain(new array_iterator<int>(numbers, 1, 3))).should_be("5,6"); };
+            test("array_iterator empty range") { expect(new array_iterator<int>(numbers, 2, 2).has_next()).should_be(0); };
+            test("array_iterator bad range") {
+                expect_throws<out_of_bounds_exception>() { bad := new array_iterator<int>(numbers, 2, 5); };
+            };
+            test("array_iterator over null") {
+                nothing : int[]? = null;
+                empty := new array_iterator<int>(nothing);
+                expect(empty.has_next()).should_be(0);
+            };
+        };
+    };
+}

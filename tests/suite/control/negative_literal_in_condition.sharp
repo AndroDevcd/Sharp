@@ -1,0 +1,25 @@
+mod suite.control.negative_literal_in_condition;
+import ( std.testing )
+def negative_literal_in_condition_tests() {
+    tests("negative_literal_in_condition") {
+        test("c == -1 || x") {
+            c : decimal = -1;
+            x : decimal = 0;
+            expect(c == -1 || x).should_be(1);
+        };
+        test("x || c == -1") {
+            c : decimal = -1;
+            x : decimal = 0;
+            expect(x || c == -1).should_be(1);
+        };
+        test("d == -1 || x") {
+            d : decimal = 5;
+            x : decimal = 0;
+            expect(d == -1 || x).should_be(0);
+        };
+        test("d - -1") {
+            d : decimal = 5;
+            expect(d - -1).should_be(6);
+        };
+    };
+}

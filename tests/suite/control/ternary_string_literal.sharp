@@ -1,0 +1,18 @@
+mod suite.control.ternary_string_literal;
+import ( std.testing )
+def ternary_string_literal_tests() {
+    tests("ternary_string_literal") {
+        test("literal ? string") {
+            name : string = "bob";
+            flag : decimal = 1;
+            a : string = flag ? "literal" : name;
+            expect(a).should_be("literal");
+        };
+        test("string ? literal") {
+            name : string = "bob";
+            flag : decimal = 1;
+            b : string = flag ? name : "literal";
+            expect(b).should_be("bob");
+        };
+    };
+}

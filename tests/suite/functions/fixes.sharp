@@ -1,0 +1,34 @@
+mod suite.functions.fixes;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (fixed), found while writing functions/basics.sharp:
+ * a number LITERAL as an argument was ambiguous between an overload taking
+ * `decimal` and an overload taking a class that can be built from a number
+ * (string, or any class with a one-number constructor). The file did not
+ * compile:
+ *
+ *     error S807: call to method `kind_of` is ambiguous
+ *     Based on the parameters provided - (_int32)
+ *         candidate #1: kind_of(decimal)
+ *         candidate #2: kind_of(std#string)
+ *
+ * The same call with a `decimal` variable instead of the literal compiled and
+ * picked kind_of(decimal). Now the literal picks kind_of(decimal) too, because
+ * that needs no conversion. The same happened for constructors:
+ * `new point(5)` was ambiguous between point(decimal) and point(point).
+ */
+
+def kind_of(a: decimal): decimal { return 1; }
+def kind_of(s: string): decimal { return 10; }
+
+def fixes_tests() {
+    tests("fixes") {
+        test("overload with a var variable") {      // always compiled
+            y : decimal = 5;
+            expect(kind_of(y)).should_be(1);
+        };
+        test("overload with a number literal") { expect(kind_of(5)).should_be(1); };    // before the fix: error S807, ambiguous
+    };
+}

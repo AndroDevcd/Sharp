@@ -1,0 +1,688 @@
+mod suite.library.data.json;
+
+import ( std.testing, std.io, std.data )
+
+/**
+ * std.data JSON: json_value (building and reading), json_parser (the whole
+ * of JSON, escapes, nesting, malformed input with positions) and
+ * json_writer (compact, pretty, sorted keys, ASCII only), and round trips
+ * parse -> write -> parse.
+ *
+ * Works only inside /tmp/sharp_suite_io_json: made empty before every test
+ * and removed after it.
+ */
+
+base_dir : string = "/tmp/sharp_suite_io_json";
+
+/** a double quote, to keep the JSON texts below readable: q + "a" + q */
+q : string = "\"";
+
+/** (called inside a test) the text must be rejected, with the error at the given line and column */
+def rejected_at(text: string, line: decimal, column: decimal) {
+    try {
+        json_parser.parse(text);
+        fail_test("no exception");
+    } catch(e: json_exception) {
+        expect(e.line).named("line").should_be(line);
+        expect(e.column).named("column").should_be(column);
+    }
+}
+
+/** (called inside a test) parse -> write -> parse must give an equal value, compact and pretty */
+def survives_writing(text: string) {
+    first := json_parser.parse(text);
+    expect_true(first.equals_value(json_parser.parse(json_writer.to_compact(first))));     // compact
+    expect_true(first.equals_value(json_parser.parse(json_writer.to_pretty(first))));      // pretty
+}
+
+/** an array of six: "a", 1, false, null, [] and the JSON null that add(null) stores */
+def six_items(): json_value {
+    arr := json_value.new_array();
+    arr.add_string("a").add_number(1).add_bool(false).add_null().add(json_value.new_array()).add(null);
+    return arr;
+}
+
+/** six_items with 2 put at 1, "first" inserted in front and "last" at the end: eight */
+def eight_items(): json_value {
+    arr := six_items();
+    arr.put_at(1, json_value.of_number(2));
+    arr.insert_at(0, json_value.of_string("first"));
+    arr.insert_at(7, json_value.of_string("last"));
+    return arr;
+}
+
+/** eight_items with the first one removed again: seven */
+def seven_items(): json_value {
+    arr := eight_items();
+    arr.remove_at(0);
+    return arr;
+}
+
+/** {"name":"Ada","age":36,"admin":true,"email":null,"tags":[]} */
+def ada(): json_value {
+    obj := json_value.new_object();
+    obj.put_string("name", "Ada").put_number("age", 36).put_bool("admin", true).put_null("email").put("tags", json_value.new_array());
+    return obj;
+}
+
+/** an object large enough to use its hash index: key0 = 0 ... key499 = 499 */
+def large_object(): json_value {
+    large := json_value.new_object();
+    for(i : decimal = 0; i < 500; i++) {
+        large.put_number("key" + io_strings.int_to_string(i), i);
+    }
+    return large;
+}
+
+/** a document with objects in objects and arrays in both */
+def server_doc(): json_value {
+    return json_parser.parse("{" + q + "server" + q + ": {" + q + "ports" + q + ": [80, 443], " + q + "name" + q + ": " + q + "main" + q + "}, "
+        + q + "list" + q + ": [{" + q + "id" + q + ": 1}, {" + q + "id" + q + ": 2}]}");
+}
+
+/** 900 arrays, one inside the other, around a 1 */
+def deep_text(): string {
+    deep := new char_buffer();
+    for(i : decimal = 0; i < 900; i++) {
+        deep.append_char('[');
+    }
+    deep.append("1");
+    for(i : decimal = 0; i < 900; i++) {
+        deep.append_char(']');
+    }
+    return deep.build();
+}
+
+/** a document whose writer output is checked: strings, a number, arrays and objects, empty ones too */
+def ada_doc(): json_value {
+    doc := json_value.new_object();
+    doc.put_string("name", "Ada").put_number("age", 36);
+    tags := json_value.new_array();
+    tags.add_string("a").add_string("b");
+    doc.put("tags", tags).put("empty", json_value.new_array()).put("none", json_value.new_object());
+    inner := json_value.new_object();
+    inner.put_bool("ok", true).put_null("x");
+    doc.put("inner", inner);
+    return doc;
+}
+
+def json_tests() {
+    tests("json") {
+        before_each {
+            start := new file(base_dir);
+            start.delete_recursively();
+            start.mkdirs();
+        };
+        after_each { new file(base_dir).delete_recursively(); };
+
+        test("test directory created") {
+            start := new file(base_dir);
+            start.delete_recursively();
+            expect_true(start.mkdirs());
+        };
+
+        tests("values") {
+            test("null") {
+                n := json_value.of_null();
+                expect_true(n.is_null());
+                expect(n.kind_name()).named("null kind_name").should_be("null");
+                expect(n.kind()).named("null kind").should_be(json_value.kind_null);
+            };
+            test("bool") {
+                b := json_value.of_bool(true);
+                expect_true(b.is_bool());
+                expect_true(b.as_bool());
+                expect_false(json_value.of_bool(false).as_bool());
+            };
+            test("is_number") { expect_true(json_value.of_number(2.5).is_number()); };
+            test("as_number") { expect(json_value.of_number(2.5).as_number()).should_be(2.5); };
+            test("as_int") { expect(json_value.of_number(42).as_int()).should_be(42); };
+            test("string") {
+                s := json_value.of_string("text");
+                expect_true(s.is_string());
+                expect(s.as_string()).named("as_string").should_be("text");
+                expect(s.kind_name()).named("kind_name string").should_be("string");
+                expect_false(s.is_number());        // a string is not a number
+            };
+
+            test("as_number on string") { expect_throws<json_exception>() { json_value.of_string("text").as_number(); }; };
+            test("as_string on number") { expect_throws<json_exception>() { json_value.of_number(2.5).as_string(); }; };
+            test("as_int on 2.5") { expect_throws<json_exception>() { json_value.of_number(2.5).as_int(); }; };
+            test("as_bool on null") { expect_throws<json_exception>() { json_value.of_null().as_bool(); }; };
+            test("size of string") { expect_throws<json_exception>() { json_value.of_string("text").size(); }; };
+
+            // arrays
+            test("a new array: is_array, and empty") {
+                arr := json_value.new_array();
+                expect_true(arr.is_array());
+                expect_true(arr.is_empty());
+            };
+            test("array size") { expect(six_items().size()).should_be(6); };
+            test("array to_string") { expect(six_items().to_string()!!).should_be("[" + q + "a" + q + ",1,false,null,[],null]"); };
+            test("at") { expect(six_items().at(0).as_string()).should_be("a"); };
+            test("add(null) stores a JSON null") { expect_true(six_items().at(5).is_null()); };
+            test("put_at returns the old value, and stores the new") {
+                arr := six_items();
+                old := arr.put_at(1, json_value.of_number(2));
+                expect(old.as_number()).named("put_at returns the old value").should_be(1);
+                expect(arr.at(1).as_number()).named("put_at stored").should_be(2);
+            };
+            test("insert_at front and end") {
+                arr := eight_items();
+                expect(arr.at(0).as_string()).named("insert_at front").should_be("first");
+                expect(arr.at(7).as_string()).named("insert_at end").should_be("last");
+            };
+            test("remove_at returns what it took") {
+                arr := eight_items();
+                removed := arr.remove_at(0);
+                expect(removed.as_string()).named("remove_at returns").should_be("first");
+                expect(arr.size()).named("size after remove").should_be(7);
+                expect(arr.value_at(0).as_string()).named("value_at on array").should_be("a");
+            };
+            test("at outside") { expect_throws<json_exception>() { seven_items().at(7); }; };
+            test("at negative") { expect_throws<json_exception>() { seven_items().at(0 - 1); }; };
+            test("at fraction") { expect_throws<json_exception>() { seven_items().at(0.5); }; };
+            test("put on array") { expect_throws<json_exception>() { seven_items().put("k", json_value.of_null()); }; };
+            test("insert_at outside") { expect_throws<json_exception>() { seven_items().insert_at(9, json_value.of_null()); }; };
+            test("clear") {
+                arr := seven_items();
+                arr.clear();
+                expect(arr.size()).should_be(0);
+            };
+
+            // objects
+            tests("object") {
+                obj : json_value;
+                before_each { obj = ada(); };
+
+                test("is_object") { expect_true(obj.is_object()); };
+                test("object size") { expect(obj.size()).should_be(5); };
+                test("object to_string") { expect(obj.to_string()!!).should_be("{" + q + "name" + q + ":" + q + "Ada" + q + "," + q + "age" + q + ":36," + q + "admin" + q + ":true," + q + "email" + q + ":null," + q + "tags" + q + ":[]}"); };
+                test("has") { expect_true(obj.has("age")); };
+                test("has member with null value") { expect_true(obj.has("email")); };
+                test("has not") { expect_false(obj.has("Age")); };
+                test("member") { expect(obj.member("name").as_string()).should_be("Ada"); };
+                test("find") { expect_not_null(obj.find("age")); };
+                test("find missing") { expect_null(obj.find("nope")); };
+                test("find null member gives a JSON null") { expect_true(obj.find("email")!!.is_null()); };
+                test("string_or") { expect(obj.string_or("name", "?")).should_be("Ada"); };
+                test("string_or missing") { expect(obj.string_or("city", "?")).should_be("?"); };
+                test("string_or wrong kind") { expect(obj.string_or("age", "?")).should_be("?"); };
+                test("number_or") { expect(obj.number_or("age", 0)).should_be(36); };
+                test("number_or missing") { expect(obj.number_or("height", 0 - 1)).should_be(0 - 1); };
+                test("bool_or") { expect_true(obj.bool_or("admin", false)); };
+                test("bool_or missing") { expect_true(obj.bool_or("guest", true)); };
+                test("keys") { expect(io_strings.join(obj.keys(), ",")).should_be("name,age,admin,email,tags"); };
+                test("key_at") { expect(obj.key_at(1)).should_be("age"); };
+                test("value_at on object") { expect(obj.value_at(1).as_number()).should_be(36); };
+                test("put again replaces, without adding, and keeps its place") {
+                    obj.put_number("age", 37);
+                    expect(obj.member("age").as_number()).named("put again replaces").should_be(37);
+                    expect(obj.size()).named("...without adding").should_be(5);
+                    expect(obj.key_at(1)).named("...and keeps its place").should_be("age");
+                };
+                test("remove, and remove missing") {
+                    expect_true(obj.remove("admin"));
+                    expect_false(obj.remove("admin"));
+                };
+                test("keys after remove") {
+                    obj.remove("admin");
+                    expect(io_strings.join(obj.keys(), ",")).should_be("name,age,email,tags");
+                };
+                test("member missing") { expect_throws<json_exception>() { obj.member("nope"); }; };
+                test("at on object") { expect_throws<json_exception>() { obj.at(0); }; };
+                test("key_at outside") {
+                    obj.remove("admin");
+                    expect_throws<json_exception>() { obj.key_at(4); };
+                };
+            };
+            test("find on string") { expect_throws<json_exception>() { json_value.of_string("text").find("x"); }; };
+
+            // an object large enough to use its hash index
+            tests("large") {
+                large : json_value;
+                before_each { large = large_object(); };
+
+                test("large object size") { expect(large.size()).should_be(500); };
+                test("all 500 members found") {
+                    for(i : decimal = 0; i < 500; i++) {
+                        expect(large.number_or("key" + io_strings.int_to_string(i), 0 - 1)).named("key" + i).should_be(i);
+                    }
+                };
+                test("missing in large object") { expect_false(large.has("key500")); };
+                test("replace in large object, the size unchanged") {
+                    large.put_number("key250", 0 - 250);
+                    expect(large.member("key250").as_number()).should_be(0 - 250);
+                    expect(large.size()).named("size unchanged by replace").should_be(500);
+                };
+                test("remove from large object") {
+                    large.put_number("key250", 0 - 250);
+                    expect_true(large.remove("key0"));
+                    expect(large.member("key499").as_number()).named("lookup after remove").should_be(499);
+                    expect(large.key_at(0)).named("first key after remove").should_be("key1");
+                    expect_false(large.has("key0"));        // removed key gone
+                };
+                test("re-added key goes to the end") {
+                    large.remove("key0");
+                    large.put_number("key0", 1000);
+                    expect(large.key_at(499)).should_be("key0");
+                };
+            };
+        };
+
+        tests("paths_copy_equals") {
+            doc : json_value;
+            before_each { doc = server_doc(); };
+
+            test("at_path member.index") { expect(doc.at_path("server.ports[1]")!!.as_number()).should_be(443); };
+            test("at_path member.member") { expect(doc.at_path("server.name")!!.as_string()).should_be("main"); };
+            test("at_path index.member") { expect(doc.at_path("list[1].id")!!.as_number()).should_be(2); };
+            test("at_path empty is the value itself") { expect_true(doc.at_path("")!!.is_object()); };
+            test("at_path missing member") { expect_null(doc.at_path("server.host")); };
+            test("at_path index outside") { expect_null(doc.at_path("server.ports[2]")); };
+            test("at_path through a number") { expect_null(doc.at_path("server.ports[0].x")); };
+            test("at_path index on object") { expect_null(doc.at_path("server[0]")); };
+            test("at_path continues after missing") { expect_null(doc.at_path("nope.deeper[3].x")); };
+            test("at_path starting with index") { expect(json_parser.parse("[[1, 2], [3, 4]]").at_path("[1][0]")!!.as_number()).should_be(3); };
+            test("path with empty name") { expect_throws<json_exception>() { doc.at_path("server..name"); }; };
+            test("path with bad index") { expect_throws<json_exception>() { doc.at_path("list[x]"); }; };
+            test("path with open bracket") { expect_throws<json_exception>() { doc.at_path("list[1"); }; };
+            test("path starting with a period") { expect_throws<json_exception>() { doc.at_path(".server"); }; };
+
+            test("deep_copy equals") { expect_true(doc.equals_value(doc.deep_copy())); };
+            test("a copy changed: the original untouched, no longer equal") {
+                copy_doc := doc.deep_copy();
+                copy_doc.member("server").member("ports").add_number(8080);
+                expect(copy_doc.at_path("server.ports")!!.size()).named("copy changed").should_be(3);
+                expect(doc.at_path("server.ports")!!.size()).named("original untouched").should_be(2);
+                expect_false(doc.equals_value(copy_doc));
+            };
+            test("deep_copy of a string") { expect(json_value.of_string("s").deep_copy().as_string()).should_be("s"); };
+        };
+
+        tests("equals") {
+            a : json_value;
+            before_each { a = json_parser.parse("{" + q + "x" + q + ": 1, " + q + "y" + q + ": [true, null]}"); };
+
+            test("member order does not matter") { expect_true(a.equals_value(json_parser.parse("{" + q + "y" + q + ": [true, null], " + q + "x" + q + ": 1.0}"))); };
+            test("element order matters") { expect_false(a.equals_value(json_parser.parse("{" + q + "x" + q + ": 1, " + q + "y" + q + ": [null, true]}"))); };
+            test("equals null") { expect_false(a.equals_value(null)); };
+            test("different member names") { expect_false(a.equals_value(json_parser.parse("{" + q + "x" + q + ": 1, " + q + "z" + q + ": [true, null]}"))); };
+            test("different sizes") { expect_false(a.equals_value(json_parser.parse("{" + q + "x" + q + ": 1}"))); };
+        };
+        test("number vs string") { expect_false(json_value.of_number(1).equals_value(json_value.of_string("1"))); };
+        test("null equals null") { expect_true(json_value.of_null().equals_value(json_value.of_null())); };
+        test("false vs zero") { expect_false(json_value.of_bool(false).equals_value(json_value.of_number(0))); };
+
+        tests("parser_good") {
+            test("true") { expect_true(json_parser.parse("true").as_bool()); };
+            test("false") { expect_false(json_parser.parse("false").as_bool()); };
+            test("null") { expect_true(json_parser.parse("null").is_null()); };
+            test("zero") { expect(json_parser.parse("0").as_number()).should_be(0); };
+            test("integer") { expect(json_parser.parse("12345").as_number()).should_be(12345); };
+            test("negative") { expect(json_parser.parse("-17").as_number()).should_be(0 - 17); };
+            test("fraction") { expect(json_parser.parse("3.25").as_number()).should_be(3.25); };
+            test("exponent") { expect(json_parser.parse("1e3").as_number()).should_be(1000); };
+            test("exponent with sign") { expect(json_parser.parse("25E-2").as_number()).should_be(0.25); };
+            test("exponent with plus") { expect(json_parser.parse("-1.5e+2").as_number()).should_be(0 - 150); };
+            test("negative zero") { expect(json_parser.parse("-0").as_number()).should_be(0); };
+
+            // The parser works most numbers out itself and hands the rest to the runtime's strtod:
+            // either way the number must be exactly the one strtod reads from the same text.
+            test("numbers as strtod reads them") {
+                texts := new list<string>();
+                texts.add("0.1"); texts.add("0.3"); texts.add("0.0"); texts.add("0e5"); texts.add("-0.0");
+                texts.add("0.000001"); texts.add("1e22"); texts.add("1e23"); texts.add("1.5e-22"); texts.add("123e-25");
+                texts.add("25e-23"); texts.add("9007199254740991"); texts.add("9007199254740993"); texts.add("900719925474099.1");
+                texts.add("123456789.123456789"); texts.add("0.8545932140076324"); texts.add("0.24073952877406524");
+                texts.add("-8.722880357844552e-30"); texts.add("9.345700658094924e+30"); texts.add("5e-324");
+                texts.add("1.7976931348623157e308"); texts.add("4.35"); texts.add("-1234.5678e10"); texts.add("100000000000000000000");
+                for(i : decimal = 0; i < texts.size(); i++) {
+                    text : string = texts.at(i);
+                    expect(json_parser.parse(text).as_number()).named("number as strtod reads it: " + text).should_be(strtod(text).value);
+                }
+            };
+
+            // ---- member names: the parser makes a name once and the objects share it; what is handed out is a copy
+            test("member names are handed out as copies") {
+                records := json_parser.parse("[{" + q + "id" + q + ":1," + q + "name" + q + ":" + q + "a" + q + "},{"
+                    + q + "id" + q + ":2," + q + "name" + q + ":" + q + "b" + q + "}]");
+                records.at(0).key_at(0).append("_changed");
+                expect(records.at(0).key_at(0)).named("key_at gives a copy").should_be("id");
+                expect(records.at(1).member("id").as_number()).named("the other object keeps its name").should_be(2);
+                handed_out := records.at(0).keys();
+                handed_out.at(1).append("_changed");
+                expect_true(records.at(0).has("name") && records.at(1).has("name"));       // keys gives copies
+                expect(records.to_string()!!).named("written with the names as they were").should_be("[{" + q + "id" + q + ":1," + q + "name" + q + ":"
+                    + q + "a" + q + "},{" + q + "id" + q + ":2," + q + "name" + q + ":" + q + "b" + q + "}]");
+            };
+
+            // more names than the parser keeps, a name longer than it keeps, a name with an escape - each twice
+            test("300 names, a long name and a name with an escape, each twice") {
+                record_text : string = "{" + q + "a_name_that_is_longer_than_the_parser_keeps_for_sharing" + q + ":-1," + q + "tab\\there" + q + ":-2";
+                for(i : _int64 = 0; i < 300; i++) {
+                    record_text = record_text + "," + q + "member_" + io_strings.int_to_string(i) + q + ":" + io_strings.int_to_string(i);
+                }
+                record_text = record_text + "}";
+                twice := json_parser.parse("[" + record_text + "," + record_text + "]");
+                for(i : _int64 = 0; i < 300; i++) {
+                    expect(twice.at(0).member("member_" + io_strings.int_to_string(i)).as_number()).named("first, member_" + i).should_be(i);
+                    expect(twice.at(1).member("member_" + io_strings.int_to_string(i)).as_number()).named("second, member_" + i).should_be(i);
+                }
+                expect(twice.at(1).size()).named("302 members each").should_be(302);
+                expect(twice.at(1).member("a_name_that_is_longer_than_the_parser_keeps_for_sharing").as_number()).named("a long name, twice").should_be(0 - 1);
+                expect(twice.at(1).member("tab\there").as_number()).named("a name with an escape, twice").should_be(0 - 2);
+            };
+            test("zero point") { expect(json_parser.parse("0.5").as_number()).should_be(0.5); };
+            test("large") { expect(json_parser.parse("9007199254740992").as_number()).should_be(9007199254740992); };
+            test("white space around") { expect(json_parser.parse(" \t\r\n 7 \n").as_number()).should_be(7); };
+            test("string") { expect(json_parser.parse(q + "hello" + q).as_string()).should_be("hello"); };
+            test("empty string") { expect(json_parser.parse(q + q).as_string()).should_be(""); };
+            test("empty array") { expect(json_parser.parse("[]").size()).should_be(0); };
+            test("empty array with space") { expect(json_parser.parse("[ \n ]").size()).should_be(0); };
+            test("empty object") { expect(json_parser.parse("{}").size()).should_be(0); };
+            test("empty object with space") { expect(json_parser.parse("{ }").size()).should_be(0); };
+
+            // escapes
+            test("escaped quote") { expect(json_parser.parse(q + "a\\" + q + "b" + q).as_string()).should_be("a" + q + "b"); };
+            test("escaped back slash") { expect(json_parser.parse(q + "a\\\\b" + q).as_string()).should_be("a\\b"); };
+            test("escaped slash") { expect(json_parser.parse(q + "a\\/b" + q).as_string()).should_be("a/b"); };
+            test("newline and tab") { expect(json_parser.parse(q + "a\\nb\\tc" + q).as_string()).should_be("a\nb\tc"); };
+            test("b f r: backspace, form feed, carriage return") {
+                controls := json_parser.parse(q + "\\b\\f\\r" + q).as_string();
+                expect(io_strings.length(controls)).named("b f r length").should_be(3);
+                expect(controls.data[0]).named("backspace").should_be(8);
+                expect(controls.data[1]).named("form feed").should_be(12);
+                expect(controls.data[2]).named("carriage return").should_be(13);
+            };
+            test("unicode escape ascii") { expect(json_parser.parse(q + "\\u0041\\u00e9" + q).as_string().substring(0, 1)).should_be("A"); };
+            test("u00e9 is two UTF-8 bytes") {
+                two := json_parser.parse(q + "\\u00e9" + q).as_string();
+                expect(io_strings.length(two)).should_be(2);
+                expect(two.data[0] & 0xff).named("first byte").should_be(0xC3);
+                expect(two.data[1] & 0xff).named("second byte").should_be(0xA9);
+            };
+            test("u20AC is three bytes") {
+                three := json_parser.parse(q + "\\u20AC" + q).as_string();
+                expect(io_strings.length(three)).should_be(3);
+                expect(three.data[0] & 0xff).named("euro byte 0").should_be(0xE2);
+                expect(three.data[1] & 0xff).named("euro byte 1").should_be(0x82);
+                expect(three.data[2] & 0xff).named("euro byte 2").should_be(0xAC);
+            };
+            test("surrogate pair is four bytes") {
+                four := json_parser.parse(q + "\\ud83d\\ude00" + q).as_string();
+                expect(io_strings.length(four)).should_be(4);
+                expect(four.data[0] & 0xff).named("pair byte 0").should_be(0xF0);
+                expect(four.data[1] & 0xff).named("pair byte 1").should_be(0x9F);
+                expect(four.data[2] & 0xff).named("pair byte 2").should_be(0x98);
+                expect(four.data[3] & 0xff).named("pair byte 3").should_be(0x80);
+            };
+            test("u0000 keeps the string going, as a zero byte") {
+                zero := json_parser.parse(q + "a\\u0000b" + q).as_string();
+                expect(io_strings.length(zero)).should_be(3);
+                expect(zero.data[1]).named("u0000 is a zero byte").should_be(0);
+            };
+            test("escape at the very end") { expect(json_parser.parse(q + "x\\n" + q).as_string()).should_be("x\n"); };
+            test("escape at the very start") { expect(json_parser.parse(q + "\\tx" + q).as_string()).should_be("\tx"); };
+
+            // structures
+            tests("structures") {
+                doc : json_value;
+                before_each { doc = json_parser.parse("{\n  " + q + "a" + q + " : [1, 2, {" + q + "b" + q + ": null}],\n  " + q + "c" + q + " : {" + q + "d" + q + ": [[], {}]},\n  " + q + q + ": " + q + "empty name" + q + "\n}"); };
+
+                test("document members") { expect(doc.size()).should_be(3); };
+                test("nested array") { expect(doc.member("a").size()).should_be(3); };
+                test("null in nested object") { expect_true(doc.at_path("a[2].b")!!.is_null()); };
+                test("empty array inside") { expect(doc.at_path("c.d[0]")!!.size()).should_be(0); };
+                test("empty object inside") { expect_true(doc.at_path("c.d[1]")!!.is_object()); };
+                test("empty member name") { expect(doc.member("").as_string()).should_be("empty name"); };
+            };
+            test("duplicate name: one member, the last value") {
+                dup := json_parser.parse("{" + q + "k" + q + ": 1, " + q + "k" + q + ": 2}");
+                expect(dup.size()).named("duplicate name: one member").should_be(1);
+                expect(dup.member("k").as_number()).named("duplicate name: last value").should_be(2);
+            };
+            test("compact") { expect(json_parser.parse(" [ 1 , " + q + "x" + q + " , { " + q + "k" + q + " : [ ] } ] ").to_string()!!).should_be("[1," + q + "x" + q + ",{" + q + "k" + q + ":[]}]"); };
+
+            // deep nesting: no recursion in parser, writer, equals or copy
+            test("900 levels parsed") {
+                walk := json_parser.parse(deep_text());
+                depth : decimal = 0;
+                while(walk.is_array()) {
+                    walk = walk.at(0);
+                    depth++;
+                }
+                expect(depth).should_be(900);
+            };
+            test("900 levels written") { expect(json_parser.parse(deep_text()).to_string()!!).should_be(deep_text()); };
+            test("900 levels compared") {
+                nested := json_parser.parse(deep_text());
+                expect_true(nested.equals_value(nested.deep_copy()));
+            };
+            test("900 levels pretty and back") {
+                nested := json_parser.parse(deep_text());
+                expect_true(nested.equals_value(json_parser.parse(nested.to_pretty_string())));
+            };
+
+            test("max depth getter") { expect(new json_parser().set_max_depth(3).get_max_depth()).should_be(3); };
+            test("depth 3 allowed") { expect(new json_parser().set_max_depth(3).parse_text("[[[1]]]").size()).should_be(1); };
+            test("depth 4 rejected, at its column; the parser can be reused") {
+                limited := new json_parser().set_max_depth(3);
+                try {
+                    limited.parse_text("[[[[1]]]]");
+                    fail_test("no exception");
+                } catch(e: json_exception) {
+                    expect(e.column).named("depth error column").should_be(4);
+                }
+                expect(limited.parse_text("[1, 2]").size()).named("parser can be reused").should_be(2);
+            };
+            test("default depth limit, and its error position") {
+                try {
+                    json_parser.parse(io_strings.repeat("[", 1001));
+                    fail_test("no exception");
+                } catch(e: json_exception) {
+                    expect(e.position).should_be(1000);
+                }
+            };
+            test("negative max depth") { expect_throws<illegal_argument_exception>() { new json_parser().set_max_depth(3).set_max_depth(0 - 1); }; };
+
+            // a larger document
+            test("a larger document: 2000 objects, read and written back the same") {
+                big := new char_buffer();
+                big.append_char('[');
+                for(i : decimal = 0; i < 2000; i++) {
+                    if(i > 0) {
+                        big.append_char(',');
+                    }
+                    big.append("{" + q + "id" + q + ":").append_int(i).append("," + q + "name" + q + ":" + q + "item ").append_int(i).append(q + "," + q + "ok" + q + ":true}");
+                }
+                big.append_char(']');
+                items := json_parser.parse(big.build());
+                expect(items.size()).named("2000 objects").should_be(2000);
+                expect(items.at(1999).member("id").as_number()).named("object 1999 id").should_be(1999);
+                expect(items.at(1234).member("name").as_string()).named("object 1234 name").should_be("item 1234");
+                expect(items.to_string()!!).named("large document written back the same").should_be(big.build());
+            };
+        };
+
+        tests("parser_bad") {
+            test("empty text") { rejected_at("", 1, 1); };
+            test("only space") { rejected_at("  \n ", 2, 2); };
+            test("open array") { rejected_at("[1, 2", 1, 6); };
+            test("open object") { rejected_at("{" + q + "a" + q + ": 1", 1, 8); };
+            test("trailing comma in array") { rejected_at("[1, 2,]", 1, 7); };
+            test("trailing comma in object") { rejected_at("{" + q + "a" + q + ": 1,}", 1, 9); };
+            test("missing comma") { rejected_at("[1 2]", 1, 4); };
+            test("missing colon") { rejected_at("{" + q + "a" + q + " 1}", 1, 6); };
+            test("missing value") { rejected_at("{" + q + "a" + q + ":}", 1, 6); };
+            test("name without quotes") { rejected_at("{a: 1}", 1, 2); };
+            test("number as name") { rejected_at("{1: 2}", 1, 2); };
+            test("single quotes") { rejected_at("['a']", 1, 2); };
+            test("wrong close") { rejected_at("[1}", 1, 3); };
+            test("close object with bracket") { rejected_at("{" + q + "a" + q + ": 1]", 1, 8); };
+            test("text after value") { rejected_at("1 2", 1, 3); };
+            test("two values") { rejected_at("{} {}", 1, 4); };
+            test("lone close") { rejected_at("]", 1, 1); };
+            test("comma first") { rejected_at("[,1]", 1, 2); };
+            test("leading zero") { rejected_at("01", 1, 2); };
+            test("negative leading zero") { rejected_at("-01", 1, 3); };
+            test("plus sign") { rejected_at("+1", 1, 1); };
+            test("lone minus") { rejected_at("-", 1, 2); };
+            test("dot without digits") { rejected_at("1.", 1, 3); };
+            test("leading dot") { rejected_at(".5", 1, 1); };
+            test("open exponent") { rejected_at("1e", 1, 3); };
+            test("exponent sign only") { rejected_at("1e+", 1, 4); };
+            test("hex number") { rejected_at("0x10", 1, 2); };
+            test("NaN") { rejected_at("NaN", 1, 1); };
+            test("Infinity") { rejected_at("-Infinity", 1, 2); };
+            test("misspelled true") { rejected_at("tru", 1, 1); };
+            test("capital True") { rejected_at("True", 1, 1); };
+            test("null with tail") { rejected_at("nullx", 1, 1); };
+            test("unclosed string") { rejected_at(q + "abc", 1, 1); };
+            test("unclosed string in array") { rejected_at("[1, " + q + "abc]", 1, 5); };
+            test("raw newline in string") { rejected_at(q + "a\nb" + q, 1, 3); };
+            test("raw tab in string") { rejected_at(q + "a\tb" + q, 1, 3); };
+            test("unknown escape") { rejected_at(q + "a\\qb" + q, 1, 4); };
+            test("short unicode escape") { rejected_at(q + "\\u12" + q, 1, 2); };
+            test("bad unicode digit") { rejected_at(q + "\\u12G4" + q, 1, 6); };
+            test("lone high surrogate") { rejected_at(q + "\\ud83d" + q, 1, 2); };
+            test("lone low surrogate") { rejected_at(q + "\\ude00" + q, 1, 2); };
+            test("high surrogate with wrong partner") { rejected_at(q + "\\ud83d\\u0041" + q, 1, 2); };
+            test("escape at the end of the text") { rejected_at(q + "abc\\", 1, 5); };
+            test("error on line 3") { rejected_at("{\n  " + q + "a" + q + ": 1,\n  " + q + "b" + q + ": ?\n}", 3, 8); };
+            test("error after crlf lines") { rejected_at("[\r\n1,\r\n}", 3, 1); };
+            test("comment") { rejected_at("[1] // no", 1, 5); };
+            test("is_valid: garbage") { expect_false(json_parser.is_valid("hello")); };
+            test("is_valid: open brace") { expect_false(json_parser.is_valid("{")); };
+            test("is_valid: good") { expect_true(json_parser.is_valid("{" + q + "a" + q + ": [1, 2, 3]}")); };
+
+            test("message says what and where, and the position") {
+                try {
+                    json_parser.parse("[1, 2,\n 3 4]");
+                    fail_test("no exception");
+                } catch(e: json_exception) {
+                    expect(e.get_message()).should_be("expected ',' or ']' but found '4' at line 2, column 4");
+                    expect(e.position).named("position").should_be(10);
+                }
+            };
+            test("an error that is not the parser's: no position, and its message") {
+                try {
+                    json_value.of_string("x").as_number();
+                    fail_test("no exception");
+                } catch(e: json_exception) {
+                    expect(e.position).named("no position for other errors").should_be(0 - 1);
+                    expect(e.get_message()).named("message of a kind error").should_be("expected a JSON number but this value is a string");
+                }
+            };
+        };
+
+        tests("writer") {
+            doc : json_value;
+            before_each { doc = ada_doc(); };
+
+            test("compact") { expect(json_writer.to_compact(doc)).should_be("{" + q + "name" + q + ":" + q + "Ada" + q + "," + q + "age" + q + ":36," + q + "tags" + q + ":[" + q + "a" + q + "," + q + "b" + q + "]," + q + "empty" + q + ":[]," + q + "none" + q + ":{}," + q + "inner" + q + ":{" + q + "ok" + q + ":true," + q + "x" + q + ":null}}"); };
+            test("pretty") { expect(json_writer.to_pretty(doc)).should_be("{\n  " + q + "name" + q + ": " + q + "Ada" + q + ",\n  " + q + "age" + q + ": 36,\n  " + q + "tags" + q + ": [\n    " + q + "a" + q + ",\n    " + q + "b" + q + "\n  ],\n  " + q + "empty" + q + ": [],\n  " + q + "none" + q + ": {},\n  " + q + "inner" + q + ": {\n    " + q + "ok" + q + ": true,\n    " + q + "x" + q + ": null\n  }\n}"); };
+            test("to_pretty_string") { expect(doc.to_pretty_string()).should_be(json_writer.to_pretty(doc)); };
+            test("indent 4") { expect(new json_writer().set_indent(4).write(doc.member("tags"))).should_be("[\n    " + q + "a" + q + ",\n    " + q + "b" + q + "\n]"); };
+            test("sorted keys, and the order of the keys untouched") {
+                sorted := new json_writer().set_sort_keys(true).write(doc);
+                expect(sorted).should_be("{" + q + "age" + q + ":36," + q + "empty" + q + ":[]," + q + "inner" + q + ":{" + q + "ok" + q + ":true," + q + "x" + q + ":null}," + q + "name" + q + ":" + q + "Ada" + q + "," + q + "none" + q + ":{}," + q + "tags" + q + ":[" + q + "a" + q + "," + q + "b" + q + "]}");
+                expect(doc.key_at(0)).named("keys order untouched by sorted write").should_be("name");
+            };
+        };
+        test("pretty scalar") { expect(json_writer.to_pretty(json_value.of_number(1))).should_be("1"); };
+        test("pretty empty array") { expect(json_writer.to_pretty(json_value.new_array())).should_be("[]"); };
+
+        // numbers
+        test("numbers") {
+            nums := json_value.new_array();
+            nums.add_number(0).add_number(0 - 1).add_number(2.5).add_number(1e21).add_number(1e-7).add_number(123456789012).add_number(0.1);
+            expect(nums.to_string()!!).should_be("[0,-1,2.5,1e+21,0.0000001,123456789012,0.1]");
+        };
+        test("NaN cannot be written") { expect_throws<json_exception>() { json_value.of_number(0.0 / 0.0).to_string(); }; };
+        test("infinity cannot be written") {
+            inf := json_value.new_array();
+            inf.add_number(1.0 / 0.0);
+            expect_throws<json_exception>() { json_writer.to_pretty(inf); };
+        };
+
+        // string escaping
+        test("quote()") { expect(json_writer.quote("a" + q + "b")).should_be(q + "a\\" + q + "b" + q); };
+        test("back slash") { expect(json_writer.quote("a\\b")).should_be(q + "a\\\\b" + q); };
+        test("newline tab return") { expect(json_writer.quote("a\nb\tc\rd")).should_be(q + "a\\nb\\tc\\rd" + q); };
+        test("control characters") {
+            ctl := new _int8[4];
+            ctl[0] = 1; ctl[1] = 8; ctl[2] = 12; ctl[3] = 31;
+            expect(json_writer.quote(new string(ctl))).should_be(q + "\\u0001\\b\\f\\u001f" + q);
+        };
+        test("slash is not escaped") { expect(json_writer.quote("a/b")).should_be(q + "a/b" + q); };
+        test("empty string, quoted") { expect(json_writer.quote("")).should_be(q + q); };
+
+        tests("non_ascii") {
+            euro : json_value;
+            before_each { euro = json_parser.parse(q + "caf\\u00e9 \\u20AC \\ud83d\\ude00" + q); };
+
+            test("non-ASCII written as bytes by default") { expect(io_strings.length(json_writer.to_compact(euro))).should_be(16); };
+            test("ascii only, and it reads back the same") {
+                ascii := new json_writer().set_ascii_only(true).write(euro);
+                expect(ascii).should_be(q + "caf\\u00e9 \\u20ac \\ud83d\\ude00" + q);
+                expect_true(json_parser.parse(ascii).equals_value(euro));
+            };
+        };
+        test("invalid UTF-8 escaped byte by byte") {
+            broken := new _int8[2];
+            broken[0] = 0xC3; broken[1] = 'x';
+            expect(new json_writer().set_ascii_only(true).write(json_value.of_string(new string(broken)))).should_be(q + "\\u00c3x" + q);
+        };
+        test("negative indent") { expect_throws<illegal_argument_exception>() { new json_writer().set_indent(0 - 1); }; };
+
+        tests("round_trips") {
+            test("scalars") { survives_writing("[null, true, false, 0, -1, 2.5, 1e300, 1e-300, 123456789.125, " + q + "text" + q + "]"); };
+            test("nested") { survives_writing("{" + q + "a" + q + ": {" + q + "b" + q + ": {" + q + "c" + q + ": [1, [2, [3, {" + q + "d" + q + ": null}]]]}}, " + q + "e" + q + ": []}"); };
+            test("escapes") { survives_writing("[" + q + "quote \\" + q + " back \\\\ slash \\/ nl \\n tab \\t cr \\r bs \\b ff \\f" + q + ", " + q + "\\u0000\\u001f\\u007f" + q + "]"); };
+            test("unicode") { survives_writing("{" + q + "\\u00e9t\\u00e9" + q + ": " + q + "\\u4e2d\\u6587 \\ud83d\\ude00" + q + "}"); };
+            test("empty containers") { survives_writing("[[], {}, [[]], [{}], {" + q + "x" + q + ": {}}]"); };
+            test("odd names") { survives_writing("{" + q + q + ": 1, " + q + " " + q + ": 2, " + q + "a.b[0]" + q + ": 3, " + q + "\\n" + q + ": 4}"); };
+            test("numbers") { survives_writing("[0.1, 0.2, 0.30000000000000004, 3.141592653589793, 2.718281828459045, 1.7976931348623157e308, 5e-324, 9007199254740993, -0.000001]"); };
+
+            // through a file
+            tests("file") {
+                doc : json_value;
+                target : file;
+                before_each {
+                    doc = json_parser.parse("{" + q + "title" + q + ": " + q + "config" + q + ", " + q + "values" + q + ": [1, 2, 3], " + q + "on" + q + ": true}");
+                    target = new file(base_dir + "/doc.json");
+                };
+
+                test("indented file ends with a newline, and parse_file reads it") {
+                    new json_writer().set_indent(2).write_file(doc, target);
+                    expect_true(io_strings.ends_with(target.read_text(), "}\n"));
+                    expect_true(json_parser.parse_file(target).equals_value(doc));
+                };
+                test("compact file") {
+                    new json_writer().set_indent(2).write_file(doc, target);
+                    new json_writer().write_file(doc, target);
+                    expect(target.read_text()).should_be(doc.to_string()!!);
+                };
+                test("parse missing file") { expect_throws<io_exception>() { json_parser.parse_file(new file(base_dir + "/missing.json")); }; };
+                test("parse bad file") {
+                    target.write_text("{oops");
+                    expect_throws<json_exception>() { json_parser.parse_file(target); };
+                };
+            };
+
+            // sorted, ascii-only, indented output still parses to the same value
+            test("all options together round trip, the sorted output starting with a") {
+                mixed := json_parser.parse("{" + q + "z" + q + ": [1, {" + q + "b" + q + ": " + q + "\\u00fc" + q + ", " + q + "a" + q + ": null}], " + q + "a" + q + ": " + q + "x" + q + "}");
+                fancy := new json_writer().set_indent(3).set_sort_keys(true).set_ascii_only(true).write(mixed);
+                expect_true(json_parser.parse(fancy).equals_value(mixed));
+                expect_true(io_strings.starts_with(fancy, "{\n   " + q + "a" + q + ": "));
+            };
+        };
+
+        test("cleanup") {
+            new file(base_dir + "/left.json").write_text("x");
+            expect_true(new file(base_dir).delete_recursively());
+        };
+    };
+}

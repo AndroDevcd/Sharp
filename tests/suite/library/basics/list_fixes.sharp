@@ -1,0 +1,50 @@
+mod suite.library.basics.list_fixes;
+
+import ( std.testing )
+
+/**
+ * std list<T>: behaviour that used to be wrong and was fixed - kept as its own
+ * file so the old bugs stay covered. (The everyday behaviour is in list.sharp.)
+ */
+
+def list_fixes_tests() {
+    tests("list_fixes") {
+        // ---- fixed, used to be wrong (1): add_all REPLACES what is in the list instead of adding to it
+        // (std/list.sharp, add_all(): `data = copy(...)`, `n_elements = lst.size()`).
+        // append_all is the one that adds; add_all only behaves on an empty list.
+        test("add_all keeps what was in the list and puts the new elements at the end") {
+            letters := new list<string>();
+            letters.add("a");
+            letters.add("b");
+            more := new list<string>();
+            more.add("c");
+            letters.add_all(more);
+            expect(letters.size()).named("size").should_be(3);
+            expect(letters.first()).named("first").should_be("a");
+            expect(letters.last()).named("last").should_be("c");
+        };
+
+        // ---- fixed, used to be wrong (2): add_all of an EMPTY list throws nullptr_exception
+        // (get_elements() of an empty list is null and add_all uses it with `!!`).
+        test("add_all of an empty list does not throw") {
+            target := new list<string>();
+            target.add("x");
+            target.add_all(new list<string>());
+            expect(target.size()).should_be(1);
+        };
+
+        // ---- fixed, used to be wrong (3): the message of the out_of_bounds_exception prints the size as a
+        // native number with 16 decimals: "Index: 5, size: 1.0000000000000000".
+        test("out of bounds message") {
+            target := new list<string>();
+            target.add("x");
+            message : string = "";
+            try {
+                target.at(5);
+            } catch(e: out_of_bounds_exception) {
+                message = e.get_message();
+            }
+            expect(message).should_be("Index: 5, size: 1");
+        };
+    };
+}

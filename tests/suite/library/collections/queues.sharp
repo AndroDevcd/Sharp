@@ -1,0 +1,392 @@
+mod suite.library.collections.queues;
+
+import ( std.testing, std.collections )
+
+/**
+ * std.collections - the array backed queues: stack, queue, deque (a ring
+ * buffer) and priority_queue (a binary heap).
+ */
+
+/** "1,2,3" for an array of ints ("" for null or empty) */
+def join(items: int[]?) : string {
+    text := "";
+    if(items == null) return text;
+    for(i : decimal = 0; i < sizeof(items); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items[i];
+    }
+    return text;
+}
+
+/** "1,2,3" for everything an iterator still has to give */
+def drain(it: iterator<int>) : string {
+    text := "";
+    first : decimal = 1;
+    while(it.has_next()) {
+        if(!first) text = text + ",";
+        first = 0;
+        text = text + it.next();
+    }
+    return text;
+}
+
+/** works with ANY collection of the module: that is the point of `iterable` */
+def total(numbers: iterable<int>) : decimal {
+    sum : decimal = 0;
+    it := numbers.iterator();
+    while(it.has_next()) sum += it.next().value;
+    return sum;
+}
+
+def ascending(a: int, b: int) : decimal { return a.value - b.value; }
+def descending(a: int, b: int) : decimal { return b.value - a.value; }
+
+/** 0, 1, 2 ... 9 added at the back, 0 .. 7 taken off the front again, 10 .. 49 added: wrapped, then grown */
+def grown_deque() : deque<int> {
+    d := new deque<int>();
+    for(i : decimal = 0; i < 10; i++) d.add_last(i);
+    for(i : decimal = 0; i < 8; i++) d.remove_first();           // head is now at index 8
+    for(i : decimal = 10; i < 50; i++) d.add_last(i);            // wraps, then grows twice
+    return d;
+}
+
+def queues_tests() {
+    tests("queues") {
+        tests("stack") {
+            s : stack<int>;
+            before_each { s = new stack<int>(); };
+
+            test("stack new size") { expect(s.size()).should_be(0); };
+            test("stack new is_empty") { expect(s.is_empty()).should_be(1); };
+            test("stack peek_or_null empty") { expect_null(s.peek_or_null()); };
+            test("stack pop_or_null empty") { expect_null(s.pop_or_null()); };
+            test("stack empty get_elements") { expect_null(s.get_elements()); };
+            test("stack pop empty") { expect_throws<no_such_element_exception>() { s.pop(); }; };
+            test("stack peek empty") { expect_throws<no_such_element_exception>() { s.peek(); }; };
+
+            tests("filled") {
+                before_each { s.push(1); s.push(2); s.push(3); };
+
+                test("stack size") { expect(s.size()).should_be(3); };
+                test("stack peek gives the top and keeps it") {
+                    expect(s.peek().value).should_be(3);
+                    expect(s.size()).named("size after peek").should_be(3);
+                };
+                test("stack search top") { expect(s.search(3)).should_be(0); };
+                test("stack search bottom") { expect(s.search(1)).should_be(2); };
+                test("stack search missing") { expect(s.search(9)).should_be(0 - 1); };
+                test("stack contains") { expect(s.contains(2)).should_be(1); };
+                test("stack contains missing") { expect(s.contains(7)).should_be(0); };
+                test("stack to_array is top down") { expect(join(s.to_array())).should_be("3,2,1"); };
+                test("stack iterator is top down") { expect(drain(s.iterator())).should_be("3,2,1"); };
+                test("stack foreach is top down") {
+                    digits : decimal = 0;
+                    foreach(x in s) { digits = digits * 10 + x.value; }
+                    expect(digits).should_be(321);
+                };
+                test("stack to_list first") { expect(s.to_list().at(0).value).should_be(3); };
+                test("stack through iterable") { expect(total(s)).should_be(6); };
+
+                test("stack pops give them back last in first out, and leave it empty") {
+                    expect(s.pop().value).named("pop").should_be(3);
+                    expect(s.pop().value).named("pop 2").should_be(2);
+                    expect(s.pop_or_null()!!.value).named("pop_or_null").should_be(1);
+                    expect(s.is_empty()).named("empty after pops").should_be(1);
+                };
+            };
+
+            // growth past the first array (16) and LIFO order: push 0..999, pop gives 999..0
+            test("stack big: 1000 pushes pop in reverse order") {
+                for(i : decimal = 0; i < 1000; i++) s.push(i);
+                expect(s.size()).named("size").should_be(1000);
+                for(i : decimal = 999; i >= 0; i--) {
+                    expect(s.pop().value).named("pop " + (999 - i)).should_be(i);
+                }
+                expect(s.size()).named("size at the end").should_be(0);
+            };
+
+            test("stack clear") {
+                s.push(4); s.push(5);
+                s.clear();
+                expect(s.size()).should_be(0);
+            };
+            test("stack usable after clear") {
+                s.push(4); s.push(5);
+                s.clear();
+                s.push(6);
+                expect(s.peek().value).should_be(6);
+            };
+        };
+
+        tests("queue") {
+            q : queue<int>;
+            before_each { q = new queue<int>(); };
+
+            test("queue new size") { expect(q.size()).should_be(0); };
+            test("queue new is_empty") { expect(q.is_empty()).should_be(1); };
+            test("queue peek_or_null empty") { expect_null(q.peek_or_null()); };
+            test("queue dequeue_or_null empty") { expect_null(q.dequeue_or_null()); };
+            test("queue empty get_elements") { expect_null(q.get_elements()); };
+            test("queue dequeue empty") { expect_throws<no_such_element_exception>() { q.dequeue(); }; };
+            test("queue peek empty") { expect_throws<no_such_element_exception>() { q.peek(); }; };
+            test("queue back empty") { expect_throws<no_such_element_exception>() { q.back(); }; };
+
+            tests("filled") {
+                before_each { q.enqueue(1); q.enqueue(2); q.add(3); };
+
+                test("queue size") { expect(q.size()).should_be(3); };
+                test("queue peek") { expect(q.peek().value).should_be(1); };
+                test("queue back") { expect(q.back().value).should_be(3); };
+                test("queue contains") { expect(q.contains(2)).should_be(1); };
+                test("queue contains missing") { expect(q.contains(5)).should_be(0); };
+                test("queue to_array") { expect(join(q.to_array())).should_be("1,2,3"); };
+                test("queue iterator") { expect(drain(q.iterator())).should_be("1,2,3"); };
+                test("queue to_list last") { expect(q.to_list().at(2).value).should_be(3); };
+                test("queue foreach") {
+                    digits : decimal = 0;
+                    foreach(x in q) { digits = digits * 10 + x.value; }
+                    expect(digits).should_be(123);
+                };
+                test("queue dequeues give them back first in first out, and leave it empty") {
+                    expect(q.dequeue().value).named("dequeue").should_be(1);
+                    expect(q.dequeue().value).named("dequeue 2").should_be(2);
+                    expect(q.dequeue_or_null()!!.value).named("dequeue_or_null").should_be(3);
+                    expect(q.is_empty()).named("empty").should_be(1);
+                };
+            };
+
+            // the ring buffer wraps around many times: keep 5 waiting while 2000 pass through
+            test("queue is first-in first-out") {
+                for(i : decimal = 0; i < 5; i++) q.enqueue(i);
+                for(i : decimal = 5; i < 2000; i++) {
+                    q.enqueue(i);
+                    expect(q.dequeue().value).named("dequeue after enqueue " + i).should_be(i - 5);
+                }
+            };
+
+            tests("wrapped") {
+                before_each {
+                    for(i : decimal = 0; i < 5; i++) q.enqueue(i);
+                    for(i : decimal = 5; i < 2000; i++) {
+                        q.enqueue(i);
+                        q.dequeue();
+                    }
+                };
+
+                test("queue size after wrap") { expect(q.size()).should_be(5); };
+                test("queue rest") { expect(join(q.to_array())).should_be("1995,1996,1997,1998,1999"); };
+                test("queue through iterable") { expect(total(q)).should_be(9985); };
+                test("queue clear") {
+                    q.clear();
+                    expect(q.size()).should_be(0);
+                };
+            };
+        };
+
+        tests("deque") {
+            d : deque<int>;
+            before_each { d = new deque<int>(); };
+
+            test("deque new size") { expect(d.size()).should_be(0); };
+            test("deque new is_empty") { expect(d.is_empty()).should_be(1); };
+            test("deque capacity") { expect(d.capacity()).should_be(16); };
+            test("deque first_or_null empty") { expect_null(d.first_or_null()); };
+            test("deque last_or_null empty") { expect_null(d.last_or_null()); };
+            test("deque empty get_elements") { expect_null(d.get_elements()); };
+            test("deque remove_first empty") { expect_throws<no_such_element_exception>() { d.remove_first(); }; };
+            test("deque remove_last empty") { expect_throws<no_such_element_exception>() { d.remove_last(); }; };
+            test("deque first empty") { expect_throws<no_such_element_exception>() { d.first(); }; };
+            test("deque last empty") { expect_throws<no_such_element_exception>() { d.last(); }; };
+
+            tests("filled") {
+                before_each { d.add_last(2); d.add_last(3); d.add_first(1); d.add(4); d.add_first(0); };
+
+                test("deque order") { expect(join(d.to_array())).should_be("0,1,2,3,4"); };
+                test("deque size") { expect(d.size()).should_be(5); };
+                test("deque first") { expect(d.first().value).should_be(0); };
+                test("deque last") { expect(d.last().value).should_be(4); };
+                test("deque first_or_null") { expect(d.first_or_null()!!.value).should_be(0); };
+                test("deque last_or_null") { expect(d.last_or_null()!!.value).should_be(4); };
+                test("deque at 0") { expect(d.at(0).value).should_be(0); };
+                test("deque at 3") { expect(d.at(3).value).should_be(3); };
+                test("deque put returns old") { expect(d.put(3, 7).value).should_be(3); };
+                test("deque index_of after a put") {
+                    d.put(3, 7);
+                    expect(d.index_of(7)).should_be(3);
+                    expect(d.index_of(3)).named("index_of the value that was replaced").should_be(0 - 1);
+                };
+                test("deque contains") { expect(d.contains(2)).should_be(1); };
+                test("deque contains missing") { expect(d.contains(9)).should_be(0); };
+                test("deque at(size)") { expect_throws<out_of_bounds_exception>() { d.at(5); }; };
+                test("deque at(-1)") { expect_throws<out_of_bounds_exception>() { d.at(0 - 1); }; };
+                test("deque put(size)") { expect_throws<out_of_bounds_exception>() { d.put(5, 1); }; };
+
+                test("deque remove_first") { expect(d.remove_first().value).should_be(0); };
+                test("deque remove_last") { expect(d.remove_last().value).should_be(4); };
+
+                // 1,2,7 left
+                tests("after_removes") {
+                    before_each {
+                        d.put(3, 7);
+                        d.remove_first();
+                        d.remove_last();
+                    };
+
+                    test("deque after removes") { expect(join(d.to_array())).should_be("1,2,7"); };
+                    test("deque iterator") { expect(drain(d.iterator())).should_be("1,2,7"); };
+                    test("deque foreach") {
+                        digits : decimal = 0;
+                        foreach(x in d) { digits = digits * 10 + x.value; }
+                        expect(digits).should_be(127);
+                    };
+                    test("deque to_list") { expect(d.to_list().at(2).value).should_be(7); };
+                    test("deque through iterable") { expect(total(d)).should_be(10); };
+                };
+            };
+
+            // growth while the contents are wrapped around the end of the array
+            tests("grown") {
+                before_each { d = grown_deque(); };
+
+                test("deque grown size") { expect(d.size()).should_be(42); };
+                test("deque grown first") { expect(d.first().value).should_be(8); };
+                test("deque grown last") { expect(d.last().value).should_be(49); };
+                test("deque grown at(20)") { expect(d.at(20).value).should_be(28); };
+                test("deque grown capacity") { expect(d.capacity()).should_be(64); };
+                test("deque ensure_capacity, and the contents survive it") {
+                    d.ensure_capacity(100);
+                    expect(d.capacity()).should_be(100);
+                    expect(d.at(41).value).named("the contents").should_be(49);
+                };
+            };
+
+            // scale: used as a sliding window, 3000 in at the back, out at the front
+            test("deque as a window: size, sum of what left (0..2899), first") {
+                sum : decimal = 0;
+                for(i : decimal = 0; i < 3000; i++) {
+                    d.add_last(i);
+                    if(d.size() > 100) sum += d.remove_first().value;
+                }
+                expect(d.size()).named("window size").should_be(100);
+                expect(sum).named("window sum").should_be(4203550);
+                expect(d.first().value).named("window first").should_be(2900);
+            };
+            // and from the other side
+            test("deque add_first many, in front of a window") {
+                for(i : decimal = 0; i < 3000; i++) {
+                    d.add_last(i);
+                    if(d.size() > 100) d.remove_first();
+                }
+                for(i : decimal = 0; i < 500; i++) d.add_first(0 - i);
+                expect(d.first().value).named("first").should_be(0 - 499);
+                expect(d.size()).named("size").should_be(600);
+                expect(d.at(500).value).named("at across the wrap").should_be(2900);
+            };
+        };
+
+        tests("priority_queue") {
+            pq : priority_queue<int>;
+            before_each { pq = new priority_queue<int>(ascending); };
+
+            test("pq new size") { expect(pq.size()).should_be(0); };
+            test("pq new is_empty") { expect(pq.is_empty()).should_be(1); };
+            test("pq peek_or_null empty") { expect_null(pq.peek_or_null()); };
+            test("pq poll_or_null empty") { expect_null(pq.poll_or_null()); };
+            test("pq empty get_elements") { expect_null(pq.get_elements()); };
+            test("pq poll empty") { expect_throws<no_such_element_exception>() { pq.poll(); }; };
+            test("pq peek empty") { expect_throws<no_such_element_exception>() { pq.peek(); }; };
+
+            tests("filled") {
+                before_each { pq.add(5); pq.add(1); pq.add(4); pq.add(2); pq.add(3); };
+
+                test("pq size") { expect(pq.size()).should_be(5); };
+                test("pq peek is the smallest") { expect(pq.peek().value).should_be(1); };
+                test("pq contains") { expect(pq.contains(4)).should_be(1); };
+                test("pq contains missing") { expect(pq.contains(9)).should_be(0); };
+                test("pq to_sorted_array, and it keeps the queue") {
+                    expect(join(pq.to_sorted_array())).should_be("1,2,3,4,5");
+                    expect(pq.size()).named("size after it").should_be(5);
+                };
+                test("pq iterator") { expect(drain(pq.iterator())).should_be("1,2,3,4,5"); };
+                test("pq foreach") {
+                    digits : decimal = 0;
+                    foreach(x in pq) { digits = digits * 10 + x.value; }
+                    expect(digits).should_be(12345);
+                };
+                test("pq to_list") { expect(pq.to_list().at(4).value).should_be(5); };
+                test("pq through iterable") { expect(total(pq)).should_be(15); };
+
+                test("pq remove, and again when it is gone") {
+                    expect(pq.remove(3)).should_be(1);
+                    expect(pq.remove(3)).named("remove missing").should_be(0);
+                };
+                test("pq polls give the smallest first, and leave it empty") {
+                    pq.remove(3);
+                    expect(pq.poll().value).named("poll 1").should_be(1);
+                    expect(pq.poll().value).named("poll 2").should_be(2);
+                    expect(pq.poll().value).named("poll 4").should_be(4);
+                    expect(pq.poll_or_null()!!.value).named("poll_or_null 5").should_be(5);
+                    expect(pq.is_empty()).named("empty").should_be(1);
+                };
+            };
+
+            // largest first with the comparison turned around, and duplicates
+            test("pq descending, with duplicates") {
+                big_first := new priority_queue<int>(descending);
+                extra := new list<int>();
+                extra.add(7); extra.add(2); extra.add(9); extra.add(7);
+                big_first.add_all(extra);
+                expect(join(big_first.to_sorted_array())).should_be("9,7,7,2");
+                expect(big_first.poll().value).named("poll").should_be(9);
+            };
+
+            // a lambda as the comparison: shortest string first
+            test("pq<string> with a lambda as the comparison") {
+                by_length := new priority_queue<string>({ a: string, b: string -> (decimal) return a.size() - b.size(); });
+                by_length.add("ccc"); by_length.add("a"); by_length.add("dddd"); by_length.add("bb");
+                expect(by_length.poll()).named("poll").should_be("a");
+                expect(by_length.poll()).named("poll 2").should_be("bb");
+                expect(by_length.peek()).named("peek").should_be("ccc");
+            };
+
+            // scale: 5000 pseudo random numbers must come out in ascending order
+            test("pq big: 5000 numbers all come out, ascending, nothing lost") {
+                seed : decimal = 12345;
+                sum_in : decimal = 0;
+                for(i : decimal = 0; i < 5000; i++) {
+                    seed = (seed * 7919 + 104729) % 1000003;
+                    pq.add(seed);
+                    sum_in += seed;
+                }
+                expect(pq.size()).named("size").should_be(5000);
+                sum_out : decimal = 0;
+                previous : decimal = 0 - 1;
+                polled : decimal = 0;
+                while(!pq.is_empty()) {
+                    value : decimal = pq.poll().value;
+                    expect(value).named("poll " + polled + " after " + previous).should_be_at_least(previous);
+                    previous = value;
+                    sum_out += value;
+                    polled++;
+                }
+                expect(polled).named("polled").should_be(5000);
+                expect(sum_out).named("sum of what came out").should_be(sum_in);
+            };
+
+            // removing from the middle keeps the heap valid
+            test("pq after middle removes: size and order") {
+                for(i : decimal = 0; i < 200; i++) pq.add((i * 37) % 200);        // a permutation of 0..199
+                for(i : decimal = 0; i < 200; i += 2) pq.remove(i);                // drop the even ones
+                expect(pq.size()).named("size").should_be(100);
+                for(i : decimal = 1; i < 200; i += 2) {
+                    expect(pq.poll().value).named("poll of " + i).should_be(i);
+                }
+            };
+            test("pq clear") {
+                pq.add(3);
+                pq.clear();
+                expect(pq.size()).should_be(0);
+            };
+        };
+    };
+}

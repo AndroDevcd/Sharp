@@ -1,0 +1,37 @@
+mod suite.library.time;
+
+import (
+    std.testing,
+    suite.library.time.array_initializer,
+    suite.library.time.calendar,
+    suite.library.time.clocks,
+    suite.library.time.date,
+    suite.library.time.date_arithmetic,
+    suite.library.time.duration,
+    suite.library.time.formatter,
+    suite.library.time.implicit_number_to_class,
+    suite.library.time.instant,
+    suite.library.time.measure,
+    suite.library.time.names,
+    suite.library.time.paren_char_literal,
+    suite.library.time.time_of_day
+)
+
+/** suite.library.time: std.time */
+def time_tests() {
+    tests("time") {
+        array_initializer_tests();
+        calendar_tests();
+        clocks_tests();
+        date_tests();
+        date_arithmetic_tests();
+        duration_tests();
+        formatter_tests();
+        implicit_number_to_class_tests();
+        instant_tests();
+        measure_tests();
+        names_tests();
+        paren_char_literal_tests();
+        time_of_day_tests();
+    };
+}

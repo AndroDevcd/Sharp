@@ -1,0 +1,84 @@
+mod suite.library.coroutines.switch_after_resume;
+
+import (
+    std.testing,
+    std.io,
+    std.io.coroutines
+)
+
+/**
+ * A fiber that was continued once (after a delay, a lock, a join) and then
+ * switches out AGAIN must stop where it asked to - not a few instructions
+ * later.
+ *
+ * THE BUG THIS GUARDS (runtime, main_vm_loop in runtime/virtual_machine.cpp):
+ * a fiber that is continued gets the machine frames of its compiled
+ * functions back by the rebuild walk at the top of main_vm_loop. When the
+ * walk enters a compiled function (invoke_next_frame(frame, true)) and that
+ * call comes back, the loop went straight to `run:` and dispatched the next
+ * instruction at task->pc. It comes back for two reasons: the compiled
+ * function finished, or the fiber is being switched out once more (delay(),
+ * a lock, a park in some function above it). In the second case the switch
+ * is pending in thread->signal and task->pc is in the middle of the function
+ * on top - and the loop ran that function on until its next state check.
+ * Every compiled caller on the stack is one more walk loop, so one more
+ * state check passed: with enough of them a whole call ran before the
+ * fiber slept.
+ *
+ *      runner (compiled) -> lambda -> runner (compiled) -> lambda -> ...
+ *          -> the innermost lambda:  delay(1);              continued once
+ *                                    launch({ ... value = 1 ... });
+ *                                    delay(100);            switches again
+ *                                    v := get_value();      ran BEFORE the delay
+ *
+ *      before: v is 0 with the JIT (1 with -nojit): get_value() was called and
+ *              its result kept before the fiber slept, and the coroutine sets
+ *              the value 20 ms later. In the test suite this was
+ *              suite.library.coroutines.core.cancellation reading
+ *              child_count() == 0 right after delay(10) - in the whole suite
+ *              only, because there the compiled tests()/group() of the four
+ *              group levels around it were the compiled callers.
+ *      after:  v is 1
+ *
+ * How the shape is made certain: runner() is called 20 times first, so the
+ * JIT compiles it (at its 10th call) and every lambda below is called from
+ * machine code (frame.native = 1). Five levels of runner give the walk loops
+ * enough state checks to reach the get_value() call (the leak was: RET of
+ * sleep_raw, RET of delay, the CALL of get_value, its RET).
+ * EXPECTED: the test passes, with and without -nojit.
+ */
+
+class switch_box {
+    value : decimal = 0;
+}
+
+switch_seen := new switch_box();
+
+def switch_get_value() : decimal {
+    return switch_seen.value;
+}
+
+/** compiled by the JIT before the interesting call (called more than 10 times) */
+def switch_runner(body: ()()) {
+    body();
+}
+
+def switch_after_resume_tests() {
+    tests("switch_after_resume") {
+        test("a fiber continued once stops at its next delay and reads the value after it") {
+            for(i : decimal = 0; i < 20; i++) {
+                switch_runner({ -> });
+            }
+            switch_seen.value = 0;
+            v : decimal = -1;
+            switch_runner({ -> switch_runner({ -> switch_runner({ -> switch_runner({ -> switch_runner({ ->
+                delay(1);                                           // continued once: rebuilt frames from here on
+                launch({ -> delay(20); switch_seen.value = 1; });
+                delay(100);                                         // switches out again
+                switch_seen.value = switch_seen.value + 10 * switch_get_value();   // read right after the delay
+            }); }); }); }); });
+            v = switch_seen.value;
+            expect(v).named("the value set during the delay, as seen after it (1 + 10 * 1)").should_be(11);
+        };
+    };
+}

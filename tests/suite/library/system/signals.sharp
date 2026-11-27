@@ -1,0 +1,18 @@
+mod suite.library.system.signals;
+
+import ( std.testing, suite.helpers )
+
+/**
+ * std.system signals. The tests send signals to a child started from this
+ * program, so they run in a process of their own: suite.isolated.signals
+ * (isolated/signals.sharp). Here they are one test.
+ */
+def signals_tests() {
+    tests("signals") {
+        test("the signal tests pass, in a process of their own") {
+            ran := run_isolated("signals");
+            expect(ran.code).named("suite isolated signals said:\n" + ran.said).should_be(0);
+            expect(ran.said).should_contain("RESULT PASS signals");
+        };
+    };
+}

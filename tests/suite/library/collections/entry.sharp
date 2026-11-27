@@ -1,0 +1,39 @@
+mod suite.library.collections;
+
+import (
+    std.testing,
+    suite.library.collections.arrays,
+    suite.library.collections.bit_set,
+    suite.library.collections.functional,
+    suite.library.collections.functions,
+    suite.library.collections.hash,
+    suite.library.collections.lambda_concat,
+    suite.library.collections.language,
+    suite.library.collections.linked_list,
+    suite.library.collections.list,
+    suite.library.collections.mutate_generic,
+    suite.library.collections.queues,
+    suite.library.collections.std_fixes,
+    suite.library.collections.tree_map,
+    suite.library.collections.tree_set
+)
+
+/** suite.library.collections: std.collections */
+def collections_tests() {
+    tests("collections") {
+        arrays_tests();
+        bit_set_tests();
+        functional_tests();
+        functions_tests();
+        hash_tests();
+        lambda_concat_tests();
+        language_tests();
+        linked_list_tests();
+        list_tests();
+        mutate_generic_tests();
+        queues_tests();
+        std_fixes_tests();
+        tree_map_tests();
+        tree_set_tests();
+    };
+}

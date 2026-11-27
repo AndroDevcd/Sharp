@@ -1,0 +1,60 @@
+mod main;
+
+import (
+    std.testing,
+    suite.language,
+    suite.control,
+    suite.functions,
+    suite.classes,
+    suite.generics,
+    suite.arrays,
+    suite.strings,
+    suite.exceptions,
+    suite.concurrency,
+    suite.jit,
+    suite.library,
+    suite.isolated
+)
+
+/**
+ * THE SHARP TEST SUITE: one program, every test.
+ *
+ *      bash test.sh suite                                      build it and run every test
+ *      bash test.sh suite suite.library                        every group of the library
+ *      bash test.sh suite suite.library.collections            one folder
+ *      bash test.sh suite suite.library.collections.queues     one group
+ *
+ * (test.sh builds it with the VM, the compiler and the library of the
+ * repository. By hand: `sharpc -P tests/suite`, then
+ * `sharp tests/suite/build/outputs/suite -test-only suite.library`.)
+ *
+ * The groups are laid out as the folders are: the folder `library/collections`
+ * is the group `suite.library.collections`, the file `queues.sharp` in it the
+ * group `suite.library.collections.queues`. Each folder has a file `entry.sharp`
+ * that lists the groups in it; this file lists the folders.
+ *
+ * A few tests need a process of their own (isolated/entry.sharp says which and
+ * why). `sharp suite isolated <name>` runs one of them and nothing else; in the
+ * whole run each is one test, in the group it belongs to, that starts this
+ * program that way and expects it to pass.
+ */
+def main(args: string[]) {
+    if(sizeof(args) > 1 && args[0] == "isolated") {
+        isolated_program(args);
+        return;
+    }
+    tests("suite") {
+        language_tests();
+        control_tests();
+        functions_tests();
+        classes_tests();
+        generics_tests();
+        arrays_tests();
+        strings_tests();
+        exceptions_tests();
+        concurrency_tests();
+        jit_tests();
+        library_tests();
+    };
+    finish_tests();
+}

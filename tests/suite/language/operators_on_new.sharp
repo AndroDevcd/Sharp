@@ -1,0 +1,44 @@
+mod suite.language.operators_on_new;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (compiler, fixed): a `new` expression as the LEFT
+ * operand of an overloaded operator stopped the compiler, so this file did
+ * not even compile:
+ *
+ *     <code-generator> fatal error: attempting to consume empty machine data!
+ *
+ * `new` on the right (`a + new money(2)`) and a variable on the left were
+ * fine. Workaround that was needed: assign the new object to a variable first.
+ */
+
+class money {
+    amount : decimal = 0;
+
+    money(amount: decimal, unused: decimal) {
+        self->amount = amount;
+    }
+
+    def operator+(other: money): money {
+        return new money(amount + other.amount, 0);
+    }
+
+    def operator>(other: money): bool {
+        return amount > other.amount;
+    }
+}
+
+def operators_on_new_tests() {
+    tests("operators_on_new") {
+        test("new on the left of +") {
+            a := new money(1, 0);
+            total := new money(5, 0) + a;                   // the compiler used to stop here
+            expect(total.amount).should_be(6);
+        };
+        test("new on the left of >") {
+            a := new money(1, 0);
+            expect_true((new money(5, 0) > a));
+        };
+    };
+}

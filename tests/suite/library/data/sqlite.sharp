@@ -1,0 +1,266 @@
+mod suite.library.data.sqlite;
+
+import ( std.testing, std.io, std.data )
+
+/**
+ * std.data sqlite (sql/sqlite.sharp): a database in memory - tables, values
+ * in and out, rows as objects, transactions, mistakes.
+ *
+ * It needs the SQLite library of the system (every Linux has libsqlite3.so.0,
+ * Windows has winsqlite3.dll). On a machine without it every test is skipped
+ * and says so: there is nothing to test.
+ *
+ * Every test gets a database of its own, in memory, with the table users made
+ * (and, in the group "filled", the three rows of insert_three in it).
+ */
+
+class user {
+    id : _int64 = 0;
+    name : string = "";
+    age : _int64 = 0;
+    admin : bool = false;
+    score : decimal = 0;
+    email : string?;
+    created_at : string = "";
+}
+
+class counted {
+    n : _int64 = 0;
+}
+
+/** does this machine have the SQLite library? */
+def sqlite_there(): bool {
+    try {
+        sqlite.version();
+    } catch(none: throwable) {
+        return false;
+    }
+    return true;
+}
+
+/** ann (31, admin, no email), bob (17) and a name made to look like SQL (40) */
+def insert_three(db: sqlite) {
+    db.sql("insert into users (name, age, admin, score, email, created_at) values (?, ?, ?, ?, ?, ?)")
+        .with("ann").with(31).with(true).with(9.5).with_null().with("2026-01-02").run();
+    db.sql("insert into users (name, age, admin, score, email, created_at) values (?, ?, ?, ?, ?, ?)")
+        .with("bob").with(17).with(false).with(4.25).with("bob@example.com").with("2026-02-03").run();
+    db.sql("insert into users (name, age, admin, score, email, created_at) values (?, ?, ?, ?, ?, ?)")
+        .with("Robert'); drop table users; --").with(40).with(false).with(0).with("").with("").run();
+}
+
+def sqlite_tests() {
+    tests("sqlite") {
+        db : sqlite;
+        before_each {
+            if(!sqlite_there()) { skip_test("this machine has no SQLite library: nothing to test"); }
+            db = sqlite.memory();
+            db.run("create table users (id integer primary key, name text not null, age integer, admin integer, score real, email text, created_at text)");
+        };
+        after_each {
+            if(db != null) { db.close(); }
+        };
+
+        test("the library says its version") { expect_true(io_strings.starts_with(sqlite.version(), "3.")); };
+        test("open") { expect_true(db.is_open()); };
+        test("a new table is there") { expect_true(db.has_table("users")); };
+        test("another is not") { expect_false(db.has_table("nothing")); };
+
+        // ---------------------------------------------------------------- values in
+        test("insert: one row changed, and the id it got") {
+            changed : _int64 = db.sql("insert into users (name, age, admin, score, email, created_at) values (?, ?, ?, ?, ?, ?)")
+                .with("ann").with(31).with(true).with(9.5).with_null().with("2026-01-02").run();
+            expect(changed).named("insert: one row changed").should_be(1);
+            expect(db.last_id()).named("insert: the id it got").should_be(1);
+        };
+
+        tests("filled") {
+            before_each { insert_three(db); };
+
+            test("a value is a value, whatever is in it") { expect(db.sql("select count(*) from users").number()).should_be(3); };
+            test("... and comes back as it went in") { expect(db.sql("select name from users where id = ?").with(3).text()).should_be("Robert'); drop table users; --"); };
+
+            // ---------------------------------------------------------------- rows out
+            tests("rows") {
+                rows : list<sql_row>;
+                first : sql_row;
+                before_each {
+                    rows = db.sql("select * from users order by id").rows();
+                    first = rows.at(0);
+                };
+
+                test("rows: how many") { expect(rows.size()).should_be(3); };
+                test("rows: columns") { expect(first.size()).should_be(7); };
+                test("rows: a column's name") { expect(first.name_at(1)).should_be("name"); };
+                test("rows: text") { expect(first.text("name")).should_be("ann"); };
+                test("rows: number") { expect(first.number("age")).should_be(31); };
+                test("rows: a decimal") { expect(first.number("score")).should_be(9.5); };
+                test("rows: flag") { expect_true(first.flag("admin")); };
+                test("rows: null") { expect_true(first.is_null("email")); };
+                test("rows: not null") { expect_false(rows.at(1).is_null("email")); };
+                test("rows: text of null is empty") { expect(first.text("email")).should_be(""); };
+                test("rows: by position") { expect(first.text_at(1) + first.number_at(2)).should_be("ann31"); };
+                test("rows: a number as text") { expect(first.text("age")).should_be("31"); };
+                test("rows: the name whatever its capitals") { expect(first.text("NAME")).should_be("ann"); };
+                test("rows: has") { expect_true(first.has("score") && !first.has("nothing")); };
+                test("rows: a column that is not there") { expect_throws<sql_exception>() { first.text("nothing"); }; };
+                test("rows: as json") { expect(rows.at(1).to_json().string_or("email", "")).should_be("bob@example.com"); };
+            };
+
+            tests("objects") {
+                adults : list<user>;
+                before_each { adults = db.sql("select * from users where age >= ? order by age").with(18).all<user>(); };
+
+                test("objects: how many") { expect(adults.size()).should_be(2); };
+                test("objects: a text") { expect(adults.at(0).name).should_be("ann"); };
+                test("objects: a number") { expect(adults.at(0).age).should_be(31); };
+                test("objects: a bool") { expect_true(adults.at(0).admin); };
+                test("objects: a decimal") { expect(adults.at(0).score).should_be(9.5); };
+                test("objects: null leaves the field") { expect_true(adults.at(0).email == null); };
+                test("objects: created_at") { expect(adults.at(0).created_at).should_be("2026-01-02"); };
+                test("objects: the id") { expect(adults.at(1).id).should_be(3); };
+            };
+
+            test("first: there") {
+                bob := db.sql("select * from users where name = ?").with("bob").first<user>();
+                expect(bob!!.email!!).should_be("bob@example.com");
+            };
+            test("first: not there") { expect_true(db.sql("select * from users where name = ?").with("nobody").first<user>() == null); };
+            test("first_row: not there") { expect_true(db.sql("select * from users where id = 99").first_row() == null); };
+            test("number of no row") { expect(db.sql("select age from users where id = 99").number()).should_be(0); };
+            test("text of no row") { expect(db.sql("select name from users where id = 99").text()).should_be(""); };
+            test("a computed column fills a field") {
+                total := db.sql("select count(*) as n from users").first<counted>();
+                expect(total!!.n).should_be(3);
+            };
+            test("each") {
+                ages : decimal = 0;
+                db.sql("select age from users").each { ages = ages + it.number_at(0); };
+                expect(ages).should_be(88);
+            };
+
+            // ---------------------------------------------------------------- changes and transactions
+            test("update: rows changed, and changed()") {
+                expect(db.sql("update users set age = age + 1 where age < ?").with(100).run()).named("update: rows changed").should_be(3);
+                expect(db.changed()).named("changed()").should_be(3);
+            };
+            test("a transaction that ends is kept") {
+                db.transaction {
+                    db.sql("insert into users (name) values (?)").with("in a transaction").run();
+                    db.sql("insert into users (name) values (?)").with("and another").run();
+                };
+                expect(db.sql("select count(*) from users").number()).should_be(5);
+            };
+            test("a transaction that throws is undone as a whole") {
+                expect_throws<sql_exception>() {
+                    db.transaction {
+                        db.sql("insert into users (name) values (?)").with("never kept").run();
+                        db.sql("insert into users (name) values (?)").with_null().run();       // name is `not null`: throws
+                    };
+                };
+                expect(db.sql("select count(*) from users").number()).named("... is undone as a whole").should_be(3);
+            };
+            test("a transaction inside a transaction") {
+                db.transaction {
+                    db.sql("insert into users (name) values (?)").with("in a transaction").run();
+                    db.sql("insert into users (name) values (?)").with("and another").run();
+                };
+                db.transaction {
+                    db.sql("delete from users where name = ?").with("and another").run();
+                    db.transaction { db.sql("delete from users where name = ?").with("in a transaction").run(); };
+                };
+                expect(db.sql("select count(*) from users").number()).should_be(3);
+            };
+            test("several statements in one run") {
+                expect(db.run("create table a (x); insert into a values (1); insert into a values ('semi;colon'); insert into a values (3)")).should_be(1);
+                expect(db.sql("select count(*) from a").number()).named("... all ran").should_be(3);
+                expect(db.sql("select x from a where rowid = 2").text()).named("... a ; in quotes is not the end").should_be("semi;colon");
+            };
+
+            // ---------------------------------------------------------------- mistakes
+            test("SQL that is not SQL: SQLite's words, and the statement") {
+                try {
+                    db.run("selec * from users");
+                    fail_test("no exception");
+                } catch(wrong: sql_exception) {
+                    expect(wrong.get_message()).should_contain("syntax error");
+                    expect(wrong.get_message()).named("... and the statement").should_contain("selec * from users");
+                }
+            };
+            test("a table that is not there") {
+                try {
+                    db.sql("select * from missing_table").rows();
+                    fail_test("no exception");
+                } catch(wrong: sql_exception) {
+                    expect(wrong.get_message()).should_contain("no such table");
+                }
+            };
+            test("too few values") {
+                try {
+                    db.sql("select * from users where id = ? and age = ?").with(1).rows();
+                    fail_test("no exception");
+                } catch(wrong: sql_exception) {
+                    expect(wrong.get_message()).should_contain("2 `?` and was given 1");
+                }
+            };
+            test("too many values") {
+                try {
+                    db.sql("select * from users").with(1).rows();
+                    fail_test("no exception");
+                } catch(wrong: sql_exception) {
+                    expect(wrong.get_message()).should_contain("0 `?` and was given 1");
+                }
+            };
+            test("the database works after mistakes") {
+                expect_throws<sql_exception>() { db.run("selec * from users"); };
+                expect_throws<sql_exception>() { db.sql("select * from missing_table").rows(); };
+                expect_throws<sql_exception>() { db.sql("select * from users where id = ? and age = ?").with(1).rows(); };
+                expect_throws<sql_exception>() { db.sql("select * from users").with(1).rows(); };
+                expect(db.sql("select count(*) from users").number()).should_be(3);
+            };
+        };
+
+        // ---------------------------------------------------------------- bytes
+        test("bytes: the length, with zeros inside") {
+            db.run("create table files (name text, data blob)");
+            raw := new _int8[5];
+            raw[0] = 0; raw[1] = 255; raw[2] = 10; raw[3] = 0; raw[4] = 65;
+            db.sql("insert into files values (?, ?)").with("f").with_bytes(raw).run();
+            stored := db.sql("select data from files").first_row()!!.bytes("data");
+            expect(sizeof(stored)).named("bytes: the length").should_be(5);
+            expect_true(stored!![0] == 0 && (stored!![1] & 0xFF) == 255 && stored!![2] == 10 && stored!![3] == 0 && stored!![4] == 65);
+        };
+
+        test("closed, and a second close does nothing") {
+            db.close();
+            expect_false(db.is_open());
+            db.close();
+        };
+        test("a closed database refuses") {
+            db.close();
+            try {
+                db.run("select 1");
+                fail_test("no exception");
+            } catch(wrong: sql_exception) {
+                expect(wrong.get_message()).should_contain("closed");
+            }
+        };
+
+        // ---------------------------------------------------------------- a file
+        tests("file") {
+            place : string = "sqlite_case_test.db";
+            before_each { new file(place).remove(); };
+            after_each { new file(place).remove(); };       // (also runs for a test that was skipped: the name is set here, not in before_each)
+
+            test("a file keeps what was written") {
+                on_disk := sqlite.open(place);
+                on_disk.run("create table notes (text)");
+                on_disk.sql("insert into notes values (?)").with("kept").run();
+                on_disk.close();
+                again := sqlite.open(place);
+                kept : string = again.sql("select text from notes").text();
+                again.close();
+                expect(kept).should_be("kept");
+            };
+        };
+    };
+}

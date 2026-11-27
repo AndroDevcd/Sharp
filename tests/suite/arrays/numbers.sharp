@@ -1,0 +1,447 @@
+mod suite.arrays.numbers;
+
+import ( std.testing )
+
+/**
+ * Arrays of native numbers: `decimal[]` and the sized kinds `_int8[]`,
+ * `_uint8[]`, `_int16[]`, `_uint16[]`, `_int32[]`, `_uint32[]`, `_int64[]`.
+ *
+ * An array is an object. A variable holds a reference to it, so assigning
+ * an array to another variable, passing it to a function or returning it
+ * never copies the elements.
+ */
+
+class matrix {
+    cells : decimal[];
+    spare : decimal[]?;
+}
+
+/** an array kept in a global variable */
+shared : decimal[] = new decimal[4];
+
+def fill(a: decimal[], value: decimal) {
+    for(i : decimal = 0; i < sizeof(a); i++) {
+        a[i] = value;
+    }
+}
+
+def total(a: decimal[]) : decimal {
+    sum : decimal = 0;
+    foreach(x in a) {
+        sum += x;
+    }
+    return sum;
+}
+
+/** { 0, 1, 4, 9, ... } */
+def squares(n: decimal) : decimal[] {
+    a := new decimal[n];
+    for(i : decimal = 0; i < n; i++) {
+        a[i] = i * i;
+    }
+    return a;
+}
+
+def same_array(a: decimal[]) : decimal[] { return a; }
+
+def swap(a: decimal[], i: decimal, j: decimal) {
+    kept : decimal = a[i];
+    a[i] = a[j];
+    a[j] = kept;
+}
+
+/** pointing the parameter at a new array does not change the caller's variable */
+def point_elsewhere(a: decimal[]) {
+    a = new decimal[1];
+    a[0] = 99;
+}
+
+def make_bytes(n: decimal) : _int8[] { return new _int8[n]; }
+
+def total_bytes(a: _int8[]) : decimal {
+    sum : decimal = 0;
+    foreach(x in a) {
+        sum += x;
+    }
+    return sum;
+}
+
+def numbers_tests() {
+    tests("numbers") {
+        // ---- creating: every element starts at 0
+        test("a new array has its size and every element starts at 0") {
+            a := new decimal[5];
+            expect(sizeof(a)).named("sizeof").should_be(5);
+            expect(a[0]).named("first element").should_be(0);
+            expect(a[4]).named("last element").should_be(0);
+        };
+
+        // ---- writing and reading
+        test("a write to an element is read back, the others are untouched") {
+            a := new decimal[5];
+            a[0] = 7;
+            a[4] = 0 - 2.5;
+            expect(a[0]).named("a[0]").should_be(7);
+            expect(a[4]).named("a[4] holds a negative fraction").should_be(0 - 2.5);
+            expect(a[1] + a[2] + a[3]).named("the elements in between").should_be(0);
+        };
+        test("an element computed from another") {
+            a := new decimal[5];
+            a[0] = 7;
+            a[1] = a[0] * 2;
+            expect(a[1]).should_be(14);
+        };
+        test("an element computed from itself") {
+            a := new decimal[5];
+            a[1] = 14;
+            a[1] = a[1] * 4 + a[1];
+            expect(a[1]).should_be(70);
+        };
+
+        // ---- the index can be any number expression
+        test("a variable or an expression as the index") {
+            a := new decimal[5];
+            i : decimal = 2;
+            a[i] = 5;
+            a[i + 1] = 6;
+            expect(a[2]).named("variable index").should_be(5);
+            expect(a[3]).named("expression index").should_be(6);
+        };
+        test("an element as index: a[a[2] - 4] is a[1]") {
+            a := new decimal[5];
+            a[2] = 5;
+            a[a[2] - 4] = 9;
+            expect(a[1]).should_be(9);
+        };
+        test("the value of an int object as index") {
+            a := new decimal[5];
+            a[2] = 5;
+            box := new int(2);
+            expect(a[box.value]).should_be(5);
+        };
+
+        // ---- the size can be computed, and can be 0
+        test("new var[n * 2]") {
+            n : decimal = 4;
+            computed := new decimal[n * 2];
+            expect(sizeof(computed)).should_be(8);
+        };
+        test("new var[0]") {
+            empty := new decimal[0];
+            expect(sizeof(empty)).should_be(0);
+        };
+        test("an array of 10000 elements") {
+            large := new decimal[10000];
+            large[9999] = 1;
+            expect(sizeof(large)).named("10000 elements").should_be(10000);
+            expect(large[9999] + large[0]).named("the last of 10000").should_be(1);
+        };
+
+        // ---- an array written as a list of values
+        test("an array from a list of values") {
+            d := new decimal[] { 1, 2, 3 };
+            expect(sizeof(d)).named("list: size").should_be(3);
+            expect(d[0] + d[1] * 10 + d[2] * 100).named("list: elements").should_be(321);
+        };
+        test("list of fractions") {
+            fractions := new decimal[] { 1.5, 2.25 };
+            expect(fractions[0] + fractions[1]).should_be(3.75);
+        };
+        test("list of expressions") {
+            x : decimal = 3;
+            from_expressions := new decimal[] { x, x * 2, x * x };
+            expect(from_expressions[1] + from_expressions[2]).should_be(15);
+        };
+        test("list with one value") {
+            one_value := new decimal[] { 7 };
+            expect(sizeof(one_value)).should_be(1);
+        };
+        test("a bare { } list of whole numbers is an _int32[]") {
+            bare : _int32[] = { 4, 5, 6 };
+            expect(sizeof(bare)).named("size").should_be(3);
+            expect(bare[1]).named("element").should_be(5);
+        };
+
+        // ---- sized arrays
+        test("_int8[] has its size, starts at 0, and holds 100 and -100") {
+            bytes := new _int8[4];
+            expect(sizeof(bytes)).named("_int8[]: size").should_be(4);
+            expect(bytes[3]).named("_int8[]: starts at 0").should_be(0);
+            bytes[0] = 100;
+            bytes[1] = 0 - 100;
+            expect(bytes[0]).named("_int8[]: 100").should_be(100);
+            expect(bytes[1]).named("_int8[]: -100").should_be(0 - 100);
+        };
+        test("_int8[] from a list") {
+            listed_bytes := new _int8[] { 1, 2, 3 };
+            expect(listed_bytes[0] + listed_bytes[1] + listed_bytes[2]).should_be(6);
+        };
+        test("_int16[]") {
+            shorts := new _int16[2];
+            shorts[1] = 30000;
+            expect(shorts[1]).should_be(30000);
+        };
+        test("_uint16[]") {
+            unsigned_shorts := new _uint16[2];
+            unsigned_shorts[1] = 60000;
+            expect(unsigned_shorts[1]).should_be(60000);
+        };
+        test("_int32[]") {
+            ints := new _int32[2];
+            ints[0] = 0 - 2000000000;
+            expect(ints[0]).should_be(0 - 2000000000);
+        };
+        test("_uint32[]") {
+            unsigned_ints := new _uint32[2];
+            unsigned_ints[0] = 4000000000;
+            expect(unsigned_ints[0]).should_be(4000000000);
+        };
+        test("_int64[] holds 2^40") {
+            longs := new _int64[2];
+            longs[1] = 1099511627776;
+            expect(longs[1]).should_be(1099511627776);
+        };
+        test("_uint8[]") {
+            unsigned_bytes := new _uint8[2];
+            unsigned_bytes[0] = 250;
+            expect(unsigned_bytes[0]).should_be(250);
+        };
+
+        // a value that does not fit is cut to the element size with `as`
+        test("200 as _int8 stored in an _int8[]") {
+            bytes := new _int8[4];
+            x : decimal = 200;
+            bytes[2] = x as _int8;
+            expect(bytes[2]).should_be(0 - 56);
+        };
+        test("70000 as _int16 stored in an _int16[]") {
+            shorts := new _int16[2];
+            x : decimal = 70000;
+            shorts[0] = x as _int16;
+            expect(shorts[0]).should_be(4464);
+        };
+        test("300 as _uint8 stored in a _uint8[]") {
+            unsigned_bytes := new _uint8[2];
+            x : decimal = 300;
+            unsigned_bytes[1] = x as _uint8;
+            expect(unsigned_bytes[1]).should_be(44);
+        };
+
+        // a string literal is an _int8[] of character codes
+        test("_int8[] from a literal holds the character codes") {
+            letters : _int8[] = "abc";
+            expect(sizeof(letters)).named("size").should_be(3);
+            expect(letters[2]).named("'c'").should_be(99);
+        };
+
+        // ---- arrays as parameters: the function works on the caller's array
+        test("an array filled by a function is the caller's array") {
+            a := new decimal[5];
+            fill(a, 9);
+            expect(a[0]).named("filled by a function: first").should_be(9);
+            expect(a[4]).named("filled by a function: last").should_be(9);
+            expect(total(a)).named("total of five nines").should_be(45);
+        };
+        test("total of a list") { expect(total(new decimal[] { 1, 2, 3, 4 })).should_be(10); };
+        test("total of an empty array") {
+            empty := new decimal[0];
+            expect(total(empty)).should_be(0);
+        };
+        test("swapped by a function") {
+            d := new decimal[] { 1, 2, 3 };
+            swap(d, 0, 2);
+            expect(d[0] * 10 + d[2]).should_be(31);
+        };
+        test("re-pointing the parameter leaves the caller's array and its size") {
+            d := new decimal[] { 3, 2, 1 };
+            point_elsewhere(d);
+            expect(d[0]).named("the first element").should_be(3);
+            expect(sizeof(d)).named("the size").should_be(3);
+        };
+        test("_int8[] as result and parameter") {
+            small_bytes := make_bytes(3);
+            small_bytes[0] = 5;
+            small_bytes[1] = 6;
+            expect(total_bytes(small_bytes)).should_be(11);
+        };
+
+        // ---- arrays as return values
+        test("a returned array") {
+            sq := squares(4);
+            expect(sizeof(sq)).named("size").should_be(4);
+            expect(sq[3]).named("last element").should_be(9);
+            expect(total(sq)).named("total 0 + 1 + 4 + 9").should_be(14);
+        };
+        test("index straight on the call") { expect(squares(5)[4]).should_be(16); };
+        test("sizeof straight on the call") { expect(sizeof(squares(6))).should_be(6); };
+        test("result passed straight on") { expect(total(squares(3))).should_be(5); };
+
+        // ---- two variables, one array
+        test("two variables, one array: a write through either is seen through the other") {
+            a := new decimal[5];
+            other_name := a;
+            other_name[2] = 42;
+            expect(a[2]).named("written through the other variable").should_be(42);
+            a[3] = 43;
+            expect(other_name[3]).named("written through the first, read through the other").should_be(43);
+            expect_true(other_name == a);
+        };
+        test("an array that went through a function is still the same one, and compares equal") {
+            a := new decimal[5];
+            through_call := same_array(a);
+            through_call[1] = 13;
+            expect(a[1]).should_be(13);
+            expect_true(through_call == a);
+        };
+        test("another array of the same size is not ==") {
+            a := new decimal[5];
+            different := new decimal[5];
+            expect_false(different == a);
+        };
+
+        // pointing a variable at a new array leaves the old one to the other variable
+        test("pointing a variable at a new array leaves the old one to the other variable") {
+            a := new decimal[5];
+            other_name := a;
+            other_name[2] = 42;
+            a = new decimal[2];
+            expect(sizeof(a)).named("a is the new array").should_be(2);
+            expect(sizeof(other_name)).named("other_name still has the old one").should_be(5);
+            expect(other_name[2]).named("...with its elements").should_be(42);
+        };
+
+        // ---- global arrays and array fields
+        test("a global array") {
+            shared[2] = 8;
+            expect(shared[2]).named("global array element").should_be(8);
+            expect(sizeof(shared)).named("global array size").should_be(4);
+        };
+        test("an array field starts as null") {
+            m := new matrix();
+            expect_null(m.cells);
+        };
+        test("an array field holds an array") {
+            m := new matrix();
+            m.cells = new decimal[3];
+            m.cells[1] = 4;
+            expect(m.cells[1]).named("element of an array field").should_be(4);
+            expect(sizeof(m.cells)).named("size of an array field").should_be(3);
+        };
+        test("a field can refer to an existing array") {
+            m := new matrix();
+            other_name := new decimal[5];
+            m.cells = other_name;
+            other_name[0] = 31;
+            expect(m.cells[0]).should_be(31);
+        };
+        test("a nullable array field starts as null") {
+            m := new matrix();
+            expect_null(m.spare);
+        };
+
+        // ---- arrays of arrays: rows kept in an object[]
+        test("rows kept in an object[]") {
+            rows := new object[3];
+            rows[0] = new decimal[2];
+            rows[1] = new decimal[4];
+            first_row := rows[0] as decimal[];
+            first_row[1] = 5;
+            again := rows[0] as decimal[];
+            expect(again[1]).named("element of a row").should_be(5);
+            expect(sizeof(rows[1] as decimal[])).named("rows can differ in size").should_be(4);
+            expect_null(rows[2]);
+        };
+        // a 3 x 3 multiplication table
+        test("a 3 x 3 multiplication table") {
+            table := new object[3];
+            for(r : decimal = 0; r < 3; r++) {
+                row := new decimal[3];
+                for(c : decimal = 0; c < 3; c++) {
+                    row[c] = (r + 1) * (c + 1);
+                }
+                table[r] = row;
+            }
+            expect((table[2] as decimal[])[2]).named("table[2][2] is 3 * 3").should_be(9);
+            expect((table[1] as decimal[])[2]).named("table[1][2] is 2 * 3").should_be(6);
+            expect(total(table[2] as decimal[])).named("total of the last row: 3 + 6 + 9").should_be(18);
+        };
+
+        // ---- loops
+        test("foreach") {
+            sq := squares(4);
+            sum : decimal = 0;
+            foreach(value in sq) {
+                sum += value;
+            }
+            expect(sum).should_be(14);
+        };
+        test("for with an index: 0*1 + 1*2 + 4*3 + 9*4") {
+            sq := squares(4);
+            sum : decimal = 0;
+            for(k : decimal = 0; k < sizeof(sq); k++) {
+                sum += sq[k] * (k + 1);
+            }
+            expect(sum).should_be(50);
+        };
+        test("the foreach variable is a copy of the element") {
+            sq := squares(4);
+            foreach(value in sq) {
+                value = 100;
+            }
+            expect(sq[3]).should_be(9);
+        };
+        test("foreach over an empty array") {
+            empty := new decimal[0];
+            visits : decimal = 0;
+            foreach(value in empty) {
+                visits++;
+            }
+            expect(visits).should_be(0);
+        };
+
+        // ---- outside the array: an exception that can be caught
+        tests("bounds") {
+            a : decimal[];
+            before_each { a = new decimal[2]; };
+
+            test("write past the end") {
+                expect_throws<out_of_bounds_exception>() { a[10] = 1; };
+            };
+            test("read at the size") {
+                expect_throws<out_of_bounds_exception>() { sum : decimal = a[2]; };
+            };
+            test("negative index") {
+                i : decimal = 0 - 1;
+                expect_throws<out_of_bounds_exception>() { sum : decimal = a[i]; };
+            };
+            test("caught as its base class") {
+                expect_throws<exception>() { a[10] = 1; };
+            };
+
+            // the statements after the failing one are skipped
+            test("a[1] works, a[2] raises") {
+                reached : decimal = 0;
+                try {
+                    a[1] = 1;
+                    reached = 1;
+                    a[2] = 1;
+                    reached = 2;
+                } catch(e: out_of_bounds_exception) {
+                    reached += 10;
+                }
+                expect(reached).should_be(11);
+            };
+
+            // ...and the array is as usable as before
+            test("the array is usable after the exceptions") {
+                expect_throws<out_of_bounds_exception>() { a[10] = 1; };
+                a[1] = 1;
+                expect_throws<out_of_bounds_exception>() { a[2] = 1; };
+                a[0] = 3;
+                expect(a[0] + a[1]).named("after the exceptions").should_be(4);
+                expect(sizeof(a)).named("size after the exceptions").should_be(2);
+            };
+        };
+
+    };
+}

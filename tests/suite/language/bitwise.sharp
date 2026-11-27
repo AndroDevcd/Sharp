@@ -1,0 +1,239 @@
+mod suite.language.bitwise;
+
+import ( std.testing )
+
+/**
+ * Bit operations on whole numbers: & (and), | (or), ^ (exclusive or),
+ * << (shift left), >> (shift right), and the compound forms &= |= ^=.
+ * (There is no <<= or >>=, and no ~ operator.)
+ *
+ * For reference, in binary:  12 = 1100   10 = 1010   6 = 0110   3 = 0011
+ */
+
+def bit_and(a: decimal, b: decimal): decimal { return a & b; }
+def bit_or(a: decimal, b: decimal): decimal { return a | b; }
+def bit_xor(a: decimal, b: decimal): decimal { return a ^ b; }
+def shift_left(a: decimal, n: decimal): decimal { return a << n; }
+def shift_right(a: decimal, n: decimal): decimal { return a >> n; }
+
+/** 1 when bit number `bit` (0 is the lowest) is set in `value` */
+def has_bit(value: decimal, bit: decimal): decimal {
+    return (value >> bit) & 1;
+}
+
+/** 0 with bits 2 and 5 set by |= */
+def bits_2_and_5(): decimal {
+    flags : decimal = 0;
+    flags |= 1 << 2;
+    flags |= 1 << 5;
+    return flags;
+}
+
+def bitwise_tests() {
+    tests("bitwise") {
+        // ---- and
+        test("12 & 10") { expect(12 & 10).should_be(8); };
+        test("6 & 3") { expect(6 & 3).should_be(2); };
+        test("255 & 15") { expect(255 & 15).should_be(15); };
+        test("8 & 7 (no bits in common)") { expect(8 & 7).should_be(0); };
+        test("5 & 0") { expect(5 & 0).should_be(0); };
+        test("5 & 5") { expect(5 & 5).should_be(5); };
+        test("0xff00 & 0x0ff0") { expect(0xff00 & 0x0ff0).should_be(0x0f00); };
+
+        // ---- or
+        test("12 | 10") { expect(12 | 10).should_be(14); };
+        test("6 | 3") { expect(6 | 3).should_be(7); };
+        test("8 | 7") { expect(8 | 7).should_be(15); };
+        test("5 | 0") { expect(5 | 0).should_be(5); };
+        test("5 | 5") { expect(5 | 5).should_be(5); };
+        test("0xf0 | 0x0f") { expect(0xf0 | 0x0f).should_be(255); };
+
+        // ---- exclusive or
+        test("12 ^ 10") { expect(12 ^ 10).should_be(6); };
+        test("6 ^ 3") { expect(6 ^ 3).should_be(5); };
+        test("5 ^ 0") { expect(5 ^ 0).should_be(5); };
+        test("5 ^ 5") { expect(5 ^ 5).should_be(0); };
+        test("255 ^ 15") { expect(255 ^ 15).should_be(240); };
+
+        // ---- shift left
+        test("1 << 0") { expect(1 << 0).should_be(1); };
+        test("1 << 1") { expect(1 << 1).should_be(2); };
+        test("1 << 4") { expect(1 << 4).should_be(16); };
+        test("1 << 10") { expect(1 << 10).should_be(1024); };
+        test("3 << 2") { expect(3 << 2).should_be(12); };
+        test("5 << 3") { expect(5 << 3).should_be(40); };
+        test("1 << 31") { expect(1 << 31).should_be(2147483648); };
+        test("1 << 32 (past 32 bits)") { expect(1 << 32).should_be(4294967296); };
+        test("1 << 40") { expect(1 << 40).should_be(1099511627776); };
+
+        // ---- shift right
+        test("256 >> 4") { expect(256 >> 4).should_be(16); };
+        test("1024 >> 10") { expect(1024 >> 10).should_be(1); };
+        test("5 >> 1 drops the low bit") { expect(5 >> 1).should_be(2); };
+        test("7 >> 0") { expect(7 >> 0).should_be(7); };
+        test("1 >> 1") { expect(1 >> 1).should_be(0); };
+        test("255 >> 4") { expect(255 >> 4).should_be(15); };
+        test("-8 >> 1 keeps the sign") { expect(-8 >> 1).should_be(0 - 4); };
+
+        // ---- variables
+        tests("variables") {
+            a : decimal;
+            b : decimal;
+            two : decimal;
+            before_each { a = 12; b = 10; two = 2; };
+
+            test("a & b") { expect(a & b).should_be(8); };
+            test("a | b") { expect(a | b).should_be(14); };
+            test("a ^ b") { expect(a ^ b).should_be(6); };
+            test("a << 2") { expect(a << 2).should_be(48); };
+            test("a >> 2") { expect(a >> 2).should_be(3); };
+            test("a << two") { expect(a << two).should_be(48); };
+            test("a >> two") { expect(a >> two).should_be(3); };
+            test("b << b") { expect(b << b).should_be(10240); };
+
+            // ---- combinations (parentheses make the order clear)
+            test("(a & b) | 1") { expect((a & b) | 1).should_be(9); };
+            test("(a | b) ^ (a & b)") { expect((a | b) ^ (a & b)).should_be(6); };
+            test("(1 << 3) | (1 << 0)") { expect((1 << 3) | (1 << 0)).should_be(9); };
+            test("(a >> 1) & 3") { expect((a >> 1) & 3).should_be(2); };
+            test("(a << 4) | b") { expect((a << 4) | b).should_be(202); };
+            test("((a ^ b) << 1) & 0xff") { expect(((a ^ b) << 1) & 0xff).should_be(12); };
+        };
+
+        // ---- negative numbers
+        test("-1 & 255 (all bits set)") {
+            minus_one : decimal = 0 - 1;
+            expect(minus_one & 255).should_be(255);
+        };
+        test("-1 | 5") {
+            minus_one : decimal = 0 - 1;
+            expect(minus_one | 5).should_be(0 - 1);
+        };
+        test("-1 ^ 0") {
+            minus_one : decimal = 0 - 1;
+            expect(minus_one ^ 0).should_be(0 - 1);
+        };
+        test("-1 ^ 5 flips every bit of 5") {
+            minus_one : decimal = 0 - 1;
+            expect(minus_one ^ 5).should_be(0 - 6);
+        };
+        test("-16 >> 2") { expect((0 - 16) >> 2).should_be(0 - 4); };
+
+        // ---- a fraction loses its fractional part first
+        test("6.7 & 3") {
+            f : decimal = 6.7;
+            expect(f & 3).should_be(2);
+        };
+        test("6.7 | 1") {
+            f : decimal = 6.7;
+            expect(f | 1).should_be(7);
+        };
+        test("6.7 << 1") {
+            f : decimal = 6.7;
+            expect(f << 1).should_be(12);
+        };
+
+        // ---- compound assignment
+        test("&=") {
+            c : decimal = 12;
+            c &= 10;
+            expect(c).should_be(8);
+        };
+        test("|=") {
+            c : decimal = 8;
+            c |= 3;
+            expect(c).should_be(11);
+        };
+        test("^=") {
+            c : decimal = 11;
+            c ^= 1;
+            expect(c).should_be(10);
+        };
+        test("^= with itself") {
+            c : decimal = 10;
+            c ^= c;
+            expect(c).should_be(0);
+        };
+        test("|= twice") {
+            c : decimal = 0;
+            c |= 0xf0;
+            c |= 0x0f;
+            expect(c).should_be(255);
+        };
+        test("&= with a mask") {
+            c : decimal = 255;
+            c &= 0x3c;
+            expect(c).should_be(60);
+        };
+        test("&= with a variable") {
+            c : decimal = 60;
+            mask : decimal = 0x18;
+            c &= mask;
+            expect(c).should_be(24);
+        };
+        test("|= with an expression") {
+            c : decimal = 24;
+            mask : decimal = 0x18;
+            c |= mask << 1;
+            expect(c).should_be(56);
+        };
+
+        // ---- + and - happen before a shift
+        test("1 + 2 << 3") { expect(1 + 2 << 3).should_be(24); };
+        test("1 << 2 + 1") { expect(1 << 2 + 1).should_be(8); };
+        test("64 >> 4 - 2") { expect(64 >> 4 - 2).should_be(16); };
+
+        // ---- bit tricks
+        test("two bits set") { expect(bits_2_and_5()).should_be(36); };
+        test("bit 2 is set") { expect(has_bit(bits_2_and_5(), 2)).should_be(1); };
+        test("bit 3 is not set") { expect(has_bit(bits_2_and_5(), 3)).should_be(0); };
+        test("bit 5 is set") { expect(has_bit(bits_2_and_5(), 5)).should_be(1); };
+        test("bit 2 toggled off") {
+            flags := bits_2_and_5();
+            flags ^= 1 << 2;
+            expect(flags).should_be(32);
+        };
+        test("bit 5 cleared") {
+            flags := bits_2_and_5();
+            flags ^= 1 << 2;
+            flags &= 0xff ^ (1 << 5);
+            expect(flags).should_be(0);
+        };
+        test("9 is odd (9 & 1)") { expect(9 & 1).should_be(1); };
+        test("10 is even (10 & 1)") { expect(10 & 1).should_be(0); };
+        test("16 is a power of two") { expect(16 & (16 - 1)).should_be(0); };
+        test("18 is not a power of two") { expect(18 & (18 - 1)).should_be(16); };
+        test("low byte of 0x1234") { expect(0x1234 & 0xff).should_be(0x34); };
+        test("high byte of 0x1234") { expect((0x1234 >> 8) & 0xff).should_be(0x12); };
+
+        // ---- swapping two numbers with ^
+        test("p and q swapped with three ^=") {
+            p : decimal = 21;
+            q : decimal = 99;
+            p ^= q;
+            q ^= p;
+            p ^= q;
+            expect(p).named("p after the swap").should_be(99);
+            expect(q).named("q after the swap").should_be(21);
+        };
+
+        // ---- counting the set bits of 0xb7 (1011 0111) in a loop
+        test("0xb7 has 6 bits set") {
+            value : decimal = 0xb7;
+            count : decimal = 0;
+            while(value != 0) {
+                count += value & 1;
+                value = value >> 1;
+            }
+            expect(count).should_be(6);
+        };
+
+        // ---- through functions
+        test("bit_and(12, 10)") { expect(bit_and(12, 10)).should_be(8); };
+        test("bit_or(12, 10)") { expect(bit_or(12, 10)).should_be(14); };
+        test("bit_xor(12, 10)") { expect(bit_xor(12, 10)).should_be(6); };
+        test("shift_left(1, 8)") { expect(shift_left(1, 8)).should_be(256); };
+        test("shift_right(256, 8)") { expect(shift_right(256, 8)).should_be(1); };
+        test("shift_right(shift_left(77, 5), 5)") { expect(shift_right(shift_left(77, 5), 5)).should_be(77); };
+    };
+}

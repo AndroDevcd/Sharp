@@ -1,0 +1,137 @@
+mod suite.classes.objects_without_new;
+
+import ( std.testing, std.collections )
+
+/**
+ * Objects without `new`:  point(1, 2)  is  new point(1, 2).
+ * A call whose name is a class constructs an object of it. Functions,
+ * methods and function pointers of the same name still win.
+ */
+
+class point {
+    x : decimal;
+    y : decimal;
+    point() { x = 0; y = 0; }
+    point(a: decimal, b: decimal) { x = a; y = b; }
+    point(other: point) { x = other.x; y = other.y; }
+
+    def sum() : decimal { return x + y; }
+    def moved(dx: decimal) : point { return point(x + dx, y); }      // inside its own class
+    def twin() : point { return point(self); }
+    def operator+(o: point) : point { return point(x + o.x, y + o.y); }
+}
+
+class named {
+    text : string;
+    count : int = 0;
+    named(t: string) { text = t; }
+    named(t: string, c: decimal) { text = t; count = c; }
+}
+
+class shape {
+    def area() : decimal { return 0; }
+}
+
+class square base shape {
+    side : decimal;
+    square(s: decimal) { side = s; }
+    def scaled(by: decimal) : square { return square(side * by); }
+}
+
+class holder {
+    inside : point = point(7, 8);
+    made : point?;
+    holder() { made = point(1, 1); }
+}
+
+// a function with the same name as a class wins over the class
+class gadget { size : decimal = 1; gadget() { } gadget(s: decimal) { size = s; } }
+def gadget(a: decimal, b: decimal, c: decimal) : decimal { return a + b + c; }
+
+def take(p: point) : decimal { return p.sum(); }
+def make() : point { return point(4, 5); }
+
+def objects_without_new_tests() {
+    tests("objects_without_new") {
+        test("point(1, 2)") {
+            p := point(1, 2);
+            expect(p.x).named("x").should_be(1);
+            expect(p.y).named("y").should_be(2);
+        };
+        test("no arguments") {
+            q : point = point();
+            expect(q.sum()).should_be(0);
+        };
+        test("another constructor (copy)") {
+            r := point(point(1, 2));
+            expect(r.sum()).should_be(3);
+        };
+
+        test("as an argument") { expect(take(point(10, 20))).should_be(30); };
+        test("as a return value") { expect(make().sum()).should_be(9); };
+        test("a method right after it") { expect(point(3, 4).sum()).should_be(7); };
+        test("a field right after it") { expect(point(3, 4).y).should_be(4); };
+        test("in an expression") { expect(point(1, 1).sum() + point(2, 2).sum()).should_be(6); };
+        test("operator on two of them") { expect((point(1, 2) + point(3, 4)).sum()).should_be(10); };
+
+        test("inside its own class") { expect(point(1, 2).moved(5).x).should_be(6); };
+        test("copy inside its own class") { expect(point(1, 2).twin().sum()).should_be(3); };
+
+        test("a string argument") {
+            n := named("abc");
+            expect(n.text).should_be("abc");
+        };
+        test("two arguments, one converted to int") {
+            m := named("xyz", 4);
+            expect(m.count.value).should_be(4);
+        };
+
+        test("derived class") {
+            s := square(3);
+            expect(s.side).should_be(3);
+        };
+        test("derived class inside itself") {
+            s := square(3);
+            expect(s.scaled(2).side).should_be(6);
+        };
+
+        test("as a field's initial value") {
+            h := holder();
+            expect(h.inside.sum()).should_be(15);
+        };
+        test("assigned in a constructor") {
+            h := holder();
+            expect(h.made!!.sum()).should_be(2);
+        };
+
+        test("stored in an array") {
+            items := new point[3];
+            items[0] = point(5, 5);
+            expect(items[0].sum()).should_be(10);
+        };
+
+        test("old syntax still works") { expect(new point(6, 6).sum()).should_be(12); };
+        test("new and no new give equal objects") {
+            same := new point(2, 3);
+            expect(same.sum()).should_be(point(2, 3).sum());
+        };
+
+        test("a function of the same name wins") { expect(gadget(1, 2, 3)).should_be(6); };
+        test("...and new still reaches the class") {
+            g := new gadget(9);
+            expect(g.size).should_be(9);
+        };
+
+        test("in a loop") {
+            total : decimal = 0;
+            for(i : decimal = 0; i < 1000; i++) {
+                total += point(i, 1).sum();
+            }
+            expect(total).should_be(500500);
+        };
+
+        test("throw without new") {
+            expect_throws<illegal_state_exception>() { throw illegal_state_exception("made without new"); };
+        };
+    };
+}

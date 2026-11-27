@@ -1,0 +1,36 @@
+mod suite.language.casts_of_expressions;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (compiler, fixed), found while writing std.text:
+ * casting an expression in parentheses to a number type aborted the
+ * compiler, so this file did not compile:
+ *
+ *     sharp: <code-generator> fatal error: previous machine data not consumed!
+ *     note: in function: tens(decimal, decimal): decimal
+ *
+ * Both functions below triggered it. Casting a plain variable worked, so the
+ * library computed into a variable first and cast that:
+ *
+ *     result : decimal = (value - digit) / radix;
+ *     result = result as _int64;
+ */
+
+def tens(value: decimal, radix: decimal): decimal {
+    digit : decimal = value % radix;
+    result : decimal = ((value - digit) / radix) as _int64;
+    return result;
+}
+
+def magnitude(number: decimal): decimal {
+    whole : decimal = (number < 0 ? 0 - number : number) as _int64;
+    return whole;
+}
+
+def casts_of_expressions_tests() {
+    tests("casts_of_expressions") {
+        test("cast of a parenthesised division") { expect(tens(1234, 10)).should_be(123); };
+        test("cast of a parenthesised conditional") { expect(magnitude(0 - 7.9)).should_be(7); };
+    };
+}

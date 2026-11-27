@@ -1,0 +1,470 @@
+mod suite.control.if_else;
+
+import ( std.testing )
+
+/**
+ * if / else if / else: which branch runs, chains, nesting, and every kind
+ * of condition (numbers, comparisons, logic, function calls, objects).
+ * The ?: expression is at the end.
+ */
+
+/** counts calls, to show that a condition was (or was not) evaluated */
+calls : decimal = 0;
+
+def touch(result: decimal): decimal {
+    calls++;
+    return result;
+}
+
+/** -1, 0 or 1 */
+def sign(n: decimal): decimal {
+    if(n < 0) {
+        return 0 - 1;
+    } else if(n > 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+/** a school grade as a number: 4 for 90 and up, 3 for 80 and up, ... */
+def grade(score: decimal): decimal {
+    if(score >= 90) {
+        return 4;
+    } else if(score >= 80) {
+        return 3;
+    } else if(score >= 70) {
+        return 2;
+    } else if(score >= 60) {
+        return 1;
+    }
+    return 0;
+}
+
+/** an early return instead of an else */
+def absolute(n: decimal): decimal {
+    if(n < 0) {
+        return 0 - n;
+    }
+    return n;
+}
+
+/** which quarter of the plane a point is in (1 to 4), 0 on an axis */
+def quadrant(x: decimal, y: decimal): decimal {
+    if(x > 0) {
+        if(y > 0) {
+            return 1;
+        } else if(y < 0) {
+            return 4;
+        }
+    } else if(x < 0) {
+        if(y > 0) {
+            return 2;
+        } else if(y < 0) {
+            return 3;
+        }
+    }
+    return 0;
+}
+
+def is_even(n: decimal): decimal { return n % 2 == 0; }
+
+def if_else_tests() {
+    tests("if_else") {
+        before_each { calls = 0; };
+
+        // ---- a lone if
+        test("if(true) runs") {
+            r : decimal = 0;
+            if(true) {
+                r = 1;
+            }
+            expect(r).should_be(1);
+        };
+        test("if(false) does not run") {
+            r : decimal = 1;
+            if(false) {
+                r = 2;
+            }
+            expect(r).should_be(1);
+        };
+
+        // ---- if / else
+        test("if(true) takes the if branch") {
+            r : decimal = 0;
+            if(true) {
+                r = 10;
+            } else {
+                r = 20;
+            }
+            expect(r).should_be(10);
+        };
+        test("if(false) takes the else branch") {
+            r : decimal = 0;
+            if(false) {
+                r = 10;
+            } else {
+                r = 20;
+            }
+            expect(r).should_be(20);
+        };
+
+        // ---- only one branch of a chain runs
+        test("the first true branch wins") {
+            n : decimal = 5;
+            r : decimal = 0;
+            if(n == 5) {
+                r += 1;
+            } else if(n == 5) {
+                r += 10;
+            } else {
+                r += 100;
+            }
+            expect(r).should_be(1);
+        };
+        test("the second branch") {
+            n : decimal = 5;
+            r : decimal = 0;
+            if(n == 1) {
+                r += 1;
+            } else if(n == 5) {
+                r += 10;
+            } else if(n == 5) {
+                r += 100;
+            } else {
+                r += 1000;
+            }
+            expect(r).should_be(10);
+        };
+        test("the third branch") {
+            n : decimal = 5;
+            r : decimal = 0;
+            if(n == 1) {
+                r += 1;
+            } else if(n == 2) {
+                r += 10;
+            } else if(n == 5) {
+                r += 100;
+            } else {
+                r += 1000;
+            }
+            expect(r).should_be(100);
+        };
+        test("the else branch") {
+            n : decimal = 5;
+            r : decimal = 0;
+            if(n == 1) {
+                r += 1;
+            } else if(n == 2) {
+                r += 10;
+            } else if(n == 3) {
+                r += 100;
+            } else {
+                r += 1000;
+            }
+            expect(r).should_be(1000);
+        };
+        test("a chain with no else and nothing true does nothing") {
+            n : decimal = 5;
+            r : decimal = 0;
+            if(n == 1) {
+                r += 1;
+            } else if(n == 2) {
+                r += 10;
+            }
+            expect(r).should_be(0);
+        };
+
+        // ---- conditions after the true one are not evaluated
+        test("the second condition is true, and the third is never evaluated") {
+            r : decimal = 0;
+            if(touch(0)) {
+                r = 1;
+            } else if(touch(1)) {
+                r = 2;
+            } else if(touch(1)) {
+                r = 3;
+            }
+            expect(r).named("the branch taken").should_be(2);
+            expect(calls).named("conditions evaluated").should_be(2);
+        };
+
+        // ---- a number as a condition: 0 is false, anything else is true
+        test("numbers as conditions") {
+            zero : decimal = 0;
+            seven : decimal = 7;
+            r : decimal = 0;
+            if(seven) { r += 1; }
+            if(zero) { r += 10; }
+            if(seven - 7) { r += 100; }
+            if(0 - seven) { r += 1000; }
+            if(0.5) { r += 10000; }
+            expect(r).should_be(11001);
+        };
+
+        test("comparisons as conditions") {
+            n : decimal = 5;
+            r : decimal = 0;
+            if(n == 5) { r += 1; }
+            if(n != 5) { r += 10; }
+            if(n < 6) { r += 100; }
+            if(n > 6) { r += 1000; }
+            if(n <= 5) { r += 10000; }
+            if(n >= 6) { r += 100000; }
+            expect(r).should_be(10101);
+        };
+
+        test("logic as conditions") {
+            n : decimal = 5;
+            seven : decimal = 7;
+            r : decimal = 0;
+            if(n > 0 && n < 10) { r += 1; }
+            if(n > 0 && n < 3) { r += 10; }
+            if(n < 0 || n == 5) { r += 100; }
+            if(n < 0 || n > 10) { r += 1000; }
+            if(!(n == 4)) { r += 10000; }
+            if(!seven) { r += 100000; }
+            if((n == 1 || n == 5) && seven == 7) { r += 1000000; }
+            expect(r).should_be(1010101);
+        };
+
+        test("function calls as conditions") {
+            r : decimal = 0;
+            if(is_even(4)) { r += 1; }
+            if(is_even(5)) { r += 10; }
+            if(!is_even(5)) { r += 100; }
+            if(sign(0 - 3) < 0) { r += 1000; }
+            if(is_even(2) && is_even(3)) { r += 10000; }
+            expect(r).should_be(1101);
+        };
+
+        test("arithmetic as conditions") {
+            n : decimal = 5;
+            r : decimal = 0;
+            if(n - 5) { r += 1; }
+            if(n - 4) { r += 10; }
+            if(n * 0) { r += 100; }
+            if(n % 5 == 0) { r += 1000; }
+            expect(r).should_be(1010);
+        };
+
+        test("objects as conditions") {
+            r : decimal = 0;
+            yes : bool = true;
+            no : bool = false;
+            if(yes) { r += 1; }
+            if(no) { r += 10; }
+            if(yes) { r += 100; }
+            count : int = 3;
+            if(count == 3) { r += 1000; }
+            if(count > 3) { r += 10000; }
+            name := "sharp";
+            if(name == "sharp") { r += 100000; }
+            if(name == "blunt") { r += 1000000; }
+            if(name != "blunt") { r += 10000000; }
+            expect(r).should_be(10101101);
+        };
+
+        test("null checks") {
+            name := "sharp";
+            nothing : object = null;
+            something : object = name;
+            r : decimal = 0;
+            if(nothing == null) { r += 1; }
+            if(nothing != null) { r += 10; }
+            if(something != null) { r += 100; }
+            if(something == null) { r += 1000; }
+            expect(r).should_be(101);
+        };
+
+        test("characters as conditions") {
+            letter : decimal = 'm';
+            r : decimal = 0;
+            if(letter >= 'a' && letter <= 'z') { r += 1; }
+            if(letter >= 'A' && letter <= 'Z') { r += 10; }
+            if(letter == 'm') { r += 100; }
+            expect(r).should_be(101);
+        };
+
+        // ---- nesting
+        test("three levels deep") {
+            a : decimal = 3;
+            b : decimal = 8;
+            r : decimal = 0;
+            if(a < 5) {
+                r += 1;
+                if(b < 5) {
+                    r += 10;
+                } else {
+                    r += 100;
+                    if(a + b == 11) {
+                        r += 1000;
+                    }
+                }
+                r += 10000;
+            } else {
+                r += 100000;
+            }
+            expect(r).should_be(11101);
+        };
+
+        test("an if / else in each branch") {
+            a : decimal = 3;
+            b : decimal = 8;
+            r : decimal = 0;
+            if(a > 5) {
+                if(b > 5) {
+                    r = 1;
+                } else {
+                    r = 2;
+                }
+            } else {
+                if(b > 5) {
+                    r = 3;
+                } else {
+                    r = 4;
+                }
+            }
+            expect(r).should_be(3);
+        };
+
+        // ---- an else belongs to the nearest if
+        test("the inner else") {
+            a : decimal = 3;
+            b : decimal = 8;
+            r : decimal = 0;
+            if(a == 3) {
+                if(b == 0) {
+                    r = 1;
+                } else {
+                    r = 2;
+                }
+            }
+            expect(r).should_be(2);
+        };
+
+        // ---- without braces
+        test("if without braces") {
+            a : decimal = 3;
+            r : decimal = 0;
+            if(a == 3) r = 5;
+            expect(r).should_be(5);
+        };
+        test("if / else without braces") {
+            a : decimal = 3;
+            r : decimal = 0;
+            if(a == 4) r = 6; else r = 7;
+            expect(r).should_be(7);
+        };
+        test("a chain without braces") {
+            a : decimal = 3;
+            r : decimal = 0;
+            if(a == 1) r = 1;
+            else if(a == 3) r = 2;
+            else r = 3;
+            expect(r).should_be(2);
+        };
+
+        // ---- empty branches
+        test("an empty if branch") {
+            a : decimal = 3;
+            r : decimal = 9;
+            if(a == 3) {
+            } else {
+                r = 0;
+            }
+            expect(r).should_be(9);
+        };
+        test("an empty else branch") {
+            a : decimal = 3;
+            r : decimal = 9;
+            if(a == 4) {
+                r = 0;
+            } else {
+            }
+            expect(r).should_be(9);
+        };
+
+        // ---- several ifs in a row all get their turn
+        test("five ifs, three of them true") {
+            a : decimal = 3;
+            r : decimal = 0;
+            if(a > 0) { r++; }
+            if(a > 1) { r++; }
+            if(a > 2) { r++; }
+            if(a > 3) { r++; }
+            if(a > 4) { r++; }
+            expect(r).should_be(3);
+        };
+
+        // ---- a variable changed by one branch is seen by the next if
+        test("branches in order") {
+            step : decimal = 1;
+            if(step == 1) { step = 2; }
+            if(step == 2) { step = 3; }
+            if(step == 1) { step = 100; }
+            expect(step).should_be(3);
+        };
+
+        // ---- an if inside a loop
+        test("an if inside a loop sums the even and the odd numbers to 10") {
+            evens : decimal = 0;
+            odds : decimal = 0;
+            for(i : decimal = 1; i <= 10; i++) {
+                if(i % 2 == 0) {
+                    evens += i;
+                } else {
+                    odds += i;
+                }
+            }
+            expect(evens).named("sum of the even numbers").should_be(30);
+            expect(odds).named("sum of the odd numbers").should_be(25);
+        };
+
+        // ---- returning from branches
+        test("sign(-8)") { expect(sign(0 - 8)).should_be(0 - 1); };
+        test("sign(0)") { expect(sign(0)).should_be(0); };
+        test("sign(0.5)") { expect(sign(0.5)).should_be(1); };
+        test("grade(95)") { expect(grade(95)).should_be(4); };
+        test("grade(90)") { expect(grade(90)).should_be(4); };
+        test("grade(89)") { expect(grade(89)).should_be(3); };
+        test("grade(75)") { expect(grade(75)).should_be(2); };
+        test("grade(60)") { expect(grade(60)).should_be(1); };
+        test("grade(59)") { expect(grade(59)).should_be(0); };
+        test("absolute(-4)") { expect(absolute(0 - 4)).should_be(4); };
+        test("absolute(4)") { expect(absolute(4)).should_be(4); };
+        test("absolute(0)") { expect(absolute(0)).should_be(0); };
+        test("quadrant(1, 1)") { expect(quadrant(1, 1)).should_be(1); };
+        test("quadrant(-1, 1)") { expect(quadrant(0 - 1, 1)).should_be(2); };
+        test("quadrant(-1, -1)") { expect(quadrant(0 - 1, 0 - 1)).should_be(3); };
+        test("quadrant(1, -1)") { expect(quadrant(1, 0 - 1)).should_be(4); };
+        test("quadrant(0, 5)") { expect(quadrant(0, 5)).should_be(0); };
+        test("quadrant(5, 0)") { expect(quadrant(5, 0)).should_be(0); };
+
+        // ---- the ?: expression picks one of two values
+        tests("ternary") {
+            a : decimal;
+            b : decimal;
+            before_each {
+                a = 3;
+                b = 8;
+            };
+
+            test("true ? 1 : 2") { expect(true ? 1 : 2).should_be(1); };
+            test("false ? 1 : 2") { expect(false ? 1 : 2).should_be(2); };
+            test("a < b ? a : b") { expect(a < b ? a : b).should_be(3); };
+            test("a > b ? a : b") { expect(a > b ? a : b).should_be(8); };
+            test("stored in a variable") {
+                larger : decimal = a > b ? a : b;
+                expect(larger).should_be(8);
+            };
+            test("in arithmetic") { expect(10 + (a == 3 ? 5 : 0)).should_be(15); };
+            test("nested") { expect(a > 5 ? 1 : (b > 5 ? 2 : 3)).should_be(2); };
+            test("picks the first value, and only evaluates that one") {
+                r : decimal = a == 3 ? touch(1) : touch(2);
+                expect(r).named("the value picked").should_be(1);
+                expect(calls).named("values evaluated").should_be(1);
+            };
+        };
+    };
+}

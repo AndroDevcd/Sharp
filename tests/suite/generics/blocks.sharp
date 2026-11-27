@@ -1,0 +1,77 @@
+mod suite.generics.blocks;
+import ( std.testing )
+
+/**
+ * A block written inside a generic function sees the function's type
+ * parameters: `is T`, `as T` and a variable of type T mean the T of the call
+ * that made the block - however many blocks deep - and two calls with
+ * different types make blocks that answer differently.
+ */
+
+class animal { def name() : string; }
+class dog base animal { override def name() : string { return "dog"; } }
+class cat base animal { override def name() : string { return "cat"; } }
+
+def is_a<t>(what: animal) : bool { return what is t; }
+
+def checker<t>() : (animal)(bool) {
+    return { what: animal -> return what is t; };
+}
+
+def deep<t>() : ()((animal)(bool)) {
+    return { -> return { what: animal -> return what is t; }; };
+}
+
+def namer<t base animal>() : (animal)(string) {
+    return { what: animal ->
+        mine : t = what as t;
+        return mine.name();
+    };
+}
+
+class holder<t> {
+    def test() : (animal)(bool) {
+        return { what: animal -> return what is t; };
+    }
+}
+
+/** known while compiling: a dog is an animal */
+def always(d: dog) : bool { return d is animal; }
+
+def blocks_tests() {
+    tests("blocks") {
+        test("`is T` straight in a generic function") {
+            expect(is_a<dog>(new dog())).should_be(true);
+            expect(is_a<dog>(new cat())).should_be(false);
+        };
+        test("`is T` in a block of a generic function") {
+            dogs := checker<dog>();
+            expect(dogs(new dog())).should_be(true);
+            expect(dogs(new cat())).should_be(false);
+        };
+        test("two calls with different types make two different blocks") {
+            dogs := checker<dog>();
+            cats := checker<cat>();
+            expect(cats(new cat())).should_be(true);
+            expect(cats(new dog())).should_be(false);
+            expect(dogs(new dog())).should_be(true);
+        };
+        test("two blocks deep") {
+            inner := deep<cat>()();
+            expect(inner(new cat())).should_be(true);
+            expect(inner(new dog())).should_be(false);
+        };
+        test("a variable of type T and `as T` in a block") {
+            say := namer<dog>();
+            expect(say(new dog())).should_be("dog");
+        };
+        test("a block in a generic class") {
+            dogs := new holder<dog>().test();
+            expect(dogs(new dog())).should_be(true);
+            expect(dogs(new cat())).should_be(false);
+        };
+        test("a test that is certain while compiling") {
+            expect(always(new dog())).should_be(true);
+        };
+    };
+}

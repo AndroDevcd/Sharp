@@ -1,0 +1,199 @@
+mod suite.library.compress;
+
+import ( std.testing, std.io, std.data, std.compress , std.util )
+
+/**
+ * std.compress: deflate, gzip, zlib and zip archives - there and back, and
+ * against data made by the tools everyone else uses (Python's zlib, gzip
+ * and zipfile wrote the texts in quotes below; build/lib/make_vectors.py).
+ *
+ * The files it writes are in /tmp/sharp_suite_compress, made for each test
+ * that needs them and removed after it.
+ */
+
+base_dir : string = "/tmp/sharp_suite_compress";
+
+def text_of(bytes: _int8[]) : string {
+    if(sizeof(bytes) == 0) { return ""; }
+    return new string(bytes, 0, sizeof(bytes));
+}
+
+/** the text everything is packed from: two sentences, six and five times; 475 bytes */
+def the_text() : string {
+    original := new char_buffer();
+    for(i : _int64 = 0; i < 6; i++) { original.append("The quick brown fox jumps over the lazy dog. "); }
+    for(i : _int64 = 0; i < 5; i++) { original.append("Pack my box with five dozen liquor jugs! "); }
+    return original.build();
+}
+
+/** the text, packed by gzip */
+def theirs() : _int8[]? {
+    return base64.decode_bytes("H4sIAAAAAAACA93LwQFAMBAF0Va+BtTioAFhxZJkCUlI9bYNzvOmXwhH4nGDiVICZrmxJr+fkEwRl2Y31AeT2Bb933E3qPMPjKLC14KZM2mqFOD4SBL1tWfzCfgCIL/UMtsBAAA=");
+}
+
+/** bytes that do not repeat (every value, shuffled by a fixed rule) */
+def noise() : _int8[] {
+    made := new _int8[5000];
+    seed : _int64 = 12345;
+    for(i : _int64 = 0; i < 5000; i++) {
+        seed = (seed * 1103515245 + 12345) & 0x7FFFFFFF;
+        made[i] = (seed >> 16) & 0xFF;
+    }
+    return made;
+}
+
+/** a long text with repeats far apart and near: 200000 bytes */
+def large_text() : string {
+    large := new char_buffer();
+    for(i : _int64 = 0; i < 4000; i++) { large.append("row ").append_int(i * 7919 % 1000).append(": ").append_int(i).append(" some words that repeat\n"); }
+    return large.build();
+}
+
+/** the message of the compress_exception `block` throws ("" when it throws none) */
+def problem_of(block: ()()) : string {
+    try { block(); } catch(bad: compress_exception) { return bad.get_message(); }
+    return "";
+}
+
+/** an archive Python's zipfile made: readme.txt (the text, deflated), docs/, docs/plain.txt (stored) */
+def their_archive() : zip_archive {
+    return zip_archive.of_bytes(base64.decode_bytes("UEsDBBQAAAAIAIMYIlAgv9QyUwAAANsBAAAKAAAAcmVhZG1lLnR4dN3LwQFAMBAF0Va+BtTioAFhxZJkCUlI9bYNzvOmXwhH4nGDiVICZrmxJr+fkEwRl2Y31AeT2Bb933E3qPMPjKLC14KZM2mqFOD4SBL1tWfzCfgCUEsDBBQAAAAAAIMYIlAAAAAAAAAAAAAAAAAFAAAAZG9jcy9QSwMEFAAAAAAAgxgiUA82oiYNAAAADQAAAA4AAABkb2NzL3BsYWluLnR4dGtlcHQgYXMgaXQgaXNQSwECFAMUAAAACACDGCJQIL/UMlMAAADbAQAACgAAAAAAAAAAAAAAgAEAAAAAcmVhZG1lLnR4dFBLAQIUAxQAAAAAAIMYIlAAAAAAAAAAAAAAAAAFAAAAAAAAAAAAAACAAXsAAABkb2NzL1BLAQIUAxQAAAAAAIMYIlAPNqImDQAAAA0AAAAOAAAAAAAAAAAAAACAAZ4AAABkb2NzL3BsYWluLnR4dFBLBQYAAAAAAwADAKcAAADXAAAAAAA="));
+}
+
+/** an archive made here: five entries, one of them added twice */
+def our_builder() : zip_builder {
+    made := new zip_builder();
+    made.add("readme.txt", the_text()).add("empty.txt", "").add_folder("data").add("data/a.txt", "the a file");
+    raw := new _int8[300];
+    for(i : _int64 = 0; i < 300; i++) { raw[i] = i; }
+    made.add_bytes("data/bytes.bin", raw);
+    made.add("data/a.txt", "the a file, again");            // replaces the first
+    return made;
+}
+
+def compress_tests() {
+    tests("compress") {
+        test("the text") { expect(sizeof(the_text().data)).should_be(475); };
+
+        // ---------------------------------------------------------------- data others made
+        test("gzip made by gzip") { expect(gzip.decompress_text(theirs())).should_be(the_text()); };
+        test("is_gzip") { expect_true(gzip.is_gzip(theirs())); };
+        test("is_gzip: something else") { expect_false(gzip.is_gzip(the_text().data)); };
+        test("zlib made by zlib") {
+            expect(text_of(zlib.decompress(base64.decode_bytes("eNrdy8EBQDAQBdFWvgbU4qABYcWSZAlJSPW2Dc7zpl8IR+Jxg4lSAma5sSa/n5BMEZdmN9QHk9gW/d9xN6jzD4yiwteCmTNpqhTg+EgS9bVn8wn4Aqtxqj0=")))).should_be(the_text());
+        };
+        test("bare deflate made by zlib") {
+            expect(text_of(deflate.decompress(base64.decode_bytes("3cvBAUAwEAXRVr4G1OKgAWHFkmQJSUj1tg3O86ZfCEficYOJUgJmubEmv5+QTBGXZjfUB5PYFv3fcTeo8w+MosLXgpkzaaoU4PhIEvW1Z/MJ+AI=")))).should_be(the_text());
+        };
+        test("a block that is stored, not compressed") {
+            expect(text_of(deflate.decompress(base64.decode_bytes("AQwA8/9zdG9yZWQgYmxvY2s=")))).should_be("stored block");
+        };
+        test("the checksum of gzip") { expect(hashing.crc32(the_text().data)).should_be(852803360); };
+        test("the checksum of zlib") { expect(hashing.adler32(the_text().data)).should_be(2876353085); };
+        test("crc32 of 123456789") {
+            check : string = "123456789";
+            expect(hashing.crc32(check.data)).should_be(0xCBF43926);
+        };
+
+        // ---------------------------------------------------------------- there and back
+        test("compress makes it smaller") { expect(sizeof(deflate.compress(the_text().data))).should_be_below(150); };
+        test("deflate: there and back") { expect(text_of(deflate.decompress(deflate.compress(the_text().data)))).should_be(the_text()); };
+        test("gzip: there and back") { expect(gzip.decompress_text(gzip.compress_text(the_text()))).should_be(the_text()); };
+        test("zlib: there and back") { expect(text_of(zlib.decompress(zlib.compress(the_text().data)))).should_be(the_text()); };
+        test("nothing: there and back") { expect(sizeof(gzip.decompress(gzip.compress(null)))).should_be(0); };
+        test("one byte") { expect(gzip.decompress_text(gzip.compress_text("a"))).should_be("a"); };
+        test("two bytes") { expect(gzip.decompress_text(gzip.compress_text("ab"))).should_be("ab"); };
+        test("the same byte 1000 times") {
+            same := new _int8[1000];
+            for(i : _int64 = 0; i < 1000; i++) { same[i] = 'z'; }
+            packed := deflate.compress(same);
+            expect_true(sizeof(packed) < 30 && text_of(deflate.decompress(packed)) == text_of(same));
+        };
+        // nothing to gain, nothing lost
+        test("bytes without repeats come back the same") {
+            sent := noise();
+            back := deflate.decompress(deflate.compress(sent));
+            expect(sizeof(back)).should_be(5000);
+            for(i : _int64 = 0; i < 5000; i++) { expect(back[i]).named("byte " + i).should_be(sent[i]); }
+        };
+        test("a large text gets much smaller, and comes back the same") {
+            text : string = large_text();
+            large_packed := gzip.compress_text(text);
+            expect_true(sizeof(large_packed) * 4 < sizeof(text.data));
+            expect_true(gzip.decompress_text(large_packed) == text);
+        };
+        test("two gzip streams, one after the other") {
+            two := new byte_buffer();
+            two.put_bytes(gzip.compress_text("first, "));
+            two.put_bytes(gzip.compress_text("second"));
+            expect(gzip.decompress_text(two.to_array())).should_be("first, second");
+        };
+
+        // ---------------------------------------------------------------- damage is noticed
+        test("gzip: a checksum that does not fit") {
+            damaged := gzip.compress_text(the_text());
+            damaged[sizeof(damaged) - 6] = damaged[sizeof(damaged) - 6] ^ 1;
+            expect(problem_of() { gzip.decompress(damaged); }).should_contain("checksum");
+        };
+        test("gzip: cut off") { expect(problem_of() { gzip.decompress(copy(theirs()!!, 0, 40)); }).should_not_be_empty(); };
+        test("gzip: something else") { expect(problem_of() { gzip.decompress(the_text().data); }).should_be("this is not gzip data"); };
+        test("zlib: something else") { expect(problem_of() { zlib.decompress(the_text().data); }).should_be("this is not zlib data"); };
+        test("deflate: bytes that are no stream") { expect(problem_of() { deflate.decompress(base64.decode_bytes("/////w==")); }).should_not_be_empty(); };
+
+        // ---------------------------------------------------------------- an archive others made
+        test("zip: how many entries") { expect(their_archive().size()).should_be(3); };
+        test("zip: the names") { expect(io_strings.join(their_archive().names(), "|")).should_be("readme.txt|docs/|docs/plain.txt"); };
+        test("zip: a deflated file") { expect(their_archive().read_text("readme.txt")).should_be(the_text()); };
+        test("zip: a stored file") { expect(their_archive().read_text("docs/plain.txt")).should_be("kept as it is"); };
+        test("zip: a folder") { expect_true(their_archive().find("docs/")!!.is_folder); };
+        test("zip: a file's size") { expect(their_archive().find("readme.txt")!!.size).should_be(475); };
+        test("zip: has") { expect_true(their_archive().has("readme.txt") && !their_archive().has("none.txt")); };
+        test("zip: a file that is not in it") { expect_throws<io_exception>() { their_archive().read("none.txt"); }; };
+
+        // ---------------------------------------------------------------- an archive made here
+        test("builder: how many") { expect(our_builder().size()).should_be(5); };
+        test("ours: the names") { expect(io_strings.join(zip_archive.of_bytes(our_builder().bytes()).names(), "|")).should_be("readme.txt|empty.txt|data/|data/bytes.bin|data/a.txt"); };
+        test("ours: a text that packs is packed") { expect(zip_archive.of_bytes(our_builder().bytes()).find("readme.txt")!!.packed_size).should_be_below(150); };
+        test("ours: it reads back") { expect(zip_archive.of_bytes(our_builder().bytes()).read_text("readme.txt")).should_be(the_text()); };
+        test("ours: an empty file") { expect(zip_archive.of_bytes(our_builder().bytes()).read_text("empty.txt")).should_be(""); };
+        test("ours: the replaced file") { expect(zip_archive.of_bytes(our_builder().bytes()).read_text("data/a.txt")).should_be("the a file, again"); };
+        test("ours: bytes") {
+            bytes_back := zip_archive.of_bytes(our_builder().bytes()).read("data/bytes.bin");
+            expect_true(sizeof(bytes_back) == 300 && (bytes_back[200] & 0xFF) == 200 && bytes_back[0] == 0);
+        };
+
+        // to a file, and unpacked into a folder
+        tests("files") {
+            before_each {
+                new file(base_dir).delete_recursively();
+                new file(base_dir).mkdirs();
+            }
+            after_each { new file(base_dir).delete_recursively(); }
+
+            test("from a file") {
+                place := new file(base_dir + "/compress_case.zip");
+                our_builder().save(place);
+                expect(zip_archive.open(place).read_text("data/a.txt")).should_be("the a file, again");
+            };
+            test("extract_all: the files written, a file, and a file in a folder") {
+                place := new file(base_dir + "/compress_case.zip");
+                our_builder().save(place);
+                expect(zip_archive.open(place).extract_all(base_dir + "/out")).named("the files written").should_be(4);
+                expect(new file(base_dir + "/out/readme.txt").read_text()).named("a file").should_be(the_text());
+                expect(new file(base_dir + "/out/data/a.txt").read_text()).named("a file in a folder").should_be("the a file, again");
+            };
+            test("extract_all: a name that would leave the folder") {
+                climbing := new zip_builder();
+                climbing.add("../outside.txt", "should never be written");
+                expect(problem_of() { zip_archive.of_bytes(climbing.bytes()).extract_all(base_dir + "/out"); }).should_contain("outside the folder");
+            };
+        };
+
+        test("zip: something else") { expect(problem_of() { zip_archive.of_bytes(the_text().data); }).should_contain("not a zip archive"); };
+        test("zip: a damaged file is noticed") {
+            broken := our_builder().bytes();
+            broken[45] = broken[45] ^ 0x55;                         // inside the first file's packed bytes
+            expect(problem_of() { zip_archive.of_bytes(broken).read("readme.txt"); }).should_not_be_empty();
+        };
+    };
+}

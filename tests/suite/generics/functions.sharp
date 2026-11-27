@@ -1,0 +1,265 @@
+mod suite.generics.functions;
+
+import ( std.testing )
+
+/**
+ * Generic functions: def name<T>(...). Each use with concrete types gets its
+ * own function, made on first use. Type arguments are written at the call.
+ */
+
+class box<T> {
+    item : T;
+    box(first: T) { item = first; }
+    def take() : T { return item; }
+
+    // a generic method inside a generic class: U is the method's, T the class's
+    def paired_with<U>(other: U) : pair2<T, U> { return new pair2<T, U>(item, other); }
+}
+
+// the class has T, the method adds Z and uses both
+class shelf<T> {
+    stored : T;
+    shelf(first: T) { stored = first; }
+
+    def check<Z>(n: T, v: Z) : pair2<T, Z> { return new pair2<T, Z>(n, v); }
+    def swap_in<Z>(replacement: T, note: Z) : Z { stored = replacement; return note; }
+    def with_stored<Z>(f: (T)(Z)) : Z { return f(stored); }
+    static def of<Z>(value: Z) : shelf<Z> { return new shelf<Z>(value); }
+}
+
+class pair2<A, B> {
+    left : A;
+    right : B;
+    pair2(l: A, r: B) { left = l; right = r; }
+}
+
+class point {
+    x : decimal;
+    point(a: decimal) { x = a; }
+}
+
+// ---- free functions
+def same<T>(value: T) : T { return value; }
+
+def pick<T>(first: T, second: T, use_first: decimal) : T {
+    if(use_first) { return first; }
+    return second;
+}
+
+def first_of<T>(items: T[]) : T { return items[0]; }
+
+def count_of<T>(items: T[]) : decimal { return sizeof(items); }
+
+def swap_pair<A, B>(p: pair2<A, B>) : pair2<B, A> { return new pair2<B, A>(p.right, p.left); }
+
+def make_box<T>(value: T) : box<T> { return new box<T>(value); }
+
+def apply<T, R>(value: T, f: (T)(R)) : R { return f(value); }
+
+def repeat_call<T>(value: T, times: decimal, f: (T)(T)) : T {
+    result : T = value;
+    for(i : decimal = 0; i < times; i++) { result = f(result); }
+    return result;
+}
+
+def describe<T>(value: T) : string { return "value: " + value; }
+
+// one generic function calling another, and itself with another type
+def twice<T>(value: T, f: (T)(T)) : T { return repeat_call<T>(value, 2, f); }
+
+// overloads by the number of type parameters
+def tag<T>(a: T) : decimal { return 1; }
+def tag<T, U>(a: T, b: U) : decimal { return 2; }
+
+// a plain function next to a generic one of another name
+def plain(a: decimal) : decimal { return a + 1; }
+
+// ---- generic methods in an ordinary class
+class tools {
+    calls : decimal = 0;
+
+    def keep<T>(value: T) : T { calls++; return value; }
+    static def wrap<T>(value: T) : box<T> { return new box<T>(value); }
+    def larger<T>(a: T, b: T, bigger: (T, T)(decimal)) : T {
+        calls++;
+        if(bigger(a, b)) { return a; }
+        return b;
+    }
+}
+
+class better_tools base tools {
+    def keep_twice<T>(value: T) : T { return keep<T>(keep<T>(value)); }
+}
+
+def functions_tests() {
+    tests("functions") {
+        // ---- one type parameter
+        test("same<var>") { expect(same<decimal>(5)).should_be(5); };
+        test("same<string>") { expect(same<string>("text")).should_be("text"); };
+        test("same<point>") {
+            p := same<point>(new point(3));
+            expect(p.x).should_be(3);
+        };
+        test("the same instance used again") { expect(same<decimal>(6) + same<decimal>(7)).should_be(13); };
+
+        test("pick first") { expect(pick<decimal>(1, 2, 1)).should_be(1); };
+        test("pick second") { expect(pick<decimal>(1, 2, 0)).should_be(2); };
+        test("pick<string>") { expect(pick<string>("a", "b", 0)).should_be("b"); };
+
+        // ---- arrays of T
+        tests("arrays_of_t") {
+            numbers : decimal[];
+            words : string[];
+            before_each {
+                numbers = new decimal[] { 4, 5, 6 };
+                words = new string[] { new string("x"), new string("y") };
+            };
+
+            test("first_of<var>") { expect(first_of<decimal>(numbers)).should_be(4); };
+            test("count_of<var>") { expect(count_of<decimal>(numbers)).should_be(3); };
+            test("first_of<string>") { expect(first_of<string>(words)).should_be("x"); };
+            test("count_of<string>") { expect(count_of<string>(words)).should_be(2); };
+        };
+
+        // ---- generic classes in the signature
+        test("make_box<var>") {
+            b := make_box<decimal>(9);
+            expect(b.take()).should_be(9);
+        };
+        test("make_box<string>") {
+            sb := make_box<string>("in a box");
+            expect(sb.take()).should_be("in a box");
+        };
+
+        test("swap_pair swaps left and right") {
+            swapped := swap_pair<decimal, string>(new pair2<decimal, string>(1, "one"));
+            expect(swapped.left).named("left").should_be("one");
+            expect(swapped.right).named("right").should_be(1);
+        };
+
+        // ---- function types that use the type parameters
+        test("apply<var, var>") { expect(apply<decimal, decimal>(4, { x: decimal -> (decimal) return x * 10; })).should_be(40); };
+        test("apply<var, string>") { expect(apply<decimal, string>(4, { x: decimal -> (string) if(x == 4) { return "four"; } return "other"; })).should_be("four"); };
+        test("apply<string, var>") { expect(apply<string, decimal>("four", { s: string -> (decimal) return s.size(); })).should_be(4); };
+        test("untyped lambda gets its types") { expect(apply<decimal, decimal>(5, { x -> return x + 1; })).should_be(6); };
+        test("trailing lambda") { expect(apply<decimal, decimal>(5) { it * 3 }).should_be(15); };
+        test("repeat_call") { expect(repeat_call<decimal>(1, 5, { x: decimal -> (decimal) return x * 2; })).should_be(32); };
+
+        // ---- T inside the body
+        test("describe<string>") { expect(describe<string>("abc")).should_be("value: abc"); };
+
+        // ---- generic calling generic
+        test("twice") { expect(twice<decimal>(3, { x: decimal -> (decimal) return x + 10; })).should_be(23); };
+
+        // ---- overloads by number of type parameters
+        test("tag<var>") { expect(tag<decimal>(1)).should_be(1); };
+        test("tag<var, string>") { expect(tag<decimal, string>(1, "s")).should_be(2); };
+
+        // ---- ordinary functions are untouched
+        test("plain") { expect(plain(1)).should_be(2); };
+        test("comparisons that could look like generics") {
+            less : decimal = plain(1) < 3;
+            more : decimal = 4 > plain(1);
+            expect(less + more).should_be(2);
+        };
+
+        // ---- methods
+        test("generic method, with two types on the same object") {
+            t := new tools();
+            expect(t.keep<decimal>(8)).named("keep<var>").should_be(8);
+            expect(t.keep<string>("kept")).named("keep<string>").should_be("kept");
+            expect(t.calls).named("calls counted on the one object").should_be(2);
+        };
+        test("larger") {
+            t := new tools();
+            expect(t.larger<decimal>(3, 9, { a: decimal, b: decimal -> (decimal) return a > b; })).should_be(9);
+        };
+        test("static generic method") {
+            wrapped := tools.wrap<decimal>(12);
+            expect(wrapped.take()).should_be(12);
+        };
+
+        test("inherited generic method called from a subclass, counted on the object") {
+            bt := new better_tools();
+            expect(bt.keep_twice<decimal>(4)).named("the result").should_be(4);
+            expect(bt.calls).named("calls").should_be(2);
+        };
+        test("inherited generic method called from outside") {
+            bt := new better_tools();
+            expect(bt.keep<decimal>(1)).should_be(1);
+        };
+
+        // ---- a generic method of a generic class
+        test("a generic method of a generic class: class parameter T, method parameter U") {
+            made := new box<decimal>(7).paired_with<string>("seven");
+            expect(made.left).named("class parameter T").should_be(7);
+            expect(made.right).named("method parameter U").should_be("seven");
+        };
+
+        // ---- check<Z>(n: T, v: Z) in a generic class: T from the class, Z from the call
+        tests("shelf") {
+            numbers_shelf : shelf<decimal>;
+            before_each { numbers_shelf = new shelf<decimal>(1); };
+
+            test("check<string> on shelf<var>: T and Z") {
+                checked := numbers_shelf.check<string>(5, "five");
+                expect(checked.left).named("T").should_be(5);
+                expect(checked.right).named("Z").should_be("five");
+            };
+            test("the same method with another Z") {
+                checked2 := numbers_shelf.check<point>(6, new point(60));
+                expect(checked2.right.x).should_be(60);
+            };
+            test("a Z result and a T store") {
+                expect(numbers_shelf.swap_in<string>(77, "swapped")).named("the Z result").should_be("swapped");
+                expect(numbers_shelf.stored).named("the T field changed").should_be(77);
+            };
+            test("a function type using T and Z") {
+                numbers_shelf.swap_in<string>(77, "swapped");
+                expect(numbers_shelf.with_stored<string>({ n: decimal -> (string) if(n == 77) { return "has 77"; } return "?"; })).should_be("has 77");
+            };
+            test("a function type using T and another Z") {
+                numbers_shelf.swap_in<string>(77, "swapped");
+                expect(numbers_shelf.with_stored<decimal>({ n: decimal -> (decimal) return n + 1; })).should_be(78);
+            };
+        };
+
+        test("check<var> on shelf<string>: T and Z") {
+            text_shelf := new shelf<string>("start");
+            checked3 := text_shelf.check<decimal>("six", 6);
+            expect(checked3.left).named("T").should_be("six");
+            expect(checked3.right).named("Z").should_be(6);
+        };
+
+        test("a static generic method of a generic class") {
+            built := shelf<decimal>.of<string>("made");
+            expect(built.stored).should_be("made");
+        };
+
+        // ---- nested generics close with >>
+        test("box<box<var>>") {
+            nested := new box<box<decimal>>(new box<decimal>(3));
+            expect(nested.take().take()).should_be(3);
+        };
+        test("same<box<box<var>>>") {
+            nested := new box<box<decimal>>(new box<decimal>(3));
+            deep := same<box<box<decimal>>>(nested);
+            expect(deep.take().take()).should_be(3);
+        };
+        test("shift right still works") { expect(64 >> 2).should_be(16); };
+        test("less-than followed by shift") {
+            small : decimal = 3;
+            expect(small < 64 >> 2).should_be(1);
+        };
+
+        // ---- generic classes without new
+        test("box<var>(21) without new") {
+            c := box<decimal>(21);
+            expect(c.take()).should_be(21);
+        };
+        test("pair2<var, string>(...) without new") {
+            d := pair2<decimal, string>(1, "p");
+            expect(d.right).should_be("p");
+        };
+    };
+}

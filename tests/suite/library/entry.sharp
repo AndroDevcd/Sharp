@@ -1,0 +1,45 @@
+mod suite.library;
+
+import (
+    std.testing,
+    suite.library.basics,
+    suite.library.cleanup_fixes,
+    suite.library.collections,
+    suite.library.compress,
+    suite.library.coroutines,
+    suite.library.crypto,
+    suite.library.data,
+    suite.library.guikit,
+    suite.library.io,
+    suite.library.math,
+    suite.library.net,
+    suite.library.reflect,
+    suite.library.system,
+    suite.library.testing,
+    suite.library.text,
+    suite.library.time,
+    suite.library.util
+)
+
+/** suite.library: the standard library, one group for each of its parts */
+def library_tests() {
+    tests("library") {
+        basics_tests();
+        cleanup_fixes_tests();
+        collections_tests();
+        compress_tests();
+        coroutines_tests();
+        crypto_tests();
+        data_tests();
+        guikit_tests();
+        io_tests();
+        math_tests();
+        net_tests();
+        reflect_tests();
+        system_tests();
+        testing_tests();
+        text_tests();
+        time_tests();
+        util_tests();
+    };
+}

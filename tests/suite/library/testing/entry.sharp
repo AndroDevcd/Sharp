@@ -1,0 +1,17 @@
+mod suite.library.testing;
+
+import (
+    std.testing,
+    suite.library.testing.groups,
+    suite.library.testing.ide,
+    suite.library.testing.mocks
+)
+
+/** suite.library.testing: std.testing */
+def testing_tests() {
+    tests("testing") {
+        groups_tests();
+        ide_tests();
+        mocks_tests();
+    };
+}

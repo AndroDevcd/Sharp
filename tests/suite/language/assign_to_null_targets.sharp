@@ -1,0 +1,83 @@
+mod suite.language.assign_to_null_targets;
+
+import ( std.testing )
+
+/**
+ * Assigning a value that needs a conversion (a string literal, a number for a
+ * number object) to a target that may hold no object yet: an element of an
+ * object array, or a variable / field of a nullable type. A new object is made.
+ */
+
+class note {
+    text : string?;
+    title : string = "untitled";
+    count : int?;
+    init { }
+    def fill() { text = "filled"; }
+}
+
+def assign_to_null_targets_tests() {
+    tests("assign_to_null_targets") {
+        test("names[1] = literal") {
+            names : string[] = new string[3];
+            names[1] = "one";
+            expect(names[1]).should_be("one");
+        };
+        test("an element assigned again holds the new literal") {
+            names : string[] = new string[3];
+            names[1] = "one";
+            names[1] = "uno";
+            expect(names[1]).should_be("uno");
+        };
+        test("element = string expression") {
+            names : string[] = new string[3];
+            names[1] = "uno";
+            names[2] = names[1] + "!";
+            expect(names[2]).should_be("uno!");
+        };
+
+        test("nullable local = literal") {
+            maybe : string? = null;
+            maybe = "x";
+            expect(maybe!!).should_be("x");
+        };
+
+        test("nullable field = literal") {
+            n := new note();
+            n.text = "hello";
+            expect(n.text!!).should_be("hello");
+        };
+        test("nullable field = literal inside a method") {
+            n := new note();
+            n.text = "hello";
+            n.fill();
+            expect(n.text!!).should_be("filled");
+        };
+        test("non nullable field = literal") {
+            n := new note();
+            n.title = "named";
+            expect(n.title).should_be("named");
+        };
+        test("nullable int field = number") {
+            n := new note();
+            n.count = 5;
+            expect(n.count!!.value).should_be(5);
+        };
+
+        test("int element = number") {
+            numbers : int[] = new int[2];
+            numbers[0] = 41;
+            numbers[1] = numbers[0].value + 1;
+            expect(numbers[0].value + numbers[1].value).should_be(83);
+        };
+
+        // (a string is stored, never written into: the other name keeps the string it has)
+        test("a string local = literal is a new string: the other name keeps its own, the local has the new text") {
+            keep : string = "first";
+            other : string = keep;
+            keep = "second";
+            expect(other).should_be("first");
+            expect(keep).should_be("second");
+        };
+    };
+}

@@ -1,0 +1,23 @@
+mod suite.library.data;
+
+import (
+    std.testing,
+    suite.library.data.config,
+    suite.library.data.csv,
+    suite.library.data.encoding,
+    suite.library.data.json,
+    suite.library.data.json_objects,
+    suite.library.data.sqlite
+)
+
+/** suite.library.data: std.data */
+def data_tests() {
+    tests("data") {
+        config_tests();
+        csv_tests();
+        encoding_tests();
+        json_tests();
+        json_objects_tests();
+        sqlite_tests();
+    };
+}

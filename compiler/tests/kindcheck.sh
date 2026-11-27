@@ -6,9 +6,10 @@
 # object. It prints `[type check] ...` for every mismatch and goes on. A correct code generator
 # gives it nothing to print.
 #
-#   tests/kindcheck.sh <folder of executables>
+#   tests/kindcheck.sh <the folder test 8 built the suite into: ~/sharp_work/out/suite_runner/plain or O>
 #       TC=<the kind-check runtime>   (default ~/sharp_work/sharp_tc_dev/sharp)
 #       SOURCES=<the copy of the repository the runtime is built from>  (default ~/sharp_work/src)
+#       SUITE=<the suite's project folder, where its program runs>   (default ~/sharp_work/suite)
 #       SHARP=<the runtime>  COMPILER=<the compiled bootstrap compiler>  LIBRARY=<the standard library>
 #       (for the probe; defaults ~/sharp_work/sharp_dev/sharp, ~/sharp_work/out/boot/sharpc_boot,
 #        ~/sharp_work/stdlib)
@@ -22,19 +23,23 @@
 #   2. THE CHECKER IS AWAKE. tests/kindcheck_probe.sharp, a program that adds a decimal as a
 #      whole number in an asm block, is built by the bootstrap and run: it MUST give a report.
 #      Without this, a runtime built without the flag would pass everything.
-#   3. Every executable in the folder (a file without a dot in its name - the suite runner's
-#      work folder has exactly those: <case>, <case>.compile.txt, <case>.out.txt) is run with
-#      -nojit (the checks are in the interpreter; machine code is not checked), four at a time.
-#      Each must print no `[type check]` line and still print RESULT PASS.
+#   3. The suite's program in the folder (<folder>/suite, built by tests/suite_runner.sh) is run
+#      with -nojit (the checks are in the interpreter; machine code is not checked), in the suite's
+#      folder. It must print no `[type check]` line and still pass: exit code 0 and `all N tests
+#      passed` (suite_program.sh; a run that dies without its summary is run again one top-level
+#      group at a time). The checks make the interpreter slower still: a run is killed after 3600 s.
+#      What it printed: <folder>/kindcheck.txt.
 #
 # Prints the reports (at most 20) and a summary; exits 1 when there was any report or failure.
-FOLDER=${1:?usage: kindcheck.sh <folder of executables>}
+FOLDER=${1:?usage: kindcheck.sh <the folder test 8 built the suite into>}
 HERE="$(cd "$(dirname "$0")" && pwd)"
 TC=${TC:-${SHARP_WORK:-$HOME/sharp_work}/sharp_tc_dev/sharp}
 SOURCES=${SOURCES:-${SHARP_WORK:-$HOME/sharp_work}/src}
 SHARP=${SHARP:-${SHARP_WORK:-$HOME/sharp_work}/sharp_dev/sharp}
 COMPILER=${COMPILER:-${SHARP_WORK:-$HOME/sharp_work}/out/boot/sharpc_boot}
 LIBRARY=${LIBRARY:-${SHARP_WORK:-$HOME/sharp_work}/stdlib}
+SUITE=${SUITE:-${SHARP_WORK:-$HOME/sharp_work}/suite}
+source "$HERE/suite_program.sh"
 
 # ---- 1: the kind-check runtime is not older than the runtime's sources
 newer_sources() {
@@ -63,23 +68,14 @@ if ! timeout -s KILL 60 prlimit --core=0 "$TC" -nojit "$PROBE" 2>&1 | grep -a -q
     echo "kind check: the probe gave NO report on $TC - this runtime does not check kinds (was it built with -DSHARP_TYPE_CHECK?)"; exit 1
 fi
 
-# ---- 3: the programs
-export TC
-check_one() {
-    exe=$1
-    out=$(timeout -s KILL 300 prlimit --core=0 "$TC" -mem 1gb -nojit "$exe" 2>&1)
-    reports=$(echo "$out" | grep -a -c '^\[type check\]')
-    echo "$out" | grep -a '^\[type check\]' | head -3 | sed "s|\$|   <- $(basename "$exe")|"
-    if [ "$reports" != 0 ]; then echo "REPORTS $(basename "$exe") $reports"
-    elif ! echo "$out" | grep -a -q "RESULT PASS"; then echo "NOT-PASSED $(basename "$exe")"
-    else echo "CLEAN $(basename "$exe")"; fi
-}
-export -f check_one
-results=$(find "$FOLDER" -maxdepth 1 -type f ! -name "*.*" | sort | xargs -P ${TEST_JOBS:-4} -I{} bash -c 'check_one {}')
-echo "$results" | grep '^\[type check\]' | head -20 | cut -c1-200
-echo "$results" | grep '^NOT-PASSED' | head -10
-clean=$(echo "$results" | grep -c '^CLEAN')
-with_reports=$(echo "$results" | grep -c '^REPORTS')
-not_passed=$(echo "$results" | grep -c '^NOT-PASSED')
-echo "kind check: $clean clean, $with_reports with reports, $not_passed did not pass on the kind-check runtime"
-[ "$with_reports" = 0 ] && [ "$not_passed" = 0 ] && [ "$clean" -gt 0 ]
+# ---- 3: the program
+[ -f "$FOLDER/suite" ] || { echo "kind check: no program at $FOLDER/suite - run test 8 first (bash build-scripts/test.sh only 8 9)"; exit 1; }
+rm -f "$FOLDER"/kindcheck*.txt
+verdict=$(suite_way "kind check, $(basename "$FOLDER")" "$SUITE" "$FOLDER/kindcheck.txt" 3600 prlimit --core=0 "$TC" -nojit "$FOLDER/suite"); passed=$?
+# (the reports of every run: the whole one, and the runs of single groups after a crash)
+reports=$(cat "$FOLDER"/kindcheck*.txt 2>/dev/null | grep -a '^\[type check\]')
+echo "$reports" | grep -v '^$' | head -20 | cut -c1-200
+echo "$verdict"
+with_reports=$(echo "$reports" | grep -c '^\[type check\]')
+echo "kind check: $with_reports report(s); the suite $([ $passed = 0 ] && echo "passed" || echo "did NOT pass") on the kind-check runtime"
+[ "$with_reports" = 0 ] && [ $passed = 0 ]

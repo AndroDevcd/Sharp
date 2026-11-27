@@ -1,0 +1,61 @@
+mod suite.library.text.literals;
+
+import ( std.testing )
+
+/**
+ * BUGS found while writing std.text, both fixed; the checks below guard
+ * against them.
+ *
+ * 1. A whole-number literal beyond 32 bit with a minus sign in front of it,
+ *    and the constant expression `0 - <such a literal>`, were compiled as
+ *    -2147483648. The same number computed from a variable was right.
+ *    (std.text#number_format worked around it by computing its negative
+ *    limits from variables.)
+ *
+ * 2. A number was silently accepted where a `string` parameter is expected: it
+ *    was converted through the constructor string(_int8) into a string of ONE
+ *    character with that code. takes_text(3) compiled and received "\x03".
+ *    This is why std.text never overloads a method on string / number
+ *    (text_wrap.indent_by, string.format_one ... have their own names):
+ *    such overloads were reported as ambiguous, and without the overload the
+ *    wrong call compiled silently. Now a number there is a compile error.
+ */
+
+def takes_text(text: string): decimal {
+    return text.size();
+}
+
+def first_code(text: string): decimal {
+    return text.at(0).value;
+}
+
+def literals_tests() {
+    tests("literals") {
+        // ---- 1. large negative literals (`big` is the same number from a variable)
+        test("a large literal with a minus sign") {
+            big : decimal = 12345678901;
+            literal : decimal = -12345678901;
+            expect(literal).should_be(0 - big);                 // before the fix: -2147483648
+        };
+        test("0 - a large literal") {
+            big : decimal = 12345678901;
+            folded : decimal = 0 - 12345678901;
+            expect(folded).should_be(0 - big);                  // before the fix: -2147483648
+        };
+        test("a large positive literal (correct today)") {
+            big : decimal = 12345678901;
+            expect(big + 1).should_be(12345678902);
+        };
+        test("a large negative decimal literal") {
+            limit : decimal = -1.7976931348623157e308;
+            expect_true(limit < 0 - 1e300);                     // before the fix: false
+        };
+
+        // ---- 2. a number is not accepted where a string is expected
+        // takes_text(300) is a compile error now (it used to pass a one-character
+        // string). A character still becomes a string by itself, and a number is
+        // made text explicitly.
+        test("a character passed as a string") { expect(first_code('3')).should_be('3'); };
+        test("\"\" + 300 passed as a string") { expect(takes_text("" + 300)).should_be(3); };
+    };
+}

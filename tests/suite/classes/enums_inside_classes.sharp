@@ -1,0 +1,14 @@
+mod suite.classes.enums_inside_classes;
+import ( std.testing )
+class holder {
+    enum inner { off = 0, on = 1 }
+    state : inner = inner.off;
+}
+def enums_inside_classes_tests() {
+    tests("enums_inside_classes") {
+        test("enum inside a class named from outside") {
+            h := new holder();
+            expect_true((h.state == holder.inner.off));
+        };
+    };
+}

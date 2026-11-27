@@ -237,15 +237,14 @@ compiler/
                                     its block; cases/optimizer.sharp gathers the shapes the passes rewrite, and
                                     optimizer_inlining, _exceptions, _copies, _unrolling what its verifier aimed at them;
                                     optimizer_frames what slot packing must keep - and the recursion it is for)
-      suite_running.txt             the suite cases that run, built as normal programs: each must print RESULT PASS,
-                                    JIT and -nojit; since stage 4 all 177
       obfuscation/*.sharp           built with -obf: the same output, and the `renamed:` / `kept:` names in the map
       refused/*.sharp               a program code generation must refuse (E0971, E0975): the `// expect:` codes, no file
       library_main.sharp            `def main() { }`: the whole library through layout and the writer
-    suite_runner.sh                 the suite judged by its own runner (tests/suite/run.sharp, built by the C++ compiler)
-                                    with the bootstrap as <sharpc> (-j 1 -L <library>), JIT and -nojit (stage 5, 13.5),
-                                    and both again with -O (stage 6, 13.6)
-    kindcheck.sh                    the executables the runner built, run on the kind-check runtime: no report (13.5);
+    suite_runner.sh                 the suite (since 26 November one program, tests/suite/README.md) built by the
+                                    bootstrap (-P <suite> -j 1 -L <library>), plain and with -O, each run JIT and -nojit
+                                    (stage 5, 13.5; stage 6, 13.6); until then 219 programs judged by tests/suite/run.sharp
+    suite_program.sh                what the scripts share to build the suite and judge a run (read, not run)
+    kindcheck.sh                    the program suite_runner.sh built, run on the kind-check runtime: no report (13.5);
                                     first builds that runtime again when runtime is newer, and runs the probe
     kindcheck_probe.sharp           a program wrong on purpose (a decimal added as a whole number in asm): the
                                     kind-check runtime MUST report it, or its silence means nothing

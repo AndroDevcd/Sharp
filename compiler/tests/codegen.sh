@@ -48,10 +48,9 @@
 #                           name is refused, -O0 turns -O off again. The library's checks below
 #                           are made once more with -O.
 #
-#   the suite               every program of tests/suite/cases, compiled as a normal program (the
-#                           VM starts it at platform.srt_init, which calls its main): it must run
-#                           and print RESULT PASS, with the JIT and with -nojit (since stage 4
-#                           every case; codegen/suite_running.txt lists them, below).
+#   the suite               the one program of tests/suite, built as a project (the VM starts it
+#                           at platform.srt_init, which calls its main): it must run and pass -
+#                           exit code 0 and `all N tests passed` - with the JIT and with -nojit.
 #
 #   the library             the whole standard library (every function and class analysis
 #                           has: -eager), with a `main` of nothing, through layout, the
@@ -343,53 +342,31 @@ elif runs_quietly "the library (-eager -O)" "$OUT/library_O"; then
     echo "$out" | grep "^time: layout"
 fi
 
-# ---- the suite's programs (doc/codegen.md 13.2 - 13.4)
-#   Every suite case is compiled as a normal program - the VM starts it at platform.srt_init,
-#   which sets the platform up and calls its main, as for the C++-built program - and run with
-#   the JIT and with -nojit. It must RUN and print its `RESULT PASS` line both ways: a compile
-#   that writes no file, a file the VM cannot run, or a RESULT that is not PASS fails the step.
-#   (Until stage 4 a case could also WAIT: stop with E0974 "not generated yet" at a construct of a
-#   later stage. Every construct has code now, so that is a failure like any other.)
-#   codegen/suite_running.txt lists the cases that run (since stage 4: all of them); each of them
-#   MUST run, and a case that runs and is not on it is reported, to be added.
+# ---- the suite's program (doc/codegen.md 13.2 - 13.4)
+#   The suite is ONE program (tests/suite/README.md): built as a project, without -O, in a copy of
+#   its folder (OUT/suite_project) - the VM starts it at platform.srt_init, which sets the platform
+#   up and calls its main - and run with the JIT and with -nojit. It must RUN and pass both ways:
+#   a compile that writes no file, a file the VM cannot run, a crash or a failed test fails the
+#   step (suite_program.sh judges; a run that dies without its summary is run again one top-level
+#   group at a time). build-scripts/test.sh's test 8 runs it four ways; this is code generation's
+#   own look at it. (Until 26 November the suite was 219 programs, each built and run here.)
 SUITE=${SUITE:-${SHARP_WORK:-$HOME/sharp_work}/suite}
-RUNNING="$HERE/codegen/suite_running.txt"
-if [ -d "$SUITE/cases" ]; then
-    mkdir -p "$OUT/suite"
-    export SHARP COMPILER SUITE OUT
-    export LIB_LIST="$LIB"
-    suite_case() {
-        f=$1; b=$(basename "$f" .sharp)
-        rm -f "$OUT/suite/$b"
-        timeout -s KILL 300 "$SHARP" "$COMPILER" $LIB_LIST "$SUITE/testing.sharp" "$f" -o "$OUT/suite/$b" > "$OUT/suite/$b.txt" 2>&1
-        if [ ! -f "$OUT/suite/$b" ]; then
-            echo "$b BROKEN no file was written: $(grep -m1 "^error" "$OUT/suite/$b.txt" | cut -c1-160)"
-            return
-        fi
-        with_jit=$(timeout -s KILL 120 "$SHARP" "$OUT/suite/$b" 2>&1 | grep -a "^RESULT" | head -1)
-        without_jit=$(timeout -s KILL 120 "$SHARP" -nojit "$OUT/suite/$b" 2>&1 | grep -a "^RESULT" | head -1)
-        if [[ "$with_jit" == "RESULT PASS"* ]] && [[ "$without_jit" == "RESULT PASS"* ]]; then echo "$b RUNS"
-        else echo "$b BROKEN with the JIT: [${with_jit:-no RESULT line}], with -nojit: [${without_jit:-no RESULT line}]"; fi
-    }
-    export -f suite_case
-    results=$(ls "$SUITE"/cases/*.sharp | xargs -P ${TEST_JOBS:-4} -I{} bash -c 'suite_case {}' | sort)
-    runs=$(echo "$results" | grep -c " RUNS$")
-    while read -r line; do
-        [ -n "$line" ] || continue
-        fail "suite case ${line%% *}" "${line#* BROKEN }"
-    done < <(echo "$results" | grep " BROKEN ")
-    while read -r name; do
-        [ -n "$name" ] || continue
-        state=$(echo "$results" | grep "^$name ")
-        case "$state" in
-            *" RUNS") ;;
-            "") fail "suite case $name" "listed in codegen/suite_running.txt but not in $SUITE/cases" ;;
-        esac
-    done < <(grep -v "^#" "$RUNNING" | sed 's/ *$//')
-    new_ones=$(echo "$results" | grep " RUNS$" | cut -d' ' -f1 | while read -r name; do grep -qx "$name" "$RUNNING" || echo "$name"; done | tr '\n' ' ')
-    [ -n "$new_ones" ] && echo "note: these suite cases run now and are not in codegen/suite_running.txt yet: $new_ones"
-    if [ "$(echo "$results" | grep -c " BROKEN ")" -eq 0 ]; then passed=$((passed+1)); fi
-    echo "suite cases: $runs of $(echo "$results" | grep -c .) run and pass (JIT and -nojit)"
+if [ -f "$SUITE/settings.json" ]; then
+    source "$HERE/suite_program.sh"
+    PROJECT="$OUT/suite_project"
+    rm -rf "$OUT/suite"; mkdir -p "$OUT/suite" "$PROJECT"
+    rsync -a --delete --exclude /build "$SUITE/" "$PROJECT/"
+    if ! said=$(suite_build "$PROJECT" "$OUT/suite/suite" "$OUT/suite/compile.txt" "$SHARP" "$COMPILER" -P "$PROJECT" -j 1 -L "$LIBRARY"); then
+        fail "the suite" "no file was written:" "$said"
+    else
+        broken=0
+        for mode in "" "-nojit"; do
+            seconds=900; [ -n "$mode" ] && seconds=1800
+            said=$(suite_way "the suite, ${mode:-with the JIT}" "$PROJECT" "$OUT/suite/run$mode.txt" $seconds "$SHARP" $mode "$OUT/suite/suite") || { broken=1; fail "the suite (${mode:-with the JIT})" "$said"; continue; }
+            echo "$said"
+        done
+        [ $broken = 0 ] && passed=$((passed+1))
+    fi
 fi
 
 echo "codegen tests: $passed passed, $failed failed"

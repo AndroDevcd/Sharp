@@ -1,0 +1,31 @@
+mod suite.control;
+
+import (
+    std.testing,
+    suite.control.foreach_inherited_loopable,
+    suite.control.foreach_over_new,
+    suite.control.if_else,
+    suite.control.loops,
+    suite.control.negative_literal_in_condition,
+    suite.control.new_in_condition,
+    suite.control.short_circuit,
+    suite.control.switch_when,
+    suite.control.ternary_nullable_side,
+    suite.control.ternary_string_literal
+)
+
+/** suite.control: if, loops, switch, foreach, conditions */
+def control_tests() {
+    tests("control") {
+        foreach_inherited_loopable_tests();
+        foreach_over_new_tests();
+        if_else_tests();
+        loops_tests();
+        negative_literal_in_condition_tests();
+        new_in_condition_tests();
+        short_circuit_tests();
+        switch_when_tests();
+        ternary_nullable_side_tests();
+        ternary_string_literal_tests();
+    };
+}

@@ -101,7 +101,7 @@ It must show, in order: `built: Sharp X (VM Y)`, `TESTS: PASS (tests 1 2 4 5 12 
 `RELEASE DONE`, and no `WARNING: no ...` line.
 
 Extra tests by what changed: ALWAYS through the repository's own `test.sh` (Git Bash, at the root), never a private helper -
-`bash test.sh changed` (the parts the changed files need), `bash test.sh <part> full`, `bash test.sh case <name>`.
+`bash test.sh changed` (the parts the changed files need), `bash test.sh <part> full`, `bash test.sh suite <group>` (a part of the suite's one program, e.g. `suite.library.collections`).
 If it cannot run something, add that to `test.sh`. Say when `full` was not run.
 
 ### 4. Install

@@ -1,0 +1,184 @@
+mod suite.functions.lambdas_capture_per_call;
+
+import (
+    std.testing,
+    std.io.fiber
+)
+
+/**
+ * A lambda carries the variables it captured.
+ *
+ * A function value is an object: which function, and the variables that
+ * function uses from the function that created it. Every CALL of the creating
+ * function has its own set of those variables, so:
+ *
+ *   - a function that calls itself does not mix up the lambdas of its calls
+ *   - a lambda still has its variables after the function that made it
+ *     returned, and on any fiber it is run on
+ *   - a lambda inside a lambda reaches the variables of both functions around it
+ *   - `self` used in a lambda is the instance the lambda was made in
+ *
+ * (Before November 2026 there was one set per function per fiber: the second
+ *  call overwrote the first one's variables, and another fiber saw none.)
+ */
+
+class box { value : decimal = 0; }
+
+def call_it(block: ()()) { block(); }
+
+// ---- recursion: every level makes a lambda over ITS OWN local
+
+/**
+ * Collects one lambda per level, deepest level last. Each lambda returns the
+ * depth of the call that made it.
+ */
+def collect(depth: decimal, into: ()(decimal)[]) {
+    mine := new box();
+    mine.value = depth;
+    into[depth] = { -> (decimal) return mine.value; };
+
+    if(depth > 0) {
+        collect(depth - 1, into);
+    }
+
+    // back from the deeper calls: this call's variable is untouched
+    mine.value = mine.value + 100;
+}
+
+/** the sum 1 + 2 + ... + n, added up by lambdas made at every level */
+def sum_down(n: decimal, total: box) {
+    level := new box();
+    level.value = n;
+
+    if(n > 0) {
+        sum_down(n - 1, total);
+    }
+    call_it({ -> total.value = total.value + level.value; });
+}
+
+// ---- a lambda that outlives the call that made it
+
+def make_adder(start: decimal) : (decimal)(decimal) {
+    sum := new box();
+    sum.value = start;
+    return { n: decimal -> (decimal) sum.value = sum.value + n; return sum.value; };
+}
+
+// ---- a lambda inside a lambda
+
+def nested(outer_box: box) : decimal {
+    near := new box();
+    near.value = 5;
+
+    call_it({ ->
+        middle := new box();
+        middle.value = 20;
+        call_it({ ->
+            // near: two functions out. middle: one function out.
+            outer_box.value = near.value + middle.value;
+        });
+    });
+    return outer_box.value;
+}
+
+// ---- self in a lambda
+
+class counter {
+    count : decimal = 0;
+
+    def bump_through_lambda() {
+        call_it({ -> self->count = self->count + 1; });
+    }
+
+    def reader() : ()(decimal) {
+        return { -> (decimal) return self->count; };
+    }
+}
+
+// ---- function values are objects
+
+def twice(x: decimal) : decimal { return x * 2; }
+def use(f: (decimal)(decimal), x: decimal) : decimal { return f(x); }
+
+class holder {
+    action : (decimal)(decimal);
+}
+
+seen_on_fiber := new box();
+fiber_done := new box();
+
+def lambdas_capture_per_call_tests() {
+    tests("lambdas_capture_per_call") {
+        // 1. recursion
+        test("the lambda of each recursion level kept its own variable") {
+            made := new ()(decimal)[4];
+            collect(3, made);
+            for(i : decimal = 0; i < 4; i++) {
+                expect(made[i]()).named("level " + i).should_be(i + 100);
+            }
+        };
+
+        test("lambdas at every level of a recursion add up") {
+            total := new box();
+            sum_down(4, total);
+            expect(total.value).should_be(10);
+        };
+
+        // 2. outliving the call, two independent closures
+        test("two adders made by the same function count on their own") {
+            a := make_adder(10);
+            b := make_adder(1000);
+            a(1);
+            b(1);
+            expect(a(1)).named("first adder").should_be(12);
+            expect(b(1)).named("second adder").should_be(1002);
+        };
+
+        // 3. a lambda inside a lambda
+        test("an inner lambda reaches two functions out") {
+            result := new box();
+            expect(nested(result)).should_be(25);
+        };
+
+        // 4. self
+        test("self captured by a lambda") {
+            c := new counter();
+            c.bump_through_lambda();
+            c.bump_through_lambda();
+            read := c.reader();
+            expect(read()).should_be(2);
+        };
+
+        // 5. function values behave like objects
+        test("a named function stored in a field") {
+            h := new holder();
+            h.action = twice;
+            expect(h.action(21)).should_be(42);
+        };
+        test("a named function passed as an argument") { expect(use(twice, 4)).should_be(8); };
+
+        test("function values in an array") {
+            steps := new (decimal)(decimal)[2];
+            steps[0] = twice;
+            steps[1] = { x: decimal -> (decimal) return x + 1; };
+            expect(steps[1](steps[0](5))).should_be(11);
+        };
+
+        // 6. a closure run on another fiber
+        test("a captured local on another fiber") {
+            seen_on_fiber.value = 0;
+            fiber_done.value = 0;
+            carried := new box();
+            carried.value = 9;
+            slice({ fiber_args: object[] -> (int)
+                seen_on_fiber.value = carried.value;
+                fiber_done.value = 1;
+                return 0;
+            });
+            for(i : decimal = 0; i < 200 && fiber_done.value == 0; i++) {
+                delay(5);
+            }
+            expect(seen_on_fiber.value).should_be(9);
+        };
+    };
+}

@@ -1,0 +1,16 @@
+mod suite.classes.nested_names;
+import ( std.testing )
+class holder {
+    enum inner { off = 0, on = 1 }
+    class part { static count : decimal = 7; }
+    state : inner = inner.off;
+}
+def nested_names_tests() {
+    tests("nested_names") {
+        test("static field of an inner class") { expect(holder.part.count).should_be(7); };
+        test("inner enum as a type and value") {
+            x : holder.inner = holder.inner.on;
+            expect_true((x == holder.inner.on));
+        };
+    };
+}

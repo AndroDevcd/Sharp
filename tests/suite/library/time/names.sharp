@@ -1,0 +1,184 @@
+mod suite.library.time.names;
+
+import ( std.testing, std.time )
+
+/**
+ * std.time.day_of_week and std.time.month: numbering, names, short names,
+ * plus/minus with wrap-around, month lengths, parsing names.
+ */
+
+def names_tests() {
+    tests("names") {
+        // ================= day_of_week =================
+
+        // ---- numbering: ISO, Monday = 1 .. Sunday = 7
+        test("monday") { expect(day_of_week.monday.value()).should_be(1); };
+        test("tuesday") { expect(day_of_week.tuesday.value()).should_be(2); };
+        test("wednesday") { expect(day_of_week.wednesday.value()).should_be(3); };
+        test("thursday") { expect(day_of_week.thursday.value()).should_be(4); };
+        test("friday") { expect(day_of_week.friday.value()).should_be(5); };
+        test("saturday") { expect(day_of_week.saturday.value()).should_be(6); };
+        test("sunday") { expect(day_of_week.sunday.value()).should_be(7); };
+        test("of(1) is the monday object") { expect_true(day_of_week.of(1) == day_of_week.monday); };
+        test("of(7) is the sunday object") { expect_true(day_of_week.of(7) == day_of_week.sunday); };
+        test("of(4) is not friday") { expect_true(day_of_week.of(4) != day_of_week.friday); };
+        test("values() has seven entries") { expect(sizeof(day_of_week.values())).should_be(7); };
+        test("values() starts with monday") { expect_true(day_of_week.values()[0] == day_of_week.monday); };
+        test("values() ends with sunday") { expect_true(day_of_week.values()[6] == day_of_week.sunday); };
+
+        // ---- names
+        test("name of monday") { expect(day_of_week.monday.name()).should_be("Monday"); };
+        test("name of wednesday") { expect(day_of_week.wednesday.name()).should_be("Wednesday"); };
+        test("name of sunday") { expect(day_of_week.sunday.name()).should_be("Sunday"); };
+        test("short name of monday") { expect(day_of_week.monday.short_name()).should_be("Mon"); };
+        test("short name of tuesday") { expect(day_of_week.tuesday.short_name()).should_be("Tue"); };
+        test("short name of thursday") { expect(day_of_week.thursday.short_name()).should_be("Thu"); };
+        test("short name of saturday") { expect(day_of_week.saturday.short_name()).should_be("Sat"); };
+        test("to_string is the name") { expect(day_of_week.friday.to_string()!!).should_be("Friday"); };
+
+        // ---- plus / minus wrap around the week
+        test("monday + 1") { expect_true(day_of_week.monday.plus(1) == day_of_week.tuesday); };
+        test("sunday + 1") { expect_true(day_of_week.sunday.plus(1) == day_of_week.monday); };
+        test("saturday + 2") { expect_true(day_of_week.saturday.plus(2) == day_of_week.monday); };
+        test("thursday + 7") { expect_true(day_of_week.thursday.plus(7) == day_of_week.thursday); };
+        test("thursday + 0") { expect_true(day_of_week.thursday.plus(0) == day_of_week.thursday); };
+        test("friday + 100 (100 = 14 weeks + 2)") { expect_true(day_of_week.friday.plus(100) == day_of_week.sunday); };
+        test("monday + -1") { expect_true(day_of_week.monday.plus(0 - 1) == day_of_week.sunday); };
+        test("monday - 1") { expect_true(day_of_week.monday.minus(1) == day_of_week.sunday); };
+        test("wednesday - 10") { expect_true(day_of_week.wednesday.minus(10) == day_of_week.sunday); };
+        test("tuesday - 700") { expect_true(day_of_week.tuesday.minus(700) == day_of_week.tuesday); };
+
+        // ---- distance and weekend
+        test("monday until wednesday") { expect(day_of_week.monday.days_until(day_of_week.wednesday)).should_be(2); };
+        test("wednesday until monday") { expect(day_of_week.wednesday.days_until(day_of_week.monday)).should_be(5); };
+        test("sunday until monday") { expect(day_of_week.sunday.days_until(day_of_week.monday)).should_be(1); };
+        test("friday until friday") { expect(day_of_week.friday.days_until(day_of_week.friday)).should_be(0); };
+        test("saturday is weekend") { expect_true(day_of_week.saturday.is_weekend()); };
+        test("sunday is weekend") { expect_true(day_of_week.sunday.is_weekend()); };
+        test("friday is not weekend") { expect_false(day_of_week.friday.is_weekend()); };
+        test("monday is not weekend") { expect_false(day_of_week.monday.is_weekend()); };
+
+        // ---- parsing names
+        test("parse Monday") { expect_true(day_of_week.parse("Monday") == day_of_week.monday); };
+        test("parse Sun") { expect_true(day_of_week.parse("Sun") == day_of_week.sunday); };
+        test("parse lower case") { expect_true(day_of_week.parse("thursday") == day_of_week.thursday); };
+        test("parse upper case short") { expect_true(day_of_week.parse("WED") == day_of_week.wednesday); };
+        test("parse rejects a number") { expect_throws<date_time_exception>() { day_of_week.parse("1"); }; };
+        test("parse rejects a prefix") { expect_throws<date_time_exception>() { day_of_week.parse("Mo"); }; };
+        test("parse rejects trailing text") { expect_throws<date_time_exception>() { day_of_week.parse("Mondays"); }; };
+        test("parse rejects the empty string") { expect_throws<date_time_exception>() { day_of_week.parse(""); }; };
+
+        // ---- validation
+        test("of(0) throws") { expect_throws<date_time_exception>() { day_of_week.of(0); }; };
+        test("of(8) throws") { expect_throws<date_time_exception>() { day_of_week.of(8); }; };
+        test("message") {
+            try {
+                day_of_week.of(8);
+                fail_test("no exception");
+            } catch(e: date_time_exception) {
+                expect(e.get_message()).should_be("day of week must be 1 to 7 but was 8");
+            }
+        };
+
+        // ================= month =================
+
+        test("january") { expect(month.january.value()).should_be(1); };
+        test("february") { expect(month.february.value()).should_be(2); };
+        test("june") { expect(month.june.value()).should_be(6); };
+        test("december") { expect(month.december.value()).should_be(12); };
+        test("of(1) is the january object") { expect_true(month.of(1) == month.january); };
+        test("of(12) is the december object") { expect_true(month.of(12) == month.december); };
+        test("of(5) is may") { expect_true(month.of(5) == month.may); };
+        test("values() has twelve entries") { expect(sizeof(month.values())).should_be(12); };
+        test("values() starts with january") { expect_true(month.values()[0] == month.january); };
+        test("values()[8] is september") { expect_true(month.values()[8] == month.september); };
+
+        // ---- names
+        test("name of january") { expect(month.january.name()).should_be("January"); };
+        test("name of may") { expect(month.may.name()).should_be("May"); };
+        test("name of september") { expect(month.september.name()).should_be("September"); };
+        test("name of december") { expect(month.december.name()).should_be("December"); };
+        test("short name of january") { expect(month.january.short_name()).should_be("Jan"); };
+        test("short name of may") { expect(month.may.short_name()).should_be("May"); };
+        test("short name of june") { expect(month.june.short_name()).should_be("Jun"); };
+        test("short name of september") { expect(month.september.short_name()).should_be("Sep"); };
+        test("to_string is the name") { expect(month.august.to_string()!!).should_be("August"); };
+
+        // ---- lengths: thirty days hath September, April, June and November
+        test("january") { expect(month.january.length(0)).should_be(31); };
+        test("february") { expect(month.february.length(0)).should_be(28); };
+        test("february in a leap year") { expect(month.february.length(1)).should_be(29); };
+        test("march") { expect(month.march.length(0)).should_be(31); };
+        test("april") { expect(month.april.length(0)).should_be(30); };
+        test("may") { expect(month.may.length(0)).should_be(31); };
+        test("june") { expect(month.june.length(0)).should_be(30); };
+        test("july") { expect(month.july.length(0)).should_be(31); };
+        test("august") { expect(month.august.length(0)).should_be(31); };
+        test("september") { expect(month.september.length(0)).should_be(30); };
+        test("october") { expect(month.october.length(0)).should_be(31); };
+        test("november") { expect(month.november.length(0)).should_be(30); };
+        test("december") { expect(month.december.length(1)).should_be(31); };
+        test("february min_length") { expect(month.february.min_length()).should_be(28); };
+        test("february max_length") { expect(month.february.max_length()).should_be(29); };
+        test("april max_length") { expect(month.april.max_length()).should_be(30); };
+
+        test("the months add up to 365 days") {
+            total : decimal = 0;
+            for(i : decimal = 1; i <= 12; i++) {
+                total += month.of(i).length(0);
+            }
+            expect(total).should_be(365);
+        };
+        test("...and to 366 in a leap year") {
+            leap_total : decimal = 0;
+            for(i : decimal = 1; i <= 12; i++) {
+                leap_total += month.of(i).length(1);
+            }
+            expect(leap_total).should_be(366);
+        };
+
+        // ---- first day of the year
+        test("january starts on day 1") { expect(month.january.first_day_of_year(0)).should_be(1); };
+        test("february starts on day 32") { expect(month.february.first_day_of_year(0)).should_be(32); };
+        test("march starts on day 60") { expect(month.march.first_day_of_year(0)).should_be(60); };
+        test("march starts on day 61 in a leap year") { expect(month.march.first_day_of_year(1)).should_be(61); };
+        test("december starts on day 335") { expect(month.december.first_day_of_year(0)).should_be(335); };
+        test("december starts on day 336 in a leap year") { expect(month.december.first_day_of_year(1)).should_be(336); };
+
+        // ---- quarters
+        test("january is in Q1") { expect(month.january.quarter()).should_be(1); };
+        test("march is in Q1") { expect(month.march.quarter()).should_be(1); };
+        test("april is in Q2") { expect(month.april.quarter()).should_be(2); };
+        test("september is in Q3") { expect(month.september.quarter()).should_be(3); };
+        test("october is in Q4") { expect(month.october.quarter()).should_be(4); };
+        test("december is in Q4") { expect(month.december.quarter()).should_be(4); };
+
+        // ---- plus / minus wrap around the year
+        test("january + 1") { expect_true(month.january.plus(1) == month.february); };
+        test("december + 1") { expect_true(month.december.plus(1) == month.january); };
+        test("february + 11") { expect_true(month.february.plus(11) == month.january); };
+        test("june + 12") { expect_true(month.june.plus(12) == month.june); };
+        test("june + 0") { expect_true(month.june.plus(0) == month.june); };
+        test("march + 100 (100 = 8 years + 4)") { expect_true(month.march.plus(100) == month.july); };
+        test("january + -1") { expect_true(month.january.plus(0 - 1) == month.december); };
+        test("january - 1") { expect_true(month.january.minus(1) == month.december); };
+        test("march - 14") { expect_true(month.march.minus(14) == month.january); };
+        test("october - 120") { expect_true(month.october.minus(120) == month.october); };
+
+        // ---- parsing names
+        test("parse March") { expect_true(month.parse("March") == month.march); };
+        test("parse May") { expect_true(month.parse("May") == month.may); };
+        test("parse Mar") { expect_true(month.parse("Mar") == month.march); };
+        test("parse lower case") { expect_true(month.parse("december") == month.december); };
+        test("parse upper case short") { expect_true(month.parse("SEP") == month.september); };
+        test("parse rejects a number") { expect_throws<date_time_exception>() { month.parse("3"); }; };
+        test("parse rejects four letters") { expect_throws<date_time_exception>() { month.parse("Sept"); }; };
+        test("parse rejects trailing text") { expect_throws<date_time_exception>() { month.parse("March!"); }; };
+        test("parse rejects the empty string") { expect_throws<date_time_exception>() { month.parse(""); }; };
+
+        // ---- validation
+        test("of(0) throws") { expect_throws<date_time_exception>() { month.of(0); }; };
+        test("of(13) throws") { expect_throws<date_time_exception>() { month.of(13); }; };
+        test("of(2.5) throws") { expect_throws<date_time_exception>() { month.of(2.5); }; };
+    };
+}

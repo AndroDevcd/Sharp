@@ -1,0 +1,11 @@
+mod suite.library.io.atomic_comparisons;
+import ( std.testing, std.io )
+def atomic_comparisons_tests() {
+    tests("atomic_comparisons") {
+        a : atomic<int>;
+        before_each { a = new atomic<int>(5); };
+        test("atomic 5 <= 7") { expect_true((a <= 7)); };
+        test("atomic 5 <= 3") { expect_false((a <= 3)); };
+        test("atomic 5 >= 3") { expect_true((a >= 3)); };
+    };
+}

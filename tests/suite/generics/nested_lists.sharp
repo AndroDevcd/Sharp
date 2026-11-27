@@ -1,0 +1,17 @@
+mod suite.generics.nested_lists;
+import ( std.testing )
+def nested_lists_tests() {
+    tests("nested_lists") {
+        test("list of lists") {
+            rows := new list<list<string> >();
+            row := new list<string>();
+            row.add("x");
+            rows.add(row);
+            expect(rows.at(0).size()).should_be(1);
+        };
+        test("without the space") {
+            tight := new list<list<string>>();
+            expect(tight.size()).should_be(0);
+        };
+    };
+}

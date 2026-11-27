@@ -1,0 +1,70 @@
+mod suite.language.operators_unary_minus;
+
+import ( std.testing )
+
+/**
+ * A minus sign in front of a value negates THAT VALUE, wherever it stands.
+ *
+ *      a * -b + c          (a * (-b)) + c
+ *      x == -1 || y        (x == (-1)) || y
+ *
+ * After a binary operator the minus used to take everything to its right as
+ * its operand: `a * -b + c` was `a * -(b + c)` and `x == -1 || y` was
+ * `x == -(1 || y)`. Only a minus at the very start of an expression worked.
+ * (That is why the library says `0 - 1` in many places.)
+ *
+ * Fixed in lib/grammar/frontend/parser/Parser.cpp, in every precedence level.
+ */
+
+def minus_one() : decimal { return -1; }
+
+def operators_unary_minus_tests() {
+    tests("operators_unary_minus") {
+        a : decimal;
+        b : decimal;
+        c : decimal;
+        x : decimal;
+        y : decimal;
+        i : _int64;
+        j : _int64;
+        before_each {
+            a = 2;
+            b = 3;
+            c = 4;
+            x = 5;
+            y = 0;
+            i = 6;
+            j = 1;
+        };
+
+        // ---- followed by a looser operator
+        test("a * -b + c") { expect(a * -b + c).should_be(-2); };
+        test("a - -b - c") { expect(a - -b - c).should_be(1); };
+        test("a / -b * c (decimals)") { expect(12 / -b * c).should_be(-16); };
+
+        // ---- followed by a tighter operator: it still belongs to the minus's operand
+        test("a + -b * c") { expect(a + -b * c).should_be(-10); };
+        test("a + -b ** 2") { expect(a + -b ** 2).should_be(11); };
+
+        // ---- comparisons and logic (x = 5, y = 0)
+        test("x == -1 || y == 0") { expect_true(x == -1 || y == 0); };
+        test("x == -1 && y == 0") { expect_false(x == -1 && y == 0); };
+        test("x > -1 && y > -1") { expect_true(x > -1 && y > -1); };
+        test("-1 < x") { expect_true(-1 < x); };
+        test("a < -b ? 1 : 2") { expect(a < -b ? 1 : 2).should_be(2); };
+
+        // ---- every level once: | ^ & << >> (i = 6, j = 1)
+        test("i | -j & 3") { expect(i | -j & 3).should_be(7); };
+        test("i ^ -j") { expect(i ^ -j).should_be(-7); };
+        test("i << -j + 3") { expect(i << -j + 3).should_be(24); };
+
+        // ---- in arguments, returns and with a call or a literal
+        test("a literal after an operator") { expect(10 + -3 + 1).should_be(8); };
+        test("a call after an operator") { expect(10 * -minus_one() + 1).should_be(11); };
+        test("returned") { expect(minus_one()).should_be(-1); };
+
+        // ---- at the start of an expression (always worked)
+        test("-a + b") { expect(-a + b).should_be(1); };
+        test("-a * b") { expect(-a * b).should_be(-6); };
+    };
+}

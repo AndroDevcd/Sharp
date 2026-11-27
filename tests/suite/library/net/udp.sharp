@@ -1,0 +1,86 @@
+mod suite.library.net.udp;
+
+import ( std.testing, std.io, std.net )
+
+/**
+ * std.net: udp_socket and dns - two sockets of this program sending
+ * datagrams to each other over this machine's own address.
+ */
+def udp_tests() {
+    tests("udp") {
+        tests("datagrams") {
+            // each test: a socket bound to a free port (the ear), one that only sends (the mouth)
+            ear : udp_socket?;
+            mouth : udp_socket?;
+            before_each {
+                ear = udp_socket.bind(0, true).set_timeout(2000);
+                mouth = udp_socket.open();
+            }
+            after_each {
+                ear!!.close();
+                mouth!!.close();
+            }
+
+            test("a bound socket has a port, so has an open one, and both are open") {
+                expect_true(ear!!.port() > 0 && ear!!.port() < 65536);
+                expect_true(mouth!!.port() > 0 && mouth!!.port() != ear!!.port());
+                expect_true(ear!!.is_open() && mouth!!.is_open());
+            };
+
+            test("send_text returns the bytes sent") { expect(mouth!!.send_text("127.0.0.1", ear!!.port(), "ping")).should_be(4); };
+            test("the datagram: its text, its size, and where it came from") {
+                mouth!!.send_text("127.0.0.1", ear!!.port(), "ping");
+                got := ear!!.receive();
+                expect(got.text()).should_be("ping");
+                expect(got.size()).should_be(4);
+                expect(got.host).named("the host").should_be("127.0.0.1");
+                expect(got.port).named("the port").should_be(mouth!!.port());
+            };
+            test("an answer to where it came from") {
+                mouth!!.send_text("127.0.0.1", ear!!.port(), "ping");
+                got := ear!!.receive();
+                ear!!.send_text(got.host, got.port, "pong");
+                expect(mouth!!.set_timeout(2000).receive().text()).should_be("pong");
+            };
+
+            test("1200 bytes arrive whole, and unchanged") {
+                raw := new _int8[1200];
+                for(i : _int64 = 0; i < 1200; i++) { raw[i] = i % 251; }
+                mouth!!.send("127.0.0.1", ear!!.port(), raw);
+                big := ear!!.receive();
+                expect(big.size()).should_be(1200);
+                for(i : _int64 = 0; i < 1200; i++) { expect(big.data[i] & 0xFF).named("byte " + i).should_be(i % 251); }
+            };
+
+            test("an empty datagram is a datagram") {
+                mouth!!.send("127.0.0.1", ear!!.port(), null);
+                expect(ear!!.receive().size()).should_be(0);
+            };
+
+            test("each send is one datagram") {
+                mouth!!.send_text("127.0.0.1", ear!!.port(), "one");
+                mouth!!.send_text("127.0.0.1", ear!!.port(), "two");
+                expect(ear!!.receive().text()).named("the first").should_be("one");
+                expect(ear!!.receive().text()).named("the second").should_be("two");
+            };
+
+            test("receive gives up after the timeout") { expect_throws<socket_timeout>() { ear!!.set_timeout(150).receive(); }; };
+
+            test("a port that is taken") { expect_throws<socket_exception>() { udp_socket.bind(ear!!.port(), true); }; };
+            test("a port that is not one") { expect_throws<illegal_argument_exception>() { mouth!!.send_text("127.0.0.1", 0, "x"); }; };
+            test("allow_broadcast") { expect_true(mouth!!.allow_broadcast().is_open()); };
+
+            test("closed, and a closed socket refuses") {
+                ear!!.close();
+                expect_false(ear!!.is_open());
+                expect_throws<socket_exception>() { ear!!.receive(); };
+            };
+        };
+
+        // ---------------------------------------------------------------- names
+        test("dns: an address is its own address") { expect(dns.first("127.0.0.1")).should_be("127.0.0.1"); };
+        test("dns: localhost") { expect(dns.first("localhost")).should_be("127.0.0.1"); };
+        test("dns: lookup gives a list") { expect_true(dns.lookup("localhost").size() >= 1); };
+        test("dns: a name nobody has") { expect_throws<socket_exception>() { dns.lookup("no-such-host.invalid"); }; };
+    };
+}

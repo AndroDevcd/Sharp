@@ -1,0 +1,29 @@
+mod suite.arrays;
+
+import (
+    std.testing,
+    suite.arrays.dictionaries,
+    suite.arrays.dictionary_one_pair,
+    suite.arrays.element_fields,
+    suite.arrays.element_updates,
+    suite.arrays.grown_inline,
+    suite.arrays.list_index_assignment,
+    suite.arrays.numbers,
+    suite.arrays.objects,
+    suite.arrays.sized_elements
+)
+
+/** suite.arrays: arrays, and the list and dictionary literals */
+def arrays_tests() {
+    tests("arrays") {
+        dictionaries_tests();
+        dictionary_one_pair_tests();
+        element_fields_tests();
+        element_updates_tests();
+        grown_inline_tests();
+        list_index_assignment_tests();
+        numbers_tests();
+        objects_tests();
+        sized_elements_tests();
+    };
+}

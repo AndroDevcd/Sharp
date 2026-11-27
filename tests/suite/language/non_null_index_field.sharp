@@ -1,0 +1,37 @@
+mod suite.language.non_null_index_field;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (compiler, fixed), found while writing
+ * classes/basics.sharp: an index written after `!!` was lost, so this file
+ * did not compile. For a nullable array field,
+ *
+ *     x.numbers!![1]
+ *
+ * had the type of the whole array (decimal[]) instead of one element (decimal):
+ *
+ *     error S8017: could not resolve symbol `expect(_int8[], decimal[], _int32): unknown`
+ *
+ * (the error was also reported on the line ABOVE the one that was wrong).
+ * These always worked and give 6:
+ *     x.numbers[1]                          // no !!
+ *     a : decimal[] = x.numbers!!;  a[1]        // through a local
+ */
+
+class holder {
+    numbers : decimal[]?;
+}
+
+def non_null_index_field_tests() {
+    tests("non_null_index_field") {
+        x : holder;
+        before_each {
+            x = new holder();
+            x.numbers = new decimal[] { 5, 6 };
+        };
+
+        test("index without !!") { expect(x.numbers[1]).should_be(6); };        // always compiled
+        test("index after !!") { expect(x.numbers!![1]).should_be(6); };        // before the fix: error S8017
+    };
+}

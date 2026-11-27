@@ -1,0 +1,19 @@
+mod suite.library.net;
+
+import (
+    std.testing,
+    suite.library.net.http,
+    suite.library.net.http_server,
+    suite.library.net.tcp,
+    suite.library.net.udp
+)
+
+/** suite.library.net: std.net */
+def net_tests() {
+    tests("net") {
+        http_tests();
+        http_server_tests();
+        tcp_tests();
+        udp_tests();
+    };
+}

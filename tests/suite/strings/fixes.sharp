@@ -1,0 +1,98 @@
+mod suite.strings.fixes;
+
+import ( std.testing )
+
+/**
+ * BUGS in basic string handling, all fixed; the checks below guard against
+ * them. Each section is one bug; the comment says what happened before the
+ * fix. (The same result with and without -O, with and without the JIT.)
+ */
+
+def fixes_tests() {
+    tests("fixes") {
+        // ---- BUG 1 (fixed): joining an empty string added the text "null"
+        //      before the fix: "a" + "" was "anull" (5 characters), "" + "" was "null"
+        test("a + empty variable") {
+            empty := "";
+            a := "a";
+            expect(a + empty).should_be("a");
+            expect((a + empty).size()).named("its size").should_be(1);
+        };
+        test("a + \"\" size") {
+            a := "a";
+            expect((a + "").size()).should_be(1);
+        };
+        test("empty + empty size") {
+            empty := "";
+            expect((empty + empty).size()).should_be(0);
+        };
+
+        // ---- BUG 2 (fixed): an empty string in "$name" also became "null"
+        //      before the fix: "[$empty]" was "[null]" (6 characters)
+        test("[$$empty] size") {
+            empty := "";
+            brackets := "[$empty]";
+            expect(brackets.size()).should_be(2);
+        };
+
+        // ---- BUG 3 (fixed): s += s did nothing
+        //      before the fix: "ab" stayed "ab" (string.append returned early when given its own data)
+        test("s += s") {
+            twice := "ab";
+            twice += twice;
+            expect(twice).should_be("abab");
+        };
+
+        // ---- BUG 4 (fixed): += with a number or a number object added nothing useful
+        //      before the fix: all four stayed "x" (+= 2.5 added one unprintable character)
+        test("s += 5") {
+            s1 := "x";
+            s1 += 5;
+            expect(s1).should_be("x5");
+        };
+        test("s += int object") {
+            count : int = 7;
+            s2 := "x";
+            s2 += count;
+            expect(s2).should_be("x7");
+        };
+        test("s += bool object") {
+            yes : bool = true;
+            s3 := "x";
+            s3 += yes;
+            expect(s3).should_be("xtrue");
+        };
+        test("s += var") {
+            fraction : decimal = 2.5;
+            s4 := "x";
+            s4 += fraction;
+            expect(s4).should_be("x2.5");
+        };
+
+        // ---- BUG 5 (fixed): a string object + a whole number literal past 32 bits was cut to 32 bits
+        //      before the fix: "n=0" and "n=-727379968" ("n=" + 4294967296 with two literals was right)
+        test("string + 4294967296") {
+            prefix := "n=";
+            expect(prefix + 4294967296).should_be("n=4294967296");
+        };
+        test("string + 1000000000000") {
+            prefix := "n=";
+            expect(prefix + 1000000000000).should_be("n=1000000000000");
+        };
+
+        // ---- BUG 6 (fixed): a literal sum printed with decimals although a single literal did not
+        //      before the fix: "n" + 5 was "n5", but "n" + (2 + 3) was "n5.0000000000000000"
+        test("string + (2 + 3)") { expect("n" + (2 + 3)).should_be("n5"); };
+
+        // ---- BUG 7 (fixed): comparing a null string with null threw nullptr_exception
+        //      (== called string.operator== on the null object instead of comparing references)
+        test("null string == null") {
+            nothing : string? = null;
+            if(nothing == null) {
+            } else {
+                fail_test("the else branch ran");
+            }
+        };
+
+    };
+}

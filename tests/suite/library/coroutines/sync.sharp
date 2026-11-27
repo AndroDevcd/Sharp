@@ -1,0 +1,435 @@
+mod suite.library.coroutines.sync;
+
+import (
+    std.testing,
+    std.io.coroutines,
+    std.io.coroutines.sync,
+    std.io
+)
+
+/**
+ * std.io.coroutines.sync (mutex, semaphore) and std.io.atomic_counter.
+ *
+ * Asserted are only things that hold for every schedule: totals after a join,
+ * that a counter protected by a mutex loses no update, that never more
+ * coroutines are inside a semaphore than it has permits, the order in which
+ * waiters on ONE thread are served.
+ *
+ * Coroutine blocks cannot see locals of the function that created them (the
+ * closure rule), so the shared objects are globals; the before_each of the
+ * file gives every test new ones. The blocks of run_blocking, coroutine_scope
+ * and with_lock run in-line, on the main fiber: they write what they saw into
+ * the test's locals, and the test checks it after the block has ended.
+ */
+
+class plain {
+    value : decimal = 0;
+    peak : decimal = 0;
+    inside : decimal = 0;
+    order : string = "";
+}
+
+guard := new mutex();
+gate := new semaphore(3);
+signal := new semaphore(0);
+shared := new plain();
+tracker := new plain();
+tracker_lock := new mutex();
+never_reached := new atomic_counter();
+finished := new atomic_counter();
+warmed_up : decimal = 0;          // warm_up() runs once in the program, before the first test of this file
+
+/** read, give others a turn, write back: loses updates unless the mutex really excludes */
+def slow_increment() {
+    guard.acquire();
+    seen : decimal = shared.value;
+    yield();
+    shared.value = seen + 1;
+    guard.release();
+}
+
+/**
+ * The same with a sleep instead of a yield, for the worker threads.
+ * (A coroutine that yields on the pool and continues on another thread crashes
+ * the JIT now and then, see jit_fiber_frames.sharp in this folder;
+ * a sleep goes through the timer and does not.)
+ */
+def sleepy_increment() {
+    guard.acquire();
+    seen : decimal = shared.value;
+    delay(1);
+    shared.value = seen + 1;
+    guard.release();
+}
+
+def quick_increment() {
+    guard.with_lock({ -> shared.value = shared.value + 1; });
+}
+
+def through_the_gate() {
+    gate.acquire();
+
+    tracker_lock.acquire();
+    tracker.inside = tracker.inside + 1;
+    if(tracker.inside > tracker.peak) { tracker.peak = tracker.inside; }
+    tracker_lock.release();
+
+    delay(1);
+
+    tracker_lock.acquire();
+    tracker.inside = tracker.inside - 1;
+    tracker_lock.release();
+
+    gate.release();
+    finished.increment();
+}
+
+def queue_up(tag: string) {
+    guard.acquire();
+    shared.order = shared.order + tag;
+    guard.release();
+}
+
+/**
+ * One thread only, before any worker thread exists: see
+ * core.sharp warm_up(). It checks nothing itself, and it is
+ * needed only once in the program: the before_each of the file calls it, and
+ * it runs the first time.
+ */
+def warm_up() {
+    if(warmed_up == 1) { return; }
+    warmed_up = 1;
+    run_blocking({ ->
+        for(i : decimal = 0; i < 30; i++) {
+            w := async<int>.start({ -> (int) delay(1); return 10; });
+            w.await();
+            k := launch({ -> yield(); delay(1); });
+            k.join();
+            c := launch({ -> delay(1000000); });
+            yield();
+            c.cancel_and_join();
+            coroutine_scope({ -> launch({ -> yield(); }); });
+        }
+    });
+
+    m := new mutex();
+    s := new semaphore(1);
+    for(i : decimal = 0; i < 30; i++) {
+        m.acquire();
+        m.release();
+        m.try_acquire();
+        m.release();
+        s.acquire();
+        s.release();
+        s.try_acquire();
+        s.release();
+    }
+}
+
+def sync_tests() {
+    tests("sync") {
+        before_each {
+            warm_up();
+            guard = new mutex();
+            gate = new semaphore(3);
+            signal = new semaphore(0);
+            shared = new plain();
+            tracker = new plain();
+            tracker_lock = new mutex();
+            never_reached.write(0);
+            finished.write(0);
+        };
+
+        tests("atomic_counter") {
+            test("starts at 0, or at the value it is given") {
+                expect(new atomic_counter().read()).named("starts at 0").should_be(0);
+                expect(new atomic_counter(100).read()).named("initial value").should_be(100);
+            };
+
+            test("increment, add and decrement return the new value") {
+                c := new atomic_counter();
+                expect(c.increment()).named("increment").should_be(1);
+                expect(c.add(9)).named("add").should_be(10);
+                expect(c.decrement()).named("decrement").should_be(9);
+            };
+
+            test("fetch_add returns the old value, and adds") {
+                c := new atomic_counter(9);
+                expect(c.fetch_add(5)).named("the old value").should_be(9);
+                expect(c.read()).named("after the add").should_be(14);
+            };
+
+            test("exchange returns the old value") {
+                c := new atomic_counter(14);
+                expect(c.exchange(3)).should_be(14);
+            };
+
+            test("compare_and_set sets only when the value is the one expected") {
+                c := new atomic_counter(3);
+                expect_true(c.compare_and_set(3, 30));
+                expect_false(c.compare_and_set(3, 99));
+                expect(c.read()).named("compare_and_set result").should_be(30);
+            };
+
+            test("raise_to a bigger value raises, to a smaller value changes nothing") {
+                c := new atomic_counter(30);
+                expect(c.raise_to(40)).named("raise_to a bigger value").should_be(40);
+                expect(c.raise_to(7)).named("raise_to a smaller value").should_be(40);
+            };
+
+            test("write, and to_string") {
+                c := new atomic_counter(40);
+                c.write(5);
+                expect(c.read()).named("write").should_be(5);
+                expect(c.to_string()!!).named("to_string").should_be("5");
+            };
+
+            test("10,000 coroutines on the pool each incremented once") {
+                coroutine_scope({ ->
+                    for(i : decimal = 0; i < 10000; i++) {
+                        launch_on(dispatchers.default_pool(), { -> never_reached.increment(); });
+                    }
+                });
+                expect(never_reached.read()).should_be(10000);
+            };
+        };
+
+        tests("mutex_basics") {
+            test("a new mutex is free and nobody holds it") {
+                m := new mutex();
+                expect_false(m.is_locked());
+                expect_false(m.holds_lock());
+            };
+
+            test("acquire locks it, for this fiber, and try_acquire on it is refused") {
+                m := new mutex();
+                m.acquire();
+                expect_true(m.is_locked());
+                expect_true(m.holds_lock());
+                expect_false(m.try_acquire());
+                m.release();
+            };
+
+            test("after release it is free, and try_acquire takes it") {
+                m := new mutex();
+                m.acquire();
+                m.release();
+                expect_false(m.is_locked());
+                expect_true(m.try_acquire());
+                m.release();
+            };
+
+            test("release of a free mutex throws") {
+                m := new mutex();
+                expect_throws<illegal_state_exception>() { m.release(); };
+            };
+
+            test("with_lock ran the block, held the mutex meanwhile, and released it") {
+                m := new mutex();
+                captured := new plain();
+                m.with_lock({ -> captured.value = 5; if(m.is_locked()) { captured.peak = 1; } });
+                expect(captured.value).named("with_lock ran the block").should_be(5);
+                expect(captured.peak).named("with_lock held the mutex meanwhile").should_be(1);
+                expect_false(m.is_locked());
+            };
+
+            test("with_lock passed the exception of its block on, and released the mutex") {
+                m := new mutex();
+                message : string = "";
+                try {
+                    m.with_lock({ -> throw new illegal_state_exception("inside"); });
+                    fail_test("with_lock whose block throws returned normally");
+                } catch(e: illegal_state_exception) {
+                    message = e.get_message();
+                }
+                expect(message).named("with_lock passed the exception on").should_be("inside");
+                expect_false(m.is_locked());
+            };
+
+            // with_lock's block runs in-line, on the main fiber: expect_throws may be inside it
+            test("with_lock inside with_lock is refused, acquire inside with_lock works, and the outer mutex is released") {
+                m := new mutex();
+                other := new mutex();
+                refused := new plain();
+                m.with_lock({ ->
+                    expect_throws<illegal_state_exception>() {
+                        other.with_lock({ -> never_reached.increment(); });
+                    };
+                    // the way to hold two: acquire / release
+                    other.acquire();
+                    refused.peak = 1;
+                    other.release();
+                });
+                expect(refused.peak).named("acquire inside with_lock works").should_be(1);
+                expect_false(m.is_locked());
+            };
+        };
+
+        tests("mutex_exclusion") {
+            // held across a suspension point, on one thread
+            test("500 read-yield-write increments under a mutex (one thread)") {
+                run_blocking({ ->
+                    for(i : decimal = 0; i < 500; i++) {
+                        launch({ -> slow_increment(); });
+                    }
+                });
+                expect(shared.value).should_be(500);
+            };
+
+            test("300 read-sleep-write increments under a mutex (pool)") {
+                coroutine_scope({ ->
+                    for(i : decimal = 0; i < 300; i++) {
+                        launch_on(dispatchers.default_pool(), { -> sleepy_increment(); });
+                    }
+                });
+                expect(shared.value).should_be(300);
+            };
+
+            // 10,000 coroutines, with_lock, an unsynchronised counter
+            test("10,000 coroutines each added 1 under with_lock, and the mutex is free with nobody waiting at the end") {
+                coroutine_scope({ ->
+                    for(i : decimal = 0; i < 10000; i++) {
+                        launch_on(dispatchers.default_pool(), { -> quick_increment(); });
+                    }
+                });
+                expect(shared.value).named("added under with_lock").should_be(10000);
+                expect_false(guard.is_locked());
+                expect(guard.waiting_count()).named("waiting at the end").should_be(0);
+            };
+
+            // first come first served: on one thread the order of arrival is the order of launching
+            test("waiters got the mutex in the order they arrived") {
+                waiting : decimal = 0;
+                run_blocking({ ->
+                    guard.acquire();
+                    launch({ -> queue_up("a"); });
+                    launch({ -> queue_up("b"); });
+                    launch({ -> queue_up("c"); });
+                    launch({ -> queue_up("d"); });
+                    yield();
+                    yield();
+                    waiting = guard.waiting_count();
+                    guard.release();
+                });
+                expect(waiting).named("four coroutines are waiting").should_be(4);
+                expect(shared.order).should_be("abcd");
+            };
+        };
+
+        tests("mutex_cancellation") {
+            test("a coroutine waiting for the mutex is cancelled, leaves the queue and never gets the mutex") {
+                guard.acquire();
+                waiting := launch({ -> guard.acquire(); never_reached.increment(); guard.release(); });
+                delay(5);
+                expect(guard.waiting_count()).named("coroutines waiting for the mutex").should_be(1);
+                waiting.cancel_and_join();
+                expect_true(waiting.is_cancelled());
+                expect(guard.waiting_count()).named("waiting after it left the queue").should_be(0);
+                guard.release();
+                expect_false(guard.is_locked());
+                expect(never_reached.read()).named("the cancelled waiter got the mutex").should_be(0);
+            };
+
+            // a time limit on acquire
+            test("acquire under a time limit gives null, leaves no stale waiter, and the mutex is still usable") {
+                guard.acquire();
+                r := with_timeout_or_null(20, { -> (object) guard.acquire(); return guard; });
+                expect_null(r);
+                expect(guard.waiting_count()).named("stale waiters").should_be(0);
+                guard.release();
+                expect_true(guard.try_acquire());
+                guard.release();
+            };
+        };
+
+        tests("semaphore") {
+            test("a semaphore of 2: try_acquire and acquire take its permits, then try_acquire is refused") {
+                s := new semaphore(2);
+                expect(s.available_permits()).named("available permits").should_be(2);
+                expect_true(s.try_acquire());
+                s.acquire();
+                expect(s.available_permits()).named("no permits left").should_be(0);
+                expect_false(s.try_acquire());
+            };
+
+            test("acquire_for times out without permits and leaves the queue, takes a permit there is, and all permits come back") {
+                s := new semaphore(2);
+                s.try_acquire();
+                s.acquire();
+                expect_false(s.acquire_for(15));
+                expect(s.waiting_count()).named("the timed out waiter left the queue").should_be(0);
+                s.release();
+                expect_true(s.acquire_for(15));
+                s.release();
+                s.release();
+                expect(s.available_permits()).named("all permits back").should_be(2);
+            };
+
+            test("negative permits refused") {
+                expect_throws<illegal_argument_exception>() { bad := new semaphore(0 - 1); };
+            };
+
+            test("with_permit held one permit and gave it back") {
+                s := new semaphore(2);
+                captured := new plain();
+                s.with_permit({ -> captured.value = s.available_permits(); });
+                expect(captured.value).named("permits while inside").should_be(1);
+                expect(s.available_permits()).named("permits after").should_be(2);
+            };
+
+            test("with_permit passed the exception on, and gave the permit back") {
+                s := new semaphore(2);
+                expect_throws<illegal_state_exception>() {
+                    s.with_permit({ -> throw new illegal_state_exception("inside"); });
+                };
+                expect(s.available_permits()).should_be(2);
+            };
+
+            // never more inside than permits
+            test("600 coroutines went through a gate of 3, never more than 3 inside") {
+                coroutine_scope({ ->
+                    for(i : decimal = 0; i < 600; i++) {
+                        launch_on(dispatchers.default_pool(), { -> through_the_gate(); });
+                    }
+                });
+                expect(finished.read()).named("went through the gate").should_be(600);
+                expect_true(tracker.peak <= 3);
+                expect_true(tracker.peak >= 1);
+                expect(tracker.inside).named("inside at the end").should_be(0);
+                expect(gate.available_permits()).named("permits returned").should_be(3);
+            };
+
+            // zero permits: a signal
+            test("zero permits: two coroutines wait for the signal and are woken by release, which adds no permit") {
+                waiting : decimal = 0;
+                finished_before : decimal = 0 - 1;
+                run_blocking({ ->
+                    launch({ -> signal.acquire(); finished.increment(); });
+                    launch({ -> signal.acquire(); finished.increment(); });
+                    yield();
+                    yield();
+                    waiting = signal.waiting_count();
+                    finished_before = finished.read();
+                    signal.release();
+                    signal.release();
+                });
+                expect(waiting).named("two coroutines wait for the signal").should_be(2);
+                expect(finished_before).named("nothing happened yet").should_be(0);
+                expect(finished.read()).named("both were woken by release").should_be(2);
+                expect(signal.available_permits()).named("permits after releases that woke waiters").should_be(0);
+            };
+
+            test("a coroutine waiting for a permit is cancelled, leaves the queue and never gets the permit") {
+                waiting := launch({ -> signal.acquire(); never_reached.increment(); });
+                delay(5);
+                waiting.cancel_and_join();
+                expect_true(waiting.is_cancelled());
+                expect(signal.waiting_count()).named("waiting after it left the queue").should_be(0);
+                signal.release();
+                expect(signal.available_permits()).named("the permit was not given to the cancelled waiter").should_be(1);
+                expect(never_reached.read()).named("the cancelled waiter continued").should_be(0);
+                signal.acquire();
+            };
+        };
+    };
+}

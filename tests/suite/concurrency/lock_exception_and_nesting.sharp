@@ -1,0 +1,77 @@
+mod suite.concurrency.lock_exception_and_nesting;
+
+import (
+    std.testing,
+    std.io.fiber
+)
+
+/**
+ * THE BUGS THIS GUARDS (runtime, fixed): two behaviours of the lock statement
+ * that shaped every class of std.io.coroutines and std.io:
+ *
+ *   1. An exception that left a lock(x) { } block did NOT release the lock
+ *      (return, break and continue did). The fiber kept the lock until it
+ *      ended.
+ *   2. The lock was not counted: lock(x) { lock(x) { } ... } was released at
+ *      the end of the INNER block, the rest of the outer block ran
+ *      unprotected.
+ *
+ * WHAT THE LIBRARY DOES ABOUT IT
+ *   Inside a lock block the library only reads and writes fields: nothing that
+ *   can throw, no user code, and never a second lock (see the LOCKING
+ *   DISCIPLINE comment of every class). Exceptions are thrown after the block.
+ *
+ * EXPECTED: all checks pass. Before the fix "after an exception" and "nested"
+ * failed.
+ */
+
+class box { value : decimal = 0; }
+
+probe_result := new box();
+
+def thrower(guard: object) {
+    lock(guard) {
+        throw new illegal_state_exception("leaves the lock block");
+    }
+}
+
+/** 1 when another fiber can take the lock within a second */
+def is_free(guard: object) : decimal {
+    probe_result.value = 0;
+    slice({ a: object[] -> (int)
+        lock(a[0]) { probe_result.value = 1; }
+        return 0;
+    }, new object[] { guard });
+
+    for(i : decimal = 0; i < 200 && probe_result.value == 0; i++) {
+        delay(5);
+    }
+    return probe_result.value;
+}
+
+def lock_exception_and_nesting_tests() {
+    tests("lock_exception_and_nesting") {
+        test("free after a normal block") {
+            plain := new box();
+            lock(plain) { plain.value = 1; }
+            expect(is_free(plain)).should_be(1);
+        };
+
+        test("free after an exception left the block") {
+            thrown := new box();
+            expect_throws<illegal_state_exception>() { thrower(thrown); };
+            expect(is_free(thrown)).should_be(1);
+        };
+
+        test("nested: the outer block still holds the lock after the inner one") {
+            nested := new box();
+            still_held : decimal = 0;
+            lock(nested) {
+                lock(nested) { }
+                // the outer block is not finished: nobody else may get the lock here
+                if(is_free(nested) == 0) { still_held = 1; }
+            }
+            expect(still_held).should_be(1);
+        };
+    };
+}

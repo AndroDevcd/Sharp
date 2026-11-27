@@ -1,0 +1,522 @@
+mod suite.library.net.http;
+
+import ( std.testing, std.io, std.net, std.data, std.compress )
+
+/**
+ * std.net: the HTTP client (http, http_client, http_service, fake_http, url,
+ * http_headers) against a small HTTP server inside this program - a thread
+ * with a tcp_server on this machine's own address, any free port.
+ *
+ * Nothing leaves the machine. (https is the same client over a tls_socket;
+ * it needs a server with a certificate, so it is checked by hand:
+ * build/lib/http_try.sharp.)
+ */
+
+class shared {
+    static server : tcp_server?;
+    static connections : decimal = 0;
+    static problem : string = "";
+}
+
+/** one request as the server read it */
+class asked {
+    method : string = "";
+    target : string = "";
+    headers : http_headers = new http_headers();
+    body : string = "";
+}
+
+def read_request(guest: tcp_socket) : asked? {
+    first := guest.read_line();
+    if(first == null) { return null; }
+    made := new asked();
+    words := io_strings.split(first!!, ' ');
+    if(words.size() < 2) { return null; }
+    made.method = words.at(0);
+    made.target = words.at(1);
+    while(true) {
+        line := guest.read_line();
+        if(line == null || sizeof(line!!.data) == 0) { break; }
+        colon : _int64 = io_strings.index_of(line!!, ':') as _int64;
+        made.headers.add(io_strings.slice(line!!, 0, colon), io_strings.trim(io_strings.slice_from(line!!, colon + 1)));
+    }
+    length : _int64 = io_strings.parse_int(made.headers.find_or("Content-Length", "0")) as _int64;
+    if(length > 0) {
+        bytes := guest.read_exactly(length);
+        made.body = new string(bytes, 0, length);
+    }
+    return made;
+}
+
+def answer(guest: tcp_socket, status: string, type: string, body: string) {
+    guest.write_text("HTTP/1.1 " + status + "\r\nContent-Type: " + type + "\r\nContent-Length: " + sizeof(body.data) + "\r\n\r\n" + body);
+}
+
+/** the request back as json: what the client really sent */
+def echo(request: asked) : string {
+    made := json_value.new_object();
+    made.put_string("method", request.method);
+    made.put_string("target", request.target);
+    made.put_string("body", request.body);
+    headers := json_value.new_object();
+    for(i : _int64 = 0; i < request.headers.size(); i++) {
+        headers.put_string(io_strings.to_lower(request.headers.name_at(i)), request.headers.value_at(i));
+    }
+    made.put("headers", headers);
+    return made.to_string()!!;
+}
+
+def serve(args: object[]) : decimal {
+    try {
+        stop : bool = false;
+        while(!stop) {
+            guest := shared.server!!.accept();
+            shared.connections++;
+            try {
+                while(true) {
+                    request := read_request(guest);
+                    if(request == null) { break; }
+                    target : string = request!!.target;
+                    mark : _int64 = io_strings.index_of(target, '?') as _int64;
+                    route : string = target;
+                    if(mark >= 0) { route = io_strings.slice(target, 0, mark); }
+
+                    if(request!!.method == "HEAD") { guest.write_text("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 5\r\n\r\n"); }
+                    else if(route == "/hello") { answer(guest, "200 OK", "text/plain", "hello"); }
+                    else if(route == "/echo") { answer(guest, "200 OK", "application/json", echo(request!!)); }
+                    else if(route == "/chunked") {
+                        guest.write_text("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n3\r\nabc\r\n4;x=1\r\ndefg\r\n1\r\nh\r\n0\r\nTrailer: t\r\n\r\n");
+                    }
+                    else if(route == "/redirect") { guest.write_text("HTTP/1.1 302 Found\r\nLocation: /hello\r\nContent-Length: 0\r\n\r\n"); }
+                    else if(route == "/see-other") { guest.write_text("HTTP/1.1 303 See Other\r\nLocation: /echo?after=303\r\nContent-Length: 0\r\n\r\n"); }
+                    else if(route == "/keep-method") { guest.write_text("HTTP/1.1 307 Temporary Redirect\r\nLocation: /echo?after=307\r\nContent-Length: 0\r\n\r\n"); }
+                    else if(route == "/loop") { guest.write_text("HTTP/1.1 302 Found\r\nLocation: /loop\r\nContent-Length: 0\r\n\r\n"); }
+                    else if(route == "/continue") {
+                        guest.write_text("HTTP/1.1 100 Continue\r\n\r\n");
+                        answer(guest, "200 OK", "text/plain", "after 100");
+                    }
+                    else if(route == "/until-close") {
+                        guest.write_text("HTTP/1.0 200 OK\r\nContent-Type: text/plain\r\n\r\nclosing");
+                        break;
+                    }
+                    else if(route == "/stale") {
+                        // says the connection stays, and closes it: the client's next request finds it dead
+                        answer(guest, "200 OK", "text/plain", "stale");
+                        break;
+                    }
+                    else if(route == "/slow") {
+                        thread.sleep(700);
+                        answer(guest, "200 OK", "text/plain", "late");
+                    }
+                    else if(route == "/packed") {
+                        packed := gzip.compress_text("a body that travelled compressed, a body that travelled compressed");
+                        guest.write_text("HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: " + sizeof(packed) + "\r\n\r\n");
+                        guest.write(packed);
+                    }
+                    else if(route == "/packed-wrong") {
+                        guest.write_text("HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: 12\r\n\r\nnot gzip at ");
+                    }
+                    else if(route == "/empty") { guest.write_text("HTTP/1.1 204 No Content\r\n\r\n"); }
+                    else if(route == "/busy") { answer(guest, "503 Service Unavailable", "text/plain", "busy"); }
+                    else if(route == "/user/7") { answer(guest, "200 OK", "application/json", "{\"id\":7,\"name\":\"ann\",\"isAdmin\":true,\"tags\":[\"a\",\"b\"]}"); }
+                    else if(route == "/users") { answer(guest, "200 OK", "application/json", "[{\"id\":1,\"name\":\"x\"},{\"id\":2,\"name\":\"y\"}]"); }
+                    else if(route == "/garbage") { guest.write_text("this is not http\r\n\r\n"); break; }
+                    else if(route == "/stop") { answer(guest, "200 OK", "text/plain", "bye"); stop = true; break; }
+                    else { answer(guest, "404 Not Found", "application/json", "{\"error\":\"no such route\"}"); }
+                }
+            } catch(gone: socket_exception) {
+                // (the client gave up on this connection: on to the next)
+            }
+            guest.close();
+        }
+    } catch(problem: throwable) {
+        shared.problem = problem.get_message();
+    }
+    shared.server!!.close();
+    return 0;
+}
+
+class person {
+    id : _int64 = 0;
+    name : string = "";
+    is_admin : bool = false;
+    tags : list<string> = new list<string>();
+}
+
+class echoed {
+    method : string = "";
+    target : string = "";
+    body : string = "";
+    headers : json_value?;
+}
+
+class people base http_service {
+    token : string = "";
+    seen : decimal = 0;
+
+    people(port: _int64) {
+        base_url("http://127.0.0.1:" + port + "/");
+        header("X-App", "suite");
+        before { if(sizeof(token.data) > 0) { it.bearer(token); } };
+        after { seen++; };
+    }
+
+    def one(id: _int64) : person { return GET<person>("/user/{id}") { path("id", id); }; }
+    def all() : list<person> { return GET<list<person> >("/users"); }
+    def find(id: _int64) : person? { return GET_or_null<person>("/user/{id}") { path("id", id); }; }
+    def save(who: person) : echoed { return POST<echoed>("/echo") { send(who); query("notify", true); }; }
+    def hello() : string { return GET("/hello").text(); }
+    def busy() { GET("/busy"); }
+    def missing() { GET("/nothing-here"); }
+}
+
+/** the address most of the url tests take apart */
+def shop_url() : url {
+    return url.parse("HTTPS://Api.Shop.Example:8443/v2/products?q=lamp#top");
+}
+
+/** Accept put twice (the second time in small letters), and two Set-Cookie */
+def four_headers() : http_headers {
+    headers := new http_headers();
+    headers.put("Accept", "a/b");
+    headers.put("accept", "c/d");
+    headers.add("Set-Cookie", "x=1");
+    headers.add("Set-Cookie", "y=2");
+    return headers;
+}
+
+/** a body as the text it is */
+def body_text(request: http_request) : string {
+    body := request.resolved_body();
+    return new string(body!!, 0, sizeof(body));
+}
+
+/** the message of the http_exception `block` throws ("" when it throws none) */
+def http_problem(block: ()()) : string {
+    try { block(); } catch(wrong: http_exception) { return wrong.get_message(); }
+    return "";
+}
+
+/** the status of the http_status_exception `block` throws (0 when it throws none) */
+def failed_status(block: ()()) : decimal {
+    try { block(); } catch(failed: http_status_exception) { return failed.status; }
+    return 0;
+}
+
+def test_url() {
+    tests("url") {
+        test("url: scheme, host, port, path, query, target and origin") {
+            where := shop_url();
+            expect(where.scheme).named("scheme").should_be("https");
+            expect(where.host).named("host").should_be("api.shop.example");
+            expect(where.port).named("port").should_be(8443);
+            expect(where.path).named("path").should_be("/v2/products");
+            expect(where.query).named("query").should_be("q=lamp");
+            expect(where.target()).named("target").should_be("/v2/products?q=lamp");
+            expect(where.origin()).named("origin").should_be("https://api.shop.example:8443");
+        };
+        test("url: the usual port of http, no path is /, and the usual port is not written") {
+            plain := url.parse("http://example.com");
+            expect(plain.port).should_be(80);
+            expect(plain.path).should_be("/");
+            expect(plain.to_string()!!).should_be("http://example.com/");
+        };
+        test("url: the usual port of https") { expect(url.parse("https://example.com/x").port).should_be(443); };
+        test("url: user and password are not the host") { expect(url.parse("http://me:pw@host.example/").host).should_be("host.example"); };
+        test("url: resolve a path") { expect(shop_url().resolve("/login").to_string()!!).should_be("https://api.shop.example:8443/login"); };
+        test("url: resolve beside") { expect(shop_url().resolve("next?page=2").to_string()!!).should_be("https://api.shop.example:8443/v2/next?page=2"); };
+        test("url: resolve a link with an address in its query") {
+            expect(shop_url().resolve("next?to=http://other.example/x").to_string()!!).should_be("https://api.shop.example:8443/v2/next?to=http://other.example/x");
+        };
+        test("url: resolve a whole address") {
+            expect(shop_url().resolve("http://other.example/x").to_string()!!).should_be("http://other.example/x");
+            expect(shop_url().resolve("http://other.example/a").to_string()!!).should_be("http://other.example/a");
+        };
+        test("url: resolve a query") { expect(shop_url().resolve("?page=3").to_string()!!).should_be("https://api.shop.example:8443/v2/products?page=3"); };
+        test("url: resolve another host") { expect(shop_url().resolve("//cdn.example/x.js").to_string()!!).should_be("https://cdn.example/x.js"); };
+        test("url: what is not a web address") {
+            expect_throws<illegal_argument_exception>() { url.parse("ftp://example.com/"); };
+            expect_throws<illegal_argument_exception>() { url.parse("example.com/x"); };
+            expect_throws<illegal_argument_exception>() { url.parse("http:///x"); };
+            expect_throws<illegal_argument_exception>() { url.parse("http://host:99999/"); };
+        };
+    };
+}
+
+def test_headers_and_requests() {
+    tests("headers") {
+        test("headers: put replaces, whatever the capitals") { expect(four_headers().find("ACCEPT")!!).should_be("c/d"); };
+        test("headers: size") { expect(four_headers().size()).should_be(3); };
+        test("headers: all") { expect(four_headers().all("set-cookie").size()).should_be(2); };
+        test("headers: find gives the first") { expect(four_headers().find("Set-Cookie")!!).should_be("x=1"); };
+        test("headers: missing") { expect_null(four_headers().find("Nope")); };
+        test("headers: remove") {
+            headers := four_headers();
+            headers.remove("SET-COOKIE");
+            expect(headers.size()).should_be(1);
+        };
+    };
+
+    tests("request") {
+        test("request: the address") {
+            built := new http_request("GET", "http://h.example/users/{name}/files/{file}?v=1");
+            built.path("name", "ann b").path("file", "a/b.txt").query("q", "x&y").query("n", 5).query("skip", null).query("on", true);
+            expect(built.resolved_address()).should_be("http://h.example/users/ann%20b/files/a%2Fb.txt?v=1&q=x%26y&n=5&on=true");
+        };
+        test("request: a {name} without a value, a value without a {name}") {
+            expect_throws<illegal_argument_exception>() { new http_request("GET", "http://h.example/{id}").resolved_address(); };
+            expect_throws<illegal_argument_exception>() { new http_request("GET", "http://h.example/x").path("id", 1).resolved_address(); };
+        };
+        test("request: a json body, and its Content-Type") {
+            with_json := new http_request("POST", "http://h.example/");
+            with_json.json("a", "text").json("b", 2).json("c", true);
+            expect(body_text(with_json)).should_be("{\"a\":\"text\",\"b\":2,\"c\":true}");
+            expect(with_json.headers.find("Content-Type")!!).should_be("application/json");
+        };
+        test("request: a form body") {
+            with_form := new http_request("POST", "http://h.example/").form("email", "me@x.org").form("n", 5).form("t", "a b");
+            expect(body_text(with_form)).should_be("email=me%40x.org&n=5&t=a+b");
+        };
+        test("request: a form in parts, and its boundary is in the Content-Type") {
+            with_parts := new http_request("POST", "http://h.example/").part("caption", "front");
+            expect_true(io_strings.contains(body_text(with_parts), "Content-Disposition: form-data; name=\"caption\"\r\n\r\nfront\r\n--sharp-"));
+            expect_true(io_strings.starts_with(with_parts.headers.find("Content-Type")!!, "multipart/form-data; boundary=sharp-"));
+        };
+        test("request: basic") { expect(new http_request("GET", "http://h/").basic("Aladdin", "open sesame").headers.find("Authorization")!!).should_be("Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="); };
+    };
+}
+
+def test_with_the_server() {
+    tests("server") {
+        // each test: the server on a free port, in a thread of its own; told to end after it
+        server : tcp_server?;
+        port : _int64 = 0;
+        root : string = "";
+        worker : thread?;
+        before_each {
+            shared.connections = 0;
+            shared.problem = "";
+            server = new tcp_server(0, true);
+            shared.server = server;
+            port = server!!.port();
+            root = "http://127.0.0.1:" + port;
+            worker = new thread("http server", serve);
+            worker!!.start();
+        }
+        after_each {
+            if(server!!.is_open()) {
+                http.GET(root + "/stop");
+                worker!!.join();
+            }
+            http.use(new http_client());                // (no kept connection to the server that stopped)
+            // (after every test: whatever it asked, the server had no problem with it)
+            expect(shared.problem).named("the server's own problem").should_be("");
+        }
+
+        // ---------------------------------------------------------------- plain requests
+        test("GET: status, reason, ok, text, a header, and the address that answered") {
+            hello := http.GET(root + "/hello");
+            expect(hello.status).named("status").should_be(200);
+            expect(hello.reason).named("reason").should_be("OK");
+            expect_true(hello.ok());
+            expect(hello.text()).named("text").should_be("hello");
+            expect(hello.header("content-type")!!).named("a header").should_be("text/plain");
+            expect(hello.address).named("the address that answered").should_be(root + "/hello");
+        };
+        test("the second request uses the connection of the first") {
+            http.GET(root + "/hello");
+            http.GET(root + "/hello");
+            expect(shared.connections).should_be(1);
+        };
+
+        test("POST: the method, the query, the body, and the headers of the request") {
+            sent := http.POST(root + "/echo") {
+                it.query("page", 2);
+                it.header("X-Trace", "abc");
+                it.json("hello", "world");
+            }.json();
+            expect(sent.string_or("method", "")).named("the method").should_be("POST");
+            expect(sent.string_or("target", "")).named("the query").should_be("/echo?page=2");
+            expect(sent.string_or("body", "")).named("the body").should_be("{\"hello\":\"world\"}");
+            expect(sent.member("headers").string_or("x-trace", "")).named("a header of the request").should_be("abc");
+            expect(sent.member("headers").string_or("content-type", "")).named("Content-Type").should_be("application/json");
+            expect(sent.member("headers").string_or("content-length", "")).named("Content-Length").should_be("17");
+            expect(sent.member("headers").string_or("host", "")).named("Host").should_be("127.0.0.1:" + port);
+        };
+        test("PUT") { expect(http.PUT(root + "/echo") { it.body("x"); }.json().string_or("method", "")).should_be("PUT"); };
+        test("PATCH") { expect(http.PATCH(root + "/echo").json().string_or("method", "")).should_be("PATCH"); };
+        test("DELETE") { expect(http.DELETE(root + "/echo").json().string_or("method", "")).should_be("DELETE"); };
+        test("a POST without a body says its length is 0") { expect(http.POST(root + "/echo").json().member("headers").string_or("content-length", "?")).should_be("0"); };
+        test("HEAD has no body, and has the headers (the length the body would have)") {
+            head := http.HEAD(root + "/hello");
+            expect(sizeof(head.bytes())).should_be(0);
+            expect(head.header("Content-Length")!!).should_be("5");
+        };
+
+        test("a body in pieces") { expect(http.GET(root + "/chunked").text()).should_be("abcdefgh"); };
+        test("a compressed body is unpacked, and no longer said to be compressed") {
+            packed := http.GET(root + "/packed");
+            expect(packed.text()).should_be("a body that travelled compressed, a body that travelled compressed");
+            expect_null(packed.header("Content-Encoding"));
+        };
+        test("a body that is not what its header says") {
+            expect(http_problem() { http.GET(root + "/packed-wrong"); }).should_contain("unpacked");
+        };
+        test("the client says it reads gzip") { expect(http.GET(root + "/echo").json().member("headers").string_or("accept-encoding", "")).should_be("gzip"); };
+        test("204 has no body") { expect(http.GET(root + "/empty").status).should_be(204); };
+        test("100 Continue is passed over") { expect(http.GET(root + "/continue").text()).should_be("after 100"); };
+        test("a body that ends when the server closes") { expect(http.GET(root + "/until-close").text()).should_be("closing"); };
+        test("404 is an answer: not ok, with its body") {
+            missing := http.GET(root + "/nothing-here");
+            expect(missing.status).should_be(404);
+            expect_false(missing.ok());
+            expect(missing.json().string_or("error", "")).should_be("no such route");
+        };
+        test("require_ok throws for 404") {
+            missing := http.GET(root + "/nothing-here");
+            status : decimal = 0;
+            body : string = "";
+            try { missing.require_ok(); } catch(failed: http_status_exception) { status = failed.status; body = failed.body_text(); }
+            expect(status).should_be(404);
+            expect(body).should_contain("no such route");
+        };
+
+        // ---------------------------------------------------------------- redirects
+        test("a redirect is followed, and the answer says where it came from") {
+            moved := http.GET(root + "/redirect");
+            expect(moved.text()).should_be("hello");
+            expect(moved.address).should_be(root + "/hello");
+        };
+        test("a redirect can be handed back") { expect(http.GET(root + "/redirect") { it.follow_redirects(false); }.status).should_be(302); };
+        test("303: goes on as a GET, without the body") {
+            other := http.POST(root + "/see-other") { it.body("data"); }.json();
+            expect(other.string_or("method", "")).should_be("GET");
+            expect(other.string_or("body", "?")).should_be("");
+        };
+        test("307: the method and the body stay") {
+            kept := http.POST(root + "/keep-method") { it.body("data"); }.json();
+            expect(kept.string_or("method", "")).should_be("POST");
+            expect(kept.string_or("body", "")).should_be("data");
+        };
+        test("redirects without end are given up") {
+            expect(http_problem() { http.GET(root + "/loop"); }).should_contain("redirects");
+        };
+
+        // ---------------------------------------------------------------- what goes wrong
+        test("a kept connection the server closed: the request is sent anew") {
+            http.GET(root + "/stale");
+            expect(http.GET(root + "/hello").text()).should_be("hello");
+        };
+        test("a server that is silent too long") { expect_throws<http_timeout>() { http.GET(root + "/slow") { it.timeout(150); }; }; };
+        test("the client works after a timeout") {
+            expect_throws<http_timeout>() { http.GET(root + "/slow") { it.timeout(150); }; };
+            expect(http.GET(root + "/hello").text()).should_be("hello");
+        };
+        test("an answer that is not HTTP") {
+            expect(http_problem() { http.GET(root + "/garbage"); }).should_contain("not HTTP");
+        };
+
+        // ---------------------------------------------------------------- a service
+        test("service: a typed answer: a number, isAdmin fills is_admin, and a list inside") {
+            ann := new people(port).one(7);
+            expect(ann.name).should_be("ann");
+            expect(ann.id).should_be(7);
+            expect_true(ann.is_admin);
+            expect(ann.tags.size()).should_be(2);
+        };
+        test("service: a list of objects, and its second") {
+            everyone := new people(port).all();
+            expect(everyone.size()).should_be(2);
+            expect(everyone.at(1).name).should_be("y");
+        };
+        test("service: or_null, there") { expect(new people(port).find(7)!!.name).should_be("ann"); };
+        test("service: or_null, 404") { expect_null(new people(port).find(8)); };
+        test("service: the response itself") { expect(new people(port).hello()).should_be("hello"); };
+        test("service: send(object) is json, a query in the block, the service's header and the before hook") {
+            staff := new people(port);
+            ann := staff.one(7);
+            staff.token = "t0ken";
+            stored := staff.save(ann);
+            expect(stored.body).named("send(object) is json").should_be("{\"id\":7,\"name\":\"ann\",\"is_admin\":true,\"tags\":[\"a\",\"b\"]}");
+            expect(stored.target).named("a query in the block").should_be("/echo?notify=true");
+            expect(stored.headers!!.string_or("x-app", "")).named("the service's header").should_be("suite");
+            expect(stored.headers!!.string_or("authorization", "")).named("the before hook").should_be("Bearer t0ken");
+        };
+        test("service: a status that is not 2xx throws, and the after hook saw it") {
+            staff := new people(port);
+            seen_before : decimal = staff.seen;
+            expect(failed_status() { staff.missing(); }).should_be(404);
+            expect(staff.seen).should_be(seen_before + 1);
+        };
+        test("service: 503 after the retries") {
+            staff := new people(port);
+            staff.retry(2, 10);
+            expect(failed_status() { staff.busy(); }).should_be(503);
+        };
+        test("service: a word of the block outside a block") { expect_throws<illegal_state_exception>() { new people(port).path("id", 1); }; };
+
+        // ---------------------------------------------------------------- the server is told to end
+        test("the server had no problem") {
+            http.GET(root + "/hello");
+            http.GET(root + "/stop");
+            worker!!.join();
+            expect(shared.problem).should_be("");
+        };
+    };
+}
+
+def test_fake() {
+    // a fake server: nothing is sent, so the port of the service is only a part of its address
+    tests("fake") {
+        fake : fake_http?;
+        staff : people?;
+        before_each {
+            fake = new fake_http();
+            fake!!.answer("GET", "/user/7", 200, "{\"id\":70,\"name\":\"fake ann\"}");
+            fake!!.answer("POST", "/echo", 500, "{\"error\":\"down\"}");
+            staff = new people(4321);
+            staff!!.token = "t0ken";
+            staff!!.use(fake!!);
+        }
+
+        test("fake: answers by its rules") { expect(staff!!.one(7).name).should_be("fake ann"); };
+        test("fake: remembers what was asked, and what it carried") {
+            staff!!.one(7);
+            expect(fake!!.last().resolved_address()).should_be("http://127.0.0.1:4321/user/7");
+            expect(fake!!.last().headers.find("Authorization")!!).should_be("Bearer t0ken");
+        };
+        test("fake: no rule is 404") { expect_null(staff!!.find(9)); };
+        test("fake: a failing answer") {
+            ann := staff!!.one(7);
+            expect(failed_status() { staff!!.save(ann); }).should_be(500);
+        };
+        test("fake: the count of requests") {
+            ann := staff!!.one(7);
+            staff!!.find(9);
+            failed_status() { staff!!.save(ann); };
+            expect(fake!!.asked.size()).should_be(3);
+        };
+    };
+}
+
+def test_nobody_there() {
+    tests("nobody") {
+        test("nobody listens there") {
+            spare := new tcp_server(0, true);
+            free_port : _int64 = spare.port();
+            spare.close();
+            expect_throws<http_exception>() { http.GET("http://127.0.0.1:" + free_port + "/"); };
+        };
+        test("a host nobody knows") { expect_throws<http_exception>() { http.GET("http://no-such-host.invalid/"); }; };
+    };
+}
+
+def http_tests() {
+    tests("http") {
+        test_url();
+        test_headers_and_requests();
+        test_with_the_server();
+        test_nobody_there();
+        test_fake();
+    };
+}

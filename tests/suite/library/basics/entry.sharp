@@ -1,0 +1,39 @@
+mod suite.library.basics;
+
+import (
+    std.testing,
+    suite.library.basics.files,
+    suite.library.basics.list,
+    suite.library.basics.list_fixes,
+    suite.library.basics.maps,
+    suite.library.basics.maps_fixes,
+    suite.library.basics.maps_hash_table,
+    suite.library.basics.math,
+    suite.library.basics.math_fixes,
+    suite.library.basics.misc,
+    suite.library.basics.misc_fixes,
+    suite.library.basics.result_null_error,
+    suite.library.basics.serialization,
+    suite.library.basics.string_builder,
+    suite.library.basics.string_builder_fixes
+)
+
+/** suite.library.basics: the first cases written for the library: lists, maps, math, files, text */
+def basics_tests() {
+    tests("basics") {
+        files_tests();
+        list_tests();
+        list_fixes_tests();
+        maps_tests();
+        maps_fixes_tests();
+        maps_hash_table_tests();
+        math_tests();
+        math_fixes_tests();
+        misc_tests();
+        misc_fixes_tests();
+        result_null_error_tests();
+        serialization_tests();
+        string_builder_tests();
+        string_builder_fixes_tests();
+    };
+}

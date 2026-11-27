@@ -1,0 +1,68 @@
+mod suite.classes.interfaces_through_interfaces;
+
+import ( std.testing )
+
+/**
+ * An interface that extends an interface: an object of a class that names
+ * only the outer one IS the inner one too - `is` says so and `as` gets it.
+ * (Until VM 4.0.13 the runtime looked at the interfaces a class names and at
+ * their base classes, not at the interfaces of those interfaces: `is` said
+ * false and `as` threw class_cast_exception.)
+ */
+interface shape { def area() : decimal; }
+interface solid : shape { def volume() : decimal; }
+interface heavy : solid { def weight() : decimal; }
+interface other { def nothing(); }
+
+class cube : solid {
+    override def area() : decimal { return 6; }
+    override def volume() : decimal { return 1; }
+}
+
+class lead_cube : heavy {
+    override def area() : decimal { return 24; }
+    override def volume() : decimal { return 8; }
+    override def weight() : decimal { return 90; }
+}
+
+class small_cube base cube { }
+
+def is_shape(o: object) : decimal { return (o is shape) ? 1 : 0; }
+def is_solid(o: object) : decimal { return (o is solid) ? 1 : 0; }
+def is_heavy(o: object) : decimal { return (o is heavy) ? 1 : 0; }
+def is_other(o: object) : decimal { return (o is other) ? 1 : 0; }
+
+def interfaces_through_interfaces_tests() {
+    tests("interfaces_through_interfaces") {
+        test("one step: the interface the class names") { expect(is_solid(new cube())).should_be(1); };
+        test("one step: the interface that one extends") { expect(is_shape(new cube())).should_be(1); };
+        test("one step: not a later one") { expect(is_heavy(new cube())).should_be(0); };
+        test("an unrelated interface") { expect(is_other(new cube())).should_be(0); };
+
+        test("two steps: the class's own") { expect(is_heavy(new lead_cube())).should_be(1); };
+        test("two steps: the middle one") { expect(is_solid(new lead_cube())).should_be(1); };
+        test("two steps: the first one") { expect(is_shape(new lead_cube())).should_be(1); };
+        test("two steps: an unrelated interface") { expect(is_other(new lead_cube())).should_be(0); };
+
+        test("through a base class: the interface it names") { expect(is_solid(new small_cube())).should_be(1); };
+        test("through a base class: the one that extends") { expect(is_shape(new small_cube())).should_be(1); };
+
+        test("a cast through two interfaces") {
+            l : object = new lead_cube();
+            expect((l as shape).area()).should_be(24);
+        };
+        test("a cast through one") {
+            c : object = new cube();
+            expect((c as shape).area()).should_be(6);
+        };
+        test("a cast to the middle one") {
+            l : object = new lead_cube();
+            expect((l as solid).volume()).should_be(8);
+        };
+        test("a cast to an unrelated interface still fails") {
+            c : object = new cube();
+            expect_throws<class_cast_exception>() { wrong := c as other; };
+        };
+
+    };
+}

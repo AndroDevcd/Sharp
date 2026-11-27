@@ -1,0 +1,698 @@
+mod suite.exceptions.finally_blocks;
+
+import ( std.testing )
+
+/**
+ * try / finally: the finally block runs exactly once however the try block is
+ * left - by reaching its end, by an exception (caught here or in a caller), by
+ * return, by break or by continue.
+ *
+ * Every function below writes one letter per block it goes through into `trail`,
+ * so a check like "tfa" reads: try block, finally block, code after.
+ *      t = try     c = catch     f = finally     a = after the statement
+ */
+
+trail : string = "";
+
+def mark(letter: string) {
+    trail = trail + letter;
+}
+
+/** gives back the trail collected so far and empties it for the next check */
+def take_trail(): string {
+    result := "" + trail;                       // a new string: `trail = ""` below changes the string in place
+    trail = "";
+    return result;
+}
+
+// ---- no exception at all
+def no_exception() {
+    try {
+        mark("t");
+    } finally {
+        mark("f");
+    }
+    mark("a");
+}
+
+def no_exception_with_catch() {
+    try {
+        mark("t");
+    } catch(e: exception) {
+        mark("c");
+    } finally {
+        mark("f");
+    }
+    mark("a");
+}
+
+// ---- exception caught in the same function
+def caught_here() {
+    try {
+        mark("t");
+        throw new exception("here");
+    } catch(e: exception) {
+        mark("c");
+    } finally {
+        mark("f");
+    }
+    mark("a");
+}
+
+// ---- exception that is NOT caught here: the finally runs, then the caller's catch
+def not_caught_here() {
+    try {
+        mark("t");
+        throw new illegal_state_exception("for the caller");
+    } finally {
+        mark("f");
+    }
+    mark("a");                                  // skipped: the exception is still on its way
+}
+
+/** the catch clause is for another class, so the exception passes through */
+def wrong_catch_here() {
+    try {
+        mark("t");
+        throw new illegal_state_exception("for the caller");
+    } catch(e: illegal_argument_exception) {
+        mark("c");
+    } finally {
+        mark("f");
+    }
+    mark("a");
+}
+
+/** the exception comes from a function called inside the try block */
+def thrower() {
+    mark("x");
+    throw new illegal_state_exception("from thrower");
+}
+
+def calls_thrower() {
+    try {
+        mark("t");
+        thrower();
+        mark("n");                              // never
+    } finally {
+        mark("f");
+    }
+}
+
+/** two functions with a finally each between the throw and the catch */
+def outer_calls_thrower() {
+    try {
+        mark("T");
+        calls_thrower();
+    } finally {
+        mark("F");
+    }
+}
+
+// ---- return inside try
+def return_in_try(): decimal {
+    try {
+        mark("t");
+        return 10;
+    } finally {
+        mark("f");
+    }
+}
+
+/** the returned value is computed BEFORE the finally block runs */
+def return_value_is_computed_first(): decimal {
+    x : decimal = 1;
+    try {
+        return x;                               // 1 ...
+    } finally {
+        x = 50;                                 // ... whatever happens to x afterwards
+        mark("f");
+    }
+}
+
+counter : decimal = 0;
+
+def return_reads_global_first(): decimal {
+    try {
+        return counter;                         // the value at this moment
+    } finally {
+        counter += 100;
+    }
+}
+
+def return_expression_in_try(a: decimal, b: decimal): decimal {
+    try {
+        return a * b + 1;
+    } finally {
+        mark("f");
+    }
+}
+
+class tag {
+    number : decimal = 0;
+
+    tag(n: decimal) { number = n; }
+}
+
+/** the same for an object: the one that was in the variable at the return is returned */
+def return_object_in_try(): tag {
+    current := new tag(1);
+    try {
+        return current;
+    } finally {
+        current = new tag(2);                   // another object; the first one is already on its way out
+        mark("f");
+    }
+}
+
+/** return or fall through, depending on the argument; the finally runs either way */
+def maybe_return(early: decimal): decimal {
+    try {
+        mark("t");
+        if(early == 1) return 1;
+        mark("m");
+    } finally {
+        mark("f");
+    }
+    mark("a");
+    return 2;
+}
+
+// ---- return from a catch block that has a finally
+def return_in_catch(): decimal {
+    try {
+        mark("t");
+        throw new exception("e");
+    } catch(e: exception) {
+        mark("c");
+        return 7;
+    } finally {
+        mark("f");
+    }
+    return 0;
+}
+
+// ---- throw from a catch block that has a finally
+def throw_in_catch() {
+    try {
+        mark("t");
+        throw new exception("first");
+    } catch(e: exception) {
+        mark("c");
+        throw new illegal_state_exception("second");
+    } finally {
+        mark("f");
+    }
+}
+
+// ---- loops
+def break_in_try(): decimal {
+    count : decimal = 0;
+    for(i : decimal = 0; i < 10; i++) {
+        try {
+            if(i == 3) break;
+            mark("t");
+        } finally {
+            mark("f");
+            count++;
+        }
+    }
+    return count;                               // i = 0, 1, 2 and the one that broke out
+}
+
+def continue_in_try(): decimal {
+    sum : decimal = 0;
+    for(i : decimal = 0; i < 5; i++) {
+        try {
+            if(i % 2 == 1) continue;            // i = 1, 3
+            mark("t");
+            sum += i;                           // 0 + 2 + 4
+        } finally {
+            mark("f");
+            sum += 100;                         // five times
+        }
+    }
+    return sum;
+}
+
+def while_with_break(): decimal {
+    i : decimal = 0;
+    finals : decimal = 0;
+    while(i < 100) {
+        try {
+            i++;
+            if(i == 4) break;
+        } finally {
+            finals++;
+        }
+    }
+    return i * 10 + finals;                     // i = 4, finals = 4
+}
+
+def return_from_loop(): decimal {
+    for(i : decimal = 0; i < 10; i++) {
+        try {
+            mark("t");
+            if(i == 2) return i;
+        } finally {
+            mark("f");
+        }
+    }
+    return 0 - 1;
+}
+
+/** a loop around a whole try/catch/finally: every second trip throws */
+def loop_around(trips: decimal): decimal {
+    total : decimal = 0;
+    for(i : decimal = 1; i <= trips; i++) {
+        try {
+            if(i % 2 == 0) throw new exception("even");
+            total += 1;
+        } catch(e: exception) {
+            total += 10;
+        } finally {
+            total += 100;
+        }
+    }
+    return total;
+}
+
+/** try/finally around a whole loop */
+def loop_inside(): decimal {
+    sum : decimal = 0;
+    try {
+        for(i : decimal = 1; i <= 4; i++) {
+            sum += i;
+        }
+        mark("t");
+    } finally {
+        mark("f");
+        sum += 1000;
+    }
+    return sum;
+}
+
+// ---- nested try/finally, two levels
+def nested_no_exception() {
+    try {
+        mark("1");
+        try {
+            mark("2");
+        } finally {
+            mark("3");
+        }
+        mark("4");
+    } finally {
+        mark("5");
+    }
+    mark("6");
+}
+
+def nested_exception_caught_outside() {
+    try {
+        try {
+            mark("1");
+            throw new exception("e");
+        } finally {
+            mark("2");
+        }
+        mark("n");                              // never
+    } catch(e: exception) {
+        mark("3");
+    } finally {
+        mark("4");
+    }
+    mark("5");
+}
+
+def nested_exception_caught_inside() {
+    try {
+        try {
+            mark("1");
+            throw new exception("e");
+        } catch(e: exception) {
+            mark("2");
+        } finally {
+            mark("3");
+        }
+        mark("4");
+    } catch(e: exception) {
+        mark("n");                              // never: already handled
+    } finally {
+        mark("5");
+    }
+    mark("6");
+}
+
+def nested_return(): decimal {
+    try {
+        try {
+            mark("1");
+            return 5;
+        } finally {
+            mark("2");
+        }
+    } finally {
+        mark("3");
+    }
+}
+
+/** both finally blocks run while the exception travels to the caller */
+def nested_exception_for_caller() {
+    try {
+        try {
+            mark("1");
+            throw new illegal_state_exception("for the caller");
+        } finally {
+            mark("2");
+        }
+    } finally {
+        mark("3");
+    }
+    mark("n");                                  // never
+}
+
+// ---- a try/finally inside a catch block
+def try_inside_catch() {
+    try {
+        mark("1");
+        throw new exception("outer");
+    } catch(e: exception) {
+        mark("2");
+        try {
+            mark("3");
+        } finally {
+            mark("4");
+        }
+        mark("5");
+    } finally {
+        mark("6");
+    }
+}
+
+// ---- two try/finally statements one after the other
+def one_after_the_other() {
+    try {
+        mark("1");
+    } finally {
+        mark("2");
+    }
+    try {
+        mark("3");
+        throw new exception("e");
+    } catch(e: exception) {
+        mark("4");
+    } finally {
+        mark("5");
+    }
+}
+
+/** the finally block can see what the try block did */
+def finally_sees_try_work(): decimal {
+    x : decimal = 0;
+    try {
+        x = 5;
+    } finally {
+        x = x * 2;
+    }
+    return x;
+}
+
+/** ...also when the try block was cut short by an exception */
+def finally_sees_partial_work(): decimal {
+    x : decimal = 0;
+    try {
+        x = 5;
+        throw new exception("e");
+    } catch(e: exception) {
+        x += 1;
+    } finally {
+        x = x * 2;
+    }
+    return x;
+}
+
+/** a finally that itself uses a try/catch (a try/FINALLY in a finally is in finally_fixes.sharp) */
+def catch_inside_finally() {
+    try {
+        mark("1");
+    } finally {
+        try {
+            mark("2");
+            throw new exception("in finally");
+        } catch(e: exception) {
+            mark("3");
+        }
+        mark("4");
+    }
+    mark("5");
+}
+
+def finally_blocks_tests() {
+    tests("finally_blocks") {
+        before_each { trail = ""; counter = 0; };
+
+        // ---- no exception
+        test("no exception: try, finally, after") {
+            no_exception();
+            expect(take_trail()).should_be("tfa");
+        };
+        test("no exception, with a catch clause: the catch is skipped") {
+            no_exception_with_catch();
+            expect(take_trail()).should_be("tfa");
+        };
+
+        // ---- caught in the same function
+        test("caught here: try, catch, finally, after") {
+            caught_here();
+            expect(take_trail()).should_be("tcfa");
+        };
+
+        // ---- caught in the caller
+        test("caught in the caller: the finally runs before the caller's catch") {
+            caught : decimal = 0;
+            message : string = "nothing caught";
+            try {
+                not_caught_here();
+            } catch(e: illegal_state_exception) {
+                mark("C");
+                caught = 1;
+                message = e.get_message();
+            }
+            expect(message).named("the exception arrives unchanged").should_be("for the caller");
+            expect(caught).named("the caller caught it").should_be(1);
+            expect(take_trail()).named("finally runs before the caller's catch").should_be("tfC");
+        };
+
+        test("a catch for another class does not stop it, but the finally still runs") {
+            caught : decimal = 0;
+            try {
+                wrong_catch_here();
+            } catch(e: illegal_state_exception) {
+                mark("C");
+                caught = 1;
+            }
+            expect(caught).named("a catch for another class does not stop it").should_be(1);
+            expect(take_trail()).named("...but the finally still runs").should_be("tfC");
+        };
+
+        test("exception from a call inside try") {
+            caught : decimal = 0;
+            message : string = "nothing caught";
+            try {
+                calls_thrower();
+            } catch(e: illegal_state_exception) {
+                mark("C");
+                caught = 1;
+                message = e.get_message();
+            }
+            expect(message).named("message from the function called in the try block").should_be("from thrower");
+            expect(caught).named("caught").should_be(1);
+            expect(take_trail()).named("order").should_be("txfC");
+        };
+
+        test("exception through two functions: the inner function's finally runs before the outer one's") {
+            caught : decimal = 0;
+            try {
+                outer_calls_thrower();
+            } catch(e: illegal_state_exception) {
+                mark("C");
+                caught = 1;
+            }
+            expect(caught).named("exception through two functions").should_be(1);
+            expect(take_trail()).named("order").should_be("TtxfFC");
+        };
+
+        // ---- return inside try
+        test("return in try: the value, and finally ran once") {
+            expect(return_in_try()).named("the value").should_be(10);
+            expect(take_trail()).named("finally ran once").should_be("tf");
+        };
+
+        test("return value is fixed before the finally changes the variable") {
+            expect(return_value_is_computed_first()).named("the value").should_be(1);
+            expect(take_trail()).named("...and the finally did run").should_be("f");
+        };
+
+        test("return of a global reads it before the finally") {
+            counter = 5;
+            expect(return_reads_global_first()).named("the first call").should_be(5);
+            expect(counter).named("the finally then changed the global").should_be(105);
+            expect(return_reads_global_first()).named("second call sees the changed global").should_be(105);
+            expect(counter).named("and changes it again").should_be(205);
+        };
+
+        test("return of an expression in try") {
+            expect(return_expression_in_try(6, 7)).named("the value").should_be(43);
+            expect(take_trail()).named("finally after returning an expression").should_be("f");
+        };
+
+        test("return of an object in try") {
+            expect(return_object_in_try().number).named("the object").should_be(1);
+            expect(take_trail()).named("finally after returning an object").should_be("f");
+        };
+
+        test("early return: finally runs, the rest does not") {
+            expect(maybe_return(1)).named("early return").should_be(1);
+            expect(take_trail()).named("order").should_be("tf");
+        };
+        test("no early return: everything runs") {
+            expect(maybe_return(0)).named("no early return").should_be(2);
+            expect(take_trail()).named("order").should_be("tmfa");
+        };
+
+        // ---- return from a catch with a finally
+        test("return in catch: finally runs after the catch") {
+            expect(return_in_catch()).named("the value").should_be(7);
+            expect(take_trail()).named("order").should_be("tcf");
+        };
+
+        // ---- throw from a catch with a finally
+        test("throw in catch reaches the caller, after the finally") {
+            caught : decimal = 0;
+            message : string = "nothing caught";
+            try {
+                throw_in_catch();
+            } catch(e: illegal_state_exception) {
+                mark("C");
+                caught = 1;
+                message = e.get_message();
+            }
+            expect(message).named("the exception thrown by the catch block arrives").should_be("second");
+            expect(caught).named("throw in catch reaches the caller").should_be(1);
+            expect(take_trail()).named("finally runs before the caller's catch").should_be("tcfC");
+        };
+
+        // ---- break and continue
+        test("break in try: finally ran on all four trips") {
+            expect(break_in_try()).named("trips").should_be(4);
+            expect(take_trail()).named("order").should_be("tftftff");
+        };
+
+        test("continue in try: 0 + 2 + 4 + 5 * 100") {
+            expect(continue_in_try()).named("the sum").should_be(506);
+            expect(take_trail()).named("order").should_be("tfftfftf");
+        };
+
+        test("while with break in try") { expect(while_with_break()).should_be(44); };
+
+        test("return from a loop inside try: three trips, three finally") {
+            expect(return_from_loop()).named("the value").should_be(2);
+            expect(take_trail()).named("order").should_be("tftftf");
+        };
+
+        // ---- loop around try/catch/finally
+        test("loop around, 1 trip") { expect(loop_around(1)).should_be(101); };
+        test("loop around, 2 trips") { expect(loop_around(2)).should_be(211); };
+        test("loop around, 10 trips: 5 * 1 + 5 * 10 + 10 * 100") { expect(loop_around(10)).should_be(1055); };
+        test("loop around, 1000 trips") { expect(loop_around(1000)).should_be(105500); };
+
+        // ---- loop inside try/finally
+        test("loop inside try: 10 + 1000, finally once") {
+            expect(loop_inside()).named("the sum").should_be(1010);
+            expect(take_trail()).named("finally once").should_be("tf");
+        };
+
+        // ---- nested, two levels
+        test("nested, no exception: inner finally, then outer") {
+            nested_no_exception();
+            expect(take_trail()).should_be("123456");
+        };
+
+        test("nested, caught by the outer try: inner finally first") {
+            nested_exception_caught_outside();
+            expect(take_trail()).should_be("12345");
+        };
+
+        test("nested, caught by the inner try: the outer catch is skipped") {
+            nested_exception_caught_inside();
+            expect(take_trail()).should_be("123456");
+        };
+
+        test("nested return: both finally blocks, inner first") {
+            expect(nested_return()).named("the value").should_be(5);
+            expect(take_trail()).named("order").should_be("123");
+        };
+
+        test("nested, exception for the caller: both finally blocks, once each") {
+            caught : decimal = 0;
+            try {
+                nested_exception_for_caller();
+            } catch(e: illegal_state_exception) {
+                mark("C");
+                caught = 1;
+            }
+            expect(caught).named("nested, exception for the caller").should_be(1);
+            expect(take_trail()).named("order").should_be("123C");
+        };
+
+        // ---- other shapes
+        test("try/finally inside a catch block") {
+            try_inside_catch();
+            expect(take_trail()).should_be("123456");
+        };
+
+        test("two statements one after the other") {
+            one_after_the_other();
+            expect(take_trail()).should_be("12345");
+        };
+
+        test("finally sees what try did: 5 * 2") { expect(finally_sees_try_work()).should_be(10); };
+        test("finally after catch: (5 + 1) * 2") { expect(finally_sees_partial_work()).should_be(12); };
+
+        test("try/catch inside a finally block") {
+            catch_inside_finally();
+            expect(take_trail()).should_be("12345");
+        };
+
+        // ---- the same function many times: nothing is left behind by a finally
+        test("500 calls of two functions with finally") {
+            total : decimal = 0;
+            for(i : decimal = 0; i < 500; i++) {
+                total += return_in_try();               // 10 each
+                total += return_in_catch();             // 7 each
+            }
+            expect(total).should_be(8500);
+        };
+
+        // ---- finally right in the test, with an exception from three shapes in a row
+        test("order written as digits") {
+            order : decimal = 0;
+            try {
+                order = order * 10 + 1;
+                try {
+                    order = order * 10 + 2;
+                    throw new exception("e");
+                } finally {
+                    order = order * 10 + 3;
+                }
+            } catch(e: exception) {
+                order = order * 10 + 4;
+            } finally {
+                order = order * 10 + 5;
+            }
+            expect(order).should_be(12345);
+        };
+
+    };
+}

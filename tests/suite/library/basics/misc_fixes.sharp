@@ -1,0 +1,32 @@
+mod suite.library.basics.misc_fixes;
+
+import ( std.testing )
+
+/**
+ * BUGS IN THE SMALL STD CLASSES that this file guards against (both fixed).
+ */
+
+def make_name(): string {
+    return "made";
+}
+
+def misc_fixes_tests() {
+    tests("misc_fixes") {
+        // ---- BUG 1 (fixed): deferred_init<string> threw nullptr_exception on the first read.
+        // Its getter tests `value == null`; for a class with its own operator== (string)
+        // that called string.operator==(null), which read the characters of null.
+        // (deferred_init of a class without operator== always worked: misc.sharp)
+        test("deferred_init<string> can be read: the value made by the function") {
+            lazy := new deferred_init<string>(make_name);
+            expect(lazy.value).should_be("made");
+        };
+
+        // ---- BUG 2 (fixed): a result without an error could not be written down directly.
+        //     new result<string, exception>("data", null)
+        // did not compile ("cannot find constructor result(_int8[], null)"): the
+        // constructor took `err: E`, not `E?`, although the field is `E?` and
+        // is_success means "error == null". The way around it was a variable that was
+        // never assigned (see checked_divide in misc.sharp). The check for the
+        // fixed form is in result_null_error.sharp; nothing to run here.
+    };
+}

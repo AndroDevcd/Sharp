@@ -1,0 +1,238 @@
+mod suite.language.native_bool;
+
+import ( std.testing )
+
+/**
+ * `bool`: the built-in type of true and false, stored in one byte, and
+ * `boolean`, the same value as an object (for list<boolean>, `boolean?` and
+ * `object`).
+ *
+ *     ready : bool = true;
+ *     if(ready) { ... }
+ *     done : bool = count == 0;
+ *
+ * A comparison, `!`, `&&`, `||` and `is` all give a bool. A bool may be used
+ * as the number 1 or 0; a number never becomes a bool by itself (write the
+ * test: `n != 0`).
+ */
+
+class switchboard {
+    on : bool;
+    armed : bool = true;
+    flags : bool[];
+
+    switchboard() { flags = new bool[3]; }
+
+    def flip() : bool {
+        on = !on;
+        return on;
+    }
+}
+
+def negate(value: bool) : bool { return !value; }
+def is_even(n: decimal) : bool { return n % 2 == 0; }
+def kind_of(value: bool) : decimal { return 1; }
+def kind_of(value: _int64) : decimal { return 2; }
+def kind_of(value: decimal) : decimal { return 3; }
+def inferred(a: decimal) := a > 1;
+def count_true(items: bool[]) : decimal {
+    total : decimal = 0;
+    foreach(item in items) {
+        if(item) { total++; }
+    }
+    return total;
+}
+def apply(value: decimal, test: (decimal)(bool)) : bool { return test(value); }
+
+def native_bool_tests() {
+    tests("native_bool") {
+        yes : bool;
+        no : bool;
+        five : decimal;
+        before_each {
+            yes = true;
+            no = false;
+            five = 5;
+        };
+
+        // ---- values
+        test("true is true") { expect_true(yes); };
+        test("false is false") { expect_false(no); };
+        test("!false") { expect_true(!no); };
+        test("!true") { expect_false(!yes); };
+
+        // ---- what gives a bool
+        test("a comparison") {
+            from_comparison : bool = five > 3;
+            expect_true(from_comparison);
+        };
+        test("&&") {
+            from_logic : bool = yes && !no;
+            expect_true(from_logic);
+        };
+        test("||") { expect_true(no || yes); };
+        test("a function") { expect_true(is_even(4)); };
+        test("a function, false") { expect_false(is_even(5)); };
+        test("a parameter") { expect_true(negate(false)); };
+
+        // ---- := keeps it a plain bool
+        test(":= true is a bool") {
+            guess := true;
+            guess = five < 3;
+            expect_false(guess);
+        };
+        test(":= a comparison") {
+            other := five == 5;
+            expect_true(other);
+        };
+        test("a function without a written result") { expect(kind_of(inferred(2))).should_be(1); };
+
+        // ---- between bools
+        test("==") { expect_true(yes == true); };
+        test("!=") { expect_true(yes != no); };
+        test("& both needed") { expect_false(yes & no); };
+        test("|") { expect_true(yes | no); };
+        test("^") { expect_true(yes ^ no); };
+        test("&=") {
+            flag : bool = true;
+            flag &= false;
+            expect_false(flag);
+        };
+        test("|=") {
+            flag : bool = true;
+            flag &= false;
+            flag |= true;
+            expect_true(flag);
+        };
+
+        // ---- conditions
+        test("if") {
+            taken : decimal = 0;
+            if(yes) { taken = 1; }
+            expect(taken).should_be(1);
+        };
+        test("while") {
+            runs : decimal = 0;
+            running : bool = true;
+            while(running) {
+                runs++;
+                running = runs < 3;
+            }
+            expect(runs).should_be(3);
+        };
+        test("? :") { expect(yes ? 10 : 20).should_be(10); };
+        test("when") {
+            taken : decimal = 0;
+            when(yes) {
+                true -> { taken = 2; }
+                false -> { taken = 3; }
+            }
+            expect(taken).should_be(2);
+        };
+
+        // ---- fields start false, and arrays hold one bool per item
+        test("a field starts false") {
+            board := new switchboard();
+            expect_false(board.on);
+        };
+        test("a field with a value") {
+            board := new switchboard();
+            expect_true(board.armed);
+        };
+        test("a method") {
+            board := new switchboard();
+            expect_true(board.flip());
+        };
+        test("a method again") {
+            board := new switchboard();
+            board.flip();
+            expect_false(board.flip());
+        };
+        test("an item starts false") {
+            board := new switchboard();
+            expect_false(board.flags[1]);
+        };
+        test("items of an array") {
+            board := new switchboard();
+            board.flags[1] = true;
+            board.flags[2] = five == 5;
+            expect(count_true(board.flags)).should_be(2);
+        };
+        test("an array of literals") { expect(count_true(new bool[] { true, false, true, true })).should_be(3); };
+
+        // ---- as a number: 1 or 0
+        test("true as a number") {
+            number : _int64 = yes;
+            expect(number).should_be(1);
+        };
+        test("false as a number") {
+            number : _int64 = yes;
+            number = no;
+            expect(number).should_be(0);
+        };
+        test("a cast to a number") { expect((yes as _int32)).should_be(1); };
+
+        // ---- overloads: a bool chooses the bool function
+        test("overload: bool") { expect(kind_of(yes)).should_be(1); };
+        test("overload: a comparison") { expect(kind_of(five == 5)).should_be(1); };
+        test("overload: a number") {
+            number : _int64 = no;
+            expect(kind_of(number)).should_be(2);
+        };
+        test("overload: a decimal") { expect(kind_of(five)).should_be(3); };
+
+        // ---- text
+        test("in text: true") { expect("" + yes).should_be("true"); };
+        test("in text: false") { expect("" + no).should_be("false"); };
+        test("in a text with values") { expect("ready=$yes").should_be("ready=true"); };
+
+        // ---- function values
+        test("a lambda") { expect_true(apply(4) { it > 3 }); };
+
+        // ---- the object form
+        test("boolean in a condition") {
+            wrapped : boolean = true;
+            taken : decimal = 0;
+            if(wrapped) { taken = 1; }
+            expect(taken).should_be(1);
+        };
+        test("boolean.value") {
+            wrapped : boolean = true;
+            expect_true(wrapped.value);
+        };
+        test("boolean as text") {
+            wrapped : boolean = true;
+            expect(wrapped.to_string()).should_be("true");
+        };
+        test("boolean == bool") {
+            wrapped : boolean = true;
+            expect_true(wrapped == true);
+        };
+        test("!boolean") {
+            wrapped : boolean = true;
+            expect_false(!wrapped);
+        };
+        test("boolean? may be null") {
+            maybe : boolean? = null;
+            expect_null(maybe);
+        };
+        test("boolean? with a value") {
+            maybe : boolean? = null;
+            maybe = new boolean(false);
+            expect_false(maybe!!.value);
+        };
+        test("list<boolean>: the first true, the second false") {
+            kept := new list<boolean>();
+            kept.add(new boolean(true));
+            kept.add(new boolean(false));
+            expect_true(kept.at(0).value);
+            expect_false(kept.at(1).value);
+        };
+        test("boolean.from_string") { expect_true(boolean.from_string("TRUE")); };
+        test("boolean.from_string_or_null") { expect_null(boolean.from_string_or_null("maybe")); };
+
+        // ---- the library answers with bools
+        test("string ==") { expect_true(new string("a") == "a"); };
+        test("number objects compare to a bool") { expect_true(new int(3) > 2); };
+    };
+}

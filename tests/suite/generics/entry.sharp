@@ -1,0 +1,25 @@
+mod suite.generics;
+
+import (
+    std.testing,
+    suite.generics.basics,
+    suite.generics.blocks,
+    suite.generics.function_overloads,
+    suite.generics.functions,
+    suite.generics.functions_library,
+    suite.generics.isolated_and_nested,
+    suite.generics.nested_lists
+)
+
+/** suite.generics: generic classes and functions */
+def generics_tests() {
+    tests("generics") {
+        basics_tests();
+        blocks_tests();
+        function_overloads_tests();
+        functions_tests();
+        functions_library_tests();
+        isolated_and_nested_tests();
+        nested_lists_tests();
+    };
+}

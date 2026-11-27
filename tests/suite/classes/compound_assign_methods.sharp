@@ -1,0 +1,59 @@
+mod suite.classes.compound_assign_methods;
+
+import ( std.testing )
+
+/**
+ * Compound assignment to a local inside a method whose right side is a member
+ * call (this used to abort the compiler), and to locals captured by a lambda.
+ */
+
+class node {
+    left : node;
+    number : decimal = 3;
+
+    def seven(): decimal {
+        return 7;
+    }
+
+    def one_plus_seven(): decimal {
+        sum : decimal = 1;
+        sum += seven();
+        return sum;
+    }
+
+    def total(): decimal {
+        sum : decimal = number;
+        if(left != null) { sum += left!!.total(); }
+        sum -= seven();
+        sum *= seven();
+        return sum;
+    }
+
+    /* a captured local that is changed with += inside a method */
+    def captured(): decimal {
+        count : int = 5;
+        count += seven();
+        read := { -> (decimal) return count.value; };
+        return read();
+    }
+}
+
+def global_captured(): decimal {
+    count : int = 5;
+    count += 4;
+    read := { -> (decimal) return count.value; };
+    return read();
+}
+
+def compound_assign_methods_tests() {
+    tests("compound_assign_methods") {
+        test("local += method()") { expect(new node().one_plus_seven()).should_be(8); };
+        test("local += field!!.method()") {
+            n := new node();
+            n.left = new node();
+            expect(n.total()).should_be((3 + (3 - 7) * 7 - 7) * 7);
+        };
+        test("captured local after += in a method") { expect(new node().captured()).should_be(12); };
+        test("captured local after += in a function") { expect(global_captured()).should_be(9); };
+    };
+}

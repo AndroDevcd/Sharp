@@ -1,0 +1,158 @@
+mod suite.concurrency.lock_release_rules;
+
+import (
+    std.testing,
+    std.io.fiber
+)
+
+/**
+ * When a lock(x) { } block gives its lock back:
+ *   - an exception that LEAVES the block releases it (thrown in the block, in
+ *     a function called from it, through several functions, through a finally)
+ *   - an exception that is caught INSIDE the block does not
+ *   - the same fiber can enter a lock it already holds; the lock is free again
+ *     when the outermost block ends, also when an exception ends them all
+ *
+ * Whether a lock is free is asked by another fiber that tries to take it.
+ */
+
+class box { value : decimal = 0; }
+
+/** 1 when another fiber can take `guard` within a quarter of a second */
+def is_free(guard: object) : decimal {
+    answer := new box();
+    slice({ a: object[] -> (int)
+        lock(a[0]) { (a[1] as box).value = 1; }
+        return 0;
+    }, new object[] { guard, answer });
+
+    for(i : decimal = 0; i < 50 && answer.value == 0; i++) {
+        delay(5);
+    }
+    return answer.value;
+}
+
+def throw_inside(guard: object) {
+    lock(guard) {
+        throw new illegal_state_exception("leaves the lock block");
+    }
+}
+
+def deeper(guard: object, levels: decimal) {
+    if(levels == 0) { throw_inside(guard); }
+    else { deeper(guard, levels - 1); }
+}
+
+def two_locks(first: object, second: object) {
+    lock(first) {
+        lock(second) {
+            throw new illegal_state_exception("leaves both");
+        }
+    }
+}
+
+def nested_same(guard: object) {
+    lock(guard) {
+        lock(guard) {
+            lock(guard) {
+                throw new illegal_state_exception("leaves three blocks of one lock");
+            }
+        }
+    }
+}
+
+def lock_release_rules_tests() {
+    tests("lock_release_rules") {
+        test("exception out of a function") {
+            a := new box();
+            expect_throws<illegal_state_exception>() { throw_inside(a); };
+            expect(is_free(a)).should_be(1);
+        };
+
+        test("exception through five functions") {
+            b := new box();
+            expect_throws<illegal_state_exception>() { deeper(b, 4); };
+            expect(is_free(b)).should_be(1);
+        };
+
+        // the lock, the try and the catch all in one function: the catching is what is tested
+        test("lock inside the try block of the same function") {
+            c := new box();
+            try {
+                lock(c) { throw new illegal_state_exception("same function"); }
+            } catch(e: exception) { }
+            expect(is_free(c)).should_be(1);
+        };
+
+        test("an exception caught INSIDE the block keeps the lock, and it is free after the block") {
+            d := new box();
+            held_after_catch : decimal = 0;
+            lock(d) {
+                try { throw new illegal_state_exception("caught inside"); } catch(e: exception) { }
+                if(is_free(d) == 0) { held_after_catch = 1; }
+            }
+            expect(held_after_catch).named("held after the catch inside the block").should_be(1);
+            expect(is_free(d)).named("free after the block").should_be(1);
+        };
+
+        test("two locks left by one exception: both are free") {
+            e1 := new box();
+            e2 := new box();
+            expect_throws<illegal_state_exception>() { two_locks(e1, e2); };
+            expect(is_free(e1)).named("the outer one").should_be(1);
+            expect(is_free(e2)).named("the inner one").should_be(1);
+        };
+
+        test("one lock entered three times, then an exception") {
+            f := new box();
+            expect_throws<illegal_state_exception>() { nested_same(f); };
+            expect(is_free(f)).should_be(1);
+        };
+
+        // the lock, the finally and the catch all in one function, as above
+        test("leaving through a finally: the finally block ran and the lock is free") {
+            g := new box();
+            ran_finally : decimal = 0;
+            try {
+                try {
+                    lock(g) { throw new illegal_state_exception("through a finally"); }
+                } finally {
+                    ran_finally = 1;
+                }
+            } catch(e: exception) { }
+            expect(ran_finally).named("the finally block ran").should_be(1);
+            expect(is_free(g)).named("free after leaving through a finally").should_be(1);
+        };
+
+        test("one lock entered twice: held inside both blocks, free after the outer one") {
+            h := new box();
+            inner_held : decimal = 0;
+            outer_held : decimal = 0;
+            lock(h) {
+                lock(h) {
+                    if(is_free(h) == 0) { inner_held = 1; }
+                }
+                if(is_free(h) == 0) { outer_held = 1; }
+            }
+            expect(inner_held).named("held inside the inner block").should_be(1);
+            expect(outer_held).named("still held after the inner block ended").should_be(1);
+            expect(is_free(h)).named("free after the outer block").should_be(1);
+        };
+
+        // the catch is part of each round: the next round takes the lock again
+        test("200 rounds, half of them left by an exception: every round ran and the lock is free") {
+            k := new box();
+            count : decimal = 0;
+            for(i : decimal = 0; i < 200; i++) {
+                try {
+                    lock(k) {
+                        count++;
+                        if(i % 2 == 0) { throw new illegal_state_exception("every second round"); }
+                    }
+                } catch(e: exception) { }
+            }
+            expect(count).named("rounds that ran").should_be(200);
+            expect(is_free(k)).named("free after the loop").should_be(1);
+        };
+    };
+}

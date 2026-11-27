@@ -1,0 +1,384 @@
+mod suite.arrays.objects;
+
+import ( std.testing )
+
+/**
+ * Arrays of objects: class instances, strings, number boxes and `object`.
+ *
+ * An array of objects holds REFERENCES. A new array is full of nulls; putting
+ * an object in a slot does not copy it, so the slot and every other variable
+ * that refers to the object see the same fields.
+ */
+
+class item {
+    name : string;
+    weight : decimal;
+
+    item(n: string, w: decimal) {
+        name = n;
+        weight = w;
+    }
+
+    override def to_string() : string? { return name; }
+}
+
+/** a class with array fields */
+class shelf {
+    items : item[] = new item[2];
+    labels : string[];
+}
+
+def total_weight(items: item[]) : decimal {
+    total : decimal = 0;
+    foreach(it in items) {
+        total += it.weight;
+    }
+    return total;
+}
+
+def heaviest(items: item[]) : item {
+    best := items[0];
+    foreach(it in items) {
+        if(it.weight > best.weight) {
+            best = it;
+        }
+    }
+    return best;
+}
+
+def count_nulls(items: item[]) : decimal {
+    count : decimal = 0;
+    foreach(it in items) {
+        if(it == null) { count++; }
+    }
+    return count;
+}
+
+/** changes the objects the caller's array refers to */
+def double_weights(items: item[]) {
+    foreach(it in items) {
+        it.weight *= 2;
+    }
+}
+
+/** puts a new object in the caller's array */
+def put_first(items: item[], replacement: item) {
+    items[0] = replacement;
+}
+
+def make_names(n: decimal) : string[] {
+    result := new string[n];
+    for(i : decimal = 0; i < n; i++) {
+        index : int = i;
+        result[i] = "name" + index;
+    }
+    return result;
+}
+
+def make_items() : item[] {
+    return new item[] { new item("p", 1), new item("q", 2), new item("r", 3) };
+}
+
+def join(parts: string[]) : string {
+    result := new string();
+    foreach(part in parts) {
+        result += part;
+        result += ",";
+    }
+    return result;
+}
+
+/** { rock 5, leaf 1, null } */
+def rock_and_leaf() : item[] {
+    items := new item[3];
+    items[0] = new item("rock", 5);
+    items[1] = new item("leaf", 1);
+    return items;
+}
+
+/** { a 1, b 2, c 3 } */
+def a_b_c() : item[] {
+    items := new item[3];
+    items[0] = new item("a", 1);
+    items[1] = new item("b", 2);
+    items[2] = new item("c", 3);
+    return items;
+}
+
+def objects_tests() {
+    tests("objects") {
+        // ---- a new array is all nulls
+        test("a new array of objects is all nulls") {
+            items := new item[3];
+            expect(sizeof(items)).named("sizeof").should_be(3);
+            expect_null(items[0]);
+            expect_null(items[2]);
+            expect(count_nulls(items)).named("count_nulls of a new array").should_be(3);
+        };
+
+        // ---- putting objects in and reading their members
+        tests("two_set") {
+            items : item[];
+            before_each { items = rock_and_leaf(); };
+
+            test("element 0 after it is set") { expect_not_null(items[0]); };
+            test("field of an element") { expect(items[0].name).should_be("rock"); };
+            test("number field of an element") { expect(items[1].weight).should_be(1); };
+            test("method of an element") { expect(items[1].to_string()!!).should_be("leaf"); };
+            test("fields of two elements") { expect(items[0].weight + items[1].weight).should_be(6); };
+            test("element 2 is still null") { expect_null(items[2]); };
+            test("count_nulls with two set") { expect(count_nulls(items)).should_be(1); };
+
+            // ---- changing an object through the array
+            test("a field changed through the element: =, += and ++") {
+                items[0].weight = 6;
+                expect(items[0].weight).named("field assigned through the element").should_be(6);
+                items[0].weight += 2;
+                expect(items[0].weight).named("field += through the element").should_be(8);
+                items[0].weight++;
+                expect(items[0].weight).named("field ++ through the element").should_be(9);
+            };
+
+            // ---- the slot and a variable refer to one object
+            test("the slot and a variable refer to one object") {
+                rock := items[0];
+                rock.weight = 50;
+                expect(items[0].weight).named("a change through the variable is seen in the array").should_be(50);
+                items[0].weight = 51;
+                expect(rock.weight).named("a change through the array is seen by the variable").should_be(51);
+                expect_true(items[0] == rock);
+                expect_false(items[0] == items[1]);
+            };
+
+            // ---- two slots, one object
+            test("two slots refer to the same object: a change through one is seen through the other") {
+                rock := items[0];
+                items[2] = rock;
+                expect_true(items[0] == items[2]);
+                items[2].weight = 7;
+                expect(items[0].weight).should_be(7);
+            };
+
+            // ---- replacing an element leaves the old object alone
+            test("replacing an element leaves the old object alone") {
+                rock := items[0];
+                items[2] = rock;
+                items[0] = new item("gem", 9);
+                expect(items[0].name).named("the slot has the new object").should_be("gem");
+                expect(rock.name).named("the variable still has the old one").should_be("rock");
+                expect(items[2].name).named("...and so does the other slot").should_be("rock");
+                expect_false(items[0] == items[2]);
+            };
+        };
+
+        // ---- foreach
+        tests("loops") {
+            items : item[];
+            before_each { items = a_b_c(); };
+
+            test("total_weight: 1 + 2 + 3") { expect(total_weight(items)).should_be(6); };
+            test("foreach visits the elements in order") {
+                names := new string();
+                foreach(it in items) {
+                    names += it.name;
+                }
+                expect(names).should_be("abc");
+            };
+
+            // the loop variable refers to the object, so its fields can be changed
+            test("fields changed inside foreach") {
+                foreach(it in items) {
+                    it.weight *= 10;
+                }
+                expect(items[0].weight + items[1].weight + items[2].weight).should_be(60);
+            };
+
+            // ---- a plain for loop with an index
+            test("for loop from the end") {
+                backwards := new string();
+                for(i : decimal = sizeof(items) - 1; i >= 0; i--) {
+                    backwards += items[i].name;
+                }
+                expect(backwards).should_be("cba");
+            };
+        };
+        test("foreach over an empty array") {
+            visits : decimal = 0;
+            foreach(it in new item[0]) {
+                visits++;
+            }
+            expect(visits).should_be(0);
+        };
+
+        // ---- arrays of objects as arguments
+        tests("arguments") {
+            items : item[];
+            before_each {
+                items = a_b_c();
+                items[0].weight = 10;
+                items[1].weight = 500;
+                items[2].weight = 30;
+            };
+
+            test("heaviest") { expect(heaviest(items).name).should_be("b"); };
+            test("the result is the element itself") { expect_true(heaviest(items) == items[1]); };
+            test("a function changed the objects, all of them") {
+                double_weights(items);
+                expect(items[0].weight).named("the first").should_be(20);
+                expect(items[1].weight).named("the second").should_be(1000);
+            };
+            test("a function replaced an element") {
+                put_first(items, new item("new", 4));
+                expect(items[0].name).should_be("new");
+            };
+
+            // ---- two variables, one array
+            test("an element set through the other variable") {
+                same := items;
+                same[2] = new item("z", 26);
+                expect(items[2].name).should_be("z");
+            };
+        };
+
+        // ---- an array written as a list of objects
+        test("a list of objects") {
+            listed := new item[] { new item("p", 1), new item("q", 2) };
+            expect(sizeof(listed)).named("size").should_be(2);
+            expect(listed[1].name).named("second").should_be("q");
+        };
+        test("an array returned from a function") {
+            made := make_items();
+            expect(sizeof(made)).named("size").should_be(3);
+            expect(total_weight(made)).named("total").should_be(6);
+        };
+        test("element of a function result") { expect(make_items()[2].name).should_be("r"); };
+
+        // ---- arrays of strings
+        tests("strings") {
+            words : string[];
+            before_each { words = new string[] { "a", "bc", "def" }; };
+
+            test("string array size") { expect(sizeof(words)).should_be(3); };
+            test("string element") { expect(words[1]).should_be("bc"); };
+            test("method on a string element") { expect(words[2].size()).should_be(3); };
+            test("join") { expect(join(words)).should_be("a,bc,def,"); };
+            test("string element replaced") {
+                words[0] = "zz";
+                expect(words[0]).should_be("zz");
+            };
+            test("an element made from two others, which are unchanged") {
+                words[0] = "zz";
+                words[0] = words[1] + words[2];
+                expect(words[0]).named("element made from two others").should_be("bcdef");
+                expect(words[1] + "|" + words[2]).named("the two others").should_be("bc|def");
+            };
+
+            // ---- array fields
+            test("an array field given an existing array is the same array") {
+                s := new shelf();
+                s.labels = words;
+                expect(s.labels[1]).named("array field given an existing array").should_be("bc");
+                words[1] = "changed";
+                expect(s.labels[1]).named("...it is the same array").should_be("changed");
+            };
+        };
+
+        test("a new string array holds nulls, not empty strings") {
+            empty_words := new string[2];
+            expect_null(empty_words[0]);
+            empty_words[0] = "x";
+            expect(empty_words[0]).named("string stored in it").should_be("x");
+            expect_null(empty_words[1]);
+        };
+
+        // two slots referring to one string object
+        test("+= through one slot changes the shared string") {
+            empty_words := new string[2];
+            empty_words[0] = "x";
+            empty_words[1] = empty_words[0];
+            empty_words[1] += "y";
+            expect(empty_words[0]).should_be("xy");
+        };
+
+        test("a string array from a function") {
+            generated := make_names(3);
+            expect(sizeof(generated)).named("size").should_be(3);
+            expect(generated[0]).named("first").should_be("name0");
+            expect(generated[2]).named("last").should_be("name2");
+        };
+
+        // ---- arrays of number boxes
+        test("int boxes from a list: 1 + 2 + 3") {
+            boxes := new int[] { 1, 2, 3 };
+            sum := new int(0);
+            foreach(n in boxes) {
+                sum += n;
+            }
+            expect(sum.value).should_be(6);
+        };
+        test("+= on a box element") {
+            boxes := new int[] { 1, 2, 3 };
+            boxes[0] += 10;
+            expect(boxes[0].value).should_be(11);
+        };
+        test("a new array of boxes holds nulls, not zeros") {
+            unset := new long[2];
+            expect_null(unset[0]);
+        };
+
+        // ---- object[] can hold anything
+        test("object[] can hold anything") {
+            mixed := new object[3];
+            mixed[0] = new item("thing", 1);
+            mixed[1] = new string("text");
+            mixed[2] = new int(5);
+            expect((mixed[0] as item).name).named("an item").should_be("thing");
+            expect(mixed[1] as string).named("a string").should_be("text");
+            expect((mixed[2] as int).value).named("an int").should_be(5);
+        };
+
+        // ---- array fields
+        test("array field with a default: size") {
+            s := new shelf();
+            expect(sizeof(s.items)).should_be(2);
+        };
+        test("array field without a default is null") {
+            s := new shelf();
+            expect_null(s.labels);
+        };
+        test("element of an array field") {
+            s := new shelf();
+            s.items[0] = new item("f", 4);
+            expect(s.items[0].weight).should_be(4);
+        };
+        test("each object has its own array") {
+            s := new shelf();
+            s.items[0] = new item("f", 4);
+            other_shelf := new shelf();
+            expect_null(other_shelf.items[0]);
+        };
+
+        // ---- outside the array
+        tests("bounds") {
+            items : item[];
+            before_each {
+                items = a_b_c();
+                items[2] = new item("z", 26);
+            };
+
+            test("write past the end") {
+                expect_throws<out_of_bounds_exception>() { items[3] = new item("x", 1); };
+            };
+            test("read past the end") {
+                expect_throws<out_of_bounds_exception>() { unreachable := items[10]; };
+            };
+            test("the array and its elements are intact afterwards") {
+                expect_throws<out_of_bounds_exception>() { items[3] = new item("x", 1); };
+                expect_throws<out_of_bounds_exception>() { unreachable := items[10]; };
+                expect(sizeof(items)).named("the size").should_be(3);
+                expect(items[2].name).named("the elements").should_be("z");
+            };
+        };
+
+    };
+}

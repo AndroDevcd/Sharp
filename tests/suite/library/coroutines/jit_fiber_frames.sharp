@@ -1,0 +1,55 @@
+mod suite.library.coroutines.jit_fiber_frames;
+
+import (
+    std.testing,
+    std.io.coroutines
+)
+
+/**
+ * THE BUG THIS GUARDS (runtime, JIT only, fixed with the typed VM and the new
+ * JIT): a program in which two sibling coroutines take turns (each yields,
+ * one of them twice) crashed with a segmentation fault once the functions
+ * involved had been compiled by the JIT. With -nojit it ran correctly.
+ *
+ * WHAT WAS KNOWN
+ *   - the crash was in return_method() (virtual_machine.cpp), reached from
+ *     main_vm_loop on the thread that runs the coroutines
+ *   - it needed the second yield: with one yield per coroutine, or with one
+ *     coroutine per round, the same program ran
+ *   - it happened in round 4 of the loop below, i.e. when job.run() and its
+ *     callees reached their tenth call (JIT_CALL_THRESHOLD) while another
+ *     fiber was suspended in the middle of the same functions
+ *   - related, seen on the worker threads: a coroutine that yielded on the
+ *     default pool and continued on another thread sometimes ended with a call
+ *     stack that belonged to another function ("Unhandled exception" with
+ *     frames of platform.srt_init under job.run)
+ *   The exact fault in the JIT's frame rebuild was not isolated; this file is
+ *   the smallest program found that showed it every time.
+ *
+ * ALSO SEEN, not reduced to a small program: when the JIT compiled a function
+ * for the first time while several worker threads were inside it, the process
+ * sometimes crashed in the same place. library/coroutines/core.sharp
+ * without its warm_up() crashed in 7 of 12 runs compiled with -O (in
+ * test_async, at the first coroutines on the worker threads) and in 0 of 15
+ * runs with the warm up. The tests of std.io.coroutines therefore run the
+ * library once on one thread before they use the worker threads.
+ *
+ * EXPECTED: the test passes. Before the fix the JIT run ended with a
+ * segmentation fault and no output; with -nojit it passed.
+ */
+
+def jit_fiber_frames_tests() {
+    tests("jit_fiber_frames") {
+        test("all rounds ran") {
+            rounds_done : decimal = 0;
+            for(i : decimal = 0; i < 40; i++) {
+                run_blocking({ ->
+                    launch({ -> yield(); });
+                    launch({ -> yield(); yield(); });
+                });
+                rounds_done++;
+            }
+            expect(rounds_done).should_be(40);
+        };
+    };
+}

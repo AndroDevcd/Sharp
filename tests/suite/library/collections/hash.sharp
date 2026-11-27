@@ -1,0 +1,464 @@
+mod suite.library.collections.hash;
+
+import ( std.testing, std.collections )
+
+/**
+ * std.collections - the hash based collections: linked_hash_map (a hash map
+ * that keeps insertion order) with map_entry, and hash_set.
+ */
+
+/** "1,2,3" for a list of ints */
+def join(items: list<int>) : string {
+    text := "";
+    for(i : decimal = 0; i < items.size(); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items.at(i);
+    }
+    return text;
+}
+
+/** "a,b,c" for a list of strings */
+def join_words(items: list<string>) : string {
+    text := "";
+    for(i : decimal = 0; i < items.size(); i++) {
+        if(i > 0) text = text + ",";
+        text = text + items.at(i);
+    }
+    return text;
+}
+
+/** a key type whose hash is the same for every object: everything lands in one bucket */
+class clash {
+    id : decimal;
+    clash(id: decimal) { self->id = id; }
+    override def hash() : int { return 7; }
+}
+
+/** the next number of a pseudo random run, the same every time */
+def next_seed(seed: decimal) : decimal { return (seed * 7919 + 104729) % 1000003; }
+
+def hash_tests() {
+    tests("hash") {
+        tests("linked_hash_map") {
+            m : linked_hash_map<string, int>;
+            before_each { m = new linked_hash_map<string, int>(); };
+
+            test("map new size") { expect(m.size()).should_be(0); };
+            test("map new is_empty") { expect(m.is_empty()).should_be(1); };
+            test("map at on empty") { expect_null(m.at("a")); };
+            test("map empty get_elements") { expect_null(m.get_elements()); };
+            test("map empty keys") { expect(m.keys().size()).should_be(0); };
+            test("map empty key_array") { expect(sizeof(m.key_array())).should_be(0); };
+            test("map empty iterator") { expect(m.iterator().has_next()).should_be(0); };
+            test("map remove on empty") { expect(m.remove("a")).should_be(0); };
+            test("map first_key empty") { expect_throws<no_such_element_exception>() { m.first_key(); }; };
+            test("map last_key empty") { expect_throws<no_such_element_exception>() { m.last_key(); }; };
+
+            test("map put of a new key says so") {
+                expect(m.put("one", 1)).named("put new").should_be(1);
+                expect(m.put("two", 2)).named("put new 2").should_be(1);
+                expect(m.put("three", 3)).named("put new 3").should_be(1);
+            };
+
+            // one=1, two=2, three=3
+            tests("three_keys") {
+                before_each { m.put("one", 1); m.put("two", 2); m.put("three", 3); };
+
+                test("map size") { expect(m.size()).should_be(3); };
+                test("map is_empty 0") { expect(m.is_empty()).should_be(0); };
+                test("map at") { expect(m.at("two")!!.value).should_be(2); };
+                test("map at missing") { expect_null(m.at("four")); };
+                test("map at_or_default hit") { expect(m.at_or_default("one", 99).value).should_be(1); };
+                test("map at_or_default miss") { expect(m.at_or_default("nine", 99).value).should_be(99); };
+                test("map contains_key") { expect(m.contains_key("three")).should_be(1); };
+                test("map contains_key missing") { expect(m.contains_key("zero")).should_be(0); };
+                test("map contains_value") { expect(m.contains_value(3)).should_be(1); };
+                test("map contains_value missing") { expect(m.contains_value(4)).should_be(0); };
+
+                // replacing keeps the position
+                test("map put existing") { expect(m.put("one", 11)).should_be(0); };
+                test("map replacing a value keeps the size and the position") {
+                    m.put("one", 11);
+                    expect(m.size()).named("size after replace").should_be(3);
+                    expect(m.at("one")!!.value).named("replaced value").should_be(11);
+                    expect(join_words(m.keys())).named("keys in insertion order").should_be("one,two,three");
+                    expect(join(m.values())).named("values in insertion order").should_be("11,2,3");
+                };
+                test("map first_key") { expect(m.first_key()).should_be("one"); };
+                test("map last_key") { expect(m.last_key()).should_be("three"); };
+                test("map key_array") {
+                    expect(sizeof(m.key_array())).should_be(3);
+                    expect(m.key_array()[2]).named("key_array[2]").should_be("three");
+                };
+
+                test("map put_if_absent existing keeps the value") {
+                    expect(m.put_if_absent("two", 22)).should_be(0);
+                    expect(m.at("two")!!.value).named("the value").should_be(2);
+                };
+                test("map put_if_absent new") {
+                    expect(m.put_if_absent("four", 4)).should_be(1);
+                    expect(m.size()).named("size").should_be(4);
+                };
+            };
+
+            // one=11, two=2, three=3, four=4
+            tests("four_keys") {
+                before_each { m.put("one", 11); m.put("two", 2); m.put("three", 3); m.put("four", 4); };
+
+                // looping: foreach, entries(), iterator(), key_iterator()
+                test("map foreach") {
+                    text := "";
+                    total : decimal = 0;
+                    foreach(entry in m) {
+                        text = text + entry.key + ";";
+                        total += entry.value.value;
+                    }
+                    expect(text).named("keys").should_be("one;two;three;four;");
+                    expect(total).named("values").should_be(20);
+                };
+                test("map entries") {
+                    entries := m.entries();
+                    expect(entries.size()).named("size").should_be(4);
+                    expect(entries.at(3).key).named("[3].key").should_be("four");
+                    expect(entries.at(3).value.value).named("[3].value").should_be(4);
+                };
+                test("map iterator") {
+                    it := m.iterator();
+                    seen : decimal = 0;
+                    while(it.has_next()) { seen = seen * 100 + it.next().value.value; }
+                    expect(seen).should_be(11020304);
+                };
+                test("map key_iterator") { expect(m.key_iterator().next()).should_be("one"); };
+                // an entry is a copy: giving it another value object does not change the map
+                // (`.value = 500` with a number literal would not replace the int object but
+                // overwrite the number inside it - and the map shares that object)
+                test("map entry is a copy") {
+                    m.entries().at(0).value = new int(500);
+                    expect(m.at("one")!!.value).should_be(11);
+                };
+
+                // remove from the middle, the front and the back of the order
+                test("map remove from the middle") {
+                    expect(m.remove("two")).should_be(1);
+                    expect(m.remove("two")).named("remove again").should_be(0);
+                    expect_null(m.at("two"));
+                    expect(join_words(m.keys())).named("keys after remove").should_be("one,three,four");
+                };
+                test("map take from the front") {
+                    m.remove("two");
+                    expect(m.take("one")!!.value).should_be(11);
+                    expect_null(m.take("one"));
+                    expect(m.first_key()).named("first_key after take").should_be("three");
+                };
+                test("map remove last") {
+                    m.remove("two");
+                    m.take("one");
+                    expect(m.remove("four")).should_be(1);
+                    expect(m.last_key()).named("last_key after remove").should_be("three");
+                    expect(m.size()).named("size").should_be(1);
+                };
+
+                // only three=3 left
+                tests("one_left") {
+                    before_each { m.remove("two"); m.take("one"); m.remove("four"); };
+
+                    // a key that was removed and comes back goes to the END
+                    test("map re-added key goes last") {
+                        m.put("one", 1);
+                        expect(join_words(m.keys())).should_be("three,one");
+                    };
+                    test("map put_all adds new keys at the end and overwrites the others") {
+                        m.put("one", 1);
+                        other := new linked_hash_map<string, int>();
+                        other.put("one", 100);
+                        other.put("five", 5);
+                        m.put_all(other);
+                        expect(join_words(m.keys())).named("keys").should_be("three,one,five");
+                        expect(m.at("one")!!.value).named("overwritten").should_be(100);
+                    };
+                };
+
+                test("map clear") {
+                    m.clear();
+                    expect(m.size()).should_be(0);
+                    expect_null(m.at("three"));
+                };
+                test("map usable after clear") {
+                    m.clear();
+                    m.put("again", 1);
+                    expect(m.at("again")!!.value).should_be(1);
+                };
+            };
+        };
+
+        // int keys, negative keys included
+        tests("int_keys") {
+            squares : linked_hash_map<int, int>;
+            before_each {
+                squares = new linked_hash_map<int, int>();
+                for(i : decimal = 0 - 5; i <= 5; i++) squares.put(i, i * i);
+            };
+
+            test("map<int> size") { expect(squares.size()).should_be(11); };
+            test("map<int> at -4") { expect(squares.at(0 - 4)!!.value).should_be(16); };
+            test("map<int> at 0") { expect(squares.at(0)!!.value).should_be(0); };
+            test("map<int> at 5") { expect(squares.at(5)!!.value).should_be(25); };
+            test("map<int> at 6") { expect_null(squares.at(6)); };
+            test("map<int> first_key") { expect(squares.first_key().value).should_be(0 - 5); };
+        };
+
+        // every key in the same bucket: the chain inside a bucket must work
+        tests("collisions") {
+            a : clash;
+            b : clash;
+            c : clash;
+            same : linked_hash_map<clash, string>;
+            before_each {
+                a = new clash(1);
+                b = new clash(2);
+                c = new clash(3);
+                same = new linked_hash_map<clash, string>();
+                same.put(a, "a"); same.put(b, "b"); same.put(c, "c");
+            };
+
+            test("map collisions size") { expect(same.size()).should_be(3); };
+            test("map collisions at a") { expect(same.at(a)!!).should_be("a"); };
+            test("map collisions at b") { expect(same.at(b)!!).should_be("b"); };
+            test("map collisions at c") { expect(same.at(c)!!).should_be("c"); };
+            test("map collisions other object") { expect_null(same.at(new clash(1))); };
+            test("map collisions remove middle") {
+                expect(same.remove(b)).should_be(1);
+                expect(same.at(a)!!).named("a survives").should_be("a");
+                expect(same.at(c)!!).named("c survives").should_be("c");
+                expect_null(same.at(b));
+            };
+            test("map collisions remove head of chain") {
+                same.remove(b);
+                expect(same.remove(c)).should_be(1);
+                expect(same.at(a)!!).named("a still there").should_be("a");
+                expect(same.size()).named("size").should_be(1);
+            };
+        };
+
+        // scale: 5000 keys (the table grows many times), checked against the formula
+        tests("big_map") {
+            big : linked_hash_map<int, int>;
+            before_each {
+                big = new linked_hash_map<int, int>();
+                for(i : decimal = 0; i < 5000; i++) big.put(i * 7, i);
+            };
+
+            test("map big size") { expect(big.size()).should_be(5000); };
+            test("map big every key found") {
+                for(i : decimal = 0; i < 5000; i++) {
+                    value := big.at(i * 7);
+                    expect_not_null(value);
+                    expect(value!!.value).named("key " + (i * 7)).should_be(i);
+                }
+            };
+            test("map big key between") { expect_null(big.at(8)); };
+            test("map big first_key") { expect(big.first_key().value).should_be(0); };
+            test("map big last_key") { expect(big.last_key().value).should_be(34993); };
+
+            // remove every second key, then the order of the rest must be untouched
+            tests("halved") {
+                before_each { for(i : decimal = 0; i < 5000; i += 2) big.remove(i * 7); };
+
+                test("map big size after removes") { expect(big.size()).should_be(2500); };
+                test("map big removed key") { expect_null(big.at(14)); };
+                test("map big kept key") { expect(big.at(21)!!.value).should_be(3); };
+                test("map big order after removes, and the walk reaches all of them") {
+                    expected_value : decimal = 1;
+                    foreach(entry in big) {
+                        expect(entry.value.value).named("the entry after " + (expected_value - 2)).should_be(expected_value);
+                        expected_value += 2;
+                    }
+                    expect(expected_value).named("walked all").should_be(5001);
+                };
+            };
+        };
+
+        tests("hash_set") {
+            s : hash_set<int>;
+            before_each { s = new hash_set<int>(); };
+
+            test("set new size") { expect(s.size()).should_be(0); };
+            test("set new is_empty") { expect(s.is_empty()).should_be(1); };
+            test("set contains on empty") { expect(s.contains(1)).should_be(0); };
+            test("set remove on empty") { expect(s.remove(1)).should_be(0); };
+            test("set empty get_elements") { expect_null(s.get_elements()); };
+            test("set empty to_array") { expect(sizeof(s.to_array())).should_be(0); };
+
+            test("set add says whether it was new") {
+                expect(s.add(3)).named("add").should_be(1);
+                expect(s.add(1)).named("add 2").should_be(1);
+                expect(s.add(3)).named("add duplicate").should_be(0);
+                expect(s.add(2)).named("add 3").should_be(1);
+            };
+
+            // 3, 1, 2 added in that order
+            tests("three") {
+                before_each { s.add(3); s.add(1); s.add(2); };
+
+                test("set size") { expect(s.size()).should_be(3); };
+                test("set is_empty 0") { expect(s.is_empty()).should_be(0); };
+                test("set contains") { expect(s.contains(1)).should_be(1); };
+                test("set contains missing") { expect(s.contains(4)).should_be(0); };
+                test("set keeps insertion order") { expect(join(s.to_list())).should_be("3,1,2"); };
+                test("set to_array") { expect(s.to_array()[0].value).should_be(3); };
+                test("set foreach") {
+                    digits : decimal = 0;
+                    foreach(x in s) { digits = digits * 10 + x.value; }
+                    expect(digits).should_be(312);
+                };
+                test("set iterator") {
+                    it := s.iterator();
+                    digits : decimal = 0;
+                    while(it.has_next()) digits = digits * 10 + it.next().value;
+                    expect(digits).should_be(312);
+                };
+
+                test("set remove") {
+                    expect(s.remove(1)).should_be(1);
+                    expect(s.remove(1)).named("remove again").should_be(0);
+                    expect(s.size()).named("size after remove").should_be(2);
+                    expect(join(s.to_list())).named("after remove").should_be("3,2");
+                };
+
+                test("set add_all(list) counts the new ones") {
+                    s.remove(1);
+                    more := new list<int>();
+                    more.add(2); more.add(5); more.add(6); more.add(5);
+                    expect(s.add_all(more)).should_be(2);
+                    expect(join(s.to_list())).named("after add_all").should_be("3,2,5,6");
+                };
+                test("set add_all(array)") {
+                    s.remove(1);
+                    s.add(5); s.add(6);
+                    expect(s.add_all(new int[] { 6, 7 })).should_be(1);
+                    expect(s.size()).named("size").should_be(5);
+                };
+            };
+        };
+
+        // set algebra: a = {1,2,3,4}, b = {3,4,5}
+        tests("set_algebra") {
+            a : hash_set<int>;
+            b : hash_set<int>;
+            before_each {
+                a = new hash_set<int>();
+                a.add_all(new int[] { 1, 2, 3, 4 });
+                b = new hash_set<int>();
+                b.add_all(new int[] { 3, 4, 5 });
+            };
+
+            test("set union") { expect(join(a.union(b).to_list())).should_be("1,2,3,4,5"); };
+            test("set intersect") { expect(join(a.intersect(b).to_list())).should_be("3,4"); };
+            test("set subtract") { expect(join(a.subtract(b).to_list())).should_be("1,2"); };
+            test("set subtract the other way") { expect(join(b.subtract(a).to_list())).should_be("5"); };
+            test("set operations leave a and b alone") {
+                a.union(b); a.intersect(b); a.subtract(b); b.subtract(a);
+                expect(a.size()).named("a").should_be(4);
+                expect(b.size()).named("b").should_be(3);
+            };
+            test("set contains_all no") { expect(a.contains_all(b)).should_be(0); };
+            test("set contains_all yes") { expect(a.contains_all(a.intersect(b))).should_be(1); };
+            test("set contains_all of the empty set") { expect(a.contains_all(new hash_set<int>())).should_be(1); };
+            test("set same_elements ignores order") {
+                c := new hash_set<int>();
+                c.add_all(new int[] { 4, 3, 2, 1 });
+                expect(a.same_elements(c)).should_be(1);
+            };
+            test("set same_elements different") { expect(a.same_elements(b)).should_be(0); };
+            test("set same_elements different size") {
+                c := new hash_set<int>();
+                c.add_all(new int[] { 4, 3, 2, 1 });
+                c.remove(1);
+                expect(a.same_elements(c)).should_be(0);
+            };
+
+            test("set clear") {
+                a.clear();
+                expect(a.size()).should_be(0);
+                expect(a.contains(2)).named("contains after clear").should_be(0);
+            };
+        };
+
+        // strings are compared by their characters, not by identity
+        tests("set_of_strings") {
+            words : hash_set<string>;
+            before_each {
+                words = new hash_set<string>();
+                words.add("alpha"); words.add("beta");
+            };
+
+            test("set<string> duplicate") { expect(words.add("al" + "pha")).should_be(0); };
+            test("set<string> contains") { expect(words.contains("be" + "ta")).should_be(1); };
+            test("set<string> size, after a duplicate") {
+                words.add("al" + "pha");
+                expect(words.size()).should_be(2);
+            };
+            test("set<string> order") { expect(join_words(words.to_list())).should_be("alpha,beta"); };
+        };
+
+        // scale: 6000 adds of pseudo random numbers below 1000, checked against a plain array of flags
+        tests("big_set") {
+            seen : decimal[];               // the reference: 1 for every number that was added
+            distinct : decimal;
+            big : hash_set<int>;
+            before_each {
+                seen = new decimal[1000];
+                distinct = 0;
+                big = new hash_set<int>();
+                seed : decimal = 4711;
+                for(i : decimal = 0; i < 6000; i++) {
+                    seed = next_seed(seed);
+                    value : decimal = seed % 1000;
+                    if(seen[value] == 0) { seen[value] = 1; distinct++; }
+                    big.add(value);
+                }
+            };
+
+            test("set big add agrees with the reference") {
+                again := new hash_set<int>();
+                flags := new decimal[1000];
+                seed : decimal = 4711;
+                for(i : decimal = 0; i < 6000; i++) {
+                    seed = next_seed(seed);
+                    value : decimal = seed % 1000;
+                    was_new : bool = false;
+                    if(flags[value] == 0) { flags[value] = 1; was_new = true; }
+                    expect(again.add(value)).named("add " + i + " (" + value + ")").should_be(was_new);
+                }
+            };
+            test("set big size") { expect(big.size()).should_be(distinct); };
+            test("set big contains agrees with the reference") {
+                for(value : decimal = 0; value < 1000; value++) {
+                    expect(big.contains(value)).named("contains " + value).should_be(seen[value] != 0);
+                }
+            };
+            test("set big after removes: size, and contains agrees with the reference") {
+                for(value : decimal = 0; value < 1000; value += 3) {
+                    big.remove(value);
+                    if(seen[value]) { seen[value] = 0; distinct--; }
+                }
+                expect(big.size()).named("size after removes").should_be(distinct);
+                for(value : decimal = 0; value < 1000; value++) {
+                    expect(big.contains(value)).named("contains " + value + " after removes").should_be(seen[value] != 0);
+                }
+            };
+        };
+
+        tests("map_entry") {
+            entry : map_entry<string, int>;
+            before_each { entry = new map_entry<string, int>("k", 5); };
+
+            test("entry key") { expect(entry.key).should_be("k"); };
+            test("entry value") { expect(entry.value.value).should_be(5); };
+            test("entry value can be changed") {
+                entry.value = new int(6);
+                expect(entry.value.value).should_be(6);
+            };
+        };
+    };
+}

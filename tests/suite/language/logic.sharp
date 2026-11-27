@@ -1,0 +1,238 @@
+mod suite.language.logic;
+
+import ( std.testing )
+
+/**
+ * Logic: && (and), || (or), ! (not).
+ * The right side of && is only evaluated when the left side is true, and the
+ * right side of || only when the left side is false ("short circuit").
+ *
+ * Every mix of && and || in this file is written with parentheses, from the
+ * time when the grouping without them was wrong (fixed, see
+ * logic_precedence.sharp).
+ */
+
+/** how many times touch() has been called (set back to 0 before every test) */
+calls : decimal = 0;
+
+/** gives back `result`, and counts the call so a test can see that it happened */
+def touch(result: decimal): decimal {
+    calls++;
+    return result;
+}
+
+def both(a: decimal, b: decimal): decimal { return a && b; }
+def either(a: decimal, b: decimal): decimal { return a || b; }
+def not(a: decimal): decimal { return !a; }
+
+/** true when n is from low to high */
+def between(n: decimal, low: decimal, high: decimal): decimal {
+    return n >= low && n <= high;
+}
+
+def logic_tests() {
+    tests("logic") {
+        t : decimal;
+        f : decimal;
+        five : decimal;
+        zero : decimal;
+        x : decimal;
+        before_each {
+            t = true;
+            f = false;
+            five = 5;
+            zero = 0;
+            x = 15;
+            calls = 0;
+        };
+
+        // ---- and
+        test("true && true") { expect(true && true).should_be(1); };
+        test("true && false") { expect(true && false).should_be(0); };
+        test("false && true") { expect(false && true).should_be(0); };
+        test("false && false") { expect(false && false).should_be(0); };
+        test("t && t") { expect(t && t).should_be(1); };
+        test("t && f") { expect(t && f).should_be(0); };
+        test("f && t") { expect(f && t).should_be(0); };
+        test("f && f") { expect(f && f).should_be(0); };
+
+        // ---- or
+        test("true || true") { expect(true || true).should_be(1); };
+        test("true || false") { expect(true || false).should_be(1); };
+        test("false || true") { expect(false || true).should_be(1); };
+        test("false || false") { expect(false || false).should_be(0); };
+        test("t || t") { expect(t || t).should_be(1); };
+        test("t || f") { expect(t || f).should_be(1); };
+        test("f || t") { expect(f || t).should_be(1); };
+        test("f || f") { expect(f || f).should_be(0); };
+
+        // ---- not
+        test("!true") { expect(!true).should_be(0); };
+        test("!false") { expect(!false).should_be(1); };
+        test("!t") { expect(!t).should_be(0); };
+        test("!f") { expect(!f).should_be(1); };
+        test("!(!t)") { expect(!(!t)).should_be(1); };
+        test("!(!f)") { expect(!(!f)).should_be(0); };
+
+        // ---- any number that is not 0 counts as true; the answer is always 1 or 0
+        test("5 && 3") { expect(five && 3).should_be(1); };
+        test("5 && 0") { expect(five && zero).should_be(0); };
+        test("0 || 7") { expect_true(zero || 7); };
+        test("0 || 0") { expect(zero || zero).should_be(0); };
+        test("!5") { expect(!five).should_be(0); };
+        test("!0") { expect(!zero).should_be(1); };
+        test("-1 && 1") { expect((0 - 1) && 1).should_be(1); };
+        test("0.5 || 0") { expect_true(0.5 || zero); };
+        test("0.5 && 2") { expect(0.5 && five).should_be(1); };
+
+        // ---- chains
+        test("t && t && t") { expect(t && t && t).should_be(1); };
+        test("t && t && f") { expect(t && t && f).should_be(0); };
+        test("f && t && t") { expect(f && t && t).should_be(0); };
+        test("t && f && t") { expect(t && f && t).should_be(0); };
+        test("f || f || t") { expect(f || f || t).should_be(1); };
+        test("f || f || f") { expect(f || f || f).should_be(0); };
+        test("t || f || f") { expect(t || f || f).should_be(1); };
+        test("f || t || f") { expect(f || t || f).should_be(1); };
+
+        // ---- mixed, with parentheses
+        test("(t && f) || t") { expect((t && f) || t).should_be(1); };
+        test("t && (f || t)") { expect(t && (f || t)).should_be(1); };
+        test("(f && f) || t") { expect((f && f) || t).should_be(1); };
+        test("f && (f || t)") { expect(f && (f || t)).should_be(0); };
+        test("(t || f) && f") { expect((t || f) && f).should_be(0); };
+        test("t || (f && f)") { expect(t || (f && f)).should_be(1); };
+        test("(f || t) && (t || f)") { expect((f || t) && (t || f)).should_be(1); };
+        test("(f && t) || (t && f)") { expect((f && t) || (t && f)).should_be(0); };
+        test("!(t && f)") { expect(!(t && f)).should_be(1); };
+        test("!(t || f)") { expect(!(t || f)).should_be(0); };
+        test("!t || !f") { expect(!t || !f).should_be(1); };
+        test("!t && !f") { expect(!t && !f).should_be(0); };
+        test("!f && t") { expect(!f && t).should_be(1); };
+
+        // ---- De Morgan: !(a && b) is !a || !b, and !(a || b) is !a && !b
+        test("!(t && t) == (!t || !t)") { expect(!(t && t) == (!t || !t)).should_be(1); };
+        test("!(t && f) == (!t || !f)") { expect(!(t && f) == (!t || !f)).should_be(1); };
+        test("!(f || f) == (!f && !f)") { expect(!(f || f) == (!f && !f)).should_be(1); };
+        test("!(f || t) == (!f && !t)") { expect(!(f || t) == (!f && !t)).should_be(1); };
+
+        // ---- short circuit: && stops at the first false
+        test("f && touch(1) does not call touch") {
+            expect(f && touch(1)).should_be(0);
+            expect(calls).named("calls of touch").should_be(0);
+        };
+        test("t && touch(1) calls touch once") {
+            expect(t && touch(1)).should_be(1);
+            expect(calls).named("calls of touch").should_be(1);
+        };
+        test("touch(0) && touch(1) calls only the left touch") {
+            expect(touch(0) && touch(1)).should_be(0);
+            expect(calls).named("calls of touch").should_be(1);
+        };
+        test("touch(1) && touch(0) calls both") {
+            expect(touch(1) && touch(0)).should_be(0);
+            expect(calls).named("calls of touch").should_be(2);
+        };
+        test("touch(1) && touch(0) && touch(1) stops after the second") {
+            expect(touch(1) && touch(0) && touch(1)).should_be(0);
+            expect(calls).named("calls of touch").should_be(2);
+        };
+
+        // ---- short circuit: || stops at the first true
+        test("t || touch(0) does not call touch") {
+            expect(t || touch(0)).should_be(1);
+            expect(calls).named("calls of touch").should_be(0);
+        };
+        test("f || touch(0) calls touch once") {
+            expect(f || touch(0)).should_be(0);
+            expect(calls).named("calls of touch").should_be(1);
+        };
+        test("touch(1) || touch(1) calls only the left touch") {
+            expect(touch(1) || touch(1)).should_be(1);
+            expect(calls).named("calls of touch").should_be(1);
+        };
+        test("touch(0) || touch(1) calls both") {
+            expect(touch(0) || touch(1)).should_be(1);
+            expect(calls).named("calls of touch").should_be(2);
+        };
+        test("touch(0) || touch(1) || touch(1) stops after the second") {
+            expect(touch(0) || touch(1) || touch(1)).should_be(1);
+            expect(calls).named("calls of touch").should_be(2);
+        };
+
+        // ---- short circuit inside an if
+        test("if(f && touch(1)) skips the branch and does not call touch") {
+            if(f && touch(1)) {
+                fail_test("the if branch ran");
+            }
+            expect(calls).named("calls of touch").should_be(0);
+        };
+        test("if(t || touch(1)) runs the branch and does not call touch") {
+            if(t || touch(1)) {
+            } else {
+                fail_test("the else branch ran");
+            }
+            expect(calls).named("calls of touch").should_be(0);
+        };
+        test("if(t && touch(1)) runs the branch and calls touch") {
+            if(t && touch(1)) {
+            } else {
+                fail_test("the else branch ran");
+            }
+            expect(calls).named("calls of touch").should_be(1);
+        };
+
+        // ---- short circuit protects the right side (5 / 0 is never reached for)
+        test("guarded division: the right side is not evaluated") {
+            divisor : decimal = 0;
+            safe : decimal = divisor != 0 && touch(10 / divisor) > 1;
+            expect(safe).should_be(0);
+            expect(calls).named("calls of touch").should_be(0);
+        };
+
+        // ---- with comparisons (x = 15)
+        test("x > 10 && x < 20") { expect(x > 10 && x < 20).should_be(1); };
+        test("x > 10 && x < 12") { expect(x > 10 && x < 12).should_be(0); };
+        test("x < 10 || x > 12") { expect(x < 10 || x > 12).should_be(1); };
+        test("x < 10 || x > 20") { expect(x < 10 || x > 20).should_be(0); };
+        test("x == 15 && x != 16") { expect(x == 15 && x != 16).should_be(1); };
+        test("!(x == 15)") { expect(!(x == 15)).should_be(0); };
+        test("!(x < 10)") { expect(!(x < 10)).should_be(1); };
+        test("x % 3 == 0 && x % 5 == 0") { expect(x % 3 == 0 && x % 5 == 0).should_be(1); };
+        test("x % 2 == 0 || x % 7 == 0") { expect(x % 2 == 0 || x % 7 == 0).should_be(0); };
+        test("(x < 0 || x > 10) && x != 13") { expect((x < 0 || x > 10) && x != 13).should_be(1); };
+
+        // ---- stored in variables
+        test("in_range") {
+            in_range : decimal = x >= 0 && x <= 100;
+            expect(in_range).should_be(1);
+        };
+        test("out_of_range") {
+            in_range : decimal = x >= 0 && x <= 100;
+            out_of_range : decimal = !in_range;
+            expect(out_of_range).should_be(0);
+        };
+        test("in_range && !out_of_range") {
+            in_range : decimal = x >= 0 && x <= 100;
+            out_of_range : decimal = !in_range;
+            expect(in_range && !out_of_range).should_be(1);
+        };
+        test("in a bool object") {
+            answer : bool = t && !f;
+            expect(answer).should_be(1);
+        };
+
+        // ---- through functions
+        test("both(1, 1)") { expect(both(1, 1)).should_be(1); };
+        test("both(1, 0)") { expect(both(1, 0)).should_be(0); };
+        test("either(0, 1)") { expect(either(0, 1)).should_be(1); };
+        test("either(0, 0)") { expect(either(0, 0)).should_be(0); };
+        test("not(1)") { expect(not(1)).should_be(0); };
+        test("not(0)") { expect(not(0)).should_be(1); };
+        test("between(5, 1, 10)") { expect(between(5, 1, 10)).should_be(1); };
+        test("between(0, 1, 10)") { expect(between(0, 1, 10)).should_be(0); };
+        test("between(11, 1, 10)") { expect(between(11, 1, 10)).should_be(0); };
+        test("between(10, 1, 10)") { expect(between(10, 1, 10)).should_be(1); };
+        test("both(either(0, 1), not(0))") { expect(both(either(0, 1), not(0))).should_be(1); };
+    };
+}

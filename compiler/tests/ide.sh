@@ -23,7 +23,7 @@
 #   no -ide       what the compiler prints is the same with and without the option (a clean program, a program with
 #                 analysis errors and a warning, a program with a syntax error)
 #   failing       the output folder cannot be written into: the build is not disturbed, failed.txt says why
-#   suite_*       four programs of the language's own test suite: every position cuts the right text out
+#   suite_*       four files of the language's own test suite (tests/suite): every position cuts the right text out
 #
 # Prints one line per failure and a summary; exits 1 when anything failed.
 
@@ -181,17 +181,19 @@ else
     ls "$WORK/failing" | sed 's/^/        /'; diff "$WORK/plain.txt" "$WORK/failing.txt" | head -5 | sed 's/^/        /'
 fi
 
-# ---- programs of the language's own test suite: operators, function values, exceptions, generics, properties.
-# (The gates compile all of them with -ide and check that the compiler still passes; here their positions are checked.)
+# ---- files of the language's own test suite: operators, function values, exceptions, a list's index assignment.
+# Each is one group of the suite's program (tests/suite/README.md), a module without a main: it is compiled with
+# a main of three lines that calls its group, written here.
 SUITE="$HERE/../../tests/suite"
-if [ -f "$SUITE/testing.sharp" ]; then
-    for name in operators function_pointers exceptions list_index_assignment; do
-        if [ -f "$SUITE/cases/$name.sharp" ]; then
-            compile "suite_$name" "$SUITE/testing.sharp" "$SUITE/cases/$name.sharp"
-            verify "suite_$name" "suite_$name" "$SUITE/cases/$name.sharp"
-        fi
-    done
-fi
+for file in language/operators functions/pointers exceptions/basics arrays/list_index_assignment; do
+    name=$(basename "$file")
+    if [ ! -f "$SUITE/$file.sharp" ]; then
+        failed=$((failed+1)); echo "FAIL suite_$name: tests/suite/$file.sharp is not there any more - name another file of the suite here"; continue
+    fi
+    printf 'mod main;\n\nimport ( suite.%s )\n\ndef main(args: string[]) { %s_tests(); }\n' "$(echo "$file" | tr / .)" "$name" > "$WORK/suite_$name.main.sharp"
+    compile "suite_$name" "$SUITE/$file.sharp" "$WORK/suite_$name.main.sharp"
+    verify "suite_$name" "suite_$name" "$SUITE/$file.sharp"
+done
 
 echo "ide tests: $passed passed, $failed failed"
 [ $failed = 0 ]

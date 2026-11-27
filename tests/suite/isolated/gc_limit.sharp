@@ -1,0 +1,265 @@
+mod suite.isolated.gc_limit;
+
+import ( std.testing, std.io, std.system, platform )
+
+/**
+ * std.system gc at the memory limit. The program starts ITSELF as a child with
+ * a small limit (`sharp -mem 64mb suite isolated gc_limit <what>`) and reads what
+ * the child printed and how it ended.
+ *
+ *      no rescue       in manual mode a program that never collects runs out of memory; one
+ *                      that collects by hand does not
+ *      one exception   out of memory can be caught, and its handler has memory to work in;
+ *                      a program that catches it and frees nothing still comes to an end
+ *      the hook        runs before anything is thrown; when it frees enough nothing is
+ *                      thrown at all, when it does not the exception follows
+ *      too large       an allocation that could never fit throws, takes nothing, and can be
+ *                      tried as often as the program likes
+ */
+kept : _int8[]?;                // the last piece of garbage made: the optimizer may not drop a `new` nobody keeps
+hook_runs : _int64 = 0;         // how often the out of memory hook ran
+
+/** make `megabytes` of objects nobody refers to afterwards */
+def make_garbage(megabytes: _int64) {
+    for(i : _int64 = 0; i < megabytes * 16; i++) {
+        piece := new _int8[64 * 1024];
+        piece[0] = 1;
+        kept = piece;
+    }
+    kept = null;
+}
+
+/** a megabyte that stays in use */
+class held_piece {
+    // (made in fill_memory, not here: a piece is counted as held only once it has its megabyte)
+    data : _int8[]?;
+}
+
+/** fill memory with megabyte pieces that all stay in use, until `new` throws; the pieces */
+def fill_memory() : list<held_piece> {
+    held := new list<held_piece>();
+    try {
+        while(true) {
+            piece := new held_piece();
+            piece.data = new _int8[1024 * 1024];
+            held.add(piece);
+        }
+    } catch(none_left: out_of_memory_exception) { }
+    return held;
+}
+
+/** The child, run with a 64 MB limit. Each way makes far more than 64 MB. */
+def be_the_child(what: string) {
+    if(what == "fed") {
+        // normal mode
+        make_garbage(400);
+        println("made 400 MB in 64");
+    } else if(what == "starve") {
+        // manual mode, and never a collection
+        gc.set_mode(gc_mode.manual);
+        make_garbage(400);
+        println("made 400 MB in 64");
+    } else if(what == "watchful") {
+        // manual mode, collecting whenever memory is half full
+        gc.set_mode(gc_mode.manual);
+        before : _int64 = gc.collections();     // (what ran while the program started)
+        by_hand : _int64 = 0;
+        for(i : _int64 = 0; i < 400; i++) {
+            make_garbage(1);
+            if(gc.pressure() > 0.5) { gc.collect_young(); by_hand++; }
+        }
+        if(gc.collections() - before == by_hand && by_hand > 5) { println("made 400 MB in 64, every collection its own"); }
+        else { println("collected " + by_hand + " times by hand, but " + (gc.collections() - before) + " collections ran"); }
+    } else if(what == "caught") {
+        // manual mode, never collecting - but the exception is caught, three times over
+        gc.set_mode(gc_mode.manual);
+        caught : _int64 = 0;
+        for(round : _int64 = 0; round < 3; round++) {
+            try {
+                make_garbage(400);
+            } catch(none_left: out_of_memory_exception) {
+                // the handler makes objects BEFORE it collects: the reserve is what it works in
+                println("caught: " + none_left.get_message() + ", memory full: " + (gc.pressure() > 0.95));
+                gc.collect();
+                caught++;
+            }
+        }
+        println("caught " + caught + " times, memory full now: " + (gc.pressure() > 0.5));
+        make_garbage(30);
+        gc.collect();
+        println("went on");
+    } else if(what == "stubborn") {
+        // catches every out of memory and frees nothing: this must end, not go round for ever
+        gc.set_mode(gc_mode.manual);
+        caught : _int64 = 0;
+        while(true) {
+            try {
+                make_garbage(400);
+            } catch(none_left: out_of_memory_exception) {
+                caught++;
+            }
+        }
+    } else if(what == "hooked") {
+        // manual mode, never collecting - the hook does it
+        gc.set_mode(gc_mode.manual);
+        gc.on_out_of_memory({ -> hook_runs++; gc.collect(); });
+        thrown : _int64 = 0;
+        before : _int64 = gc.collections();
+        try {
+            make_garbage(400);
+        } catch(none_left: out_of_memory_exception) {
+            thrown++;
+        }
+        if(thrown == 0 && hook_runs >= 5 && gc.collections() - before == hook_runs) { println("made 400 MB in 64, the hook collected"); }
+        else { println("thrown " + thrown + ", hook runs " + hook_runs + ", collections " + (gc.collections() - before)); }
+    } else if(what == "helpless") {
+        // the hook frees nothing, and everything is in use: the hook runs first, then the exception
+        gc.on_out_of_memory({ -> hook_runs++; });
+        held := fill_memory();
+        runs_then : _int64 = hook_runs;
+        pieces : _int64 = held.size();
+        held.clear();
+        gc.collect();
+        println("the hook ran " + runs_then + " time(s), then it was thrown with " + pieces + " MB held");
+
+        gc.forget_hooks();                      // from here on: no hook, thrown at once
+        held = fill_memory();
+        if(hook_runs == runs_then) { println("without the hook: thrown, the hook did not run"); }
+        held.clear();
+        gc.collect();
+    } else if(what == "large") {
+        // 2 GB in one piece: out of memory, five times, and each takes nothing
+        thrown : _int64 = 0;
+        for(round : _int64 = 0; round < 5; round++) {
+            try {
+                huge := new _int8[2000 * 1024 * 1024];
+                kept = huge;
+            } catch(none_left: out_of_memory_exception) {
+                thrown++;
+            }
+        }
+        make_garbage(400);
+        println("too large " + thrown + " times, then made 400 MB in 64");
+    } else if(what == "threads") {
+        // four threads run out together, in manual mode; the hook collects for all of them
+        gc.set_mode(gc_mode.manual);
+        gc.on_out_of_memory({ -> hook_runs++; gc.collect(); });
+        workers := new thread[4];
+        for(i : _int64 = 0; i < 4; i++) { workers[i] = new thread("eater " + i, eat); }
+        for(i : _int64 = 0; i < 4; i++) { workers[i].start(); }
+        for(i : _int64 = 0; i < 4; i++) { workers[i].join(); }
+        if(hook_runs >= 5) { println("four threads made 800 MB in 64, the hook collected"); }
+        else { println("hook runs " + hook_runs); }
+    }
+}
+
+def eat(args: object[]) : int {
+    for(i : _int64 = 0; i < 200 * 16; i++) {
+        piece := new _int8[64 * 1024];
+        piece[0] = 1;
+    }
+    return 0;
+}
+
+/** run the child, with a 64 MB limit; what it printed, and after a line of its own how it ended (0 = well) */
+def child_said(what: string) : string {
+    child := subprocess.run(program_path(), { "isolated", "gc_limit", what }, { "-mem", "64mb" }, true);
+    said := child.read_all_text();
+    ended : _int64 = child.wait();
+    child.close();
+    if(ended == 0) { return said + "\nended well"; }
+    return said + "\nended badly";
+}
+
+def test_no_rescue() {
+    tests("no_rescue") {
+        test("400 MB of garbage in 64 MB, normal mode: memory enough") {
+            fed := child_said("fed");
+            expect(fed).should_contain("made 400 MB in 64");
+            expect(fed).should_contain("ended well");
+        };
+
+        test("the same in manual mode, never collecting: out of memory, no rescue") {
+            starved := child_said("starve");
+            expect_false(starved.find("made 400 MB in 64"));
+            expect(starved).should_contain("out_of_memory_exception");
+            expect(starved).should_contain("managed memory");       // the VM's report of what ran out
+            expect(starved).should_contain("ended badly");
+        };
+
+        test("the same in manual mode, collecting when memory is half full: memory enough") {
+            watchful := child_said("watchful");
+            expect(watchful).should_contain("made 400 MB in 64, every collection its own");
+            expect(watchful).should_contain("ended well");
+        };
+    };
+}
+
+def test_one_exception() {
+    tests("one_exception") {
+        // (one child for the three: it is one run of catching)
+        test("out of memory is caught, its handler can make objects before it collects, it is caught each time memory runs out again, and the program goes on") {
+            caught := child_said("caught");
+            expect(caught).named("the handler").should_contain("caught: out of memory, memory full: true");
+            expect(caught).named("each time, once it was collected in between").should_contain("caught 3 times, memory full now: false");
+            expect(caught).named("the program goes on").should_contain("went on");
+            expect(caught).should_contain("ended well");
+        };
+
+        test("caught again and again and nothing freed: the reserve runs out and the program ends") {
+            stubborn := child_said("stubborn");
+            expect(stubborn).should_contain("managed memory");
+            expect(stubborn).should_contain("ended badly");
+        };
+    };
+}
+
+def test_the_hook() {
+    tests("the_hook") {
+        test("a hook that collects: nothing is thrown, the program never notices") {
+            hooked := child_said("hooked");
+            expect(hooked).should_contain("made 400 MB in 64, the hook collected");
+            expect(hooked).should_contain("ended well");
+        };
+
+        // (one child for both: the second half of its run is the first half without the hook)
+        test("a hook that cannot help runs once and then the exception is thrown; after forget_hooks it is thrown at once") {
+            helpless := child_said("helpless");
+            expect(helpless).named("with the hook").should_contain("the hook ran 1 time(s), then it was thrown with ");
+            expect(helpless).named("forget_hooks").should_contain("without the hook: thrown, the hook did not run");
+            expect(helpless).should_contain("ended well");
+        };
+
+        test("four threads out of memory together: one hook serves them all") {
+            together := child_said("threads");
+            expect(together).should_contain("four threads made 800 MB in 64, the hook collected");
+            expect(together).should_contain("ended well");
+        };
+    };
+}
+
+def test_too_large() {
+    tests("too_large") {
+        test("an allocation that can never fit throws each time and takes nothing") {
+            large := child_said("large");
+            expect(large).should_contain("too large 5 times, then made 400 MB in 64");
+            expect(large).should_contain("ended well");
+        };
+    };
+}
+
+/** `suite isolated gc_limit [<what>]`: the tests, or with <what> the child */
+def gc_limit_program(args: string[]) {
+    if(sizeof(args) > 0) {
+        be_the_child(args[0]);
+        return;
+    }
+    show_only_failures();
+    tests("gc_limit") {
+        test_no_rescue();
+        test_one_exception();
+        test_the_hook();
+        test_too_large();
+    };
+    finish_tests("gc_limit");
+}

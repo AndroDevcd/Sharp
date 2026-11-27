@@ -1,0 +1,14 @@
+mod suite.arrays.dictionary_one_pair;
+import ( std.testing )
+def dictionary_one_pair_tests() {
+    tests("dictionary_one_pair") {
+        test("a dictionary literal with one pair has one entry") {
+            one := { "k" : 1 };
+            expect(one.size()).should_be(1);
+        };
+        test("a dictionary literal with two pairs has two entries") {
+            two := { "a" : 1, "b" : 2 };
+            expect(two.size()).should_be(2);
+        };
+    };
+}

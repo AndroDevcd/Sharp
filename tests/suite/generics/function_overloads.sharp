@@ -1,0 +1,115 @@
+mod suite.generics.function_overloads;
+
+import ( std.testing )
+
+/**
+ * Generic functions of one name, side by side:
+ *
+ *   - two generic functions with the same number of type parameters and a
+ *     DIFFERENT number of parameters (`fetch<T>(route)` and `fetch<T>(route, extras)`);
+ *   - a generic function beside a plain one with the same parameters
+ *     (`fetch<T>(route)` and `fetch(route)`): the call says which it means
+ *     by writing type arguments or not.
+ */
+
+class item {
+    label : string = "an item";
+}
+
+class other {
+    label : string = "another";
+}
+
+def made<t>() : t {
+    return new t();
+}
+
+def made<t>(times: _int64) : list<t> {
+    all := new list<t>();
+    for(i : _int64 = 0; i < times; i++) { all.add(new t()); }
+    return all;
+}
+
+def made<t>(times: _int64, extra: _int64) : _int64 {
+    return times * 100 + extra;
+}
+
+def made() : string {
+    return "plain";
+}
+
+def made(times: _int64) : string {
+    return "plain " + times;
+}
+
+class request {
+    text : string = "";
+    def add(piece: string) { text = text + piece; }
+}
+
+class service {
+    said : string = "";
+
+    def fetch<t>(route: string) : t {
+        said = "typed " + route;
+        return new t();
+    }
+
+    def fetch<t>(route: string, extras: (request)()) : t {
+        asked := new request();
+        extras(asked);
+        said = "typed " + route + " with " + asked.text;
+        return new t();
+    }
+
+    def fetch(route: string) : string {
+        said = "plain " + route;
+        return route;
+    }
+
+    def fetch(route: string, extras: (request)()) : string {
+        asked := new request();
+        extras(asked);
+        said = "plain " + route + " with " + asked.text;
+        return asked.text;
+    }
+}
+
+class shop base service {
+    def one() : item { return fetch<item>("/one"); }
+    def two(what: string) : other { return fetch<other>("/two") { it.add(what); }; }
+    def three() : string { return fetch("/three"); }
+    def four(what: string) : string { return fetch("/four") { it.add(what); }; }
+}
+
+def function_overloads_tests() {
+    tests("function_overloads") {
+        test("no parameters, with a type argument") { expect(made<item>().label).should_be("an item"); };
+        test("one parameter, with a type argument") { expect(made<other>(3).size()).should_be(3); };
+        test("... makes that type") { expect(made<other>(2).at(1).label).should_be("another"); };
+        test("two parameters, with a type argument") { expect(made<item>(4, 2)).should_be(402); };
+        test("no type argument: the plain function") { expect(made()).should_be("plain"); };
+        test("no type argument, one parameter: the plain function") { expect(made(7)).should_be("plain 7"); };
+
+        test("in a class: the generic one, one parameter") {
+            s := new shop();
+            expect(s.one().label).should_be("an item");
+            expect(s.said).named("which ran").should_be("typed /one");
+        };
+        test("in a class: the generic one with a block") {
+            s := new shop();
+            expect(s.two("x").label).should_be("another");
+            expect(s.said).named("which ran").should_be("typed /two with x");
+        };
+        test("in a class: the plain one") {
+            s := new shop();
+            expect(s.three()).should_be("/three");
+            expect(s.said).named("which ran").should_be("plain /three");
+        };
+        test("in a class: the plain one with a block") {
+            s := new shop();
+            expect(s.four("y")).should_be("y");
+            expect(s.said).named("which ran").should_be("plain /four with y");
+        };
+    };
+}

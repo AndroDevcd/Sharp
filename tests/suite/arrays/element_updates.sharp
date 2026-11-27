@@ -1,0 +1,132 @@
+mod suite.arrays.element_updates;
+
+import ( std.testing )
+
+/**
+ * Updating an element of a number array in place: a[i] += v (and -= *= /= %=),
+ * a[i]++, a[i]--, ++a[i], --a[i]. The array and the index are evaluated once.
+ * Also: a compound assignment whose left side calls a function.
+ */
+
+class box { nums : decimal[] = new decimal[4]; n : decimal = 2; }
+
+def idx(counter: decimal[]): decimal { counter[0] = counter[0] + 1; return 2; }
+
+def element_updates_tests() {
+    tests("element_updates") {
+        test("a[1] += 4") {
+            a : decimal[] = new decimal[3];
+            a[1] = 5;
+            a[1] += 4;
+            expect(a[1]).should_be(9);
+        };
+        test("-= *= /= on an element") {
+            a : decimal[] = new decimal[3];
+            a[1] = 9;
+            a[1] -= 1; a[1] *= 3; a[1] /= 4;
+            expect(a[1]).should_be(6);
+        };
+        test("%= on an element") {
+            a : decimal[] = new decimal[3];
+            a[1] = 6;
+            a[1] %= 4;
+            expect(a[1]).should_be(2);
+        };
+        test("a[idx()] += 7 runs the index expression once") {
+            a : decimal[] = new decimal[3];
+            calls : decimal[] = new decimal[1];
+            a[idx(calls)] += 7;
+            expect(calls[0]).named("calls of the index expression").should_be(1);
+            expect(a[2]).named("a[2]").should_be(7);
+        };
+        test("field array element +=") {
+            a : decimal[] = new decimal[3];
+            a[2] = 7;
+            b := new box();
+            b.nums[3] += b.n * a[2];
+            b.nums[3] += b.nums[3];
+            expect(b.nums[3]).should_be(28);
+        };
+        test("element += in a loop") {
+            a : decimal[] = new decimal[3];
+            i : decimal = 0;
+            for(k : decimal = 0; k < 1000; k++) { a[0] += k; i += a[0] % 7; }
+            expect(a[0]).named("the element").should_be(499500);
+            expect(i).named("loop checksum").should_be(2002);
+        };
+        test("_int8 element +=") {
+            bytes : _int8[] = new _int8[2];
+            bytes[0] += 100; bytes[0] += 20;
+            expect(bytes[0]).should_be(120);
+        };
+        test("out of bounds += throws") {
+            a : decimal[] = new decimal[3];
+            expect_throws<exception>() { a[3] += 1; };
+        };
+        test("field of a call result +=") { expect(more_checks()).should_be(32); };
+        test("z[1]++") {
+            z : decimal[] = new decimal[4];
+            z[1] = 3;
+            z[1]++;
+            expect(z[1]).should_be(4);
+        };
+        test("z[1]--") {
+            z : decimal[] = new decimal[4];
+            z[1] = 4;
+            z[1]--; z[1]--;
+            expect(z[1]).should_be(2);
+        };
+        test("++z[2]") {
+            z : decimal[] = new decimal[4];
+            ++z[2];
+            expect(z[2]).should_be(1);
+        };
+        test("--z[3]") {
+            z : decimal[] = new decimal[4];
+            --z[3]; --z[3];
+            expect(z[3]).should_be(0 - 2);
+        };
+        test("the value of z[1]++ is the old value, and the element is increased") {
+            z : decimal[] = new decimal[4];
+            z[1] = 2;
+            old : decimal = z[1]++;
+            expect(old).named("the value of z[1]++").should_be(2);
+            expect(z[1]).named("z[1] afterwards").should_be(3);
+        };
+        test("the value of ++z[1] is the new value") {
+            z : decimal[] = new decimal[4];
+            z[1] = 3;
+            now : decimal = ++z[1];
+            expect(now).should_be(4);
+        };
+        test("z[0]++ in a loop") {
+            z : decimal[] = new decimal[4];
+            z[1] = 4; z[2] = 1; z[3] = 0 - 2;
+            count : decimal = 0;
+            for(k : decimal = 0; k < 500; k++) { z[0]++; count += z[k % 4]; }
+            expect(z[0]).named("z[0]").should_be(500);
+            expect(count).named("loop sum").should_be(31500);
+        };
+        test("z[idx()]++ runs the index expression once") {
+            z : decimal[] = new decimal[4];
+            z[2] = 1;
+            hits : decimal[] = new decimal[1];
+            z[idx(hits)]++;
+            expect(hits[0]).named("calls of the index expression").should_be(1);
+            expect(z[2]).named("z[2]").should_be(2);
+        };
+    };
+}
+
+class counter {
+    count : decimal = 10;
+    made : decimal = 0;
+    def me() : counter { made++; return self; }
+}
+
+def more_checks() : decimal {
+    c := new counter();
+    c.me().count += 5;
+    c.me().count *= 2;
+    return c.count + c.made;
+}

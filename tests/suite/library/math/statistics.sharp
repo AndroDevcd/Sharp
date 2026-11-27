@@ -1,0 +1,294 @@
+mod suite.library.math.statistics;
+
+import ( std.testing, std.math )
+
+/**
+ * std.math - the statistics class (statistics.sharp) and the geometry
+ * classes rect and circle (geometry/).
+ */
+
+def check_statistics() {
+    tests("statistics") {
+        data : decimal[];
+        odd : decimal[];
+        lone : decimal[];
+        nothing : decimal[];
+        xs : decimal[];
+        before_each {
+            data = new decimal[] { 2, 4, 4, 4, 5, 5, 7, 9 };          // the textbook set: mean 5, std dev 2
+            odd = new decimal[] { 5, 1, 3 };
+            lone = new decimal[] { 42 };
+            nothing = new decimal[0];
+            xs = new decimal[] { 1, 2, 3, 4, 5 };
+        };
+
+        test("count") { expect(statistics.count(data)).should_be(8); };
+        test("sum") { expect(statistics.sum(data)).should_be(40); };
+        test("sum of nothing") { expect(statistics.sum(nothing)).should_be(0); };
+        test("minimum") { expect(statistics.minimum(data)).should_be(2); };
+        test("maximum") { expect(statistics.maximum(data)).should_be(9); };
+        test("range") { expect(statistics.range(data)).should_be(7); };
+        test("mean") { expect(statistics.mean(data)).should_be(5); };
+        test("mean of one") { expect(statistics.mean(lone)).should_be(42); };
+        test("variance") { expect(statistics.variance(data)).should_be(4); };
+        test("std_dev") { expect(statistics.std_dev(data)).should_be(2); };
+        test("sample_variance") { expect(statistics.sample_variance(data)).should_be_near(4.571428571428571, 0.000000000001); };      // 32 / 7
+        test("sample_std_dev") { expect(statistics.sample_std_dev(data)).should_be_near(2.13808993529939, 0.00000000001); };
+        test("variance of one") { expect(statistics.variance(lone)).should_be(0); };
+
+        // Kahan summation: ten times 0.1 is exactly 1
+        test("compensated sum of ten tenths") {
+            tenths := new decimal[10];
+            for(i : decimal = 0; i < 10; i++) { tenths[i] = 0.1; }
+            expect(statistics.sum(tenths)).should_be(1);
+        };
+
+        test("median, even count") { expect(statistics.median(data)).should_be(4.5); };
+        test("median, odd count") { expect(statistics.median(odd)).should_be(3); };
+        test("median of one") { expect(statistics.median(lone)).should_be(42); };
+        test("median of two") { expect(statistics.median(new decimal[] { 1, 2 })).should_be(1.5); };
+        test("median does not change the array") {
+            statistics.median(odd);
+            expect(odd[0] * 100 + odd[1] * 10 + odd[2]).should_be(513);
+        };
+        test("mode") { expect(statistics.mode(data)).should_be(4); };
+        test("mode with a tie is the smallest") { expect(statistics.mode(new decimal[] { 7, 3, 7, 3, 9 })).should_be(3); };
+        test("mode when all differ is the smallest") { expect(statistics.mode(odd)).should_be(1); };
+
+        test("sorted") {
+            ordered := statistics.sorted(new decimal[] { 5, 0 - 1, 3.5, 0, 5, 2 });
+            expect(ordered[0]).named("[0]").should_be(0 - 1);
+            expect(ordered[1]).named("[1]").should_be(0);
+            expect(ordered[2]).named("[2]").should_be(2);
+            expect(ordered[3]).named("[3]").should_be(3.5);
+            expect(ordered[4]).named("[4]").should_be(5);
+            expect(ordered[5]).named("[5]").should_be(5);
+        };
+        test("sorted of nothing") { expect(sizeof(statistics.sorted(nothing))).should_be(0); };
+        // a longer, descending run: 100 .. 1 must come back as 1 .. 100
+        test("sorted 100 values") {
+            falling := new decimal[100];
+            for(i : decimal = 0; i < 100; i++) { falling[i] = 100 - i; }
+            rising := statistics.sorted(falling);
+            for(i : decimal = 0; i < 100; i++) {
+                expect(rising[i]).named("[" + i + "]").should_be(i + 1);
+            }
+        };
+
+        test("percentile") {
+            quartiles := new decimal[] { 1, 2, 3, 4, 5 };
+            expect(statistics.percentile(quartiles, 0)).named("percentile 0").should_be(1);
+            expect(statistics.percentile(quartiles, 25)).named("percentile 25").should_be(2);
+            expect(statistics.percentile(quartiles, 50)).named("percentile 50").should_be(3);
+            expect(statistics.percentile(quartiles, 100)).named("percentile 100").should_be(5);
+            expect(statistics.percentile(quartiles, 90)).named("percentile 90").should_be_near(4.6, 0.000000000001);
+        };
+        test("percentile interpolates") { expect(statistics.percentile(new decimal[] { 10, 20 }, 25)).should_be(12.5); };
+        test("percentile of one") { expect(statistics.percentile(lone, 75)).should_be(42); };
+
+        test("geometric_mean") { expect(statistics.geometric_mean(new decimal[] { 2, 8 })).should_be_near(4, 0.000000000001); };
+        test("geometric_mean of three") { expect(statistics.geometric_mean(new decimal[] { 1, 3, 9 })).should_be_near(3, 0.000000000001); };
+        test("harmonic_mean") { expect(statistics.harmonic_mean(new decimal[] { 40, 60 })).should_be_near(48, 0.000000000001); };
+
+        test("correlation of a rising line") { expect(statistics.correlation(xs, new decimal[] { 2, 4, 6, 8, 10 })).should_be_near(1, 0.000000000001); };
+        test("correlation of a falling line") { expect(statistics.correlation(xs, new decimal[] { 10, 8, 6, 4, 2 })).should_be_near(0 - 1, 0.000000000001); };
+        test("correlation of mixed data") { expect(statistics.correlation(xs, new decimal[] { 2, 1, 4, 3, 5 })).should_be_near(0.8, 0.000000000001); };
+        test("covariance") { expect(statistics.covariance(xs, new decimal[] { 2, 4, 6, 8, 10 })).should_be(4); };
+        test("covariance falling") { expect(statistics.covariance(xs, new decimal[] { 10, 8, 6, 4, 2 })).should_be(0 - 4); };
+        test("z_score above") { expect(statistics.z_score(data, 9)).should_be(2); };
+        test("z_score below") { expect(statistics.z_score(data, 4)).should_be(0 - 0.5); };
+
+        test("to_array of a list") {
+            boxes := new list<double>();
+            boxes.add(1.5);
+            boxes.add(2.5);
+            boxes.add(5);
+            from_list := statistics.to_array(boxes);
+            expect(sizeof(from_list)).named("size").should_be(3);
+            expect(statistics.mean(from_list)).named("mean").should_be(3);
+        };
+
+        test("empty input throws") {
+            expect_throws<illegal_argument_exception>() { statistics.mean(nothing); };
+            expect_throws<illegal_argument_exception>() { statistics.median(nothing); };
+            expect_throws<illegal_argument_exception>() { statistics.mode(nothing); };
+            expect_throws<illegal_argument_exception>() { statistics.variance(nothing); };
+            expect_throws<illegal_argument_exception>() { statistics.std_dev(nothing); };
+            expect_throws<illegal_argument_exception>() { statistics.minimum(nothing); };
+            expect_throws<illegal_argument_exception>() { statistics.maximum(nothing); };
+            expect_throws<illegal_argument_exception>() { statistics.percentile(nothing, 50); };
+            expect_throws<illegal_argument_exception>() { statistics.range(nothing); };
+        };
+
+        test("bad arguments throw") {
+            expect_throws<illegal_argument_exception>() { statistics.sample_variance(lone); };
+            expect_throws<illegal_argument_exception>() { statistics.percentile(data, 101); };
+            expect_throws<illegal_argument_exception>() { statistics.percentile(data, 0 - 1); };
+            expect_throws<illegal_argument_exception>() { statistics.correlation(xs, data); };
+            expect_throws<illegal_argument_exception>() { statistics.covariance(xs, data); };
+            expect_throws<illegal_argument_exception>() { statistics.geometric_mean(new decimal[] { 1, 0 }); };
+            expect_throws<illegal_argument_exception>() { statistics.harmonic_mean(new decimal[] { 1, 0 - 2 }); };
+        };
+
+        test("constant series throw arithmetic_exception") {
+            expect_throws<arithmetic_exception>() { statistics.correlation(xs, new decimal[] { 3, 3, 3, 3, 3 }); };
+            expect_throws<arithmetic_exception>() { statistics.z_score(new decimal[] { 3, 3 }, 3); };
+        };
+    };
+}
+
+def check_rect() {
+    tests("rect") {
+        r : rect;
+        before_each { r = new rect(0, 0, 10, 5); };
+
+        test("area") { expect(r.area()).should_be(50); };
+        test("perimeter") { expect(r.perimeter()).should_be(30); };
+        test("left") { expect(r.left()).should_be(0); };
+        test("right") { expect(r.right()).should_be(10); };
+        test("low_y") { expect(r.low_y()).should_be(0); };
+        test("high_y") { expect(r.high_y()).should_be(5); };
+        test("center x") { expect(r.center().x).should_be(5); };
+        test("center y") { expect(r.center().y).should_be(2.5); };
+        test("diagonal") { expect(new rect(1, 1, 3, 4).diagonal()).should_be(5); };
+        test("is_empty") { expect_false(r.is_empty()); };
+        test("is_empty with no width") { expect_true(new rect(1, 1, 0, 4).is_empty()); };
+        test("is_square") { expect_false(r.is_square()); };
+        test("is_square 3 x 3") { expect_true(new rect(0, 0, 3, 3).is_square()); };
+        test("copy") { expect(new rect(r).width).should_be(10); };
+
+        test("contains an inner point") { expect_true(r.contains(3, 4)); };
+        test("contains a border point") { expect_true(r.contains(10, 5)); };
+        test("does not contain an outer point") { expect_false(r.contains(11, 2)); };
+        test("does not contain a point below") { expect_false(r.contains(3, 0 - 0.1)); };
+        test("contains a vector2") { expect_true(r.contains(new vector2(1, 1))); };
+        test("contains an inner rect") { expect_true(r.contains(new rect(2, 1, 3, 3))); };
+        test("contains itself") { expect_true(r.contains(r)); };
+        test("does not contain an overlapping rect") { expect_false(r.contains(new rect(8, 3, 5, 5))); };
+
+        test("intersects an overlapping rect") { expect_true(r.intersects(new rect(8, 3, 5, 5))); };
+        test("intersects a touching rect") { expect_true(r.intersects(new rect(10, 0, 2, 2))); };
+        test("does not intersect a distant rect") { expect_false(r.intersects(new rect(11, 0, 2, 2))); };
+        test("does not intersect a rect above") { expect_false(r.intersects(new rect(0, 6, 2, 2))); };
+        test("intersection") {
+            common := r.intersection(new rect(8, 3, 5, 5));
+            expect(common.x).named("x").should_be(8);
+            expect(common.y).named("y").should_be(3);
+            expect(common.width).named("width").should_be(2);
+            expect(common.height).named("height").should_be(2);
+        };
+        test("intersection of distant rects throws") { expect_throws<arithmetic_exception>() { r.intersection(new rect(20, 20, 1, 1)); }; };
+        test("union") {
+            both := r.union_with(new rect(8, 3, 5, 5));
+            expect(both.x).named("x").should_be(0);
+            expect(both.width).named("width").should_be(13);
+            expect(both.height).named("height").should_be(8);
+        };
+
+        test("translated") {
+            moved := r.translated(2, 0 - 1);
+            expect(moved.x).named("x").should_be(2);
+            expect(moved.y).named("y").should_be(0 - 1);
+            expect(moved.area()).named("translated keeps the size").should_be(50);
+        };
+        test("expanded") {
+            grown := r.expanded(1);
+            expect(grown.x).named("x").should_be(0 - 1);
+            expect(grown.width).named("width").should_be(12);
+            expect(grown.height).named("height").should_be(7);
+        };
+        test("closest_point") {
+            nearest := r.closest_point(15, 2);
+            expect(nearest.x).named("x").should_be(10);
+            expect(nearest.y).named("y").should_be(2);
+        };
+        test("closest_point of an inner point") {
+            inside := r.closest_point(3, 3);
+            expect(inside.x + inside.y).should_be(6);
+        };
+
+        test("from_corners") {
+            corners := rect.from_corners(5, 7, 1, 2);
+            expect(corners.x).named("x").should_be(1);
+            expect(corners.y).named("y").should_be(2);
+            expect(corners.width).named("width").should_be(4);
+            expect(corners.height).named("height").should_be(5);
+        };
+        test("from_center") {
+            centered := rect.from_center(0, 0, 4, 2);
+            expect(centered.x).named("x").should_be(0 - 2);
+            expect(centered.y).named("y").should_be(0 - 1);
+        };
+
+        test("==") { expect_true((r == new rect(0, 0, 10, 5))); };
+        test("!=") { expect_true((r != r.translated(2, 0 - 1))); };
+        test("to_string") { expect(r.to_string()!!).should_be("rect(0, 0, 10 x 5)"); };
+
+        test("negative sizes throw") {
+            expect_throws<illegal_argument_exception>() { new rect(0, 0, 0 - 1, 5); };
+            expect_throws<illegal_argument_exception>() { r.expanded(0 - 3); };
+        };
+    };
+}
+
+def check_circle() {
+    tests("circle") {
+        c : circle;
+        before_each { c = new circle(0, 0, 5); };
+
+        test("area") { expect(c.area()).should_be_near(78.53981633974483, 0.000000000001); };
+        test("circumference") { expect(c.circumference()).should_be_near(31.41592653589793, 0.000000000001); };
+        test("diameter") { expect(c.diameter()).should_be(10); };
+        test("center") { expect(c.center().x + c.center().y).should_be(0); };
+        test("from a vector2") { expect(new circle(new vector2(1, 2), 3).y).should_be(2); };
+        test("copy") { expect(new circle(c).radius).should_be(5); };
+
+        test("contains an inner point") { expect_true(c.contains(1, 1)); };
+        test("contains a border point") { expect_true(c.contains(3, 4)); };
+        test("does not contain an outer point") { expect_false(c.contains(4, 4)); };
+        test("contains a vector2") { expect_true(c.contains(new vector2(0, 5))); };
+        test("contains an inner circle") { expect_true(c.contains(new circle(1, 0, 2))); };
+        test("does not contain a crossing circle") { expect_false(c.contains(new circle(4, 0, 2))); };
+
+        test("intersects an overlapping circle") { expect_true(c.intersects(new circle(6, 0, 3))); };
+        test("intersects a touching circle") { expect_true(c.intersects(new circle(8, 0, 3))); };
+        test("does not intersect a distant circle") { expect_false(c.intersects(new circle(9, 0, 3))); };
+        test("intersects a rect it overlaps") { expect_true(c.intersects(new rect(4, 0 - 1, 5, 2))); };
+        test("intersects a rect around it") { expect_true(c.intersects(new rect(0 - 10, 0 - 10, 20, 20))); };
+        test("does not intersect a rect past the corner") { expect_false(c.intersects(new rect(4, 4, 2, 2))); };
+        test("intersects a rect at the corner") { expect_true(c.intersects(new rect(3, 4, 2, 2))); };
+
+        test("distance_to") { expect(c.distance_to(6, 8)).should_be(10); };
+        test("bounding_rect") {
+            box := c.bounding_rect();
+            expect(box.x).named("x").should_be(0 - 5);
+            expect(box.width + box.height).named("size").should_be(20);
+        };
+        test("point_at") {
+            top := c.point_at(HALF_PI);
+            expect(top.x).named("x").should_be_near(0, 0.000000000001);
+            expect(top.y).named("y").should_be_near(5, 0.000000000001);
+        };
+        test("translated") {
+            moved := c.translated(2, 3);
+            expect(moved.x * 10 + moved.y).should_be(23);
+        };
+        test("scaled") { expect(c.scaled(2).radius).should_be(10); };
+        test("==") { expect_true((c == new circle(0, 0, 5))); };
+        test("!=") { expect_true((c != c.translated(2, 3))); };
+        test("to_string") { expect(c.to_string()!!).should_be("circle(0, 0, r=5)"); };
+
+        test("a negative radius throws") {
+            expect_throws<illegal_argument_exception>() { new circle(0, 0, 0 - 1); };
+            expect_throws<illegal_argument_exception>() { c.scaled(0 - 2); };
+        };
+    };
+}
+
+def statistics_tests() {
+    tests("statistics") {
+        check_statistics();
+        check_rect();
+        check_circle();
+    };
+}

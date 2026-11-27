@@ -1,0 +1,333 @@
+mod suite.strings.methods;
+
+import ( std.testing )
+
+/**
+ * The methods of the standard library class `string`.
+ *
+ * A string is an OBJECT that owns its characters. `append`, `replace`, `+=`
+ * and `=` with a literal change that object, so every variable that refers
+ * to it sees the change; `+`, `substring` and `to_lower` make a new string.
+ *
+ * (Methods cannot be called on a literal - `"abc".size()` is not valid
+ * Sharp - so the checks go through variables.)
+ */
+
+def count_char(text: string, wanted: char) : decimal {
+    found : decimal = 0;
+    foreach(ch in text) {
+        if(ch == wanted.value) {
+            found++;
+        }
+    }
+    return found;
+}
+
+def methods_tests() {
+    tests("methods") {
+        hello : string;
+        abc : string;
+        also_abc : string;
+        nothing : string;
+        before_each {
+            hello = "hello world";
+            abc = new string("abc");
+            also_abc = new string("abc");
+            nothing = "";
+        };
+
+        // ---- size and empty
+        test("size") { expect(hello.size()).should_be(11); };
+        test("size of \"abc\"") { expect(abc.size()).should_be(3); };
+        test("size of \"\"") { expect(nothing.size()).should_be(0); };
+        test("\"\" is empty") { expect_true(nothing.is_empty()); };
+        test("\"\" is not not_empty") { expect_false(nothing.is_not_empty()); };
+        test("\"hello world\" is not empty") { expect_false(hello.is_empty()); };
+        test("\"hello world\" is not_empty") { expect_true(hello.is_not_empty()); };
+        test("new string() is empty, with size 0") {
+            fresh := new string();
+            expect_true(fresh.is_empty());
+            expect(fresh.size()).named("new string() has size 0").should_be(0);
+        };
+
+        // ---- at and [] give the character as a char object
+        test("at(0) is 'h'") { expect(hello.at(0).value).should_be(104); };
+        test("at(4) is 'o'") { expect(hello.at(4).value).should_be(111); };
+        test("at(5) is the space") { expect(hello.at(5).value).should_be(32); };
+        test("at(10) is the last character 'd'") { expect(hello.at(10).value).should_be(100); };
+        test("[0] is the same as at(0)") { expect(hello[0].value).should_be(104); };
+        test("at(0) == 'h'") { expect_true((hello.at(0) == 'h')); };
+        test("'h' < 'e'") { expect_false((hello.at(0) < hello.at(1))); };
+        test("the two l's are equal") { expect_true((hello.at(2) == hello.at(3))); };
+
+        // ---- substring(start, end): end is NOT included
+        test("substring(0, 4)") { expect(hello.substring(0, 4)).should_be("hell"); };
+        test("substring(0, 5)") { expect(hello.substring(0, 5)).should_be("hello"); };
+        test("substring(6, 10)") { expect(hello.substring(6, 10)).should_be("worl"); };
+        test("substring(6, 11) goes to the end") { expect(hello.substring(6, 11)).should_be("world"); };
+        test("substring(4, 7)") { expect(hello.substring(4, 7)).should_be("o w"); };
+        test("size of a substring") { expect(hello.substring(2, 9).size()).should_be(7); };
+        test("substring leaves the original alone") {
+            part := hello.substring(2, 9);
+            expect(hello).should_be("hello world");
+        };
+
+        // ---- find: is the text somewhere inside?
+        test("find \"world\"") { expect_true(hello.find("world")); };
+        test("find \"o w\"") { expect_true(hello.find("o w")); };
+        test("find the first character") { expect_true(hello.find("h")); };
+        test("find the last character") { expect_true(hello.find("d")); };
+        test("find itself") { expect_true(hello.find("hello world")); };
+        test("find the empty string") { expect_true(hello.find("")); };
+        test("find \"xyz\"") { expect_false(hello.find("xyz")); };
+        test("find \"worlds\"") { expect_false(hello.find("worlds")); };
+        test("find is case sensitive") { expect_false(hello.find("World")); };
+        test("find something longer than the string") { expect_false(abc.find("abcd")); };
+
+        // ---- starts_with
+        test("starts_with \"hello\"") { expect_true(hello.starts_with("hello")); };
+        test("starts_with \"h\"") { expect_true(hello.starts_with("h")); };
+        test("starts_with itself") { expect_true(hello.starts_with("hello world")); };
+        test("starts_with \"world\"") { expect_false(hello.starts_with("world")); };
+        test("starts_with \"Hello\"") { expect_false(hello.starts_with("Hello")); };
+        test("starts_with something longer") { expect_false(abc.starts_with("abcd")); };
+
+        // ---- ends_with
+        test("ends_with \"world\"") { expect_true(hello.ends_with("world")); };
+        test("ends_with \"d\"") { expect_true(hello.ends_with("d")); };
+        test("ends_with \"hello\"") { expect_false(hello.ends_with("hello")); };
+        test("ends_with \"World\"") { expect_false(hello.ends_with("World")); };
+
+        // ---- to_lower makes a new string
+        test("to_lower makes a new string and leaves the original alone") {
+            mixed := "MiXed 12 Z";
+            expect(mixed.to_lower()).named("to_lower").should_be("mixed 12 z");
+            expect(mixed).named("the original").should_be("MiXed 12 Z");
+        };
+        test("to_lower of lower case") { expect(hello.to_lower()).should_be("hello world"); };
+
+        // ---- comparing
+        test("string == literal") { expect_true((abc == "abc")); };
+        test("string != the same literal") { expect_false((abc != "abc")); };
+        test("one character differs") { expect_false((abc == "abd")); };
+        test("a shorter literal") { expect_false((abc == "ab")); };
+        test("a longer literal") { expect_false((abc == "abcd")); };
+        test("upper and lower case differ") { expect_false((abc == "ABC")); };
+        test("two objects with the same characters are ==") { expect_true((abc == also_abc)); };
+        test("different strings") { expect_false((abc == hello)); };
+        test("different strings are !=") { expect_true((abc != hello)); };
+        test("if(a == b)") {
+            taken : decimal = 0;
+            if(abc == also_abc) { taken = 1; }
+            expect(taken).should_be(1);
+        };
+        test("if(a != b)") {
+            taken : decimal = 0;
+            if(abc != hello) { taken = 1; }
+            expect(taken).should_be(1);
+        };
+
+        // ---- append changes the string
+        test("append a literal and a character") {
+            a := new string("abc");
+            a.append("def");
+            expect(a).named("append a literal").should_be("abcdef");
+            a.append('g');
+            expect(a).named("append a character").should_be("abcdefg");
+            expect(a.size()).named("size after appending").should_be(7);
+        };
+        test("append returns the string, so calls chain") {
+            a := new string("abcdefg");
+            chained := a.append("1").append("2");
+            expect(a).named("the string").should_be("abcdefg12");
+            expect(chained).named("the result is that same string").should_be("abcdefg12");
+        };
+        test("append to an empty string") {
+            start_empty := new string();
+            start_empty.append("x");
+            expect(start_empty).should_be("x");
+        };
+
+        // ---- += changes the string too
+        test("+= literal, then += string") {
+            b := new string("abc");
+            b += "hi";
+            expect(b).named("+= literal").should_be("abchi");
+            b += also_abc;
+            expect(b).named("+= string").should_be("abchiabc");
+        };
+
+        // ---- replace(position, character) changes one character
+        test("replace changes one character and keeps the size") {
+            r := new string("abc");
+            r.replace(0, 'X');
+            expect(r).named("replace the first").should_be("Xbc");
+            r.replace(2, 'Z');
+            expect(r).named("replace the last").should_be("XbZ");
+            expect(r.size()).named("replace keeps the size").should_be(3);
+        };
+
+        // ---- + makes a new string
+        test("string + string makes a new string") {
+            joined := abc + also_abc;
+            expect(joined).named("string + string").should_be("abcabc");
+            expect(abc).named("the left side is unchanged").should_be("abc");
+        };
+        test("string + literal + string") { expect(abc + "-" + also_abc).should_be("abc-abc"); };
+        test("literal + literal + literal") { expect("a" + "b" + "c").should_be("abc"); };
+
+        // ---- building strings from numbers and characters
+        test("+ whole number") { expect("n=" + 5).should_be("n=5"); };
+        test("+ two numbers appends each") { expect("a" + 1 + 2).should_be("a12"); };
+        test("+ native variable is written the short way") {
+            x : decimal = 2.5;
+            expect("x=" + x).should_be("x=2.5");
+        };
+        test("+ int object") {
+            forty_two := 42;
+            expect("i=" + forty_two).should_be("i=42");
+        };
+        test("+ double object") {
+            one_and_half := new double(1.5);
+            expect("d=" + one_and_half).should_be("d=1.5");
+        };
+        test("+ long object") {
+            big := new long(1234567890123);
+            expect("l=" + big).should_be("l=1234567890123");
+        };
+        test("+ character") { expect("c=" + 'q').should_be("c=q"); };
+        test("+ char object") {
+            zed := new char('z');
+            expect("c=" + zed).should_be("c=z");
+        };
+        test("interpolation") {
+            n := 3;
+            expect("${n} and ${n + 1} and $n.").should_be("3 and 4 and 3.");
+        };
+        test("interpolating a string") { expect("<$abc>").should_be("<abc>"); };
+        test("new string(character)") {
+            from_char := new string('q');
+            expect(from_char).should_be("q");
+            expect(from_char.size()).named("size").should_be(1);
+        };
+        test("new string(char[])") {
+            from_chars := new string(new char[] { 'h', 'i' });
+            expect(from_chars).should_be("hi");
+        };
+
+        // a string built in a loop
+        test("100 times \"ab\" in a loop") {
+            grown := "";
+            for(k : decimal = 0; k < 100; k++) {
+                grown += "ab";
+            }
+            expect(grown.size()).named("size").should_be(200);
+            expect_true(grown.starts_with("abab"));
+            expect(grown.at(199).value).named("last character is 'b'").should_be(98);
+        };
+
+        // ---- escapes inside a literal are one character each
+        test("\\n and \\t are one character each") {
+            escapes := "a\nb\tc";
+            expect(escapes.size()).named("size of \"a\\nb\\tc\"").should_be(5);
+            expect(escapes.at(1).value).named("\\n is 10").should_be(10);
+            expect(escapes.at(3).value).named("\\t is 9").should_be(9);
+        };
+        test("an escaped quote is one character") {
+            quoted := "say \"hi\"";
+            expect(quoted.size()).named("size with escaped quotes").should_be(8);
+            expect(quoted.at(4).value).named("\\\" is 34").should_be(34);
+        };
+        test("an escaped backslash is one character") {
+            slash := "a\\b";
+            expect(slash.size()).named("size of a\\\\b").should_be(3);
+            expect(slash.at(1).value).named("\\\\ is 92").should_be(92);
+        };
+
+        // ---- two variables, one string
+        test("+= through the other name") {
+            first := "same";
+            second := first;
+            second += "!";
+            expect(first).should_be("same!");
+        };
+        // (an assignment points the variable at a string: it never writes into the one it held.
+        //  `+=` above is what changes a string for everybody who holds it.)
+        test("= with a literal leaves the other name's string alone") {
+            one := "one";
+            two := one;
+            two = "two";
+            expect(one).named("the other name").should_be("one");
+            expect(two).named("the name assigned to has the new text").should_be("two");
+        };
+        test("new string(s) is a separate copy") {
+            original := "one";
+            separate := new string(original);
+            separate += "x";
+            expect(original).named("the original").should_be("one");
+            expect(separate).named("the copy").should_be("onex");
+        };
+        test("to_string is a separate copy too") { expect(hello.to_string()!!).should_be("hello world"); };
+
+        // ---- the characters as an array
+        test("get_elements gives the characters") {
+            elements := hello.get_elements();
+            expect(sizeof(elements)).named("get_elements size").should_be(11);
+            expect(elements[0]).named("get_elements [0]").should_be(104);
+        };
+        test("a literal is an _int8[] of character codes") {
+            raw : _int8[] = "raw";
+            expect(sizeof(raw)).named("size").should_be(3);
+            expect(raw[2]).named("raw[2]").should_be(119);
+        };
+
+        // ---- to_char_array is a copy of the characters
+        test("to_char_array is a copy of the characters") {
+            letters := abc.to_char_array()!!;
+            copy_of_chars := letters.get_elements();
+            expect(sizeof(copy_of_chars)).named("to_char_array size").should_be(3);
+            expect(copy_of_chars[1]).named("to_char_array [1] is 'b'").should_be(98);
+            copy_of_chars[1] = 'Z';
+            expect(abc).named("changing the copy leaves the string alone").should_be("abc");
+            expect(letters.to_string()).named("char_array back to a string").should_be("aZc");
+        };
+
+        // ---- foreach walks the characters
+        test("two o's in hello world") { expect(count_char(hello, 'o')).should_be(2); };
+        test("three l's in hello world") { expect(count_char(hello, 'l')).should_be(3); };
+        test("no z") { expect(count_char(hello, 'z')).should_be(0); };
+        test("nothing to walk in \"\"") { expect(count_char(nothing, 'a')).should_be(0); };
+
+        // ---- hash: the same characters always give the same number
+        test("equal strings have equal hashes") { expect_true((abc.hash() == also_abc.hash())); };
+        test("different strings (here) have different hashes") { expect_false((abc.hash() == hello.hash())); };
+        test("asking twice gives the same hash") {
+            again := hello.hash();
+            expect_true((again == hello.hash()));
+        };
+        // 'a' counts 1, 'b' 2, 'c' 3; each position is worth 31 times the one before: 1 + 2 * 31 + 3 * 961
+        test("hash of \"abc\"") { expect(abc.hash().value).should_be(2946); };
+
+        // ---- errors
+        test("at(50)") {
+            expect_throws<out_of_bounds_exception>() { hello.at(50); };
+        };
+        test("substring(50, 51)") {
+            expect_throws<out_of_bounds_exception>() { hello.substring(50, 51); };
+        };
+        test("substring(4, 2)") {
+            expect_throws<illegal_argument_exception>() { hello.substring(4, 2); };
+        };
+        test("replace(9, ...)") {
+            expect_throws<out_of_bounds_exception>() { abc.replace(9, 'q'); };
+        };
+        test("the strings are intact after the errors") {
+            expect_throws<out_of_bounds_exception>() { hello.at(50); };
+            expect_throws<out_of_bounds_exception>() { hello.substring(50, 51); };
+            expect_throws<illegal_argument_exception>() { hello.substring(4, 2); };
+            expect_throws<out_of_bounds_exception>() { abc.replace(9, 'q'); };
+            expect(abc + hello).should_be("abchello world");
+        };
+
+    };
+}

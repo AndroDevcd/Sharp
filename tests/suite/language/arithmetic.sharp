@@ -1,0 +1,119 @@
+mod suite.language.arithmetic;
+
+import ( std.testing )
+
+/**
+ * Arithmetic on native numbers (decimal): the four operations, remainder,
+ * precedence, parentheses, unary minus, compound assignment, ++ and --.
+ */
+
+def add(a: decimal, b: decimal): decimal { return a + b; }
+
+def arithmetic_tests() {
+    tests("arithmetic") {
+        // ---- the basic operations
+        test("1 + 2") { expect(1 + 2).should_be(3); };
+        test("10 - 4") { expect(10 - 4).should_be(6); };
+        test("3 - 8 is negative") { expect(3 - 8).should_be(0 - 5); };
+        test("6 * 7") { expect(6 * 7).should_be(42); };
+        test("20 / 4") { expect(20 / 4).should_be(5); };
+        test("7 / 2 is a whole number") { expect(7 / 2).should_be(3); };
+        test("7 / 2.0 keeps the fraction") { expect(7 / 2.0).should_be(3.5); };
+        test("17 % 5") { expect(17 % 5).should_be(2); };
+        test("20 % 5") { expect(20 % 5).should_be(0); };
+
+        // ---- precedence and parentheses
+        test("2 + 3 * 4") { expect(2 + 3 * 4).should_be(14); };
+        test("(2 + 3) * 4") { expect((2 + 3) * 4).should_be(20); };
+        test("20 - 6 / 2") { expect(20 - 6 / 2).should_be(17); };
+        test("(20 - 6) / 2") { expect((20 - 6) / 2).should_be(7); };
+        test("2 * 3 + 4 * 5") { expect(2 * 3 + 4 * 5).should_be(26); };
+        test("100 / 10 / 5 is left to right") { expect(100 / 10 / 5).should_be(2); };
+        test("10 - 3 - 2 is left to right") { expect(10 - 3 - 2).should_be(5); };
+        test("nested parentheses") { expect(((1 + 2) * (3 + 4)) - (5 * (6 - 4))).should_be(11); };
+
+        // ---- variables
+        tests("variables") {
+            a : decimal;
+            b : decimal;
+            before_each { a = 12; b = 5; };
+
+            test("a + b") { expect(a + b).should_be(17); };
+            test("a - b") { expect(a - b).should_be(7); };
+            test("a * b") { expect(a * b).should_be(60); };
+            test("a / b") { expect(a / b).should_be(2.4); };
+            test("a % b") { expect(a % b).should_be(2); };
+            test("unary minus") { expect(0 - a).should_be(0 - 12); };
+            test("a * (b + 1) - a / 4") { expect(a * (b + 1) - a / 4).should_be(69); };
+        };
+
+        // ---- fractions
+        test("0.5 + 0.25") { expect(0.5 + 0.25).should_be(0.75); };
+        test("1.5 * 4") { expect(1.5 * 4).should_be(6); };
+        test("9 / 4.0") { expect(9 / 4.0).should_be(2.25); };
+        test("0.1 + 0.2") { expect(0.1 + 0.2).should_be_near(0.3, 0.000000001); };
+        test("1.0 / 3 * 3") { expect(1.0 / 3 * 3).should_be_near(1, 0.000000001); };
+
+        // ---- compound assignment
+        test("+=") {
+            c : decimal = 10;
+            c += 5;
+            expect(c).should_be(15);
+        };
+        test("-=") {
+            c : decimal = 15;
+            c -= 3;
+            expect(c).should_be(12);
+        };
+        test("*=") {
+            c : decimal = 12;
+            c *= 4;
+            expect(c).should_be(48);
+        };
+        test("/=") {
+            c : decimal = 48;
+            c /= 6;
+            expect(c).should_be(8);
+        };
+        test("%=") {
+            c : decimal = 8;
+            c %= 5;
+            expect(c).should_be(3);
+        };
+
+        // ---- increment and decrement
+        test("d++") {
+            d : decimal = 7;
+            d++;
+            expect(d).should_be(8);
+        };
+        test("d-- twice") {
+            d : decimal = 8;
+            d--;
+            d--;
+            expect(d).should_be(6);
+        };
+        test("post increment gives the old value, and then adds one") {
+            d : decimal = 6;
+            e : decimal = d++;
+            expect(e).should_be(6);
+            expect(d).should_be(7);
+        };
+
+        // ---- large and small numbers
+        test("one million squared") { expect(1000000 * 1000000).should_be(1000000000000); };
+        test("digit separators") { expect(1_000_000 + 1).should_be(1000001); };
+        test("small fraction") { expect(1.0 / 1024).should_be(0.0009765625); };
+
+        // ---- through a function
+        test("add(2, 3)") { expect(add(2, 3)).should_be(5); };
+        test("add(add(1, 2), add(3, 4))") { expect(add(add(1, 2), add(3, 4))).should_be(10); };
+
+        // ---- many terms in one expression
+        test("sum of ten terms") { expect(1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10).should_be(55); };
+        test("ten variables in one expression") {
+            f : decimal = 2;
+            expect(f + f * f + f - f / f + f * 3 + f + f + f - f).should_be(17);
+        };
+    };
+}

@@ -1,0 +1,23 @@
+mod suite.exceptions;
+
+import (
+    std.testing,
+    suite.exceptions.basics,
+    suite.exceptions.cast_fixes,
+    suite.exceptions.catch_and_remainder,
+    suite.exceptions.finally_blocks,
+    suite.exceptions.finally_fixes,
+    suite.exceptions.fixes
+)
+
+/** suite.exceptions: throw, catch, finally */
+def exceptions_tests() {
+    tests("exceptions") {
+        basics_tests();
+        cast_fixes_tests();
+        catch_and_remainder_tests();
+        finally_blocks_tests();
+        finally_fixes_tests();
+        fixes_tests();
+    };
+}

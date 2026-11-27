@@ -1,0 +1,37 @@
+mod suite.library.math;
+
+import (
+    std.testing,
+    suite.library.math.abs_plain_number,
+    suite.library.math.big_integer,
+    suite.library.math.functions,
+    suite.library.math.instructions,
+    suite.library.math.lambda_concat,
+    suite.library.math.linear,
+    suite.library.math.literals,
+    suite.library.math.number_theory,
+    suite.library.math.numbers,
+    suite.library.math.primitives,
+    suite.library.math.random,
+    suite.library.math.sqrt_instruction,
+    suite.library.math.statistics
+)
+
+/** suite.library.math: std.math */
+def math_tests() {
+    tests("math") {
+        abs_plain_number_tests();
+        big_integer_tests();
+        functions_tests();
+        instructions_tests();
+        lambda_concat_tests();
+        linear_tests();
+        literals_tests();
+        number_theory_tests();
+        numbers_tests();
+        primitives_tests();
+        random_tests();
+        sqrt_instruction_tests();
+        statistics_tests();
+    };
+}

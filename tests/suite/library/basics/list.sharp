@@ -1,0 +1,455 @@
+mod suite.library.basics.list;
+
+import ( std.testing )
+
+/**
+ * std list<T>: a growable array. Tested with three kinds of element:
+ * a user class (planet), string, and the number box int.
+ *
+ * (list<decimal> - a list of native numbers - is known not to work and is not used here.)
+ */
+
+class planet {
+    name : string = "";
+    moons : decimal = 0;
+
+    planet(planet_name: string, moon_count: decimal) {
+        name = planet_name;
+        moons = moon_count;
+    }
+}
+
+def same_name(a: planet, b: planet): bool {
+    return a.name == b.name;
+}
+
+/** adds up a list of int with foreach */
+def total_of(numbers: list<int>): decimal {
+    total : decimal = 0;
+    foreach(n in numbers) {
+        total += n.value;
+    }
+    return total;
+}
+
+/** the moons of every planet as digits, e.g. 0, 2, 1 -> 21 -> 021 */
+def moon_digits(planets: list<planet>): decimal {
+    digits : decimal = 0;
+    for(i : decimal = 0; i < planets.size(); i++) {
+        digits = digits * 10 + planets.at(i).moons;
+    }
+    return digits;
+}
+
+/** 0, 2, 4 ... 1998 */
+def thousand_numbers(): list<int> {
+    big := new list<int>();
+    for(i : decimal = 0; i < 1000; i++) {
+        big.add(i * 2);
+    }
+    return big;
+}
+
+/** thousand_numbers() after 990 pop_back: 0, 2 ... 18 */
+def ten_numbers(): list<int> {
+    big := thousand_numbers();
+    for(i : decimal = 0; i < 990; i++) {
+        big.pop_back();
+    }
+    return big;
+}
+
+def list_tests() {
+    tests("list") {
+        // ---- a new list is empty
+        test("new list: size 0") { expect(new list<planet>().size()).should_be(0); };
+        test("new list: empty()") { expect_true(new list<planet>().is_empty()); };
+
+        tests("planets") {
+            planets : list<planet>;
+            mercury : planet;
+            earth : planet;
+            mars : planet;
+            venus : planet;
+            jupiter : planet;
+            sun : planet;
+
+            // mercury earth mars in the list; venus, jupiter and the sun not
+            before_each {
+                mercury = new planet("mercury", 0);
+                earth = new planet("earth", 1);
+                mars = new planet("mars", 2);
+                venus = new planet("venus", 0);
+                jupiter = new planet("jupiter", 9);
+                sun = new planet("sun", 8);
+                planets = new list<planet>();
+                planets.add(mercury);
+                planets.add(earth);
+                planets.add(mars);
+            };
+
+            // ---- add, size, at
+            test("size after one add, and not empty") {
+                one := new list<planet>();
+                one.add(mercury);
+                expect(one.size()).should_be(1);
+                expect_false(one.is_empty());
+            };
+            test("size after three adds") { expect(planets.size()).should_be(3); };
+            test("at() gives the elements in the order they were added") {
+                expect(planets.at(0).name).named("at(0)").should_be("mercury");
+                expect(planets.at(1).name).named("at(1)").should_be("earth");
+                expect(planets.at(2).name).named("at(2)").should_be("mars");
+            };
+            test("field of an element") { expect(planets.at(2).moons).should_be(2); };
+            test("at() gives the object that was added, not a copy") { expect_true(planets.at(1) == earth); };
+
+            // ---- [] is the same as at
+            test("list[0]") { expect(planets[0].name).should_be("mercury"); };
+            test("list[2]") { expect(planets[2].name).should_be("mars"); };
+
+            // ---- first and last
+            test("first()") { expect(planets.first().name).should_be("mercury"); };
+            test("last()") { expect(planets.last().name).should_be("mars"); };
+
+            // ---- changing an element through the list changes the object
+            test("element changed through the list") {
+                planets.at(1).moons = 5;
+                expect(earth.moons).should_be(5);
+            };
+
+            // ---- put replaces an element and gives back the old one
+            test("put: the new element is there, the old one is returned, the size is the same") {
+                old := planets.put(1, venus);
+                expect(planets.at(1).name).named("the new element").should_be("venus");
+                expect(old.name).named("the element that was replaced").should_be("earth");
+                expect(planets.size()).named("size").should_be(3);
+            };
+
+            // ---- index_of
+            test("index_of the first element") { expect(planets.index_of(mercury)).should_be(0); };
+            test("index_of the last element") { expect(planets.index_of(mars)).should_be(2); };
+            test("index_of something that is not in the list") { expect(planets.index_of(venus)).should_be(0 - 1); };
+            test("index_of with a compare function") { expect(planets.index_of(new planet("earth", 0), same_name)).should_be(1); };
+            test("index_of with a compare function, no match") { expect(planets.index_of(new planet("pluto", 0), same_name)).should_be(0 - 1); };
+
+            // ---- find
+            test("find: a match, the element in the list") {
+                found := planets.find(new planet("mars", 0), same_name);
+                expect_not_null(found);
+                expect(found!!.moons).should_be(2);
+            };
+            test("find: no match") { expect_null(planets.find(new planet("pluto", 0), same_name)); };
+
+            // ---- insert
+            test("insert puts the element in and moves the ones after it up") {
+                planets.insert(1, venus);                   // mercury venus earth mars
+                expect(planets.size()).named("size").should_be(4);
+                expect(planets.at(1).name).named("the new element").should_be("venus");
+                expect(planets.at(0).name).named("the element before").should_be("mercury");
+                expect(planets.at(2).name).named("the elements after moved up").should_be("earth");
+                expect(planets.at(3).name).named("the last element moved up").should_be("mars");
+            };
+            test("insert at size() appends") {
+                planets.insert(1, venus);
+                planets.insert(4, jupiter);                 // at the end
+                expect(planets.last().name).should_be("jupiter");
+            };
+            test("insert at 0, after inserts in the middle and at the end") {
+                planets.insert(1, venus);
+                planets.insert(4, jupiter);
+                planets.insert(0, sun);                     // sun mercury venus earth mars jupiter
+                expect(planets.first().name).named("first").should_be("sun");
+                expect(planets.size()).named("size after three inserts").should_be(6);
+                expect(moon_digits(planets)).named("order after the inserts (moons as digits)").should_be(800129);
+            };
+
+            // ---- remove_at, from sun mercury venus earth mars jupiter
+            tests("remove_at") {
+                before_each {
+                    planets.insert(1, venus);
+                    planets.insert(4, jupiter);
+                    planets.insert(0, sun);
+                };
+
+                test("remove_at(0): the next element is first now") {
+                    planets.remove_at(0);                       // mercury venus earth mars jupiter
+                    expect(planets.size()).named("size").should_be(5);
+                    expect(planets.first().name).should_be("mercury");
+                };
+                test("remove_at(last)") {
+                    planets.remove_at(5);                       // sun mercury venus earth mars
+                    expect(planets.last().name).should_be("mars");
+                };
+                test("remove_at(middle): the ones after it move down") {
+                    planets.remove_at(0);
+                    planets.remove_at(4);                       // mercury venus earth mars
+                    planets.remove_at(1);                       // mercury earth mars
+                    expect(planets.size()).named("size").should_be(3);
+                    expect(planets.at(1).name).named("element 1").should_be("earth");
+                    expect(planets.at(2).name).named("element 2").should_be("mars");
+                };
+            };
+
+            // ---- remove by value
+            test("remove(element): what is left") {
+                planets.remove(earth);                      // mercury mars
+                expect(planets.size()).named("size").should_be(2);
+                expect(planets.at(0).name).named("element 0").should_be("mercury");
+                expect(planets.at(1).name).named("element 1").should_be("mars");
+            };
+            test("remove of something that is not there") {
+                planets.remove(venus);                      // not in the list: nothing happens
+                expect(planets.size()).should_be(3);
+            };
+            test("remove with a compare function removes the right one") {
+                planets.remove(earth);
+                planets.remove(new planet("mars", 0), same_name);
+                expect(planets.size()).should_be(1);
+                expect(planets.at(0).name).should_be("mercury");
+            };
+
+            // ---- pop_last, pop_first, pop_back, from mercury earth mars jupiter
+            tests("pop") {
+                before_each { planets.add(jupiter); };
+
+                test("pop_last gives the last element and removes it") {
+                    expect(planets.pop_last().name).should_be("jupiter");
+                    expect(planets.size()).named("size").should_be(3);
+                };
+                test("pop_first gives the first element and removes it") {
+                    expect(planets.pop_first().name).should_be("mercury");
+                    expect(planets.size()).named("size").should_be(3);
+                    expect(planets.first().name).named("first after pop_first").should_be("earth");
+                };
+                test("pop_back removes the last element") {
+                    planets.pop_last();
+                    planets.pop_first();
+                    planets.pop_back();
+                    expect(planets.size()).should_be(1);
+                    expect(planets.first().name).named("what is left").should_be("earth");
+                };
+            };
+
+            // ---- clear
+            test("clear: size 0 and empty()") {
+                planets.clear();
+                expect(planets.size()).should_be(0);
+                expect_true(planets.is_empty());
+            };
+            test("add after clear") {
+                planets.clear();
+                planets.add(mars);
+                expect(planets.size()).should_be(1);
+                expect(planets.at(0).name).named("element added after clear").should_be("mars");
+            };
+            test("clear twice") {
+                planets.clear();
+                planets.clear();                            // clearing an empty list is fine
+                expect(planets.size()).should_be(0);
+            };
+
+            // ---- sort: the comparison says which of two comes first
+            tests("sorted") {
+                before_each {
+                    planets = new list<planet>();
+                    planets.add(mars);                          // 2 moons
+                    planets.add(jupiter);                       // 9
+                    planets.add(mercury);                       // 0
+                    planets.add(earth);                         // 1
+                    planets.sort({ a: planet, b: planet -> (decimal) return a.moons - b.moons; });
+                };
+
+                test("sorted by moons") {
+                    expect(moon_digits(planets)).should_be(129);
+                    expect(planets.first().name).named("first").should_be("mercury");
+                    expect(planets.last().name).named("last").should_be("jupiter");
+                };
+
+                // ---- out of range access raises out_of_bounds_exception
+                test("at(size) throws") { expect_throws<out_of_bounds_exception>() { planets.at(4); }; };
+                test("at(-1) throws") { expect_throws<out_of_bounds_exception>() { planets.at(0 - 1); }; };
+                test("list[100] throws") { expect_throws<out_of_bounds_exception>() { planets[100]; }; };
+                test("put past the end throws") { expect_throws<out_of_bounds_exception>() { planets.put(4, venus); }; };
+                test("remove_at past the end throws") { expect_throws<out_of_bounds_exception>() { planets.remove_at(4); }; };
+                test("insert past size() throws") { expect_throws<out_of_bounds_exception>() { planets.insert(6, venus); }; };
+                test("the failed calls changed nothing") {
+                    expect_throws<out_of_bounds_exception>() { planets.put(4, venus); };
+                    expect_throws<out_of_bounds_exception>() { planets.remove_at(4); };
+                    expect_throws<out_of_bounds_exception>() { planets.insert(6, venus); };
+                    expect(moon_digits(planets)).should_be(129);
+                };
+            };
+
+            // ---- an empty list: everything that needs an element throws
+            tests("empty") {
+                nothing : list<planet>;
+                before_each { nothing = new list<planet>(); };
+
+                test("at, first, last, pop_first, pop_last, remove_at on an empty list all throw") {
+                    expect_throws<out_of_bounds_exception>() { nothing.at(0); };
+                    expect_throws<out_of_bounds_exception>() { nothing.first(); };
+                    expect_throws<out_of_bounds_exception>() { nothing.last(); };
+                    expect_throws<out_of_bounds_exception>() { nothing.pop_first(); };
+                    expect_throws<out_of_bounds_exception>() { nothing.pop_last(); };
+                    expect_throws<out_of_bounds_exception>() { nothing.remove_at(0); };
+                };
+                test("pop_back on an empty list does nothing") {
+                    nothing.pop_back();                         // this one is allowed to do nothing
+                    expect(nothing.size()).should_be(0);
+                };
+                test("index_of on an empty list") { expect(nothing.index_of(mars)).should_be(0 - 1); };
+                test("get_elements of an empty list is null") { expect_null(nothing.get_elements()); };
+                test("foreach over an empty list makes no trips") {
+                    trips_through_nothing : decimal = 0;
+                    foreach(p in nothing) {
+                        trips_through_nothing++;
+                    }
+                    expect(trips_through_nothing).should_be(0);
+                };
+            };
+        };
+
+        // ---- a list of strings
+        tests("strings") {
+            words : list<string>;
+            before_each {
+                words = new list<string>();
+                words.add("alpha");
+                words.add("beta");
+                words.add("gamma");
+            };
+
+            test("strings: size") { expect(words.size()).should_be(3); };
+            test("strings: at(0)") { expect(words.at(0)).should_be("alpha"); };
+            test("strings: last()") { expect(words.last()).should_be("gamma"); };
+            test("strings: index_of compares the characters") { expect(words.index_of("beta")).should_be(1); };
+            test("strings: index_of of a missing word") { expect(words.index_of("delta")).should_be(0 - 1); };
+            test("strings: remove by value") {
+                words.remove("alpha");
+                expect(words.size()).should_be(2);
+                expect(words.first()).named("first after remove").should_be("beta");
+            };
+            test("strings: put") {
+                words.remove("alpha");
+                words.put(0, "BETA");
+                expect(words.at(0)).should_be("BETA");
+            };
+            test("strings: foreach visits every element in order") {
+                words.remove("alpha");
+                words.put(0, "BETA");
+                sentence : string = "";
+                foreach(word in words) {
+                    sentence = sentence + word + ".";
+                }
+                expect(sentence).should_be("BETA.gamma.");
+            };
+        };
+
+        // ---- a list of int (number boxes)
+        tests("ints") {
+            numbers : list<int>;
+            before_each {
+                numbers = new list<int>();
+                numbers.add(10);
+                numbers.add(20);
+                numbers.add(30);
+            };
+
+            test("ints: size") { expect(numbers.size()).should_be(3); };
+            test("ints: at(1)") { expect(numbers.at(1).value).should_be(20); };
+            test("ints: first") { expect(numbers.first().value).should_be(10); };
+            test("ints: last") { expect(numbers.last().value).should_be(30); };
+            test("ints: index_of compares the numbers") { expect(numbers.index_of(30)).should_be(2); };
+            test("ints: index_of of a missing number") { expect(numbers.index_of(99)).should_be(0 - 1); };
+            test("ints: foreach total") { expect(total_of(numbers)).should_be(60); };
+            test("ints: put") {
+                numbers.put(0, 11);
+                expect(numbers.at(0).value).should_be(11);
+            };
+            test("ints: remove by value, after a put") {
+                numbers.put(0, 11);
+                numbers.remove(20);
+                expect(numbers.size()).should_be(2);
+                expect(total_of(numbers)).named("total after put and remove").should_be(41);
+            };
+
+            // ---- foreach counts exactly size() elements, also after removals
+            test("foreach makes size() trips") {
+                numbers.remove(20);
+                trips : decimal = 0;
+                foreach(n in numbers) {
+                    trips++;
+                }
+                expect(trips).should_be(2);
+            };
+        };
+
+        // ---- growing: far more elements than the first capacity (10)
+        tests("big") {
+            big : list<int>;
+            before_each { big = thousand_numbers(); };
+
+            test("1000 adds: size") { expect(big.size()).should_be(1000); };
+            test("1000 adds: first") { expect(big.at(0).value).should_be(0); };
+            test("1000 adds: element 10 (first one past the first capacity)") { expect(big.at(10).value).should_be(20); };
+            test("1000 adds: element 500") { expect(big.at(500).value).should_be(1000); };
+            test("1000 adds: last") { expect(big.last().value).should_be(1998); };
+            test("1000 adds: total") { expect(total_of(big)).should_be(999000); };
+            test("990 pop_back") {
+                for(i : decimal = 0; i < 990; i++) {
+                    big.pop_back();
+                }
+                expect(big.size()).named("size").should_be(10);
+                expect(big.last().value).named("last").should_be(18);
+                expect(total_of(big)).named("total").should_be(90);
+            };
+        };
+
+        // ---- a list with a starting capacity
+        test("starting capacity is not size") {
+            capacity : int = 500;
+            roomy := new list<int>(capacity);
+            expect(roomy.size()).should_be(0);
+        };
+        test("add to a list with starting capacity") {
+            capacity : int = 500;
+            roomy := new list<int>(capacity);
+            roomy.add(1);
+            expect(roomy.at(0).value).should_be(1);
+        };
+
+        // ---- add_all copies another list; append_all adds one list to the end of another
+        test("add_all into an empty list") {
+            copy_of_big := new list<int>();
+            copy_of_big.add_all(ten_numbers());
+            expect(copy_of_big.size()).named("size").should_be(10);
+            expect(total_of(copy_of_big)).named("total").should_be(90);
+        };
+        test("add_all made a copy: the original is unchanged") {
+            big := ten_numbers();
+            copy_of_big := new list<int>();
+            copy_of_big.add_all(big);
+            copy_of_big.put(0, 100);
+            expect(big.at(0).value).should_be(0);
+        };
+        test("append_all: the old elements stay, the new ones follow") {
+            tail := new list<int>();
+            tail.add(1);
+            tail.add(2);
+            tail.add_all(ten_numbers());
+            expect(tail.size()).named("size").should_be(12);
+            expect(tail.at(1).value).named("the old elements stay").should_be(2);
+            expect(tail.at(2).value).named("the new ones follow").should_be(0);
+            expect(total_of(tail)).named("total").should_be(93);
+        };
+
+        // ---- two lists are independent
+        test("adding to one list leaves another alone") {
+            one := new list<string>();
+            two := new list<string>();
+            one.add("only in one");
+            expect(two.size()).should_be(0);
+        };
+    };
+}

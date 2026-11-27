@@ -1,0 +1,20 @@
+mod suite.library.testing.mocks;
+
+import ( std.testing, suite.helpers )
+
+/**
+ * std.testing mocks: mock<t>(), given, verify, provide<t>(). The words are
+ * refused outside a group of tests, and that can only be checked in a
+ * program that is in no group, so the tests run in a process of their own:
+ * suite.isolated.testing_mocks (isolated/testing_mocks.sharp). Here they are
+ * one test.
+ */
+def mocks_tests() {
+    tests("mocks") {
+        test("the mock tests pass, in a process of their own") {
+            ran := run_isolated("testing_mocks");
+            expect(ran.code).named("suite isolated testing_mocks said:\n" + ran.said).should_be(0);
+            expect(ran.said).should_contain("RESULT PASS testing_mocks");
+        };
+    };
+}

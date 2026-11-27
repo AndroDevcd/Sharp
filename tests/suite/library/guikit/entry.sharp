@@ -1,0 +1,19 @@
+mod suite.library.guikit;
+
+import (
+    std.testing,
+    suite.library.guikit.charts,
+    suite.library.guikit.model_test,
+    suite.library.guikit.slots,
+    suite.library.guikit.ui_test
+)
+
+/** suite.library.guikit: std.guikit */
+def guikit_tests() {
+    tests("guikit") {
+        charts_tests();
+        model_test_tests();
+        slots_tests();
+        ui_test_tests();
+    };
+}

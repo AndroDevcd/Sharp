@@ -1,0 +1,27 @@
+mod suite.library.time.array_initializer;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (compiler, fixed): an array initialiser written
+ * WITHOUT `new type[]` compiled, but made an array with a single element
+ * instead of one element per value:
+ *
+ *     names : string[] = { "a", "b", "c" };       // sizeof(names) was 1, names[1] threw
+ *     names : string[] = new string[] { "a", "b", "c" };   // always correct: 3 elements
+ *
+ * Found while writing std/time/day_of_week.sharp (the table of day names);
+ * the library used the `new string[] { ... }` form.
+ */
+class holder {
+    static names : string[] = { "a", "b", "c" };
+    static correct : string[] = new string[] { "a", "b", "c" };
+}
+
+def array_initializer_tests() {
+    tests("array_initializer") {
+        test("with new: three elements") { expect(sizeof(holder.correct)).should_be(3); };
+        test("without new: three elements") { expect(sizeof(holder.names)).should_be(3); };
+        test("without new: the second element") { expect(holder.names[1]).should_be("b"); };
+    };
+}

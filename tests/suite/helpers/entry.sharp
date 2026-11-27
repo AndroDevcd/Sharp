@@ -1,0 +1,37 @@
+mod suite.helpers;
+
+import ( std.system, platform )
+
+/**
+ * suite.helpers: what more than one group of the suite needs, and that is
+ * not a test itself.
+ */
+
+/** how a program started by run_isolated ended, and what it printed */
+class isolated_run {
+    code : _int64 = 0;          // its exit code: 0 when every one of its tests passed
+    said : string = "";         // its output and error output, together
+}
+
+/**
+ * Run the isolated tests `name` (suite.isolated) in a process of their own:
+ * this very program, started again as `suite isolated <name>`. Waits for
+ * it to end. Only runs and gives back: the test that calls it checks.
+ */
+def run_isolated(name: string) : isolated_run {
+    return run_isolated(name, new string[0]);
+}
+
+/**
+ * The same, on a VM started with these options (`-nojit`, `-mem 64mb`, ...).
+ * Isolated tests never take over the options this program was started
+ * with: one that needs a setting names it here.
+ */
+def run_isolated(name: string, vm_options: string[]) : isolated_run {
+    child := subprocess.run(program_path(), { "isolated", name }, vm_options, true);
+    ran := new isolated_run();
+    ran.said = child.read_all_text();
+    ran.code = child.wait();
+    child.close();
+    return ran;
+}

@@ -1,0 +1,128 @@
+mod suite.isolated.print_is_seen;
+
+import ( std.io, std.testing, std.system, platform )
+
+/**
+ * What a program prints goes into a buffer of the runtime and is flushed by
+ * the runtime itself (runtime/console_helper.h) - a program never has to
+ * call flush() for its output to be seen in time:
+ *
+ *   - a prompt without a line end is out before the program waits for input;
+ *   - what was printed before a long wait is out long before the wait ends;
+ *   - everything is out when the program ends, however it ends.
+ *
+ * The program starts ITSELF as a child for each of these and reads what the
+ * child prints through a pipe, as an editor's console does.
+ */
+def be_the_child(what: string) {
+    if(what == "prompt") {
+        print("name: ");
+        name := read_line();
+        println("hello " + name);
+    } else if(what == "wait") {
+        print("working");
+        thread.sleep(3000);
+        println(" done");
+    } else if(what == "many") {
+        for(i : _int64 = 0; i < 20000; i++) {
+            println("line " + i);
+        }
+        print("the end");
+    } else if(what == "exit") {
+        print("before exit");
+        exit(3);
+    } else if(what == "pieces") {
+        print("a");
+        print(1);
+        print(new _int8[] { 'b', 'c' });
+        println();
+        println(2.5);
+        print("");
+        println("d");
+    }
+}
+
+/** the text without its carriage returns (13): Windows ends a printed line with two characters, 13 and 10 */
+def unix_lines(text: string) : string {
+    from := text.data;
+    if(sizeof(from) == 0) { return ""; }
+    kept := new _int8[sizeof(from)];
+    count : _int64 = 0;
+    for(i : _int64 = 0; i < sizeof(from); i++) {
+        if(from[i] != 13) {
+            kept[count] = from[i];
+            count++;
+        }
+    }
+    if(count == 0) { return ""; }
+    return new string(kept, 0, count);
+}
+
+def child(what: string) : subprocess {
+    return subprocess.run(program_path(), { "isolated", "print_is_seen", "child", what }, true);
+}
+
+/** everything the child prints, with its line ends as "\n" */
+def all_of(what: string) : string {
+    running := child(what);
+    said := running.read_all_text();
+    running.wait();
+    running.close();
+    return unix_lines(said);
+}
+
+/** `suite isolated print_is_seen [child <what>]`: the tests, or the child */
+def print_is_seen_program(args: string[]) {
+    if(sizeof(args) > 1 && args[0] == "child") {
+        be_the_child(args[1]);
+        return;
+    }
+    show_only_failures();
+    tests("print_is_seen") {
+        running : subprocess?;          // the child of the test: stopped and let go of after it, whatever happened
+        after_each {
+            if(running != null) {
+                running!!.kill();
+                running!!.close();
+            }
+            running = null;
+        }
+
+        test("a prompt is out before the program waits for input") {
+            asking := child("prompt");
+            running = asking;
+            expect(asking.read_text(100)).should_be("name: ");
+            asking.write_text("Ada\n");
+            asking.close_input();
+            expect(unix_lines(asking.read_all_text())).should_be("hello Ada\n");
+            asking.wait();
+        };
+        test("what was printed before a long wait is out long before the wait ends") {
+            started : _int64 = nano_time().value;
+            waiting := child("wait");
+            running = waiting;
+            first := waiting.read_text(100);
+            milliseconds : _int64 = (nano_time().value - started) / 1000000;
+            expect(first).should_be("working");
+            expect_true(milliseconds < 2000);
+            expect(unix_lines(waiting.read_all_text())).should_be(" done\n");
+            waiting.wait();
+        };
+        test("twenty thousand lines arrive whole and in order") {
+            said := all_of("many");
+            expect(said.starts_with("line 0\nline 1\nline 2\n")).should_be(true);
+            expect(said.ends_with("line 19998\nline 19999\nthe end")).should_be(true);
+        };
+        test("what was printed is out when the program ends with exit()") {
+            exiting := child("exit");
+            running = exiting;
+            said := exiting.read_all_text();
+            expect(said).should_be("before exit");
+            expect(exiting.wait()).should_be(3);
+        };
+        test("texts, numbers and characters come out in the order they were printed") {
+            expect(all_of("pieces")).should_be("a1bc\n2.5\nd\n");
+        };
+    };
+    finish_tests("print_is_seen");
+}

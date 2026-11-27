@@ -1,0 +1,432 @@
+mod suite.library.math.linear;
+
+import ( std.testing, std.math )
+
+/**
+ * std.math - linear algebra: vector2, vector3 and matrix
+ * (stdlib/std/math/linear/).
+ */
+
+def check_vector2() {
+    tests("vector2") {
+        a : vector2;
+        b : vector2;
+        before_each {
+            a = new vector2(3, 4);
+            b = new vector2(1, 0 - 2);
+        };
+
+        test("default constructor x") { expect(new vector2().x).should_be(0); };
+        test("copy constructor") { expect(new vector2(a).y).should_be(4); };
+        test("zero") { expect(vector2.zero().x + vector2.zero().y).should_be(0); };
+        test("one") { expect(vector2.one().x + vector2.one().y).should_be(2); };
+        test("unit_x") { expect(vector2.unit_x().x).should_be(1); };
+        test("unit_y") { expect(vector2.unit_y().y).should_be(1); };
+
+        test("a + b") {
+            sum := a + b;
+            expect(sum.x).named("x").should_be(4);
+            expect(sum.y).named("y").should_be(2);
+        };
+        test("a - b") {
+            difference := a - b;
+            expect(difference.x).named("x").should_be(2);
+            expect(difference.y).named("y").should_be(6);
+        };
+        test("-a") {
+            negated := -a;
+            expect(negated.x).named("x").should_be(0 - 3);
+            expect(negated.y).named("y").should_be(0 - 4);
+        };
+        test("a * 2") {
+            scaled := a * 2;
+            expect(scaled.x).named("x").should_be(6);
+            expect(scaled.y).named("y").should_be(8);
+        };
+        test("a / 2") {
+            halved := a / 2;
+            expect(halved.x).named("x").should_be(1.5);
+            expect(halved.y).named("y").should_be(2);
+        };
+        test("operands are unchanged") {
+            sum := a + b;
+            difference := a - b;
+            negated := -a;
+            scaled := a * 2;
+            halved := a / 2;
+            expect(a.x * 10 + a.y).should_be(34);
+        };
+        test("==") { expect_true((a == new vector2(3, 4))); };
+        test("== different") { expect_false((a == b)); };
+        test("!=") { expect_true((a != b)); };
+        test("a[0]") { expect(a[0]).should_be(3); };
+        test("a[1]") { expect(a[1]).should_be(4); };
+        test("a[2] throws") { expect_throws<out_of_bounds_exception>() { a[2]; }; };
+        test("a / 0 throws") { expect_throws<division_by_zero_exception>() { a / 0; }; };
+
+        test("dot") { expect(a.dot(b)).should_be(0 - 5); };
+        test("cross") { expect(a.cross(b)).should_be(0 - 10); };
+        test("length") { expect(a.length()).should_be(5); };
+        test("length_squared") { expect(a.length_squared()).should_be(25); };
+        test("distance_to") { expect(a.distance_to(new vector2(0, 0))).should_be(5); };
+        test("distance_squared_to") { expect(a.distance_squared_to(b)).should_be(40); };
+        test("is_zero") { expect_true(vector2.zero().is_zero()); };
+        test("is_zero of a") { expect_false(a.is_zero()); };
+
+        test("normalized") {
+            unit := a.normalized();
+            expect(unit.x).named("x").should_be_near(0.6, 0.000000000001);
+            expect(unit.y).named("y").should_be_near(0.8, 0.000000000001);
+        };
+        test("normalize zero throws") { expect_throws<arithmetic_exception>() { vector2.zero().normalized(); }; };
+
+        test("angle of (0, 1)") { expect(vector2.unit_y().angle()).should_be_near(HALF_PI, 0.000000000001); };
+        test("angle of (-1, 0)") { expect(new vector2(0 - 1, 0).angle()).should_be_near(PI_VALUE, 0.000000000001); };
+        test("angle_to") { expect(vector2.unit_x().angle_to(vector2.unit_y())).should_be_near(HALF_PI, 0.000000000001); };
+        test("angle_to clockwise") { expect(vector2.unit_y().angle_to(vector2.unit_x())).should_be_near(0 - HALF_PI, 0.000000000001); };
+        test("rotated") {
+            turned := vector2.unit_x().rotated(HALF_PI);
+            expect(turned.x).named("x").should_be_near(0, 0.000000000001);
+            expect(turned.y).named("y").should_be_near(1, 0.000000000001);
+        };
+        test("from_angle") {
+            polar := vector2.from_angle(PI_VALUE, 2);
+            expect(polar.x).named("x").should_be_near(0 - 2, 0.000000000001);
+            expect(polar.y).named("y").should_be_near(0, 0.000000000001);
+        };
+        test("perpendicular") {
+            side := a.perpendicular();
+            expect(side.x).named("x").should_be(0 - 4);
+            expect(side.y).named("y").should_be(3);
+            expect(a.dot(side)).named("perpendicular dot is 0").should_be(0);
+        };
+
+        test("lerp") {
+            middle := a.lerp(b, 0.5);
+            expect(middle.x).named("x").should_be(2);
+            expect(middle.y).named("y").should_be(1);
+        };
+        test("scaled_by") {
+            product := a.scaled_by(b);
+            expect(product.x).named("x").should_be(3);
+            expect(product.y).named("y").should_be(0 - 8);
+        };
+        test("project_on") {
+            shadow := a.project_on(new vector2(2, 0));
+            expect(shadow.x).named("x").should_be(3);
+            expect(shadow.y).named("y").should_be(0);
+        };
+        test("project on zero throws") { expect_throws<arithmetic_exception>() { a.project_on(vector2.zero()); }; };
+        test("reflect") {
+            bounced := new vector2(1, 0 - 1).reflect(vector2.unit_y());
+            expect(bounced.x).named("x").should_be(1);
+            expect(bounced.y).named("y").should_be(1);
+        };
+        test("abs") { expect(b.abs().y).should_be(2); };
+        test("component_min x") { expect(a.component_min(b).x).should_be(1); };
+        test("component_min y") { expect(a.component_min(b).y).should_be(0 - 2); };
+        test("component_max x") { expect(a.component_max(b).x).should_be(3); };
+        test("component_max y") { expect(a.component_max(b).y).should_be(4); };
+        test("approx_equals") { expect_true(a.approx_equals(new vector2(3.0000001, 3.9999999), 0.000001)); };
+        test("approx_equals too far") { expect_false(a.approx_equals(new vector2(3.1, 4), 0.000001)); };
+        test("to_array") {
+            numbers := a.to_array();
+            expect(sizeof(numbers)).named("size").should_be(2);
+            expect(numbers[0] * 10 + numbers[1]).named("content").should_be(34);
+        };
+        test("to_string") { expect(a.to_string()!!).should_be("(3, 4)"); };
+        test("to_string with fraction") { expect(new vector2(0 - 0.5, 2.25).to_string()!!).should_be("(-0.5, 2.25)"); };
+        test("equal vectors have equal hashes") { expect_true((a.hash() == new vector2(3, 4).hash())); };
+    };
+}
+
+def check_vector3() {
+    tests("vector3") {
+        a : vector3;
+        b : vector3;
+        before_each {
+            a = new vector3(1, 2, 3);
+            b = new vector3(4, 0 - 5, 6);
+        };
+
+        test("default constructor") { expect(new vector3().z).should_be(0); };
+        test("copy constructor") { expect(new vector3(a).z).should_be(3); };
+        test("from vector2") { expect(new vector3(new vector2(7, 8), 9).y).should_be(8); };
+        test("zero") { expect(vector3.zero().length()).should_be(0); };
+        test("one") { expect(vector3.one().z).should_be(1); };
+        test("unit_z") { expect(vector3.unit_z().z).should_be(1); };
+
+        test("a + b") {
+            sum := a + b;
+            expect(sum.x * 100 + sum.y * 10 + sum.z).should_be(479);          // (5, -3, 9)
+        };
+        test("a - b") {
+            difference := a - b;
+            expect(difference.x).named("x").should_be(0 - 3);
+            expect(difference.y).named("y").should_be(7);
+            expect(difference.z).named("z").should_be(0 - 3);
+        };
+        test("-a: z") { expect((-a).z).should_be(0 - 3); };
+        test("a * 3") {
+            scaled := a * 3;
+            expect(scaled.x * 100 + scaled.y * 10 + scaled.z).should_be(369);
+        };
+        test("a / 2") {
+            halved := a / 2;
+            expect(halved.y).named("y").should_be(1);
+            expect(halved.z).named("z").should_be(1.5);
+        };
+        test("==") { expect_true((a == new vector3(1, 2, 3))); };
+        test("!=") { expect_true((a != b)); };
+        test("a[2]") { expect(a[2]).should_be(3); };
+        test("a[3] throws") { expect_throws<out_of_bounds_exception>() { a[3]; }; };
+        test("a / 0 throws") { expect_throws<division_by_zero_exception>() { a / 0; }; };
+
+        test("dot") { expect(a.dot(b)).should_be(12); };                                      // 4 - 10 + 18
+        test("cross") {
+            cross := a.cross(b);
+            expect(cross.x).named("x").should_be(27);                                   // 2*6 - 3*(-5)
+            expect(cross.y).named("y").should_be(6);                                    // 3*4 - 1*6
+            expect(cross.z).named("z").should_be(0 - 13);                               // 1*(-5) - 2*4
+        };
+        test("cross is perpendicular to a and to b") {
+            cross := a.cross(b);
+            expect(cross.dot(a)).named("to a").should_be(0);
+            expect(cross.dot(b)).named("to b").should_be(0);
+        };
+        test("x cross y is z") { expect(vector3.unit_x().cross(vector3.unit_y()).z).should_be(1); };
+        test("length") { expect(new vector3(2, 3, 6).length()).should_be(7); };
+        test("length_squared") { expect(a.length_squared()).should_be(14); };
+        test("distance_to") { expect(new vector3(1, 1, 1).distance_to(new vector3(3, 4, 7))).should_be(7); };
+        test("distance_squared_to") { expect(a.distance_squared_to(b)).should_be(67); };     // 9 + 49 + 9
+        test("is_zero") { expect_true(vector3.zero().is_zero()); };
+
+        test("normalized") {
+            unit := new vector3(0, 3, 4).normalized();
+            expect(unit.y).named("y").should_be_near(0.6, 0.000000000001);
+            expect(unit.z).named("z").should_be_near(0.8, 0.000000000001);
+        };
+        test("normalize zero throws") { expect_throws<arithmetic_exception>() { vector3.zero().normalized(); }; };
+        test("angle_to") { expect(vector3.unit_x().angle_to(vector3.unit_z())).should_be_near(HALF_PI, 0.000000000001); };
+        test("angle_to itself") { expect(a.angle_to(a)).should_be_near(0, 0.000000000001); };
+
+        test("lerp") {
+            middle := a.lerp(b, 0.5);
+            expect(middle.x).named("x").should_be(2.5);
+            expect(middle.y).named("y").should_be(0 - 1.5);
+            expect(middle.z).named("z").should_be(4.5);
+        };
+        test("scaled_by y") { expect(a.scaled_by(b).y).should_be(0 - 10); };
+        test("project_on") {
+            shadow := a.project_on(new vector3(0, 0, 2));
+            expect(shadow.z).named("z").should_be(3);
+            expect(shadow.x).named("x").should_be(0);
+        };
+        test("reflect") {
+            bounced := new vector3(1, 0 - 1, 2).reflect(vector3.unit_y());
+            expect(bounced.y).named("y").should_be(1);
+            expect(bounced.z).named("z").should_be(2);
+        };
+        test("abs") { expect(b.abs().y).should_be(5); };
+        test("component_min y") { expect(a.component_min(b).y).should_be(0 - 5); };
+        test("component_max y") { expect(a.component_max(b).y).should_be(2); };
+        test("approx_equals") { expect_true(a.approx_equals(new vector3(1, 2, 3.0000001), 0.000001)); };
+        test("to_vector2") { expect(a.to_vector2().y).should_be(2); };
+        test("to_array") { expect(sizeof(a.to_array())).should_be(3); };
+        test("to_string") { expect(a.to_string()!!).should_be("(1, 2, 3)"); };
+    };
+}
+
+/** the 3 x 3 matrices of the determinant and inverse tests */
+def singular_3x3() : matrix {
+    return new matrix(3, 3, new decimal[] { 2, 0, 1, 1, 3, 2, 1, 1, 1 });      // 2(3-2) - 0 + 1(1-3) = 0
+}
+
+def regular_3x3() : matrix {
+    return new matrix(3, 3, new decimal[] { 6, 1, 1, 4, 0 - 2, 5, 2, 8, 7 });
+}
+
+def check_matrix() {
+    tests("matrix") {
+        m : matrix;         // 2 x 3
+        a : matrix;         // 2 x 2
+        b : matrix;
+        before_each {
+            m = new matrix(2, 3, new decimal[] { 1, 2, 3, 4, 5, 6 });
+            a = new matrix(2, 2, new decimal[] { 1, 2, 3, 4 });
+            b = new matrix(2, 2, new decimal[] { 5, 6, 7, 8 });
+        };
+
+        test("rows") { expect(m.rows).should_be(2); };
+        test("columns") { expect(m.columns).should_be(3); };
+        test("at(0, 0)") { expect(m.at(0, 0)).should_be(1); };
+        test("at(1, 2)") { expect(m.at(1, 2)).should_be(6); };
+        test("at(1, 0)") { expect(m.at(1, 0)).should_be(4); };
+        test("2 x 3 is not square") { expect_false(m.is_square()); };
+        test("size_text") { expect(m.size_text()).should_be("2 x 3"); };
+        test("to_string") { expect(m.to_string()!!).should_be("[[1, 2, 3], [4, 5, 6]]"); };
+
+        test("new matrix is zero") { expect(new matrix(2, 2).at(1, 1)).should_be(0); };
+        test("put") {
+            empty := new matrix(2, 2);
+            empty.put(1, 0, 9);
+            expect(empty.at(1, 0)).should_be(9);
+        };
+        test("fill") {
+            empty := new matrix(2, 2);
+            empty.put(1, 0, 9);
+            empty.fill(3);
+            expect(empty.at(0, 1) + empty.at(1, 0)).should_be(6);
+        };
+        test("filled") { expect(matrix.filled(2, 2, 7).at(1, 1)).should_be(7); };
+        test("a copy is independent") {
+            duplicate := new matrix(m);
+            duplicate.put(0, 0, 100);
+            expect(m.at(0, 0)).should_be(1);
+        };
+
+        test("identity diagonal") {
+            id := matrix.identity(3);
+            expect(id.at(0, 0) + id.at(1, 1) + id.at(2, 2)).should_be(3);
+        };
+        test("identity elsewhere") {
+            id := matrix.identity(3);
+            expect(id.at(0, 1) + id.at(2, 0)).should_be(0);
+        };
+        test("diagonal") {
+            diag := matrix.diagonal(new decimal[] { 2, 3 });
+            expect(diag.at(0, 0) * 10 + diag.at(1, 1)).named("the diagonal").should_be(23);
+            expect(diag.at(0, 1)).named("diagonal off cells").should_be(0);
+        };
+
+        test("row") {
+            row := m.row(1);
+            expect(row[0] * 100 + row[1] * 10 + row[2]).should_be(456);
+        };
+        test("column") {
+            column := m.column(2);
+            expect(column[0] * 10 + column[1]).should_be(36);
+        };
+        test("to_array") { expect(sizeof(m.to_array())).should_be(6); };
+
+        test("transpose") {
+            t := m.transpose();
+            expect(t.rows).named("rows").should_be(3);
+            expect(t.columns).named("columns").should_be(2);
+            expect(t.at(2, 0)).named("(2, 0)").should_be(3);
+            expect(t.at(0, 1)).named("(0, 1)").should_be(4);
+        };
+
+        test("a + b") {
+            sum := a + b;
+            expect(sum.at(0, 0) + sum.at(1, 1)).should_be(18);
+        };
+        test("b - a") { expect((b - a).at(0, 1)).should_be(4); };
+        test("-a") { expect((-a).at(1, 1)).should_be(0 - 4); };
+        test("a * 2") { expect((a * 2).at(1, 0)).should_be(6); };
+        test("a * b") {
+            product := a * b;                                   // { 19, 22, 43, 50 }
+            expect(product.at(0, 0)).named("(0, 0)").should_be(19);
+            expect(product.at(0, 1)).named("(0, 1)").should_be(22);
+            expect(product.at(1, 0)).named("(1, 0)").should_be(43);
+            expect(product.at(1, 1)).named("(1, 1)").should_be(50);
+        };
+        test("b * a differs") {
+            other := b * a;                                     // { 23, 34, 31, 46 }
+            expect(other.at(0, 0)).should_be(23);
+        };
+        test("(2 x 3) * (3 x 2)") {
+            wide := m * m.transpose();                          // 2 x 2: { 14, 32, 32, 77 }
+            expect(wide.rows).named("rows").should_be(2);
+            expect(wide.at(1, 1)).named("cell (1, 1)").should_be(77);
+            expect(wide.at(0, 1)).named("cell (0, 1)").should_be(32);
+        };
+        test("a * identity == a") { expect_true((a * matrix.identity(2) == a)); };
+        test("==") { expect_true((a == new matrix(2, 2, new decimal[] { 1, 2, 3, 4 }))); };
+        test("!=") { expect_true((a != b)); };
+        test("== with another size") { expect_false((a == m)); };
+        test("same_size") { expect_true(a.same_size(b)); };
+        test("same_size differs") { expect_false(a.same_size(m)); };
+
+        test("multiply_vector") {
+            vector := m.multiply_vector(new decimal[] { 1, 0, 2 });
+            expect(vector[0]).named("[0]").should_be(7);
+            expect(vector[1]).named("[1]").should_be(16);
+        };
+
+        test("trace") { expect(a.trace()).should_be(5); };
+        test("determinant 2 x 2") { expect(a.determinant()).should_be(0 - 2); };
+        test("determinant 3 x 3") { expect(singular_3x3().determinant()).should_be_near(0, 0.000000000001); };
+        test("determinant 3 x 3 (b)") { expect(regular_3x3().determinant()).should_be_near(0 - 306, 0.000000001); };
+        test("determinant of identity") { expect(matrix.identity(4).determinant()).should_be(1); };
+        test("determinant needing a row swap") { expect(new matrix(2, 2, new decimal[] { 0, 1, 1, 0 }).determinant()).should_be(0 - 1); };
+
+        test("inverse") {
+            e := new matrix(2, 2, new decimal[] { 4, 7, 2, 6 });
+            inv := e.inverse();
+            expect(inv.at(0, 0)).named("(0, 0)").should_be_near(0.6, 0.000000000001);
+            expect(inv.at(0, 1)).named("(0, 1)").should_be_near(0 - 0.7, 0.000000000001);
+            expect(inv.at(1, 0)).named("(1, 0)").should_be_near(0 - 0.2, 0.000000000001);
+            expect(inv.at(1, 1)).named("(1, 1)").should_be_near(0.4, 0.000000000001);
+        };
+        test("m * inverse is the identity") {
+            e := new matrix(2, 2, new decimal[] { 4, 7, 2, 6 });
+            expect_true((e * e.inverse()).approx_equals(matrix.identity(2), 0.000000000001));
+        };
+        test("3 x 3 inverse") {
+            d := regular_3x3();
+            expect_true((d * d.inverse()).approx_equals(matrix.identity(3), 0.000000000001));
+        };
+        test("inverse of a singular matrix throws") { expect_throws<arithmetic_exception>() { singular_3x3().inverse(); }; };
+
+        // 2x + y = 5, x + 3y = 10  ->  x = 1, y = 3
+        test("solve") {
+            solution := new matrix(2, 2, new decimal[] { 2, 1, 1, 3 }).solve(new decimal[] { 5, 10 });
+            expect(solution[0]).named("x").should_be_near(1, 0.000000000001);
+            expect(solution[1]).named("y").should_be_near(3, 0.000000000001);
+        };
+
+        test("power gives Fibonacci numbers") {
+            fib := new matrix(2, 2, new decimal[] { 1, 1, 1, 0 }).power(10);     // { F11, F10, F10, F9 }
+            expect(fib.at(0, 0)).named("F11").should_be(89);
+            expect(fib.at(0, 1)).named("F10").should_be(55);
+            expect(fib.at(1, 1)).named("F9").should_be(34);
+        };
+        test("pow(0) is the identity") { expect_true((a.power(0) == matrix.identity(2))); };
+
+        test("minor") {
+            minor := regular_3x3().minor(0, 0);
+            expect(minor.rows * 10 + minor.columns).named("size").should_be(22);
+            expect(minor.at(0, 0) * 1000 + minor.at(0, 1) * 100 + minor.at(1, 0) * 10 + minor.at(1, 1)).named("cells").should_be(0 - 2000 + 500 + 80 + 7);
+        };
+
+        test("wrong sizes throw illegal_argument_exception") {
+            expect_throws<illegal_argument_exception>() { new matrix(0, 2); };
+            expect_throws<illegal_argument_exception>() { new matrix(2, 2, new decimal[] { 1, 2, 3 }); };
+            expect_throws<illegal_argument_exception>() { a + m; };
+            expect_throws<illegal_argument_exception>() { a - m; };
+            expect_throws<illegal_argument_exception>() { m * m; };
+            expect_throws<illegal_argument_exception>() { m.determinant(); };
+            expect_throws<illegal_argument_exception>() { m.inverse(); };
+            expect_throws<illegal_argument_exception>() { m.trace(); };
+            expect_throws<illegal_argument_exception>() { m.multiply_vector(new decimal[] { 1, 2 }); };
+            expect_throws<illegal_argument_exception>() { a.power(0 - 1); };
+        };
+
+        test("positions outside the matrix throw out_of_bounds_exception") {
+            expect_throws<out_of_bounds_exception>() { m.at(2, 0); };
+            expect_throws<out_of_bounds_exception>() { m.at(0, 3); };
+            expect_throws<out_of_bounds_exception>() { m.put(0 - 1, 0, 1); };
+            expect_throws<out_of_bounds_exception>() { m.row(2); };
+            expect_throws<out_of_bounds_exception>() { m.column(3); };
+        };
+    };
+}
+
+def linear_tests() {
+    tests("linear") {
+        check_vector2();
+        check_vector3();
+        check_matrix();
+    };
+}

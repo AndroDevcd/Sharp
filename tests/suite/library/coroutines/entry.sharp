@@ -1,0 +1,29 @@
+mod suite.library.coroutines;
+
+import (
+    std.testing,
+    suite.library.coroutines.channels,
+    suite.library.coroutines.closure_across_fibers,
+    suite.library.coroutines.core,
+    suite.library.coroutines.jit_fiber_frames,
+    suite.library.coroutines.localized_arithmetic,
+    suite.library.coroutines.resume_after_compile,
+    suite.library.coroutines.resume_shapes,
+    suite.library.coroutines.switch_after_resume,
+    suite.library.coroutines.sync
+)
+
+/** suite.library.coroutines: std.coroutines */
+def coroutines_tests() {
+    tests("coroutines") {
+        channels_tests();
+        closure_across_fibers_tests();
+        core_tests();
+        jit_fiber_frames_tests();
+        localized_arithmetic_tests();
+        resume_after_compile_tests();
+        resume_shapes_tests();
+        switch_after_resume_tests();
+        sync_tests();
+    };
+}

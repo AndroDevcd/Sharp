@@ -1,0 +1,27 @@
+mod suite.library.collections.lambda_concat;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (compiler, fixed): the COMPILER CRASHED (segmentation
+ * fault, no error message, no output file) on a lambda that joins a string
+ * literal and its int parameter with `+`, passed to a function of a generic
+ * class with two type parameters:
+ *
+ *     mapper<int, string>.apply(5, { a: int -> (string) return "v" + a; })
+ *
+ * The same lambda with `return "v";` compiled, and `"v" + a` outside a
+ * lambda worked.
+ */
+
+class mapper<T, R> {
+    static def apply(item: T, f: (T)(R)) : R {
+        return f(item);
+    }
+}
+
+def lambda_concat_tests() {
+    tests("lambda_concat") {
+        test("lambda that joins a string and an int") { expect(mapper<int, string>.apply(5, { a: int -> (string) return "v" + a; })).should_be("v5"); };
+    };
+}

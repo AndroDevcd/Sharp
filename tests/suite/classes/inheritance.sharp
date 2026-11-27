@@ -1,0 +1,447 @@
+mod suite.classes.inheritance;
+
+import ( std.testing )
+
+/**
+ * Inheritance: `class dog base animal`, calling the base constructor with
+ * `-> base(...)`, inherited fields and methods, `base->` calls, and a chain
+ * three classes deep.
+ *
+ * HOW METHODS BIND (the language's current design)
+ *   A class may declare a method its base class already has. That does NOT
+ *   replace the base method, it stands in front of it:
+ *     - a call binds to the DECLARED type of the variable it is made through,
+ *       so a dog held in an `animal` variable runs animal's method;
+ *     - a method inherited from the base class keeps calling the base
+ *       class's own methods.
+ *   `override` is only for methods that come from an interface. Behaviour
+ *   that must follow the object (and not the variable) is therefore declared
+ *   in an interface and called through the interface type: see the shapes.
+ */
+
+class animal {
+    name : string = "";
+    legs : decimal = 4;
+    order : string = "";            // every constructor adds a letter: shows the order they ran in
+
+    animal(name: string) {
+        self->name = name;
+        order = order + "A";
+    }
+
+    def speak(): string {
+        return "...";
+    }
+
+    def kind(): decimal {
+        return 1;
+    }
+
+    /* not overridden anywhere: every animal inherits it as it is */
+    def leg_count(): decimal {
+        return legs;
+    }
+
+    /* calls animal's speak(), whatever the classes below declare */
+    def describe(): string {
+        return name + " says " + speak();
+    }
+
+    def kind_times_100(): decimal {
+        return kind() * 100;
+    }
+}
+
+class dog base animal {
+    tricks : decimal = 0;
+
+    dog(name: string) -> base(name) {
+        order = order + "D";
+    }
+
+    /* the same name as in animal: used for calls made through a dog */
+    def speak(): string {
+        return "woof";
+    }
+
+    def kind(): decimal {
+        return 2;
+    }
+
+    def learn() {
+        tricks++;
+    }
+
+    /* uses a field and a method that are declared in animal */
+    def legs_and_tricks(): decimal {
+        return leg_count() * 10 + tricks;
+    }
+}
+
+/* third level: a puppy is a dog is an animal */
+class puppy base dog {
+    age_in_weeks : decimal = 8;
+
+    puppy(name: string) -> base(name) {
+        order = order + "P";
+        tricks = 1;
+    }
+
+    def speak(): string {
+        return "yip";
+    }
+
+    /* base-> runs the version of the class above */
+    def kind(): decimal {
+        return base->kind() * 10 + 3;
+    }
+
+    def speak_like_a_dog(): string {
+        return base->speak();
+    }
+}
+
+class bird base animal {
+    bird(name: string) -> base(name) {
+        legs = 2;
+    }
+
+    def speak(): string {
+        return "tweet";
+    }
+
+    /* builds on what the base class does */
+    def describe(): string {
+        return base->describe() + " and flies";
+    }
+}
+
+/* a class that inherits everything and adds nothing but a constructor */
+class cat base animal {
+    cat(name: string) -> base(name) {
+    }
+}
+
+// ---- behaviour that follows the object: declared in an interface, written with `override`
+interface has_area {
+    def area(): decimal;
+}
+
+class shape : has_area {
+    sides : decimal = 0;
+
+    shape(sides: decimal) {
+        self->sides = sides;
+    }
+
+    override def area(): decimal {
+        return 0;
+    }
+}
+
+class rectangle base shape {
+    width : decimal = 0;
+    height : decimal = 0;
+
+    /* the base constructor gets an argument worked out here */
+    rectangle(w: decimal, h: decimal) -> base(4) {
+        width = w;
+        height = h;
+    }
+
+    override def area(): decimal {
+        return width * height;
+    }
+
+    def perimeter(): decimal {
+        return 2 * (width + height);
+    }
+}
+
+/* two base constructors in a row; area() is inherited from rectangle */
+class square base rectangle {
+    square(side: decimal) -> base(side, side) {
+    }
+}
+
+class triangle base shape {
+    base_length : decimal = 0;
+    height : decimal = 0;
+
+    triangle(b: decimal, h: decimal) -> base(3) {
+        base_length = b;
+        height = h;
+    }
+
+    override def area(): decimal {
+        return base_length * height / 2;
+    }
+}
+
+// ---- a base class with two constructors: the class below picks one
+class labelled {
+    label : string = "none";
+    number : decimal = 0;
+
+    labelled() {
+        number = 1;
+    }
+
+    labelled(label: string) {
+        self->label = label;
+        number = 2;
+    }
+}
+
+class picks_first base labelled {
+    picks_first() -> base() {
+    }
+}
+
+class picks_second base labelled {
+    picks_second(text: string) -> base(text) {
+    }
+}
+
+def speak_for(a: animal): string {
+    return a.speak();
+}
+
+def area_of(s: has_area): decimal {
+    return s.area();
+}
+
+def legs_of(a: animal): decimal {
+    return a.leg_count();
+}
+
+def make_animal(which: decimal): animal {
+    if(which == 1) {
+        return new dog("made dog");
+    }
+    if(which == 2) {
+        return new bird("made bird");
+    }
+    return new animal("made animal");
+}
+
+/* rex, who has learned two tricks and lost a leg */
+def trained_rex(): dog {
+    d := new dog("rex");
+    d.learn();
+    d.learn();
+    d.legs = 3;
+    return d;
+}
+
+/* bit, who has learned one trick on top of the one his constructor gives */
+def trained_bit(): puppy {
+    p := new puppy("bit");
+    p.learn();
+    return p;
+}
+
+def inheritance_tests() {
+    tests("inheritance") {
+        // ---- the base class on its own
+        test("base class: field set by its constructor") { expect(new animal("generic").name).should_be("generic"); };
+        test("base class: its own method") { expect(new animal("generic").speak()).should_be("..."); };
+        test("base class: kind") { expect(new animal("generic").kind()).should_be(1); };
+        test("base class: a method calling another") { expect(new animal("generic").describe()).should_be("generic says ..."); };
+
+        // ---- inherited fields and methods
+        test("the base constructor ran with the argument passed up") { expect(new dog("rex").name).should_be("rex"); };
+        test("an inherited field keeps its initial value") { expect(new dog("rex").legs).should_be(4); };
+        test("an inherited method") { expect(new dog("rex").leg_count()).should_be(4); };
+        test("a field of the class itself") { expect(new dog("rex").tricks).should_be(0); };
+        test("a method of the class itself, and one using inherited members") {
+            d := new dog("rex");
+            d.learn();
+            d.learn();
+            expect(d.tricks).named("tricks after learning twice").should_be(2);
+            expect(d.legs_and_tricks()).named("legs_and_tricks()").should_be(42);
+        };
+        test("an inherited field can be written") {
+            d := new dog("rex");
+            d.legs = 3;
+            expect(d.leg_count()).should_be(3);
+        };
+        test("a class that adds nothing: inherited field") { expect(new cat("tom").name).should_be("tom"); };
+        test("a class that adds nothing: inherited method") { expect(new cat("tom").speak()).should_be("..."); };
+        test("a class that adds nothing: inherited method calling another") { expect(new cat("tom").describe()).should_be("tom says ..."); };
+        test("a class that adds nothing: kind") { expect(new cat("tom").kind()).should_be(1); };
+
+        // ---- a method declared again in the class below
+        test("called through a dog: the dog's method") { expect(new dog("rex").speak()).should_be("woof"); };
+        test("called through a dog: the dog's method (number)") { expect(new dog("rex").kind()).should_be(2); };
+        test("the base class is not changed by it") {
+            d := new dog("rex");
+            d.speak();
+            expect(new animal("generic").speak()).should_be("...");
+        };
+        test("an inherited method keeps calling the base class's method") { expect(new dog("rex").describe()).should_be("rex says ..."); };
+        test("an inherited method keeps calling the base class's method (number)") { expect(new dog("rex").kind_times_100()).should_be(100); };
+        test("a second class declaring the same method") { expect(new bird("tweety").speak()).should_be("tweet"); };
+        test("a base field changed by the constructor below") { expect(new bird("tweety").legs).should_be(2); };
+        test("a method that is not declared again gives the base answer") { expect(new bird("tweety").kind()).should_be(1); };
+
+        // ---- constructors run from the base class down
+        test("one constructor") { expect(new animal("generic").order).should_be("A"); };
+        test("base constructor, then the class's own") { expect(new dog("rex").order).should_be("AD"); };
+        test("three constructors, base first") { expect(new puppy("bit").order).should_be("ADP"); };
+
+        // ---- a chain of three
+        test("field from two levels up") { expect(new puppy("bit").name).should_be("bit"); };
+        test("field from one level up, set by the lowest constructor") { expect(new puppy("bit").tricks).should_be(1); };
+        test("field of the lowest class") { expect(new puppy("bit").age_in_weeks).should_be(8); };
+        test("method from two levels up") { expect(new puppy("bit").leg_count()).should_be(4); };
+        test("method from one level up, and one using one from two levels up") {
+            p := new puppy("bit");
+            p.learn();
+            expect(p.tricks).named("tricks after learning once").should_be(2);
+            expect(p.legs_and_tricks()).named("legs_and_tricks()").should_be(42);
+        };
+        test("called through a puppy: the puppy's method") { expect(new puppy("bit").speak()).should_be("yip"); };
+        test("a method from two levels up still calls the top class's method") {
+            p := new puppy("bit");
+            expect(p.describe()).named("text").should_be("bit says ...");
+            expect(p.kind_times_100()).named("number").should_be(100);
+        };
+
+        // ---- base->
+        test("base->method() inside the method of the same name") { expect(new puppy("bit").kind()).should_be(23); };
+        test("base->method() from another method") { expect(new puppy("bit").speak_like_a_dog()).should_be("woof"); };
+        test("a method that builds on the base version") { expect(new bird("tweety").describe()).should_be("tweety says ... and flies"); };
+
+        // ---- through a variable of the base type: the declared type decides
+        test("a dog in an animal variable runs animal's method, with the dog's fields") {
+            d := trained_rex();
+            as_animal : animal = d;
+            expect(as_animal.speak()).named("speak()").should_be("...");
+            expect(as_animal.kind()).named("kind()").should_be(1);
+            expect(as_animal.name).named("the dog's field").should_be("rex");
+            expect(as_animal.leg_count()).named("an inherited method").should_be(3);
+            expect(as_animal == d).named("the same object").should_be(1);
+        };
+        test("the variable pointed at a bird") {
+            as_animal : animal = trained_rex();
+            as_animal = new bird("tweety");
+            expect(as_animal.name).named("field").should_be("tweety");
+            expect(as_animal.leg_count()).named("inherited method").should_be(2);
+        };
+        test("the variable pointed at a puppy") {
+            as_animal : animal = trained_rex();
+            as_animal = new puppy("bit");
+            expect(as_animal.name).named("field").should_be("bit");
+            expect(as_animal.speak()).named("animal's method").should_be("...");
+        };
+        test("a puppy in a dog variable runs dog's method and shares the puppy's fields") {
+            p := trained_bit();
+            as_dog : dog = p;
+            expect(as_dog.speak()).named("speak()").should_be("woof");
+            expect(as_dog.kind()).named("kind()").should_be(2);
+            expect(as_dog.tricks).named("the puppy's field").should_be(2);
+        };
+        test("a change made through the dog variable is a change to the puppy") {
+            p := trained_bit();
+            as_dog : dog = p;
+            as_dog.learn();
+            expect(p.tricks).should_be(3);
+        };
+
+        // ---- as a parameter and a return value of the base type
+        test("pass a dog where an animal is expected") { expect(speak_for(trained_rex())).should_be("..."); };
+        test("its fields come along: dog") { expect(legs_of(trained_rex())).should_be(3); };
+        test("its fields come along: bird") { expect(legs_of(new bird("tweety"))).should_be(2); };
+        test("its fields come along: puppy") { expect(legs_of(trained_bit())).should_be(4); };
+        test("pass a new object") { expect(legs_of(new cat("kit"))).should_be(4); };
+        test("a function returning the base type: dog") { expect(make_animal(1).name).should_be("made dog"); };
+        test("a function returning the base type: bird, and the bird's constructor ran") {
+            expect(make_animal(2).name).named("name").should_be("made bird");
+            expect(make_animal(2).legs).named("legs").should_be(2);
+        };
+        test("a function returning the base type: animal") { expect(make_animal(3).name).should_be("made animal"); };
+
+        // ---- several classes in one array of the base type
+        test("several classes in one array of the base type") {
+            zoo : animal[] = new animal[4];
+            zoo[0] = trained_rex();
+            zoo[1] = new bird("tweety");
+            zoo[2] = trained_bit();
+            zoo[3] = new animal("generic");
+            expect(zoo[0].name).named("element 0").should_be("rex");
+            expect(zoo[1].name).named("element 1").should_be("tweety");
+            expect(zoo[2].name).named("element 2").should_be("bit");
+            expect(zoo[3].name).named("element 3").should_be("generic");
+            legs : decimal = 0;
+            for(i : decimal = 0; i < sizeof(zoo); i++) {
+                legs += zoo[i].leg_count();
+            }
+            expect(legs).named("sum of leg_count() over the array: 3 + 2 + 4 + 4").should_be(13);
+        };
+
+        // ---- shapes: area() comes from an interface, so it can be overridden
+        test("base constructor given a fixed argument") { expect(new rectangle(3, 4).sides).should_be(4); };
+        test("override using the class's own fields") { expect(new rectangle(3, 4).area()).should_be(12); };
+        test("the class's own method") { expect(new rectangle(3, 4).perimeter()).should_be(14); };
+        test("two base constructors in a row") {
+            s := new square(5);
+            expect(s.sides).named("top field").should_be(4);
+            expect(s.width).named("middle fields").should_be(5);
+        };
+        test("an override inherited from the middle class") { expect(new square(5).area()).should_be(25); };
+        test("a method inherited from the middle class") { expect(new square(5).perimeter()).should_be(20); };
+        test("another class under the same base, with its own base constructor argument") {
+            t := new triangle(6, 5);
+            expect(t.area()).named("area").should_be(15);
+            expect(t.sides).named("sides").should_be(3);
+        };
+        test("the base class's own version") { expect(new shape(0).area()).should_be(0); };
+
+        // ---- called through the interface type, the object's own override runs
+        test("interface parameter: rectangle") { expect(area_of(new rectangle(3, 4))).should_be(12); };
+        test("interface parameter: square") { expect(area_of(new square(5))).should_be(25); };
+        test("interface parameter: triangle") { expect(area_of(new triangle(6, 5))).should_be(15); };
+        test("interface parameter: the base class") { expect(area_of(new shape(0))).should_be(0); };
+        test("interface variable") {
+            one_shape : has_area = new rectangle(3, 4);
+            expect(one_shape.area()).named("rectangle").should_be(12);
+            one_shape = new triangle(6, 5);
+            expect(one_shape.area()).named("triangle").should_be(15);
+        };
+        test("total area of three different shapes") {
+            shapes : has_area[] = new has_area[3];
+            shapes[0] = new rectangle(3, 4);
+            shapes[1] = new square(5);
+            shapes[2] = new triangle(6, 5);
+            total_area : decimal = 0;
+            for(i : decimal = 0; i < 3; i++) {
+                total_area += shapes[i].area();
+            }
+            expect(total_area).should_be(52);
+        };
+
+        // ---- choosing between base constructors
+        test("-> base() runs the constructor without parameters, which leaves the initial value") {
+            first := new picks_first();
+            expect(first.number).named("number").should_be(1);
+            expect(first.label).named("label").should_be("none");
+        };
+        test("-> base(text) runs the constructor with a string, which stores it") {
+            second := new picks_second("chosen");
+            expect(second.number).named("number").should_be(2);
+            expect(second.label).named("label").should_be("chosen");
+        };
+
+        // ---- objects of one class stay independent
+        test("another dog has its own fields, and the first keeps its own") {
+            d := trained_rex();
+            d2 := new dog("fido");
+            d2.learn();
+            expect(d2.tricks).named("the second dog's tricks").should_be(1);
+            expect(d.tricks).named("the first dog's tricks").should_be(2);
+            expect(d2.name).named("the second dog's inherited field").should_be("fido");
+            expect(d2.legs).named("the leg changed on the first dog only").should_be(4);
+        };
+    };
+}

@@ -1,0 +1,110 @@
+mod suite.classes.properties_fixes;
+
+import ( std.testing )
+
+/**
+ * Bugs found while writing properties.sharp, all fixed; the checks below
+ * guard against them.
+ *
+ * BUG 1 (fixed) - a field with BOTH a getter and a setter lost assignments
+ *         made from outside the class when compiled with -O.
+ *   Without -O the checks on `both` below passed. With -O (JIT and -nojit)
+ *   `b.value = 10` left the field at 5. In a longer test (read, assign,
+ *   read again on a class like both_counted) the -O build threw
+ *   nullptr_exception instead. A field with only a getter, or only
+ *   a setter, worked in all four configurations.
+ *
+ * BUG 2 (fixed) - with a getter and a setter on one field, an assignment
+ *         also ran the getter (all four configurations; `reads` in
+ *         both_counted was 1 after one assignment and no read).
+ *
+ * BUG 3 (fixed) - `p.value++` on a property gave a wrong number.
+ *   Without -O the field became an unrelated number (43, 112, ... it
+ *   depended on the program) instead of 6; with -O it stayed 5.
+ *
+ * BUG 4 (fixed) - `p.value += 5` on a property stopped the compiler:
+ *       <code-generator> fatal error: attempting to set temporary data from register!
+ *
+ * BUG 5 (fixed) - assigning, from outside the class, a field that has only a
+ *         getter stopped the compiler:
+ *       <code-generator> fatal error: attempting to assign temporary numeric function data!
+ *   The same assignment inside a method of the class compiled and stored the
+ *   value. (Its check is in properties_getter_only_assignment.sharp.)
+ */
+
+class both {
+    value : decimal = 5;
+        get { return value; }
+        set v -> { value = v; }
+}
+
+class both_counted {
+    value : decimal = 5;
+        get { reads = reads + 1; return value; }
+        set v -> { writes = writes + 1; value = v; }
+
+    reads : decimal = 0;
+    writes : decimal = 0;
+}
+
+class getter_only {
+    value : decimal = 5;
+        get { return value; }
+}
+
+def properties_fixes_tests() {
+    tests("properties_fixes") {
+        // ---- bug 1: getter and setter on one field, -O
+        test("read through the getter") { expect(new both().value).should_be(5); };
+        test("assigned through the setter") {
+            b := new both();
+            b.value = 10;
+            expect(b.value).should_be(10);                  // before the fix, with -O: 5
+        };
+
+        // ---- bugs 1 and 2: the same with counters
+        test("an assignment runs the setter once and not the getter") {
+            c := new both_counted();
+            c.value = 10;
+            expect(c.writes).named("the setter ran").should_be(1);
+            expect(c.reads).named("the getter ran").should_be(0);       // before the fix: 1
+            expect(c.value).named("the new value").should_be(10);
+        };
+
+        // ---- bug 3: ++ on a property
+        test("++ on a property") {
+            p := new both();
+            p.value++;
+            expect(p.value).should_be(6);                   // before the fix: 43 without -O, 5 with -O
+        };
+
+        // ---- bug 4: += on a property (the compiler used to stop)
+        test("+= on a property") {
+            q := new both();
+            q.value += 5;
+            expect(q.value).should_be(10);
+        };
+        test("-- on a property") {
+            q := new both();
+            q.value = 10;
+            q.value--;
+            expect(q.value).should_be(9);
+        };
+        test("prefix -- on a property") {
+            q := new both();
+            q.value = 9;
+            --q.value;
+            expect(q.value).should_be(8);
+        };
+        test("+= reads once and writes once") {
+            counted := new both_counted();
+            counted.value += 1;
+            expect(counted.reads).named("reads").should_be(1);
+            expect(counted.writes).named("writes").should_be(1);
+        };
+
+        // ---- bug 5: assigning a getter-only field from outside: see
+        // properties_getter_only_assignment.sharp
+
+    };
+}

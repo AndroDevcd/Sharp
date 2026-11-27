@@ -1,13 +1,17 @@
 #!/bin/bash
 # TEST SHARP: the one command for every test of the repository.
 #
-#     bash test.sh                      everything, the quick version                  about 3 minutes
-#     bash test.sh full                 everything, all of it                          more than an hour
+#     bash test.sh                      everything, the quick version                  not measured yet
+#     bash test.sh full                 everything, all of it                          not measured yet
 #     bash test.sh vm                   one part, quick          (several: bash test.sh compiler library)
 #     bash test.sh vm full              one part, all of it
 #     bash test.sh changed              the parts whose files changed since the last commit, quick
 #     bash test.sh changed full         ... all of each
-#     bash test.sh case lib_data_json   one case of the suite (tests/suite/cases), compiled and run
+#     bash test.sh suite                THE SUITE (tests/suite, one program): built with the VM, the compiler and
+#                                       the library of the repository as they are now - never the installed
+#                                       ones - and run; every test
+#     bash test.sh suite suite.library.collections      ... one group of it and the groups inside (several may be named)
+#     bash test.sh suite O windows      ... built with -O; and on the Windows VM too
 #     bash test.sh try app/main.sharp   any one file - or a project folder - compiled with what is in the
 #                                       repository now, and run   (a folder: try shop -tests  builds its tests)
 #                                       (what follows the file goes to the program: try a.sharp --port 80)
@@ -16,16 +20,19 @@
 #
 # THE PARTS
 #     compiler    reading and checking source, the error messages; full: code generation, self-hosting
-#     library     the standard library compiles; full: every case of the suite, run four ways
+#     library     the standard library compiles; full: the suite compiles, and runs four ways
 #     vm          the suite run once, calls to C++; full: the suite four ways, the kind checks, collector stress, the ARM JIT under qemu, the Windows VM
 #     debugger    sdb driven by its own tests; full: on Windows too
 #     tools       the command line, the files the editor reads; full: the CLion plugin's tests
 #     programs    the examples and the benchmarks still compile and run
 #
 # MORE WORDS, anywhere on the line
-#     windows     a quick run does the Windows half too (a full run always does)
+#     windows     a quick run does the Windows half too (a full run always does); with `suite`: run it on
+#                 the Windows VM too
 #     linux       a full run leaves the Windows half out
-#     O           with `case`: compile the case with -O
+#     O           with `suite`: build it with -O
+#
+# (`case <name>` is gone: the suite is one program now, and `suite <group>` runs a part of it.)
 #
 # WHERE IT RUNS. From Git Bash on Windows: the Linux half runs inside WSL, the Windows half here.
 # From Linux or WSL: the Linux half only, and the Windows half is listed as not run.
@@ -54,12 +61,16 @@ windows_of() { case $1 in vm) echo "the suite on the Windows VM";; debugger) ech
 help() { sed -n '2,/^# What the parts are made of/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; }
 list() {
     echo "part        quick                                          full adds"
-    echo "compiler    frontend, backend                    2 min     helps, code generation, self-hosting   35 min"
-    echo "library     the library compiles                 1 min     every case compiles; the suite 4 ways  35 min"
-    echo "vm          the suite once, calls to C++         2 min     the suite 4 ways, kind checks          35 min   + Windows: the suite, 10 min"
+    echo "compiler    frontend, backend                    2 min     helps, code generation, self-hosting   not measured yet"
+    echo "library     the library compiles                 1 min     the suite compiles; the suite 4 ways   not measured yet"
+    echo "vm          the suite once, calls to C++         (*)       the suite 4 ways, kind checks,         not measured yet   + Windows: the suite, not measured yet"
+    echo "                                                           collector stress, the ARM JIT"
     echo "debugger    sdb's tests                          1 min                                                     + Windows: sdb's tests, 3 min"
     echo "tools       the command line, the editor's files 1 min                                                     + Windows: the plugin's tests, 2 min"
     echo "programs    examples and benchmarks              1 min"
+    echo ""
+    echo "(*) not measured yet. The suite is one program since 26 November: a run takes seconds (about 11 on Linux,"
+    echo "    with the JIT); its build is not measured yet."
     echo ""
     echo "Parts run side by side, so a run takes less than the sum.   bash test.sh help   says how to start them."
 }
@@ -72,7 +83,7 @@ if [ "$1" = try ]; then
 fi
 
 # ---- the words of the command line
-LEVEL=quick; CHOSEN=""; CHANGED=0; WINDOWS=""; CASES=""; CASE_OPTION=""; MODE=parts
+LEVEL=quick; CHOSEN=""; CHANGED=0; WINDOWS=""; GROUPS_NAMED=""; SUITE_OPTION=""; MODE=parts
 for word in "$@"; do
     case "$word" in
         help|-h|--help) help; exit 0 ;;
@@ -82,13 +93,20 @@ for word in "$@"; do
         changed)  CHANGED=1 ;;
         windows)  WINDOWS=yes ;;
         linux)    WINDOWS=no ;;
-        case)     MODE=case ;;
-        O|-O)     CASE_OPTION="-O" ;;
-        compiler|library|vm|debugger|tools|programs) CHOSEN="$CHOSEN $word" ;;
-        *)  if [ $MODE = case ]; then CASES="$CASES ${word%.sharp}"
+        suite)    MODE=suite ;;
+        case)     echo "test.sh: \`case\` is gone - the suite is one program now. bash test.sh suite <group> runs a part of it"
+                  echo "         (a group is named by its folders: suite.library.collections; tests/suite/README.md)"; exit 2 ;;
+        O|-O)     SUITE_OPTION="-O" ;;
+        compiler|library|vm|debugger|tools|programs) [ $MODE = suite ] && GROUPS_NAMED="$GROUPS_NAMED $word" || CHOSEN="$CHOSEN $word" ;;
+        *)  if [ $MODE = suite ]; then GROUPS_NAMED="$GROUPS_NAMED $word"
             else echo "test.sh: unknown word '$word'"; echo ""; help; exit 2; fi ;;
     esac
 done
+# `suite [groups]`: the suite's one program, built with what is in the repository; the groups go to it as -test-only
+if [ $MODE = suite ]; then
+    TRY_FILE=tests/suite; TRY_ARGUMENTS=($SUITE_OPTION --)
+    for group in $GROUPS_NAMED; do TRY_ARGUMENTS+=(-test-only "$group"); done
+fi
 [ -z "$WINDOWS" ] && { [ $LEVEL = full ] && WINDOWS=yes || WINDOWS=no; }
 
 # ---- where this runs: Git Bash (both halves) or Linux / WSL (the Linux half)
@@ -106,34 +124,35 @@ quiet() { grep -v "ld.exe\|^time:\|^unknown"; }
 mkdir -p "$LOGS"
 
 # ---- one file, compiled with the compiler and library as they are now, and run
-if [ -n "$TRY_FILE" ]; then
+if [ -n "$TRY_FILE" ] && [ $MODE != suite ]; then
     linux internal/try_program.sh "$TRY_FILE" "${TRY_ARGUMENTS[@]}"
     exit $?
 fi
 
-# ---- one case of the suite
-if [ $MODE = case ]; then
-    [ -n "$CASES" ] || { echo "test.sh case <name> ...   the names are the files of tests/suite/cases, without .sharp"; exit 2; }
-    for name in $CASES; do [ -f "$REPO/tests/suite/cases/$name.sharp" ] || { echo "no case tests/suite/cases/$name.sharp"; exit 2; }; done
+# ---- the suite (one program), or a part of it: on Linux as `try` builds and runs a project; then on Windows
+if [ $MODE = suite ]; then
     ok=1
-    linux internal/run_case.sh $CASE_OPTION $CASES || ok=0
+    linux internal/try_program.sh "$TRY_FILE" "${TRY_ARGUMENTS[@]}" 2>&1 | tee "$LOGS/suite.txt"
+    # (a pass: the program's exit code 0, and its last line says all passed)
+    grep -aq "^exit 0" "$LOGS/suite.txt" && grep -aqE "^all [0-9]+ tests passed" "$LOGS/suite.txt" || ok=0
     if [ $WINDOWS = yes ]; then
         if [ $ON_WINDOWS = 0 ]; then echo "(the Windows VM: not run - start this from Git Bash on Windows)"
         else
             echo "== on the Windows VM"
             bash "$S/windows/build_vm.sh" 2>&1 | quiet | tail -1
             linux internal/hand_over_compiler.sh > /dev/null || { echo "the compiler could not be handed over to Windows"; exit 1; }
-            VM="$REPO/cmake-build-windows-vm/sharp.exe"; LIBRARY="$REPO/stdlib"
-            for name in $CASES; do
-                program="$LOGS/cases/$name"; mkdir -p "$LOGS/cases"; rm -f "$program"
-                "$VM" "$LOGS/sharpc" "$REPO/tests/suite/cases/$name.sharp" "$REPO/tests/suite/testing.sharp" -o "$program" $CASE_OPTION -L "$LIBRARY" > "$program.compile.txt" 2>&1
-                if [ ! -f "$program" ]; then grep -vE "^(time:|unknown)" "$program.compile.txt" | head -40; echo "$name: DID NOT COMPILE"; ok=0; continue; fi
-                ( cd "$LOGS/cases" && timeout 150 "$VM" "$program" 2>&1 | tail -${TAIL:-15} )
-                ( cd "$LOGS/cases" && timeout 150 "$VM" "$program" 2>&1 | grep -q -e "RESULT PASS" -e " tests passed" ) || ok=0
-            done
+            source "$REPO/compiler/tests/suite_program.sh"
+            VM="$REPO/cmake-build-windows-vm/sharp.exe"; PROJECT="$REPO/tests/suite"; mkdir -p "$LOGS/suite_windows"
+            if suite_build "$PROJECT" "$LOGS/suite_windows/suite" "$LOGS/suite_windows/compile.txt" \
+                   "$VM" "$LOGS/sharpc" -P "$PROJECT" -j 1 -L "$REPO/stdlib" $SUITE_OPTION; then
+                SUITE_PICK="$GROUPS_NAMED" suite_way "the suite on the Windows VM" "$PROJECT" "$LOGS/suite_windows/run.txt" 900 \
+                    "$VM" "$LOGS/suite_windows/suite" || ok=0
+            else
+                echo "the suite: DID NOT COMPILE on Windows"; ok=0
+            fi
         fi
     fi
-    [ $ok = 1 ] && echo "CASES: PASS" || { echo "CASES: FAIL"; exit 1; }
+    [ $ok = 1 ] && echo "SUITE: PASS" || { echo "SUITE: FAIL"; exit 1; }
     exit 0
 fi
 
@@ -147,7 +166,8 @@ if [ $CHANGED = 1 ]; then
             debugger/*)             add debugger ;;
             compiler/backend/ide/*) add compiler; add tools ;;
             compiler/*)             add compiler; add library ;;
-            stdlib/*|tests/suite/*) add library ;;
+            stdlib/*)               add library ;;
+            tests/suite/*)          add library; add vm ;;      # (vm: the suite is run)
             tools/clion-plugin/*)       add tools ;;
             examples/*|benchmark/*)     add programs ;;
         esac
@@ -228,7 +248,7 @@ for part in $PARTS; do
         result="PASS   (Linux only)"
     fi
     printf "%-10s %s\n" $part "$result"
-    case "$result" in FAIL*) all=0; echo "           again:  bash test.sh $part$([ $LEVEL = full ] && echo " full")     one case of the suite:  bash test.sh case <name>" ;; esac
+    case "$result" in FAIL*) all=0; echo "           again:  bash test.sh $part$([ $LEVEL = full ] && echo " full")     one group of the suite:  bash test.sh suite <group>" ;; esac
 done
 [ $LEVEL = quick ] && echo "(the quick version: bash test.sh full runs all of each part)"
 if [ $all = 1 ]; then echo "ALL TESTS: PASS"; else echo "ALL TESTS: FAIL"; exit 1; fi

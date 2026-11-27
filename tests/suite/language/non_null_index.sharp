@@ -1,0 +1,56 @@
+mod suite.language.non_null_index;
+
+import ( std.testing )
+
+/**
+ * An index right after the non-null assertion: x!![i], also followed by a
+ * member access and used as the target of an assignment.
+ */
+class item { weight : decimal = 3; name : string = "n"; }
+
+class holder {
+    numbers : decimal[]?;
+    items : item[]?;
+    def second() : decimal { return numbers!![1]; }
+}
+
+def maybe(a: decimal[]?) : decimal { return a!![0] + a!![1]; }
+
+def non_null_index_tests() {
+    tests("non_null_index") {
+        x : holder;
+        before_each {
+            x = new holder();
+            x.numbers = new decimal[] { 5, 6 };
+        };
+
+        test("index without !!") { expect(x.numbers[1]).should_be(6); };
+        test("index after !!") { expect(x.numbers!![1]).should_be(6); };
+        test("in an expression") { expect(x.numbers!![0] * 10 + x.numbers!![1]).should_be(56); };
+        test("inside a method") { expect(x.second()).should_be(6); };
+        test("on a parameter") { expect(maybe(x.numbers)).should_be(11); };
+
+        test("member after the index") {
+            x.items = new item[2];
+            its : item[]? = x.items;
+            its!![0] = new item();
+            expect(x.items!![0].weight).should_be(3);
+        };
+        test("string member after the index") {
+            x.items = new item[2];
+            its : item[]? = x.items;
+            its!![0] = new item();
+            expect(x.items!![0].name).should_be("n");
+        };
+
+        test("index is an expression") {
+            arr : decimal[]? = x.numbers;
+            i : decimal = 1;
+            expect(arr!![i - 1]).should_be(5);
+        };
+        test("out of bounds still throws") {
+            arr : decimal[]? = x.numbers;
+            expect_throws<exception>() { r : decimal = arr!![7]; };
+        };
+    };
+}

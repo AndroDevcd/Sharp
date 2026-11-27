@@ -1,0 +1,183 @@
+mod suite.library.guikit.model_test;
+import ( std, std.io, std.io.coroutines, std.di, std.testing, std.guikit.*, std.guikit.testing )
+
+/**
+ * std.guikit.testing: a view model's background work in a test. The model is
+ * GIVEN its dispatcher (std.di); a test gives it test_dispatcher(), which holds
+ * the work until run_work(); watching(state) writes down what a state has been.
+ */
+
+component app {
+    factory { replaceable<coroutine_dispatcher>() { return dispatchers.io(); } }
+}
+
+/** what a store would give: three tasks */
+def read_the_tasks() : list<string> {
+    found := new list<string>();
+    found.add("write");
+    found.add("test");
+    found.add("ship");
+    return found;
+}
+
+class tasks_model base view_model {
+    inject background : coroutine_dispatcher;
+    tasks := state_list<string>();
+    busy := gui.state(0);
+    note := gui.state("");
+    cleared : _int64 = 0;
+
+    tasks_model() {
+        when_cleared { cleared = 1; };
+    }
+
+    def load() {
+        busy.value = 1;
+        launch(background) {
+            found := read_the_tasks();
+            on_main {
+                tasks.replace_all(found);
+                busy.value = 0;
+            };
+        };
+    }
+
+    /** three pieces of work, each adding its letter when it runs */
+    def spell() {
+        launch(background) { on_main { note.value = note.value + "a"; }; };
+        launch(background) { on_main { note.value = note.value + "b"; }; };
+        launch(background) { on_main { note.value = note.value + "c"; }; };
+    }
+
+    /** work that starts more work when it is done */
+    def chain() {
+        launch(background) {
+            on_main {
+                note.value = "first";
+                launch(background) {
+                    on_main { note.value = "second"; };
+                };
+            };
+        };
+    }
+}
+
+class tasks_screen base composable {
+    model := model_of<tasks_model>();
+
+    override def build() : element {
+        return column(modifier().fill()) {
+            text(model.busy.value == 1 ? "Loading" : "Ready", modifier().tag("status"));
+            button("Load", modifier().tag("load")) { model.load(); };
+            for(i : _int64 = 0; i < model.tasks.size(); i++) {
+                text(model.tasks.at(i), modifier().tag("task_" + i));
+            }
+        };
+    }
+}
+
+def model_test_tests() {
+    tests("model_test") {
+        test("work given to a test dispatcher waits for run_work") {
+            work := test_dispatcher();
+            provide<coroutine_dispatcher>() { return work; };
+
+            model := new tasks_model();
+            seen := watching(model.busy);
+            model.load();
+            expect(model.busy.value).should_be(1);
+            expect(model.tasks.size()).should_be(0);
+
+            run_work();
+            expect(model.tasks.size()).should_be(3);
+            expect(model.tasks.at(2)).should_be("ship");
+            expect(model.busy.value).should_be(0);
+            seen.should_have_been(0, 1, 0);
+        };
+
+        test("the work runs in the order it was started") {
+            work := test_dispatcher();
+            provide<coroutine_dispatcher>() { return work; };
+            model := new tasks_model();
+            model.spell();
+            expect(model.note.value).should_be("");
+            run_work();
+            expect(model.note.value).should_be("abc");
+        };
+
+        test("work that starts more work: run_work goes on until nothing is left") {
+            work := test_dispatcher();
+            provide<coroutine_dispatcher>() { return work; };
+            model := new tasks_model();
+            seen := watching(model.note);
+            model.chain();
+            run_work();
+            expect(model.note.value).should_be("second");
+            seen.should_have_been("", "first", "second");
+        };
+
+        test("run_work twice, and with nothing waiting, does no harm") {
+            work := test_dispatcher();
+            provide<coroutine_dispatcher>() { return work; };
+            model := new tasks_model();
+            run_work();
+            model.load();
+            run_work();
+            run_work();
+            expect(model.tasks.size()).should_be(3);
+        };
+
+        test("a model that is dropped: its when_cleared runs, and work that comes back late changes nothing") {
+            work := test_dispatcher();
+            provide<coroutine_dispatcher>() { return work; };
+            model := new tasks_model();
+            model.load();
+            model.drop();
+            expect(model.cleared).should_be(1);
+            run_work();
+            expect(model.tasks.size()).should_be(0);
+        };
+
+        test("watching a state: what it was, how many times it changed, what it is now") {
+            words := gui.state("a");
+            seen := watching(words);
+            words.value = "b";
+            words.value = "c";
+            expect(seen.size()).should_be(3);
+            expect(seen.at(0)).should_be("a");
+            expect(seen.last()).should_be("c");
+            seen.should_have_been("a", "b", "c");
+            expect_throws<test_failure>() { seen.should_have_been("a", "c"); };
+            expect_throws<test_failure>() { seen.should_have_been("a", "b", "x"); };
+
+            level := gui.state(0.5);
+            heard := watching(level);
+            level.value = 0.75;
+            heard.should_have_been(0.5, 0.75);
+        };
+
+        test("without a test dispatcher run_work still runs what on_main handed over") {
+            said := gui.state(0);
+            gui.on_main { said.value = 7; };
+            expect(said.value).should_be(0);
+            run_work();
+            expect(said.value).should_be(7);
+        };
+
+        ui_test("a screen in front of the model: the screen follows the work") {
+            work := test_dispatcher();
+            provide<coroutine_dispatcher>() { return work; };
+
+            set_content(new tasks_screen());
+            on_tag("status").should_say("Ready");
+            on_tag("load").click();
+            on_tag("status").should_say("Loading");
+            on_tag("task_0").should_not_exist();
+
+            run_work();
+            on_tag("status").should_say("Ready");
+            on_tag("task_0").should_say("write");
+            on_tag("task_2").should_say("ship");
+        };
+    };
+}

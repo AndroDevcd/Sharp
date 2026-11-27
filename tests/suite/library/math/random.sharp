@@ -1,0 +1,411 @@
+mod suite.library.math.random;
+
+import ( std.testing )
+
+/**
+ * std - random numbers: the seeded_random class (std/random/seeded_random.sharp,
+ * exact sequences) and the rand_* functions on the runtime's generator
+ * (std/random/random_functions.sharp and std/random.sharp), of which only
+ * properties that hold for every possible outcome are checked.
+ */
+
+/** "w0" .. "w9" */
+def numbered_words() : string[] {
+    words := new string[10];
+    for(i : decimal = 0; i < 10; i++) {
+        number : int = i;
+        prefix : string = "w";
+        words[i] = prefix + number;
+    }
+    return words;
+}
+
+/** "zero" .. "nine" */
+def number_names() : list<string> {
+    names := new list<string>();
+    names.add("zero"); names.add("one"); names.add("two"); names.add("three"); names.add("four");
+    names.add("five"); names.add("six"); names.add("seven"); names.add("eight"); names.add("nine");
+    return names;
+}
+
+def check_sequences() {
+    tests("sequences") {
+        // xorshift32 from seed 1: the published first outputs
+        test("seed 1 gives the published first values") {
+            rng := new seeded_random(1);
+            expect(rng.next_u32()).named("value 1").should_be(270369);
+            expect(rng.next_u32()).named("value 2").should_be(67634689);
+            expect(rng.next_u32()).named("value 3").should_be(2647435461);
+            expect(rng.next_u32()).named("value 4").should_be(307599695);
+            expect(rng.next_u32()).named("value 5").should_be(2398689233);
+            expect(rng.next_u32()).named("value 6").should_be(745495504);
+            expect(rng.get_state()).named("get_state is the last value").should_be(745495504);
+        };
+
+        test("the default seed is 1") { expect(new seeded_random().next_u32()).should_be(270369); };
+
+        test("seed 42 gives its first values") {
+            other := new seeded_random(42);
+            expect(other.next_u32()).named("value 1").should_be(11355432);
+            expect(other.next_u32()).named("value 2").should_be(2836018348);
+            expect(other.next_u32()).named("value 3").should_be(476557059);
+        };
+
+        // the same seed gives the same sequence; seed() restarts it
+        test("two generators with one seed agree for 50 values") {
+            a := new seeded_random(2024);
+            b := new seeded_random(2024);
+            for(i : decimal = 0; i < 50; i++) {
+                expect(a.next_u32()).named("value " + (i + 1)).should_be(b.next_u32());
+            }
+        };
+        test("seed() restarts the sequence") {
+            a := new seeded_random(2024);
+            for(i : decimal = 0; i < 50; i++) { a.next_u32(); }
+            a.seed(42);
+            expect(a.next_u32()).should_be(11355432);
+        };
+
+        test("a saved state continues the sequence") {
+            a := new seeded_random(2024);
+            a.seed(1);
+            a.next_u32();
+            saved : decimal = a.get_state();
+            following : decimal = a.next_u32();
+            resumed := new seeded_random(saved);
+            expect(resumed.next_u32()).should_be(following);
+        };
+
+        // seeds are reduced: sign and fraction are dropped, 2^32 wraps, 0 is replaced
+        test("a negative seed uses its size") { expect(new seeded_random(0 - 42).next_u32()).should_be(11355432); };
+        test("a fractional seed is truncated") { expect(new seeded_random(42.9).next_u32()).should_be(11355432); };
+        test("a seed above 2^32 wraps") { expect(new seeded_random(4294967296 + 42).next_u32()).should_be(11355432); };
+        test("seed 0 is replaced") { expect(new seeded_random(0).next_u32()).should_be(723471715); };
+        test("seed 2^32 is replaced too") { expect(new seeded_random(4294967296).next_u32()).should_be(723471715); };
+    };
+}
+
+def check_derived() {
+    tests("derived") {
+        test("next_double from seed 42") {
+            rng := new seeded_random(42);
+            expect(rng.next_double()).named("value 1").should_be_near(0.002643892541527748, 0.000000000000001);
+            expect(rng.next_double()).named("value 2").should_be_near(0.660311977379024, 0.000000000000001);
+            expect(rng.next_double()).named("value 3").should_be_near(0.11095708678476512, 0.000000000000001);
+        };
+
+        // ten die rolls from seed 42: 1 4 1 6 6 3 6 4 5 2
+        test("ten die rolls") {
+            rng := new seeded_random(42);
+            rolls : decimal = 0;
+            for(i : decimal = 0; i < 10; i++) {
+                rolls = rolls * 10 + rng.next_int(1, 6);
+            }
+            expect(rolls).should_be(1416636452);
+        };
+
+        // ten digits from seed 42: 0 6 1 8 8 3 8 5 7 2
+        test("ten digits") {
+            rng := new seeded_random(42);
+            digits : decimal = 0;
+            for(i : decimal = 0; i < 10; i++) {
+                digits = digits * 10 + rng.next_int(10);
+            }
+            expect(digits).should_be(618838572);
+        };
+
+        test("next_double(low, high)") { expect(new seeded_random(42).next_double(10, 20)).should_be_near(10.02643892541527748, 0.00000000000001); };
+
+        // eight coin flips from seed 9: T T T F F T F F
+        test("eight coin flips") {
+            rng := new seeded_random(9);
+            flips : decimal = 0;
+            for(i : decimal = 0; i < 8; i++) {
+                flips = flips * 2 + (rng.next_bool() as _int32);
+            }
+            expect(flips).should_be(228);          // 11100100
+        };
+        test("next_bool(0) is never true") { expect_false(new seeded_random(9).next_bool(0)); };
+        test("next_bool(1) is always true") { expect_true(new seeded_random(9).next_bool(1)); };
+
+        test("gaussians from seed 5, every second one the spare") {
+            rng := new seeded_random(5);
+            expect(rng.next_gaussian()).named("gaussian 1").should_be_near(0.4200093757662467, 0.000000000001);
+            expect(rng.next_gaussian()).named("gaussian 2 (the spare)").should_be_near(0.45406979175903633, 0.000000000001);
+            expect(rng.next_gaussian()).named("gaussian 3").should_be_near(0 - 1.0890896125957337, 0.000000000001);
+            expect(rng.next_gaussian()).named("gaussian 4 (the spare)").should_be_near(0 - 1.003540337470547, 0.000000000001);
+        };
+        test("gaussian(mean, deviation)") { expect(new seeded_random(5).next_gaussian(100, 10)).should_be_near(104.200093757662467, 0.00000000001); };
+        test("seed() drops the spare gaussian") {
+            rng := new seeded_random(5);
+            rng.next_gaussian();
+            rng.seed(5);
+            expect(rng.next_gaussian()).should_be_near(0.4200093757662467, 0.000000000001);
+        };
+
+        // shuffling 0 .. 9 with seed 42 gives 7 2 4 3 1 6 8 9 5 0
+        test("permutation(10)") {
+            order := new seeded_random(42).permutation(10);
+            shuffled : decimal = 0;
+            for(i : decimal = 0; i < 10; i++) {
+                shuffled = shuffled * 10 + order[i];
+            }
+            expect(shuffled).should_be(7243168950);
+        };
+
+        test("shuffle") {
+            cards := new decimal[10];
+            for(i : decimal = 0; i < 10; i++) { cards[i] = i; }
+            new seeded_random(42).shuffle(cards);
+            expect(cards[0]).named("first").should_be(7);
+            expect(cards[9]).named("last").should_be(0);
+        };
+
+        test("shuffle_objects") {
+            words := numbered_words();
+            new seeded_random(42).shuffle_objects(words);
+            expect(words[0]).named("first").should_be("w7");
+            expect(words[1]).named("second").should_be("w2");
+            expect(words[9]).named("last").should_be("w0");
+        };
+
+        test("pick") {
+            rng := new seeded_random(42);
+            tens := new decimal[] { 0, 10, 20, 30, 40, 50, 60, 70, 80, 90 };
+            expect(rng.pick(tens)).named("pick 1").should_be(0);
+            expect(rng.pick(tens)).named("pick 2").should_be(60);
+            expect(rng.pick(tens)).named("pick 3").should_be(10);
+        };
+        test("pick from a list") {
+            rng := new seeded_random(42);
+            names := number_names();
+            expect(rng.pick(names)).named("pick 1").should_be("zero");
+            expect(rng.pick(names)).named("pick 2").should_be("six");
+        };
+        test("pick_object") {
+            rng := new seeded_random(42);
+            rng.next_u32();
+            words := numbered_words();
+            expect(rng.pick_object(words) as string).should_be(words[6]);
+        };
+
+        test("next_string") { expect(new seeded_random(7).next_string(12)).should_be("ag4SPEdlwe3j"); };
+        test("next_string with an alphabet") { expect(new seeded_random(7).next_string(16, "01")).should_be("0011100000100101"); };
+        test("next_string(0)") { expect(new seeded_random(7).next_string(0)).should_be(""); };
+    };
+}
+
+def check_properties() {
+    tests("properties") {
+        rng : seeded_random;
+        before_each { rng = new seeded_random(123456); };
+
+        test("2000 die rolls are whole numbers in 1 .. 6, and every face appears") {
+            lowest : decimal = 6;
+            highest : decimal = 1;
+            for(i : decimal = 0; i < 2000; i++) {
+                roll : decimal = rng.next_int(1, 6);
+                expect_true(roll >= 1 && roll <= 6 && roll == (roll as _int64));
+                if(roll < lowest) lowest = roll;
+                if(roll > highest) highest = roll;
+            }
+            expect(lowest).named("every low face appears").should_be(1);
+            expect(highest).named("every high face appears").should_be(6);
+        };
+
+        test("2000 doubles are in 0 <= d < 1, their mean about one half") {
+            total : decimal = 0;
+            for(i : decimal = 0; i < 2000; i++) {
+                d : decimal = rng.next_double();
+                expect(d).named("double " + i).should_be_at_least(0);
+                expect(d).named("double " + i).should_be_below(1);
+                total += d;
+            }
+            expect(total / 2000).named("their mean").should_be_near(0.5, 0.05);
+        };
+
+        test("gaussians have mean about 0 and variance about 1") {
+            total : decimal = 0;
+            squares : decimal = 0;
+            for(i : decimal = 0; i < 4000; i++) {
+                g : decimal = rng.next_gaussian();
+                total += g;
+                squares += g * g;
+            }
+            expect(total / 4000).named("mean").should_be_near(0, 0.1);
+            expect(squares / 4000).named("variance").should_be_near(1, 0.15);
+        };
+
+        // a shuffle keeps every element exactly once
+        test("a shuffled deck still has every card once, and most cards moved") {
+            deck := new decimal[52];
+            for(i : decimal = 0; i < 52; i++) { deck[i] = i; }
+            rng.shuffle(deck);
+            seen := new decimal[52];
+            for(i : decimal = 0; i < 52; i++) { seen[deck[i]] = seen[deck[i]] + 1; }
+            moved : decimal = 0;
+            for(i : decimal = 0; i < 52; i++) {
+                expect(seen[i]).named("times card " + i + " is in the deck").should_be(1);
+                if(deck[i] != i) moved++;
+            }
+            expect_true(moved > 26);
+        };
+        test("permutation(0) is empty") { expect(sizeof(rng.permutation(0))).should_be(0); };
+        test("next_string length") { expect(rng.next_string(40).size()).should_be(40); };
+
+        test("misuse throws") {
+            expect_throws<illegal_argument_exception>() { rng.next_int(0); };
+            expect_throws<illegal_argument_exception>() { rng.next_int(6, 1); };
+            expect_throws<illegal_argument_exception>() { rng.next_double(2, 1); };
+            expect_throws<illegal_argument_exception>() { rng.next_bool(1.5); };
+            expect_throws<illegal_argument_exception>() { rng.next_gaussian(0, 0 - 1); };
+            expect_throws<illegal_argument_exception>() { rng.pick(new decimal[0]); };
+            expect_throws<illegal_argument_exception>() { rng.pick_object(new string[0]); };
+            expect_throws<illegal_argument_exception>() { rng.pick(new list<string>()); };
+            expect_throws<illegal_argument_exception>() { rng.permutation(0 - 1); };
+            expect_throws<illegal_argument_exception>() { rng.next_string(0 - 1); };
+            expect_throws<illegal_argument_exception>() { rng.next_string(3, ""); };
+            expect_throws<illegal_argument_exception>() { nan : decimal = 0; nan = nan / nan; rng.seed(nan); };
+        };
+    };
+}
+
+/* the functions on the runtime's generator: only what is true for every outcome */
+def check_runtime_generator() {
+    tests("runtime_generator") {
+        test("rand_unit is in 0 <= u < 1") {
+            for(i : decimal = 0; i < 500; i++) {
+                u : decimal = rand_unit();
+                expect_true(u >= 0 && u < 1);
+            }
+        };
+
+        test("rand_range(1, 6) gives whole numbers in 1 .. 6") {
+            for(i : decimal = 0; i < 500; i++) {
+                roll : decimal = rand_range(1, 6);
+                expect_true(roll >= 1 && roll <= 6 && roll == (roll as _int64));
+            }
+        };
+        test("rand_range with one choice") { expect(rand_range(4, 4)).should_be(4); };
+        test("rand_range with negative bounds") { expect(rand_range(0 - 3, 0 - 3)).should_be(0 - 3); };
+
+        test("rand_index(7) is in 0 .. 6") {
+            for(i : decimal = 0; i < 500; i++) {
+                index : decimal = rand_index(7);
+                expect_true(index >= 0 && index <= 6 && index == (index as _int64));
+            }
+        };
+        test("rand_index(1)") { expect(rand_index(1)).should_be(0); };
+
+        test("rand_bool is 0 or 1") {
+            flip : decimal = rand_bool();
+            expect_true(flip == 0 || flip == 1);
+        };
+        test("rand_bool(0) is never true") { expect_false(rand_bool(0)); };
+        test("rand_bool(1) is always true") { expect_true(rand_bool(1)); };
+
+        test("rand_gaussian is a finite number") {
+            g : decimal = rand_gaussian();
+            expect_true((g - g) == 0);
+        };
+        test("rand_gaussian with deviation 0 is the mean") { expect(rand_gaussian(5, 0)).should_be(5); };
+
+        test("rand_pick returns an element") {
+            tens := new decimal[] { 10, 20, 30 };
+            picked : decimal = rand_pick(tens);
+            expect_true(picked == 10 || picked == 20 || picked == 30);
+        };
+        test("rand_pick from a list of one") {
+            names := new list<string>();
+            names.add("only");
+            expect(rand_pick(names)).should_be("only");
+        };
+        test("rand_pick_object") {
+            lonely := new string[1];
+            lonely[0] = new string("alone");
+            expect(rand_pick_object(lonely) as string).should_be("alone");
+        };
+
+        test("rand_shuffle keeps every element, and so the sum") {
+            deck := new decimal[20];
+            for(i : decimal = 0; i < 20; i++) { deck[i] = i; }
+            rand_shuffle(deck);
+            sum : decimal = 0;
+            seen := new decimal[20];
+            for(i : decimal = 0; i < 20; i++) {
+                sum += deck[i];
+                seen[deck[i]] = 1;
+            }
+            present : decimal = 0;
+            for(i : decimal = 0; i < 20; i++) { present += seen[i]; }
+            expect(sum).named("the sum").should_be(190);
+            expect(present).named("elements present").should_be(20);
+        };
+
+        test("rand_shuffle_objects keeps all three elements") {
+            words := new string[3];
+            words[0] = new string("a");
+            words[1] = new string("b");
+            words[2] = new string("c");
+            rand_shuffle_objects(words);
+            joined : string = words[0] + words[1] + words[2];
+            expect(joined.size()).named("size").should_be(3);
+            expect_true(joined.find("a") && joined.find("b") && joined.find("c"));
+        };
+
+        test("rand_permutation holds 0 .. 9") {
+            order := rand_permutation(10);
+            sum : decimal = 0;
+            for(i : decimal = 0; i < 10; i++) { sum += order[i]; }
+            expect(sum).should_be(45);
+        };
+        test("rand_permutation(0)") { expect(sizeof(rand_permutation(0))).should_be(0); };
+
+        test("rand_string length") { expect(rand_string(24).size()).should_be(24); };
+        test("rand_string is alphanumeric") {
+            token := rand_string(24);
+            for(i : decimal = 0; i < 24; i++) {
+                expect_true(character.is_letter_or_digit(token.at(i).value));
+            }
+        };
+        test("rand_string with one possible character") { expect(rand_string(5, "x")).should_be("xxxxx"); };
+        test("rand_string(0)") { expect(rand_string(0)).should_be(""); };
+
+        // the functions that were already in std/random.sharp still work
+        test("rand()") {
+            r : decimal = rand().value;
+            expect_true(r >= 0 && r <= 1);
+        };
+        test("rand_int(3, 9)") {
+            n : decimal = rand_int(3, 9).value;
+            expect_true(n >= 3 && n <= 9);
+        };
+        test("rand_double(2, 4)") {
+            x : decimal = rand_double(2, 4).value;
+            expect_true(x >= 2 && x <= 4);
+        };
+        test("set_seed") { set_seed(7); };
+
+        test("misuse throws") {
+            expect_throws<illegal_argument_exception>() { rand_range(6, 1); };
+            expect_throws<illegal_argument_exception>() { rand_index(0); };
+            expect_throws<illegal_argument_exception>() { rand_bool(2); };
+            expect_throws<illegal_argument_exception>() { rand_gaussian(0, 0 - 1); };
+            expect_throws<illegal_argument_exception>() { rand_pick(new decimal[0]); };
+            expect_throws<illegal_argument_exception>() { rand_pick(new list<string>()); };
+            expect_throws<illegal_argument_exception>() { rand_pick_object(new string[0]); };
+            expect_throws<illegal_argument_exception>() { rand_permutation(0 - 1); };
+            expect_throws<illegal_argument_exception>() { rand_string(0 - 1); };
+            expect_throws<illegal_argument_exception>() { rand_string(2, ""); };
+        };
+    };
+}
+
+def random_tests() {
+    tests("random") {
+        check_sequences();
+        check_derived();
+        check_properties();
+        check_runtime_generator();
+    };
+}

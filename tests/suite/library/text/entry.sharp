@@ -1,0 +1,31 @@
+mod suite.library.text;
+
+import (
+    std.testing,
+    suite.library.text.layout,
+    suite.library.text.literals,
+    suite.library.text.numbers,
+    suite.library.text.patterns,
+    suite.library.text.readers,
+    suite.library.text.string_builder,
+    suite.library.text.string_core,
+    suite.library.text.string_fixes,
+    suite.library.text.string_search,
+    suite.library.text.string_split
+)
+
+/** suite.library.text: std.text */
+def text_tests() {
+    tests("text") {
+        layout_tests();
+        literals_tests();
+        numbers_tests();
+        patterns_tests();
+        readers_tests();
+        string_builder_tests();
+        string_core_tests();
+        string_fixes_tests();
+        string_search_tests();
+        string_split_tests();
+    };
+}

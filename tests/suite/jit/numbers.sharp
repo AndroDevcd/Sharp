@@ -1,0 +1,163 @@
+mod suite.jit.numbers;
+
+import ( std.testing )
+
+/**
+ * Whole numbers and decimals in loops hot enough to be compiled to machine code, with values a
+ * 32-bit processor needs two registers for: every result is checked against the same sum done one
+ * step at a time by `slow_shifts`, or against the number a run without the compiler of machine
+ * code gave. (Written for the ARM JIT: a 64-bit number is two halves there, and a
+ * shift, a multiplication or a comparison has to carry from one half to the other.)
+ */
+
+big : _int64 = 4294967296;      // 2 to the 32nd: the first number past the low half
+
+def shifts(rounds: _int64) : _int64 {
+    total : _int64 = 0;
+    for(round : _int64 = 0; round < rounds; round++) {
+        for(n : _int64 = 0; n < 64; n++) {
+            one : _int64 = 1;
+            up : _int64 = one << n;
+            total = total ^ up;
+            total += (up >> n);                     // 1 again, whatever n is
+            down : _int64 = (0 - big * 1000 - 12345) >> n;
+            total += down;
+            total += (round + 77) << (n % 40);
+        }
+    }
+    return total;
+}
+
+def products(rounds: _int64) : _int64 {
+    total : _int64 = 0;
+    for(i : _int64 = 1; i <= rounds; i++) {
+        a : _int64 = i * 1000003 + big * (i % 5);
+        b : _int64 = 0 - (i * 77 + big);
+        total += a * b;
+        total -= (a * 3) * (i - 500);
+        total = total ^ (a + b);
+        total += 0 - a;
+    }
+    return total;
+}
+
+def comparisons(rounds: _int64) : _int64 {
+    hits : _int64 = 0;
+    for(i : _int64 = 0; i < rounds; i++) {
+        low : _int64 = i % 7;
+        high : _int64 = big * (i % 3);
+        a : _int64 = high + low;
+        b : _int64 = big + 3;
+        if(a < b) { hits += 1; }
+        if(a <= b) { hits += 10; }
+        if(a > b) { hits += 100; }
+        if(a >= b) { hits += 1000; }
+        if(a == b) { hits += 10000; }
+        if(a != b) { hits += 100000; }
+        if(0 - a < 0 - b) { hits += 1000000; }
+        if(low < 0 - high) { hits += 10000000; }
+        if(a && low) { hits += 3; }
+        if(!high) { hits += 5; }
+    }
+    return hits;
+}
+
+def narrow(rounds: _int64) : _int64 {
+    bytes := new _int8[16];
+    shorts := new _int16[16];
+    wide_shorts := new _uint16[16];
+    words := new _int32[16];
+    wide_words := new _uint32[16];
+    longs := new _int64[16];
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < rounds; i++) {
+        value : _int64 = i * 2654435761 - big * 3;
+        at : _int64 = i % 16;
+        bytes[at] = value as _int8;
+        shorts[at] = value as _int16;
+        wide_shorts[at] = value as _uint16;
+        words[at] = value as _int32;
+        wide_words[at] = value as _uint32;
+        longs[at] = value;
+        total += bytes[at] + shorts[at] + wide_shorts[at] + words[at] + wide_words[at] + longs[at];
+        total += (value as _uint8) + (value as _int32);
+        longs[(at + 1) % 16] += total;
+    }
+    return total + longs[3];
+}
+
+def decimals(rounds: _int64) : decimal {
+    total : decimal = 0;
+    for(i : _int64 = 0; i < rounds; i++) {
+        whole : _int64 = i * big - 5;
+        d : decimal = whole;                        // a 64-bit whole number becomes a decimal
+        total += d / 3.0 - i * 0.25;
+        if(d > total) { total += 1; }
+        if(d <= total) { total -= 2; }
+        back : _int64 = total / 1024.0;             // and back
+        total += back % 10;
+    }
+    return total;
+}
+
+class cell {
+    value : _int64;
+    next : cell;
+}
+
+def objects(rounds: _int64) : _int64 {
+    first := new cell();
+    last := first;
+    total : _int64 = 0;
+    for(i : _int64 = 0; i < rounds; i++) {
+        made := new cell();
+        made.value = i * big + i;
+        last.next = made;
+        last = made;
+        if(i % 100 == 99) { first = made; }     // lets the earlier ones go
+        total += last.value - first.value;
+    }
+    return total;
+}
+
+def slow_shifts() : _int64 {
+    // the first round of shifts(), a statement at a time
+    total : _int64 = 0;
+    n : _int64 = 0;
+    while(n < 64) {
+        one : _int64 = 1;
+        up : _int64 = one << n;
+        total = total ^ up;
+        total += (up >> n);
+        down : _int64 = (0 - big * 1000 - 12345) >> n;
+        total += down;
+        total += 77 << (n % 40);
+        n++;
+    }
+    return total;
+}
+
+/** a result as a number small enough to compare exactly: both of its halves take part */
+def fold(v: _int64) : _int64 {
+    return v % 1000000007 + (v >> 32) % 998244353 + (v >> 13) % 1000003;
+}
+
+def numbers_tests() {
+    tests("numbers") {
+        test("2 to the 32nd") { expect(big).should_be(4294967296); };
+        test("one round of shifts, not compiled") { expect(fold(slow_shifts())).should_be(fold(shifts(1))); };
+
+        // The expected numbers are from a run without the compiler of machine code (sharp -nojit).
+        test("shifts") { expect(fold(shifts(3000))).should_be(0 - 134039140); };
+        test("products") { expect(fold(products(200000))).should_be(0 - 1495279171); };
+        test("products of 10") { expect(fold(products(10))).should_be(372740039); };
+        test("comparisons") { expect(fold(comparisons(300000))).should_be(746638243); };
+        test("comparisons of 21") { expect(comparisons(21)).should_be(12022209); };
+        test("narrow kinds") { expect(fold(narrow(300000))).should_be(876047610); };
+        test("decimals") {
+            whole : _int64 = decimals(200000) / 1000000000.0;
+            expect(fold(whole)).should_be(633467172);
+        };
+        test("objects") { expect(fold(objects(300000))).should_be(727619129); };
+    };
+}

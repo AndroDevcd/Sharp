@@ -1,0 +1,654 @@
+mod suite.control.loops;
+
+import ( std.testing )
+
+/**
+ * Loops: for, while, do-while and foreach; nesting; break and continue in
+ * every kind of loop; loops that never run; the loop variable afterwards.
+ */
+
+/** 1 * 2 * ... * n */
+def factorial(n: decimal): decimal {
+    result : decimal = 1;
+    for(i : decimal = 2; i <= n; i++) {
+        result *= i;
+    }
+    return result;
+}
+
+/** how many numbers from 2 to limit are prime */
+def count_primes(limit: decimal): decimal {
+    count : decimal = 0;
+    for(n : decimal = 2; n <= limit; n++) {
+        prime : decimal = 1;
+        for(d : decimal = 2; d * d <= n; d++) {
+            if(n % d == 0) {
+                prime = 0;
+                break;
+            }
+        }
+        count += prime;
+    }
+    return count;
+}
+
+/** return from the middle of a loop: the position of `wanted`, or -1 */
+def index_of(numbers: decimal[], wanted: decimal): decimal {
+    for(i : decimal = 0; i < sizeof(numbers); i++) {
+        if(numbers[i] == wanted) {
+            return i;
+        }
+    }
+    return 0 - 1;
+}
+
+/** how many steps the "halve it or triple it and add one" game takes to reach 1 */
+def collatz_steps(n: decimal): decimal {
+    steps : decimal = 0;
+    while(n != 1) {
+        if(n % 2 == 0) {
+            n = n / 2;
+        } else {
+            n = n * 3 + 1;
+        }
+        steps++;
+    }
+    return steps;
+}
+
+/** 3, 1, 4, 1, 5 */
+def five_numbers(): decimal[] {
+    numbers : decimal[] = new decimal[5];
+    numbers[0] = 3;
+    numbers[1] = 1;
+    numbers[2] = 4;
+    numbers[3] = 1;
+    numbers[4] = 5;
+    return numbers;
+}
+
+def loops_tests() {
+    tests("loops") {
+        // ---- for
+        test("for 0 to 4") {
+            sum : decimal = 0;
+            for(i : decimal = 0; i < 5; i++) {
+                sum += i;
+            }
+            expect(sum).should_be(10);
+        };
+
+        test("for 1 to 100") {
+            sum : decimal = 0;
+            for(i : decimal = 1; i <= 100; i++) {
+                sum += i;
+            }
+            expect(sum).should_be(5050);
+        };
+
+        test("counting down runs 10 times, in order") {
+            sum : decimal = 0;
+            count : decimal = 0;
+            for(i : decimal = 10; i > 0; i--) {
+                sum = sum * 2 + i;
+                count++;
+            }
+            expect(count).named("rounds").should_be(10);
+            expect(sum).named("the sum, doubled each round").should_be(9217);
+        };
+
+        test("for in steps of 5") {
+            count : decimal = 0;
+            for(i : decimal = 0; i < 20; i += 5) {
+                count++;
+            }
+            expect(count).should_be(4);
+        };
+
+        test("for, doubling up to 1000") {
+            count : decimal = 0;
+            for(x : decimal = 1; x < 1000; x *= 2) {
+                count++;
+            }
+            expect(count).should_be(10);
+        };
+
+        test("for in steps of 0.25") {
+            count : decimal = 0;
+            for(x : decimal = 0; x < 1; x += 0.25) {
+                count++;
+            }
+            expect(count).should_be(4);
+        };
+
+        // ---- the variable of a for is its own: the next loop can use the name again
+        test("two loops with the same variable name") {
+            sum : decimal = 0;
+            for(i : decimal = 0; i < 3; i++) { sum += 1; }
+            for(i : decimal = 0; i < 3; i++) { sum += 10; }
+            expect(sum).should_be(33);
+        };
+
+        // ---- a variable declared before the loop keeps its value after it
+        test("k after for(; k < 5; k++)") {
+            k : decimal = 0;
+            for(; k < 5; k++) {
+            }
+            expect(k).should_be(5);
+        };
+        test("k after starting again at 10") {
+            k : decimal = 0;
+            for(; k < 5; k++) {
+            }
+            k = 10;
+            for(; k < 13; k++) {
+            }
+            expect(k).should_be(13);
+        };
+        test("k after a break") {
+            k : decimal = 0;
+            for(; k < 100; k++) {
+                if(k == 42) {
+                    break;
+                }
+            }
+            expect(k).should_be(42);
+        };
+
+        // ---- for with empty parts
+        test("for(;;) with a break") {
+            count : decimal = 0;
+            for(;;) {
+                count++;
+                if(count == 7) {
+                    break;
+                }
+            }
+            expect(count).should_be(7);
+        };
+        test("for without a step") {
+            count : decimal = 0;
+            for(i : decimal = 0; i < 4;) {
+                i++;
+                count++;
+            }
+            expect(count).should_be(4);
+        };
+
+        // ---- while
+        test("while counts to 5") {
+            n : decimal = 0;
+            while(n < 5) {
+                n++;
+            }
+            expect(n).should_be(5);
+        };
+
+        test("while doubling: the steps and the value after the loop") {
+            n : decimal = 1;
+            count : decimal = 0;
+            while(n < 1000) {
+                n *= 2;
+                count++;
+            }
+            expect(count).named("steps").should_be(10);
+            expect(n).named("value after the loop").should_be(1024);
+        };
+
+        test("while counting down past zero") {
+            n : decimal = 100;
+            while(n > 0) {
+                n -= 7;
+            }
+            expect(n).should_be(0 - 5);
+        };
+
+        test("while(true) with a break") {
+            count : decimal = 0;
+            while(true) {
+                count++;
+                if(count >= 3) {
+                    break;
+                }
+            }
+            expect(count).should_be(3);
+        };
+
+        // ---- do-while: the body runs before the condition is checked
+        test("do-while counts to 5") {
+            n : decimal = 0;
+            do {
+                n++;
+            } while(n < 5);
+            expect(n).should_be(5);
+        };
+
+        test("do-while runs once even when the condition is false") {
+            n : decimal = 100;
+            count : decimal = 0;
+            do {
+                count++;
+            } while(n < 5);
+            expect(count).should_be(1);
+        };
+
+        test("do-while counts the digits of 1234") {
+            n : decimal = 1234;
+            count : decimal = 0;
+            do {
+                n = (n - n % 10) / 10;
+                count++;
+            } while(n > 0);
+            expect(count).should_be(4);
+        };
+
+        // ---- foreach
+        test("foreach visits every item") {
+            numbers := five_numbers();
+            sum : decimal = 0;
+            count : decimal = 0;
+            foreach(item in numbers) {
+                sum += item;
+                count++;
+            }
+            expect(count).named("items visited").should_be(5);
+            expect(sum).named("their sum").should_be(14);
+        };
+
+        test("foreach goes in order") {
+            numbers := five_numbers();
+            n : decimal = 0;
+            foreach(item in numbers) {
+                n = n * 10 + item;
+            }
+            expect(n).should_be(31415);
+        };
+
+        test("foreach finds the largest") {
+            numbers := five_numbers();
+            largest : decimal = 0;
+            foreach(item in numbers) {
+                if(item > largest) {
+                    largest = item;
+                }
+            }
+            expect(largest).should_be(5);
+        };
+
+        test("assigning to the item does not change the array") {
+            numbers := five_numbers();
+            foreach(item in numbers) {
+                item = 0;
+            }
+            expect(numbers[2]).should_be(4);
+        };
+
+        test("foreach over a listed array") {
+            listed := { 10, 20, 30 };
+            sum : decimal = 0;
+            foreach(item in listed) {
+                sum += item;
+            }
+            expect(sum).should_be(60);
+        };
+
+        test("foreach over the characters of a string") {
+            word := "abc";
+            sum : decimal = 0;
+            foreach(ch in word) {
+                sum += ch;
+            }
+            expect(sum).should_be(294);
+        };
+
+        // ---- loops that run zero times
+        test("for with a false condition") {
+            count : decimal = 0;
+            for(i : decimal = 0; i < 0; i++) {
+                count++;
+            }
+            expect(count).should_be(0);
+        };
+        test("for starting at its limit") {
+            count : decimal = 0;
+            for(i : decimal = 5; i < 5; i++) {
+                count++;
+            }
+            expect(count).should_be(0);
+        };
+        test("while with a false condition") {
+            count : decimal = 0;
+            n : decimal = 10;
+            while(n < 5) {
+                count++;
+            }
+            expect(count).should_be(0);
+        };
+        test("while(false)") {
+            count : decimal = 0;
+            while(false) {
+                count++;
+            }
+            expect(count).should_be(0);
+        };
+        test("foreach over an empty array") {
+            count : decimal = 0;
+            nothing : decimal[] = new decimal[0];
+            foreach(item in nothing) {
+                count++;
+            }
+            expect(count).should_be(0);
+        };
+        test("foreach over an empty string") {
+            count : decimal = 0;
+            empty := "";
+            foreach(ch in empty) {
+                count++;
+            }
+            expect(count).should_be(0);
+        };
+
+        // ---- break
+        test("break in a for") {
+            sum : decimal = 0;
+            for(i : decimal = 0; i < 10; i++) {
+                if(i == 4) {
+                    break;
+                }
+                sum += i;
+            }
+            expect(sum).should_be(6);
+        };
+
+        test("break in a while") {
+            n : decimal = 0;
+            while(n < 10) {
+                if(n == 6) {
+                    break;
+                }
+                n++;
+            }
+            expect(n).should_be(6);
+        };
+
+        test("break in a do-while") {
+            n : decimal = 0;
+            do {
+                n++;
+                if(n == 3) {
+                    break;
+                }
+            } while(n < 10);
+            expect(n).should_be(3);
+        };
+
+        test("break in a foreach") {
+            numbers := five_numbers();
+            sum : decimal = 0;
+            foreach(item in numbers) {
+                if(item == 4) {
+                    break;
+                }
+                sum += item;
+            }
+            expect(sum).should_be(4);
+        };
+
+        test("break as the first statement") {
+            count : decimal = 0;
+            for(i : decimal = 0; i < 10; i++) {
+                break;
+                count++;
+            }
+            expect(count).should_be(0);
+        };
+
+        // ---- continue
+        test("continue in a for (the step still runs)") {
+            sum : decimal = 0;
+            for(i : decimal = 0; i < 10; i++) {
+                if(i % 2 == 0) {
+                    continue;
+                }
+                sum += i;
+            }
+            expect(sum).should_be(25);
+        };
+
+        test("continue in a while") {
+            n : decimal = 0;
+            sum : decimal = 0;
+            while(n < 10) {
+                n++;
+                if(n % 3 == 0) {
+                    continue;
+                }
+                sum += n;
+            }
+            expect(sum).should_be(37);
+        };
+
+        test("continue in a do-while (the condition is still checked)") {
+            n : decimal = 0;
+            sum : decimal = 0;
+            do {
+                n++;
+                if(n == 2) {
+                    continue;
+                }
+                sum += n;
+            } while(n < 4);
+            expect(sum).should_be(8);
+        };
+
+        test("continue in a foreach") {
+            numbers := five_numbers();
+            sum : decimal = 0;
+            foreach(item in numbers) {
+                if(item == 1) {
+                    continue;
+                }
+                sum += item;
+            }
+            expect(sum).should_be(12);
+        };
+
+        // ---- break and continue together
+        test("even numbers up to 10") {
+            sum : decimal = 0;
+            for(i : decimal = 0; i < 100; i++) {
+                if(i % 2 == 1) {
+                    continue;
+                }
+                if(i > 10) {
+                    break;
+                }
+                sum += i;
+            }
+            expect(sum).should_be(30);
+        };
+
+        // ---- nested loops
+        test("4 x 3") {
+            count : decimal = 0;
+            for(i : decimal = 0; i < 4; i++) {
+                for(j : decimal = 0; j < 3; j++) {
+                    count++;
+                }
+            }
+            expect(count).should_be(12);
+        };
+
+        test("the 3 x 3 multiplication table") {
+            sum : decimal = 0;
+            for(i : decimal = 1; i <= 3; i++) {
+                for(j : decimal = 1; j <= 3; j++) {
+                    sum += i * j;
+                }
+            }
+            expect(sum).should_be(36);
+        };
+
+        test("the inner limit depends on the outer variable") {
+            count : decimal = 0;
+            for(i : decimal = 0; i < 4; i++) {
+                for(j : decimal = 0; j < i; j++) {
+                    count++;
+                }
+            }
+            expect(count).should_be(6);
+        };
+
+        test("three deep") {
+            count : decimal = 0;
+            for(i : decimal = 0; i < 3; i++) {
+                for(j : decimal = 0; j < 3; j++) {
+                    for(l : decimal = 0; l < 3; l++) {
+                        count++;
+                    }
+                }
+            }
+            expect(count).should_be(27);
+        };
+
+        test("a do-while in a while in a for") {
+            count : decimal = 0;
+            n : decimal = 0;
+            for(i : decimal = 0; i < 3; i++) {
+                n = 0;
+                while(n < 2) {
+                    do {
+                        count++;
+                    } while(false);
+                    n++;
+                }
+            }
+            expect(count).should_be(6);
+        };
+
+        test("a foreach in a for") {
+            numbers := five_numbers();
+            sum : decimal = 0;
+            for(i : decimal = 0; i < 2; i++) {
+                foreach(item in numbers) {
+                    sum += item;
+                }
+            }
+            expect(sum).should_be(28);
+        };
+
+        // ---- break leaves only the inner loop
+        test("inner break: the outer loop still runs 3 times, 2 inner steps each time") {
+            count : decimal = 0;
+            outer : decimal = 0;
+            for(i : decimal = 0; i < 3; i++) {
+                outer++;
+                for(j : decimal = 0; j < 10; j++) {
+                    if(j == 2) {
+                        break;
+                    }
+                    count++;
+                }
+            }
+            expect(outer).named("outer rounds").should_be(3);
+            expect(count).named("inner steps").should_be(6);
+        };
+
+        // ---- break in the outer loop, after the inner loop
+        test("outer break") {
+            count : decimal = 0;
+            for(i : decimal = 0; i < 10; i++) {
+                for(j : decimal = 0; j < 2; j++) {
+                    count++;
+                }
+                if(i == 1) {
+                    break;
+                }
+            }
+            expect(count).should_be(4);
+        };
+
+        // ---- continue skips only the rest of the inner step
+        test("inner continue") {
+            count : decimal = 0;
+            for(i : decimal = 0; i < 3; i++) {
+                for(j : decimal = 0; j < 4; j++) {
+                    if(j == 1) {
+                        continue;
+                    }
+                    count++;
+                }
+            }
+            expect(count).should_be(9);
+        };
+
+        // ---- continue in the outer loop skips the inner loop
+        test("outer continue") {
+            count : decimal = 0;
+            for(i : decimal = 0; i < 4; i++) {
+                if(i == 2) {
+                    continue;
+                }
+                for(j : decimal = 0; j < 5; j++) {
+                    count++;
+                }
+            }
+            expect(count).should_be(15);
+        };
+
+        // ---- leaving two loops with a flag
+        test("leaving two loops with a flag finds the first i, j with i * j == 6") {
+            found_i : decimal = 0 - 1;
+            found_j : decimal = 0 - 1;
+            done : decimal = false;
+            for(i : decimal = 0; i < 5 && !done; i++) {
+                for(j : decimal = 0; j < 5; j++) {
+                    if(i * j == 6) {
+                        found_i = i;
+                        found_j = j;
+                        done = true;
+                        break;
+                    }
+                }
+            }
+            expect(found_i).named("i").should_be(2);
+            expect(found_j).named("j").should_be(3);
+        };
+
+        // ---- writing an array in one loop and reading it in another
+        test("sum of the squares 0 to 9") {
+            squares : decimal[] = new decimal[10];
+            for(i : decimal = 0; i < sizeof(squares); i++) {
+                squares[i] = i * i;
+            }
+            sum : decimal = 0;
+            foreach(square in squares) {
+                sum += square;
+            }
+            expect(sum).should_be(285);
+        };
+
+        // ---- loops in functions
+        test("factorial(0)") { expect(factorial(0)).should_be(1); };
+        test("factorial(1)") { expect(factorial(1)).should_be(1); };
+        test("factorial(5)") { expect(factorial(5)).should_be(120); };
+        test("factorial(10)") { expect(factorial(10)).should_be(3628800); };
+        test("primes up to 30") { expect(count_primes(30)).should_be(10); };
+        test("primes up to 100") { expect(count_primes(100)).should_be(25); };
+        test("index_of 4") { expect(index_of(five_numbers(), 4)).should_be(2); };
+        test("index_of 1 is the first one") { expect(index_of(five_numbers(), 1)).should_be(1); };
+        test("index_of something missing") { expect(index_of(five_numbers(), 9)).should_be(0 - 1); };
+        test("collatz_steps(1)") { expect(collatz_steps(1)).should_be(0); };
+        test("collatz_steps(6)") { expect(collatz_steps(6)).should_be(8); };
+        test("collatz_steps(27)") { expect(collatz_steps(27)).should_be(111); };
+
+        // ---- a long loop
+        test("100000 steps") {
+            sum : decimal = 0;
+            for(i : decimal = 0; i < 100000; i++) {
+                sum += i % 7;
+            }
+            expect(sum).should_be(299995);
+        };
+    };
+}

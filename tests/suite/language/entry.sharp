@@ -1,0 +1,65 @@
+mod suite.language;
+
+import (
+    std.testing,
+    suite.language.arithmetic,
+    suite.language.assign_to_null_targets,
+    suite.language.bitwise,
+    suite.language.boxed_numbers,
+    suite.language.casts,
+    suite.language.casts_fixes,
+    suite.language.casts_of_expressions,
+    suite.language.comparison,
+    suite.language.comparison_fixes,
+    suite.language.comparison_sum,
+    suite.language.literals,
+    suite.language.literals_big,
+    suite.language.literals_shared,
+    suite.language.logic,
+    suite.language.logic_precedence,
+    suite.language.native_bool,
+    suite.language.non_null_index,
+    suite.language.non_null_index_field,
+    suite.language.nullability,
+    suite.language.operators,
+    suite.language.operators_evaluation_order,
+    suite.language.operators_on_new,
+    suite.language.operators_unary_minus,
+    suite.language.variables,
+    suite.language.variables_multiple,
+    suite.language.whole_division,
+    suite.language.whole_numbers_as_text
+)
+
+/** suite.language: numbers, operators, casts, literals, variables, null */
+def language_tests() {
+    tests("language") {
+        arithmetic_tests();
+        assign_to_null_targets_tests();
+        bitwise_tests();
+        boxed_numbers_tests();
+        casts_tests();
+        casts_fixes_tests();
+        casts_of_expressions_tests();
+        comparison_tests();
+        comparison_fixes_tests();
+        comparison_sum_tests();
+        literals_tests();
+        literals_big_tests();
+        literals_shared_tests();
+        logic_tests();
+        logic_precedence_tests();
+        native_bool_tests();
+        non_null_index_tests();
+        non_null_index_field_tests();
+        nullability_tests();
+        operators_tests();
+        operators_evaluation_order_tests();
+        operators_on_new_tests();
+        operators_unary_minus_tests();
+        variables_tests();
+        variables_multiple_tests();
+        whole_division_tests();
+        whole_numbers_as_text_tests();
+    };
+}

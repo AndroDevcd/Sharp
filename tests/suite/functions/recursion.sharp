@@ -1,0 +1,610 @@
+mod suite.functions.recursion;
+
+import ( std.testing )
+
+/**
+ * Recursion: functions that call themselves (once, twice, or through another
+ * function), over numbers, arrays, strings and linked objects.
+ *
+ * Nothing here goes deeper than 150 calls.
+ * (`!!.` reads a member of something that is declared nullable with `?`.)
+ */
+
+// ---- one call per level
+def factorial(n: decimal): decimal {
+    if(n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+def sum_to(n: decimal): decimal {
+    if(n == 0) {
+        return 0;
+    }
+    return n + sum_to(n - 1);
+}
+
+def power(number: decimal, exponent: decimal): decimal {
+    if(exponent == 0) {
+        return 1;
+    }
+    return number * power(number, exponent - 1);
+}
+
+/* halves the exponent on every call, so 2 to the 30th needs only 6 levels */
+def fast_power(number: decimal, exponent: decimal): decimal {
+    if(exponent == 0) {
+        return 1;
+    }
+    if(exponent % 2 == 1) {
+        return number * fast_power(number, exponent - 1);
+    }
+    half : decimal = fast_power(number, exponent / 2);
+    return half * half;
+}
+
+def gcd(a: decimal, b: decimal): decimal {
+    if(b == 0) {
+        return a;
+    }
+    return gcd(b, a % b);
+}
+
+/* the number of levels reached, counted on the way back up */
+def depth_of(levels: decimal): decimal {
+    if(levels == 0) {
+        return 0;
+    }
+    return 1 + depth_of(levels - 1);
+}
+
+/* the result is carried down in a parameter instead of built on the way back */
+def sum_with_carry(n: decimal, carried: decimal): decimal {
+    if(n == 0) {
+        return carried;
+    }
+    return sum_with_carry(n - 1, carried + n);
+}
+
+def sum_of_digits(n: decimal): decimal {
+    if(n < 10) {
+        return n;
+    }
+    last : decimal = n % 10;
+    return last + sum_of_digits((n - last) / 10);
+}
+
+def count_digits(n: decimal): decimal {
+    if(n < 10) {
+        return 1;
+    }
+    return 1 + count_digits((n - n % 10) / 10);
+}
+
+/* steps until the "halve it or triple it and add one" sequence reaches 1 */
+def collatz_steps(n: decimal): decimal {
+    if(n == 1) {
+        return 0;
+    }
+    if(n % 2 == 0) {
+        return 1 + collatz_steps(n / 2);
+    }
+    return 1 + collatz_steps(3 * n + 1);
+}
+
+// ---- two calls per level
+def fibonacci(n: decimal): decimal {
+    if(n < 2) {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+/* moves needed to shift a tower of `discs` discs */
+def hanoi_moves(discs: decimal): decimal {
+    if(discs == 0) {
+        return 0;
+    }
+    return hanoi_moves(discs - 1) + 1 + hanoi_moves(discs - 1);
+}
+
+/* ways to walk from one corner of a grid to the other going only right or down */
+def grid_paths(rows: decimal, columns: decimal): decimal {
+    if(rows == 0 || columns == 0) {
+        return 1;
+    }
+    return grid_paths(rows - 1, columns) + grid_paths(rows, columns - 1);
+}
+
+def pascal(row: decimal, column: decimal): decimal {
+    if(column == 0 || column == row) {
+        return 1;
+    }
+    return pascal(row - 1, column - 1) + pascal(row - 1, column);
+}
+
+/* a call whose argument is itself a recursive call */
+def ackermann(m: decimal, n: decimal): decimal {
+    if(m == 0) {
+        return n + 1;
+    }
+    if(n == 0) {
+        return ackermann(m - 1, 1);
+    }
+    return ackermann(m - 1, ackermann(m, n - 1));
+}
+
+// ---- mutual recursion: two functions that call each other
+def is_even(n: decimal): decimal {
+    if(n == 0) {
+        return 1;
+    }
+    return is_odd(n - 1);
+}
+
+def is_odd(n: decimal): decimal {
+    if(n == 0) {
+        return 0;
+    }
+    return is_even(n - 1);
+}
+
+/* Hofstadter's "female" and "male" sequences: each is defined by the other */
+def female(n: decimal): decimal {
+    if(n == 0) {
+        return 1;
+    }
+    return n - male(female(n - 1));
+}
+
+def male(n: decimal): decimal {
+    if(n == 0) {
+        return 0;
+    }
+    return n - female(male(n - 1));
+}
+
+/* three functions in a ring: a -> b -> c -> a */
+def ring_a(n: decimal): decimal {
+    if(n <= 0) { return 1; }
+    return ring_b(n - 1);
+}
+def ring_b(n: decimal): decimal {
+    if(n <= 0) { return 2; }
+    return ring_c(n - 1);
+}
+def ring_c(n: decimal): decimal {
+    if(n <= 0) { return 3; }
+    return ring_a(n - 1);
+}
+
+// ---- recursion on arrays
+def sum_from(numbers: decimal[], index: decimal): decimal {
+    if(index == sizeof(numbers)) {
+        return 0;
+    }
+    return numbers[index] + sum_from(numbers, index + 1);
+}
+
+def largest_from(numbers: decimal[], index: decimal): decimal {
+    if(index == sizeof(numbers) - 1) {
+        return numbers[index];
+    }
+    rest : decimal = largest_from(numbers, index + 1);
+    if(numbers[index] > rest) {
+        return numbers[index];
+    }
+    return rest;
+}
+
+def count_from(numbers: decimal[], wanted: decimal, index: decimal): decimal {
+    if(index == sizeof(numbers)) {
+        return 0;
+    }
+    if(numbers[index] == wanted) {
+        return 1 + count_from(numbers, wanted, index + 1);
+    }
+    return count_from(numbers, wanted, index + 1);
+}
+
+/* swaps the two ends, then reverses what is between them */
+def reverse_between(numbers: decimal[], low: decimal, high: decimal) {
+    if(low >= high) {
+        return;
+    }
+    kept : decimal = numbers[low];
+    numbers[low] = numbers[high];
+    numbers[high] = kept;
+    reverse_between(numbers, low + 1, high - 1);
+}
+
+/* the index of `wanted` in a sorted array, or -1 */
+def binary_search(sorted: decimal[], wanted: decimal, low: decimal, high: decimal): decimal {
+    if(low > high) {
+        return 0 - 1;
+    }
+    sum : decimal = low + high;
+    middle : decimal = (sum - sum % 2) / 2;
+    if(sorted[middle] == wanted) {
+        return middle;
+    }
+    if(sorted[middle] < wanted) {
+        return binary_search(sorted, wanted, middle + 1, high);
+    }
+    return binary_search(sorted, wanted, low, middle - 1);
+}
+
+/* how many ways some of numbers[index...] add up to `target` */
+def subsets_adding_to(numbers: decimal[], index: decimal, target: decimal): decimal {
+    if(index == sizeof(numbers)) {
+        if(target == 0) {
+            return 1;
+        }
+        return 0;
+    }
+    return subsets_adding_to(numbers, index + 1, target - numbers[index])
+         + subsets_adding_to(numbers, index + 1, target);
+}
+
+/* writes 1, 2, 3 ... into the array, one element per level */
+def fill_from(numbers: decimal[], index: decimal) {
+    if(index == sizeof(numbers)) {
+        return;
+    }
+    numbers[index] = index + 1;
+    fill_from(numbers, index + 1);
+}
+
+// ---- recursion on strings
+def count_letter(text: string, letter: decimal, index: decimal): decimal {
+    if(index == text.size()) {
+        return 0;
+    }
+    if(text.at(index).value == letter) {
+        return 1 + count_letter(text, letter, index + 1);
+    }
+    return count_letter(text, letter, index + 1);
+}
+
+def is_palindrome(text: string, low: decimal, high: decimal): decimal {
+    if(low >= high) {
+        return 1;
+    }
+    if(text.at(low).value != text.at(high).value) {
+        return 0;
+    }
+    return is_palindrome(text, low + 1, high - 1);
+}
+
+/* "1010" for 10: the digits for n / 2, then the last digit */
+def binary_digits(n: decimal): string {
+    last : decimal = n % 2;
+    digit : string = "0";
+    if(last == 1) {
+        digit = "1";
+    }
+    if(n < 2) {
+        return digit;
+    }
+    return binary_digits((n - last) / 2) + digit;
+}
+
+/* "ab" repeated: built on the way back up */
+def repeat(text: string, times: decimal): string {
+    if(times == 1) {
+        return text;
+    }
+    return text + repeat(text, times - 1);
+}
+
+/* "(((x)))" for 3 */
+def nest(levels: decimal): string {
+    if(levels == 0) {
+        return "x";
+    }
+    return "(" + nest(levels - 1) + ")";
+}
+
+// ---- recursion on objects: a list of links and a tree
+class link {
+    number : decimal = 0;
+    next : link?;
+
+    link(n: decimal, rest: link?) {
+        number = n;
+        next = rest;
+    }
+}
+
+def length_of(first: link?): decimal {
+    if(first == null) {
+        return 0;
+    }
+    return 1 + length_of(first!!.next);
+}
+
+def total_of(first: link?): decimal {
+    if(first == null) {
+        return 0;
+    }
+    return first!!.number + total_of(first!!.next);
+}
+
+/* a list n, n-1, ... 1 built by recursion */
+def count_down_list(n: decimal): link? {
+    if(n == 0) {
+        return null;
+    }
+    return new link(n, count_down_list(n - 1));
+}
+
+class tree {
+    number : decimal = 0;
+    left : tree?;
+    right : tree?;
+
+    tree(n: decimal, l: tree?, r: tree?) {
+        number = n;
+        left = l;
+        right = r;
+    }
+
+    /* a method that calls itself on other objects */
+    def total(): decimal {
+        sum : decimal = number;
+        if(left != null) {
+            sum += left!!.total();
+        }
+        if(right != null) {
+            sum += right!!.total();
+        }
+        return sum;
+    }
+}
+
+def total_of_tree(root: tree?): decimal {
+    if(root == null) {
+        return 0;
+    }
+    return root!!.number + total_of_tree(root!!.left) + total_of_tree(root!!.right);
+}
+
+def height_of(root: tree?): decimal {
+    if(root == null) {
+        return 0;
+    }
+    left_height : decimal = height_of(root!!.left);
+    right_height : decimal = height_of(root!!.right);
+    if(left_height > right_height) {
+        return 1 + left_height;
+    }
+    return 1 + right_height;
+}
+
+def leaves_of(root: tree?): decimal {
+    if(root == null) {
+        return 0;
+    }
+    if(root!!.left == null && root!!.right == null) {
+        return 1;
+    }
+    return leaves_of(root!!.left) + leaves_of(root!!.right);
+}
+
+def recursion_tests() {
+    tests("recursion") {
+        // ---- factorial
+        test("factorial(0)") { expect(factorial(0)).should_be(1); };
+        test("factorial(1)") { expect(factorial(1)).should_be(1); };
+        test("factorial(2)") { expect(factorial(2)).should_be(2); };
+        test("factorial(5)") { expect(factorial(5)).should_be(120); };
+        test("factorial(10)") { expect(factorial(10)).should_be(3628800); };
+        test("factorial(12)") { expect(factorial(12)).should_be(479001600); };
+        test("factorial(15)") { expect(factorial(15)).should_be(1307674368000); };
+        test("factorial(18)") { expect(factorial(18)).should_be(6402373705728000); };
+
+        // ---- other single recursions
+        test("sum_to(0)") { expect(sum_to(0)).should_be(0); };
+        test("sum_to(10)") { expect(sum_to(10)).should_be(55); };
+        test("sum_to(100)") { expect(sum_to(100)).should_be(5050); };
+        test("sum_to(150)") { expect(sum_to(150)).should_be(11325); };
+        test("power(2, 10)") { expect(power(2, 10)).should_be(1024); };
+        test("power(3, 5)") { expect(power(3, 5)).should_be(243); };
+        test("power(5, 0)") { expect(power(5, 0)).should_be(1); };
+        test("power(0.5, 3)") { expect(power(0.5, 3)).should_be(0.125); };
+        test("fast_power(2, 30)") { expect(fast_power(2, 30)).should_be(1073741824); };
+        test("fast_power(3, 13)") { expect(fast_power(3, 13)).should_be(1594323); };
+        test("fast_power(7, 1)") { expect(fast_power(7, 1)).should_be(7); };
+        test("gcd(48, 18)") { expect(gcd(48, 18)).should_be(6); };
+        test("gcd(18, 48)") { expect(gcd(18, 48)).should_be(6); };
+        test("gcd(17, 5)") { expect(gcd(17, 5)).should_be(1); };
+        test("gcd(100, 75)") { expect(gcd(100, 75)).should_be(25); };
+        test("gcd(7, 0)") { expect(gcd(7, 0)).should_be(7); };
+        test("gcd(1071, 462)") { expect(gcd(1071, 462)).should_be(21); };
+        test("depth_of(1)") { expect(depth_of(1)).should_be(1); };
+        test("depth_of(150)") { expect(depth_of(150)).should_be(150); };
+        test("sum_with_carry(100, 0)") { expect(sum_with_carry(100, 0)).should_be(5050); };
+        test("sum_with_carry(4, 1000)") { expect(sum_with_carry(4, 1000)).should_be(1010); };
+        test("sum_of_digits(7)") { expect(sum_of_digits(7)).should_be(7); };
+        test("sum_of_digits(12345)") { expect(sum_of_digits(12345)).should_be(15); };
+        test("sum_of_digits(9999)") { expect(sum_of_digits(9999)).should_be(36); };
+        test("count_digits(5)") { expect(count_digits(5)).should_be(1); };
+        test("count_digits(1000000)") { expect(count_digits(1000000)).should_be(7); };
+        test("collatz_steps(1)") { expect(collatz_steps(1)).should_be(0); };
+        test("collatz_steps(6)") { expect(collatz_steps(6)).should_be(8); };
+        test("collatz_steps(27)") { expect(collatz_steps(27)).should_be(111); };
+
+        // ---- fibonacci and other double recursions
+        test("fibonacci(0)") { expect(fibonacci(0)).should_be(0); };
+        test("fibonacci(1)") { expect(fibonacci(1)).should_be(1); };
+        test("fibonacci(2)") { expect(fibonacci(2)).should_be(1); };
+        test("fibonacci(3)") { expect(fibonacci(3)).should_be(2); };
+        test("fibonacci(7)") { expect(fibonacci(7)).should_be(13); };
+        test("fibonacci(10)") { expect(fibonacci(10)).should_be(55); };
+        test("fibonacci(20)") { expect(fibonacci(20)).should_be(6765); };
+        test("fibonacci(25)") { expect(fibonacci(25)).should_be(75025); };
+        test("hanoi_moves(1)") { expect(hanoi_moves(1)).should_be(1); };
+        test("hanoi_moves(3)") { expect(hanoi_moves(3)).should_be(7); };
+        test("hanoi_moves(10)") { expect(hanoi_moves(10)).should_be(1023); };
+        test("grid_paths(1, 1)") { expect(grid_paths(1, 1)).should_be(2); };
+        test("grid_paths(2, 2)") { expect(grid_paths(2, 2)).should_be(6); };
+        test("grid_paths(3, 3)") { expect(grid_paths(3, 3)).should_be(20); };
+        test("grid_paths(4, 4)") { expect(grid_paths(4, 4)).should_be(70); };
+        test("pascal(4, 2)") { expect(pascal(4, 2)).should_be(6); };
+        test("pascal(6, 0)") { expect(pascal(6, 0)).should_be(1); };
+        test("pascal(10, 5)") { expect(pascal(10, 5)).should_be(252); };
+        test("ackermann(0, 5)") { expect(ackermann(0, 5)).should_be(6); };
+        test("ackermann(1, 5)") { expect(ackermann(1, 5)).should_be(7); };
+        test("ackermann(2, 3)") { expect(ackermann(2, 3)).should_be(9); };
+        test("ackermann(3, 2)") { expect(ackermann(3, 2)).should_be(29); };
+
+        // ---- mutual recursion
+        test("is_even(0)") { expect(is_even(0)).should_be(1); };
+        test("is_even(10)") { expect(is_even(10)).should_be(1); };
+        test("is_even(7)") { expect(is_even(7)).should_be(0); };
+        test("is_odd(7)") { expect(is_odd(7)).should_be(1); };
+        test("is_odd(10)") { expect(is_odd(10)).should_be(0); };
+        test("is_even(100)") { expect(is_even(100)).should_be(1); };
+        test("is_odd(101)") { expect(is_odd(101)).should_be(1); };
+        test("female(0)") { expect(female(0)).should_be(1); };
+        test("male(0)") { expect(male(0)).should_be(0); };
+        test("female(4)") { expect(female(4)).should_be(3); };
+        test("male(4)") { expect(male(4)).should_be(2); };
+        test("female(7)") { expect(female(7)).should_be(5); };
+        test("male(7)") { expect(male(7)).should_be(4); };
+        test("female(10)") { expect(female(10)).should_be(6); };
+        test("male(10)") { expect(male(10)).should_be(6); };
+        test("a ring of three, 0 steps") { expect(ring_a(0)).should_be(1); };
+        test("a ring of three, 1 step") { expect(ring_a(1)).should_be(2); };
+        test("a ring of three, 2 steps") { expect(ring_a(2)).should_be(3); };
+        test("a ring of three, 3 steps") { expect(ring_a(3)).should_be(1); };
+        test("a ring of three, 100 steps") { expect(ring_a(100)).should_be(2); };
+
+        // ---- arrays
+        tests("arrays") {
+            numbers : decimal[];
+            before_each { numbers = new decimal[] { 3, 1, 4, 1, 5, 9, 2, 6 }; };
+
+            test("sum of an array") { expect(sum_from(numbers, 0)).should_be(31); };
+            test("sum of the last three") { expect(sum_from(numbers, 5)).should_be(17); };
+            test("sum of an empty rest") { expect(sum_from(numbers, 8)).should_be(0); };
+            test("largest of an array") { expect(largest_from(numbers, 0)).should_be(9); };
+            test("largest of the last two") { expect(largest_from(numbers, 6)).should_be(6); };
+            test("count of 1") { expect(count_from(numbers, 1, 0)).should_be(2); };
+            test("count of 9") { expect(count_from(numbers, 9, 0)).should_be(1); };
+            test("count of 7") { expect(count_from(numbers, 7, 0)).should_be(0); };
+            test("reversed by recursion") {
+                reverse_between(numbers, 0, 7);
+                expect(numbers[0]).named("element 0").should_be(6);
+                expect(numbers[1]).named("element 1").should_be(2);
+                expect(numbers[3]).named("element 3").should_be(5);
+                expect(numbers[4]).named("element 4").should_be(1);
+                expect(numbers[7]).named("element 7").should_be(3);
+            };
+        };
+        test("reversed odd length: the middle stays") {
+            odd_length : decimal[] = new decimal[] { 1, 2, 3 };
+            reverse_between(odd_length, 0, 2);
+            expect(odd_length[0]).named("first").should_be(3);
+            expect(odd_length[1]).named("middle").should_be(2);
+            expect(odd_length[2]).named("last").should_be(1);
+        };
+
+        tests("binary_search") {
+            primes : decimal[];
+            before_each { primes = new decimal[] { 2, 3, 5, 7, 11, 13, 17, 19, 23, 29 }; };
+
+            test("binary search: first") { expect(binary_search(primes, 2, 0, 9)).should_be(0); };
+            test("binary search: last") { expect(binary_search(primes, 29, 0, 9)).should_be(9); };
+            test("binary search: middle") { expect(binary_search(primes, 11, 0, 9)).should_be(4); };
+            test("binary search: 19") { expect(binary_search(primes, 19, 0, 9)).should_be(7); };
+            test("binary search: missing, in range") { expect(binary_search(primes, 4, 0, 9)).should_be(0 - 1); };
+            test("binary search: missing, too large") { expect(binary_search(primes, 31, 0, 9)).should_be(0 - 1); };
+            test("binary search: missing, too small") { expect(binary_search(primes, 1, 0, 9)).should_be(0 - 1); };
+        };
+
+        tests("subsets") {
+            one_to_five : decimal[];
+            before_each { one_to_five = new decimal[] { 1, 2, 3, 4, 5 }; };
+
+            test("subsets adding to 5: {5} {1,4} {2,3}") { expect(subsets_adding_to(one_to_five, 0, 5)).should_be(3); };
+            test("subsets adding to 10: {1,4,5} {2,3,5} {1,2,3,4}") { expect(subsets_adding_to(one_to_five, 0, 10)).should_be(3); };
+            test("subsets adding to 15: all of them") { expect(subsets_adding_to(one_to_five, 0, 15)).should_be(1); };
+            test("subsets adding to 16: none") { expect(subsets_adding_to(one_to_five, 0, 16)).should_be(0); };
+            test("subsets adding to 0: the empty one") { expect(subsets_adding_to(one_to_five, 0, 0)).should_be(1); };
+        };
+
+        test("an array filled by recursion, and summed by recursion") {
+            filled : decimal[] = new decimal[100];
+            fill_from(filled, 0);
+            expect(filled[0]).named("first").should_be(1);
+            expect(filled[49]).named("50th").should_be(50);
+            expect(filled[99]).named("last").should_be(100);
+            expect(sum_from(filled, 0)).named("the sum").should_be(5050);
+        };
+
+        // ---- strings
+        test("letters a in banana") { expect(count_letter("banana", 'a', 0)).should_be(3); };
+        test("letters n in banana") { expect(count_letter("banana", 'n', 0)).should_be(2); };
+        test("letters z in banana") { expect(count_letter("banana", 'z', 0)).should_be(0); };
+        test("letters in an empty string") { expect(count_letter("", 'a', 0)).should_be(0); };
+        test("racecar is a palindrome") { expect(is_palindrome("racecar", 0, 6)).should_be(1); };
+        test("abba is a palindrome") { expect(is_palindrome("abba", 0, 3)).should_be(1); };
+        test("abca is not") { expect(is_palindrome("abca", 0, 3)).should_be(0); };
+        test("one letter is a palindrome") { expect(is_palindrome("x", 0, 0)).should_be(1); };
+        test("binary_digits(0)") { expect(binary_digits(0)).should_be("0"); };
+        test("binary_digits(1)") { expect(binary_digits(1)).should_be("1"); };
+        test("binary_digits(10)") { expect(binary_digits(10)).should_be("1010"); };
+        test("binary_digits(255)") { expect(binary_digits(255)).should_be("11111111"); };
+        test("binary_digits(1024)") { expect(binary_digits(1024)).should_be("10000000000"); };
+        test("repeat(ab, 3)") { expect(repeat("ab", 3)).should_be("ababab"); };
+        test("repeat(ab, 1)") { expect(repeat("ab", 1)).should_be("ab"); };
+        test("repeat(abc, 50) has 150 characters") { expect(repeat("abc", 50).size()).should_be(150); };
+        test("nest(0)") { expect(nest(0)).should_be("x"); };
+        test("nest(3)") { expect(nest(3)).should_be("(((x)))"); };
+
+        // ---- a linked list
+        test("length of no list") { expect(length_of(null)).should_be(0); };
+        test("length and total of three links") {
+            three := new link(10, new link(20, new link(30, null)));
+            expect(length_of(three)).named("length").should_be(3);
+            expect(total_of(three)).named("total").should_be(60);
+        };
+        test("a list built by recursion") {
+            counted := count_down_list(100);
+            expect(counted!!.number).named("first number").should_be(100);
+            expect(counted!!.next!!.number).named("second number").should_be(99);
+            expect(length_of(counted)).named("length").should_be(100);
+            expect(total_of(counted)).named("total").should_be(5050);
+        };
+
+        // ---- a tree
+        //            1
+        //          /   \
+        //         2     3
+        //        / \     \
+        //       4   5     6
+        //                /
+        //               7
+        tests("tree") {
+            root : tree;
+            before_each {
+                root = new tree(1,
+                    new tree(2, new tree(4, null, null), new tree(5, null, null)),
+                    new tree(3, null, new tree(6, new tree(7, null, null), null)));
+            };
+
+            test("total of the tree") { expect(total_of_tree(root)).should_be(28); };
+            test("total of the left side") { expect(total_of_tree(root.left)).should_be(11); };
+            test("total of the right side") { expect(total_of_tree(root.right)).should_be(16); };
+            test("a recursive method: total of the tree") { expect(root.total()).should_be(28); };
+            test("a recursive method: total of the left side") { expect(root.left!!.total()).should_be(11); };
+            test("a recursive method: total of the right side") { expect(root.right!!.total()).should_be(16); };
+            test("height of the tree") { expect(height_of(root)).should_be(4); };
+            test("height of the left side") { expect(height_of(root.left)).should_be(2); };
+            test("leaves of the tree") { expect(leaves_of(root)).should_be(3); };
+        };
+        test("height of no tree") { expect(height_of(null)).should_be(0); };
+    };
+}

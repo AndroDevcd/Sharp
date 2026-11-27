@@ -1,0 +1,234 @@
+mod suite.language.comparison;
+
+import ( std.testing )
+
+/**
+ * Comparing numbers: == != < > <= >=
+ * A comparison gives 1 (true) or 0 (false). The result can be used in an
+ * if, stored in a variable, returned from a function and used in arithmetic.
+ */
+
+def less(a: decimal, b: decimal): decimal { return a < b; }
+def same(a: decimal, b: decimal): decimal { return a == b; }
+def at_least(a: decimal, b: decimal): decimal { return a >= b; }
+
+/** the larger of two numbers */
+def max(a: decimal, b: decimal): decimal {
+    if(a > b) {
+        return a;
+    }
+    return b;
+}
+
+def comparison_tests() {
+    tests("comparison") {
+        a : decimal;
+        b : decimal;
+        c : decimal;
+        n : decimal;
+        m : decimal;
+        half : decimal;
+        third : decimal;
+        big : decimal;
+        i : int;
+        j : int;
+        before_each {
+            a = 10;
+            b = 20;
+            c = 10;
+            n = 0 - 5;
+            m = 0 - 2;
+            half = 0.5;
+            third = 1.0 / 3;
+            big = 1000000000000;
+            i = new int(3);
+            j = new int(5);
+        };
+
+        // ---- literals
+        test("3 == 3") { expect_true(3 == 3); };
+        test("3 == 4") { expect_false(3 == 4); };
+        test("3 != 4") { expect_true(3 != 4); };
+        test("3 != 3") { expect_false(3 != 3); };
+        test("3 < 4") { expect_true(3 < 4); };
+        test("4 < 3") { expect_false(4 < 3); };
+        test("3 < 3") { expect_false(3 < 3); };
+        test("4 > 3") { expect_true(4 > 3); };
+        test("3 > 4") { expect_false(3 > 4); };
+        test("3 > 3") { expect_false(3 > 3); };
+        test("3 <= 4") { expect_true(3 <= 4); };
+        test("3 <= 3") { expect_true(3 <= 3); };
+        test("4 <= 3") { expect_false(4 <= 3); };
+        test("4 >= 3") { expect_true(4 >= 3); };
+        test("3 >= 3") { expect_true(3 >= 3); };
+        test("3 >= 4") { expect_false(3 >= 4); };
+
+        // ---- variables (a = 10, b = 20, c = 10)
+        test("a == c") { expect_true(a == c); };
+        test("a == b") { expect_false(a == b); };
+        test("a != b") { expect_true(a != b); };
+        test("a != c") { expect_false(a != c); };
+        test("a < b") { expect_true(a < b); };
+        test("b < a") { expect_false(b < a); };
+        test("a < c") { expect_false(a < c); };
+        test("b > a") { expect_true(b > a); };
+        test("a > b") { expect_false(a > b); };
+        test("a > c") { expect_false(a > c); };
+        test("a <= b") { expect_true(a <= b); };
+        test("a <= c") { expect_true(a <= c); };
+        test("b <= a") { expect_false(b <= a); };
+        test("b >= a") { expect_true(b >= a); };
+        test("a >= c") { expect_true(a >= c); };
+        test("a >= b") { expect_false(a >= b); };
+
+        // ---- a variable against itself, and against a literal
+        test("a == a") { expect_true(a == a); };
+        test("a != a") { expect_false(a != a); };
+        test("a < a") { expect_false(a < a); };
+        test("a <= a") { expect_true(a <= a); };
+        test("a == 10") { expect_true(a == 10); };
+        test("10 == a") { expect_true(10 == a); };
+        test("a < 11") { expect_true(a < 11); };
+        test("9 < a") { expect_true(9 < a); };
+
+        // ---- negative numbers (n = -5, m = -2)
+        test("-5 < -2") { expect_true(n < m); };
+        test("-5 > -2") { expect_false(n > m); };
+        test("-5 < 0") { expect_true(n < 0); };
+        test("-2 <= -2") { expect_true(m <= 0 - 2); };
+        test("-5 != 5") { expect_true(n != 5); };
+        test("-5 == -5") { expect_true(n == -5); };
+        test("-1 < 1") { expect_true(-1 < 1); };
+        test("-1 > -2") { expect_true(-1 > -2); };
+        test("0 > -1") { expect_true(0 > -1); };
+        test("-0 == 0") { expect_true(-0 == 0); };
+
+        // ---- fractions (half = 0.5, third = 1.0 / 3)
+        test("0.5 == 1.0 / 2") { expect_true(half == 1.0 / 2); };
+        test("0.5 > 1 / 3") { expect_true(half > third); };
+        test("1 / 3 < 0.34") { expect_true(third < 0.34); };
+        test("1 / 3 > 0.33") { expect_true(third > 0.33); };
+        test("0.1 < 0.2") { expect_true(0.1 < 0.2); };
+        test("2.5 >= 2.5") { expect_true(2.5 >= 2.5); };
+        test("2.4999 < 2.5") { expect_true(2.4999 < 2.5); };
+        test("2.5001 <= 2.5") { expect_false(2.5001 <= 2.5); };
+        test("1.0 == 1") { expect_true(1.0 == 1); };
+        test("-0.5 < -0.25") { expect_true(0 - half < 0 - 0.25); };
+        test("0.001 != 0.0011") { expect_true(0.001 != 0.0011); };
+
+        // ---- large numbers (big = 1000000000000)
+        test("a trillion < a trillion and one") { expect_true(big < big + 1); };
+        test("a trillion == 1e12") { expect_true(big == 1e12); };
+        test("a trillion > 1e12") { expect_false(big > 1e12); };
+
+        // ---- the result is a number: 1 or 0
+        test("3 < 4 is 1") { expect(3 < 4).should_be(1); };
+        test("4 < 3 is 0") { expect(4 < 3).should_be(0); };
+        test("a == c is 1") { expect(a == c).should_be(1); };
+        test("a == b is 0") { expect(a == b).should_be(0); };
+        test("counting true comparisons") { expect(((a < b) as _int32) + ((b < a) as _int32) + ((a == c) as _int32) + ((a != c) as _int32)).should_be(2); };
+        test("multiplying by a comparison") { expect(7 * ((a < b) as _int32)).should_be(7); };
+
+        // ---- stored in a variable
+        test("smaller") {
+            smaller : decimal = a < b;
+            expect(smaller).should_be(1);
+        };
+        test("equal") {
+            equal : decimal = a == b;
+            expect(equal).should_be(0);
+        };
+        test("smaller, assigned again") {
+            smaller : decimal = a < b;
+            smaller = b < a;
+            expect(smaller).should_be(0);
+        };
+        test("in a bool object") {
+            answer : bool = a < b;
+            expect(answer).should_be(1);
+        };
+
+        // ---- used in an if
+        test("if(a < b)") {
+            if(a < b) {
+            } else {
+                fail_test("the else branch ran");
+            }
+        };
+        test("if(a > b)") {
+            if(a > b) {
+                fail_test("the if branch ran");
+            }
+        };
+        test("if(a == c)") {
+            if(a == c) {
+            } else {
+                fail_test("the else branch ran");
+            }
+        };
+        test("if(a != c)") {
+            if(a != c) {
+                fail_test("the if branch ran");
+            }
+        };
+        test("if(smaller)") {
+            smaller : decimal = b < a;
+            if(smaller) {
+                fail_test("a stored false ran the if branch");
+            }
+        };
+        test("if(-5 >= -2)") {
+            if(n >= m) {
+                fail_test("the if branch ran");
+            }
+        };
+
+        // ---- arithmetic happens before the comparison
+        test("1 + 2 < 4") { expect_true(1 + 2 < 4); };
+        test("2 * 3 == 6") { expect_true(2 * 3 == 6); };
+        test("a + 10 == b") { expect_true(a + 10 == b); };
+        test("b - a >= a") { expect_true(b - a >= a); };
+        test("a * 2 <= b") { expect_true(a * 2 <= b); };
+        test("a + 1 < c") { expect_false(a + 1 < c); };
+        test("b / 4 > a / 4") { expect_true(b / 4 > a / 4); };
+        test("17 % 5 == 2") { expect_true(17 % 5 == 2); };
+
+        // ---- < and > happen before == and !=
+        test("1 < 2 == true") { expect_true(1 < 2 == true); };
+        test("a < b != b < a") { expect_true(a < b != b < a); };
+        test("(a < b) == (n < m)") { expect_true((a < b) == (n < m)); };
+
+        // ---- through functions
+        test("less(1, 2)") { expect(less(1, 2)).should_be(1); };
+        test("less(2, 1)") { expect(less(2, 1)).should_be(0); };
+        test("less(2, 2)") { expect(less(2, 2)).should_be(0); };
+        test("same(7, 7)") { expect(same(7, 7)).should_be(1); };
+        test("same(7, 7.5)") { expect(same(7, 7.5)).should_be(0); };
+        test("at_least(3, 3)") { expect(at_least(3, 3)).should_be(1); };
+        test("at_least(2, 3)") { expect(at_least(2, 3)).should_be(0); };
+        test("max(3, 9)") { expect(max(3, 9)).should_be(9); };
+        test("max(9, 3)") { expect(max(9, 3)).should_be(9); };
+        test("max(-3, -9)") { expect(max(0 - 3, 0 - 9)).should_be(0 - 3); };
+        test("max(2.5, 2.25)") { expect(max(2.5, 2.25)).should_be(2.5); };
+
+        // ---- characters compare as numbers
+        test("'a' < 'b'") { expect_true('a' < 'b'); };
+        test("'a' == 97") { expect_true('a' == 97); };
+        test("'A' != 'a'") { expect_true('A' != 'a'); };
+
+        // ---- number objects (int) compare too; the answer is a bool object
+        // (i = 3, j = 5)
+        test("int < int") { expect((i < j)).should_be(1); };
+        test("int > int") { expect((i > j)).should_be(0); };
+        test("int == int") { expect((i == j)).should_be(0); };
+        test("int != int") { expect((i != j)).should_be(1); };
+        test("int <= int") { expect((i <= j)).should_be(1); };
+        test("int >= int") { expect((i >= j)).should_be(0); };
+        test("if(int < int)") {
+            if(i < j) {
+            } else {
+                fail_test("the else branch ran");
+            }
+        };
+    };
+}

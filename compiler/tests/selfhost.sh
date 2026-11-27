@@ -14,8 +14,8 @@
 #   tests/selfhost.sh
 #       SHARP=<the runtime>  COMPILER=<stage 1: the bootstrap built by the C++ compiler>
 #       SOURCES=<the folder of the bootstrap's sources>   LIBRARY=<the standard library folder>
-#       SUITE=<the suite folder: cases/ and testing.sharp>  OUT=<a folder to work in>
-#       QUICK=1   leave out the suite (part C and check 11, about 12 minutes)
+#       SUITE=<the suite's project folder (tests/suite)>  OUT=<a folder to work in>
+#       QUICK=1   leave out the suite (part C and check 11; it was about 12 minutes as 219 programs)
 #       (defaults: ~/sharp_work/sharp_dev/sharp, ~/sharp_work/out/boot/sharpc_boot,
 #        ~/sharp_work/src/compiler - the copy bootc.sh built stage 1 from -,
 #        ~/sharp_work/stdlib, ~/sharp_work/suite, ~/sharp_work/out/boot/selfhost)
@@ -39,16 +39,17 @@
 #      7. every program that must be refused (tests/backend/fail, tests/parse/fail): stage 2 prints,
 #         character for character, the messages stage 1 prints
 #   C. STAGE 2 AS THE COMPILER: the same results
-#      8. every suite case, compiled by stage 1 and by stage 2: the same executable, byte for byte,
-#         and the same output of the compiler - once plain and once with -O. (The gates' runner
-#         step runs the files stage 1 writes and judges their results; identical bytes behave
-#         identically, so that judgement holds for stage 2's.)
+#      8. the suite (one project), built by stage 1 and by stage 2: the same executable, byte for
+#         byte, and the same output of the compiler - once plain and once with -O. (Test 8 of
+#         build-scripts/test.sh runs what stage 1 builds and judges its results; identical bytes
+#         behave identically, so that judgement holds for stage 2's.) Every compiler builds it in
+#         the same folder, a copy of the suite's (OUT/suite_project), one after the other.
 #   D. THE OPTIMIZED COMPILER AS THE COMPILER. The compiler built by itself with -O is the one a
 #      user keeps (README.md), and it is the only one of the three every optimizer pass has been
 #      through. Part A proves it compiles ITSELF as stage 1 does; here it compiles other programs:
 #      9. the standard library, every warning shown: it prints what stage 1 prints
 #     10. every program that must be refused: the messages of stage 1, character for character
-#     11. every suite case: the executable stage 1 writes, byte for byte
+#     11. the suite: the executable stage 1 builds, byte for byte
 #
 # The time each compiler takes for the self-compile is printed (13.7 keeps the numbers).
 # Prints one line per failure and a summary; exits 1 when anything failed.
@@ -184,42 +185,29 @@ fi
 if [ "$QUICK" = 1 ]; then
     echo "        (QUICK=1: the suite was left out)"
 else
-    export SUITE
+    source "$HERE/suite_program.sh"
+    PROJECT="$OUT/suite_project"; mkdir -p "$PROJECT"
+    rsync -a --delete --exclude /build "$SUITE/" "$PROJECT/"
+    # build_with <the file to keep it as> <compiler> <option>: the suite, built from nothing in the one folder
+    build_with() { suite_build "$PROJECT" "$1" "$1.txt" "$SHARP" "$2" -P "$PROJECT" -j 1 -L "$LIBRARY" $3 > /dev/null; }
+    # same <first> <second>: the same executable and the same output of the compiler (else what differs)
+    same() {
+        [ -f "$1" ] && cmp -s "$1" "$2" && [ "$(steady "$1.txt")" = "$(steady "$2.txt")" ] && return 0
+        echo "        $(cmp "$1" "$2" 2>&1 | head -1 | cut -c1-160) $(diff <(steady "$1.txt") <(steady "$2.txt") | head -2 | cut -c1-160)"
+        return 1
+    }
     for configuration in plain O; do
         option=""; [ $configuration = O ] && option="-O"
-        mkdir -p "suite_$configuration/1" "suite_$configuration/2"
-        export configuration option
-        ls "$SUITE"/cases/*.sharp | xargs -P ${TEST_JOBS:-4} -I{} bash -c '
-            b=$(basename "{}" .sharp)
-            cd "$OUT/suite_$configuration/1" && timeout -s KILL 300 "$SHARP" "$COMPILER" "{}" "$SUITE/testing.sharp" -j 1 -o $b -L "$LIBRARY" $option > $b.txt 2>&1
-            cd "$OUT/suite_$configuration/2" && timeout -s KILL 300 "$SHARP" "$STAGE2" "{}" "$SUITE/testing.sharp" -j 1 -o $b -L "$LIBRARY" $option > $b.txt 2>&1
-            # (check 11: the optimized compiler, on the plain configuration)
-            if [ $configuration = plain ] && [ -f "$STAGE2_O" ]; then
-                mkdir -p "$OUT/suite_plain/3" && cd "$OUT/suite_plain/3" && timeout -s KILL 300 "$SHARP" "$STAGE2_O" "{}" "$SUITE/testing.sharp" -j 1 -o $b -L "$LIBRARY" > $b.txt 2>&1
-            fi'
-        cases=0; differ=0
-        for f in "$SUITE"/cases/*.sharp; do
-            b=$(basename "$f" .sharp); cases=$((cases+1))
-            one="suite_$configuration/1/$b"; two="suite_$configuration/2/$b"
-            if [ ! -f "$one" ] || ! cmp -s "$one" "$two" || [ "$(steady "$one.txt")" != "$(steady "$two.txt")" ]; then
-                differ=$((differ+1))
-                [ $differ -le 3 ] && echo "        $b ($configuration): $(cmp "$one" "$two" 2>&1 | head -1 | cut -c1-160) $(diff <(steady "$one.txt") <(steady "$two.txt") | head -2 | cut -c1-160)"
-            fi
-        done
-        if [ $differ = 0 ] && [ $cases -gt 0 ]; then pass; else fail "suite ($configuration)" "$differ of $cases suite cases: stage 2 does not write the bytes (or print the lines) stage 1 does"; fi
-        echo "        suite cases ($configuration): $cases compiled by stage 1 and by stage 2, $differ different"
+        mkdir -p "suite_$configuration"
+        build_with "$OUT/suite_$configuration/1" "$COMPILER" "$option"
+        build_with "$OUT/suite_$configuration/2" "$STAGE2" "$option"
+        if same "suite_$configuration/1" "suite_$configuration/2"; then pass; echo "        the suite ($configuration): stage 1 and stage 2 build the same bytes"
+        else fail "suite ($configuration)" "stage 2 does not write the bytes (or print the lines) stage 1 does$([ -f "suite_$configuration/1" ] || echo "; stage 1 wrote no program: suite_$configuration/1.txt")"; fi
+        # (check 11: the optimized compiler, on the plain configuration)
         if [ $configuration = plain ] && [ -f "$STAGE2_O" ]; then
-            differ=0
-            for f in "$SUITE"/cases/*.sharp; do
-                b=$(basename "$f" .sharp)
-                one="suite_plain/1/$b"; three="suite_plain/3/$b"
-                if [ ! -f "$one" ] || ! cmp -s "$one" "$three" || [ "$(steady "$one.txt")" != "$(steady "$three.txt")" ]; then
-                    differ=$((differ+1))
-                    [ $differ -le 3 ] && echo "        $b (the optimized compiler): $(cmp "$one" "$three" 2>&1 | head -1 | cut -c1-160) $(diff <(steady "$one.txt") <(steady "$three.txt") | head -2 | cut -c1-160)"
-                fi
-            done
-            if [ $differ = 0 ] && [ $cases -gt 0 ]; then pass; else fail "suite (the optimized compiler)" "$differ of $cases suite cases: it does not write the bytes (or print the lines) stage 1 does"; fi
-            echo "        suite cases (plain): $cases compiled by the optimized compiler too, $differ different from stage 1's"
+            build_with "$OUT/suite_plain/3" "$STAGE2_O" ""
+            if same "suite_plain/1" "suite_plain/3"; then pass; echo "        the suite (plain): the optimized compiler builds the bytes stage 1 does"
+            else fail "suite (the optimized compiler)" "it does not write the bytes (or print the lines) stage 1 does"; fi
         fi
     done
 fi

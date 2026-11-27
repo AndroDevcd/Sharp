@@ -1,0 +1,177 @@
+mod suite.library.net.tcp;
+
+import ( std.testing, std.io, std.net )
+
+/**
+ * std.net: tcp_server and tcp_socket, talking to each other inside one
+ * program over this machine's own address ("127.0.0.1") - a server thread
+ * that answers, the main thread as its guest.
+ *
+ * Nothing leaves the machine and no fixed port is used: the server asks for
+ * any free port and the client is told which.
+ */
+
+class shared {
+    static server : tcp_server?;
+    static served : decimal = 0;
+    static problem : string = "";
+}
+
+/**
+ * The server: for each guest, lines are answered until the guest says
+ * "bye" or closes. "big <n>" is answered with n bytes; "close" ends the server.
+ */
+def serve(args: object[]) : decimal {
+    try {
+        while(true) {
+            guest := shared.server!!.accept();
+            shared.served++;
+            stop : bool = false;
+            while(true) {
+                line := guest.read_line();
+                if(line == null || line!! == "bye") { break; }
+                said : string = line!!;
+                if(said == "close") { stop = true; break; }
+                if(said.starts_with("big ")) {
+                    count : _int64 = io_strings.parse_int(io_strings.slice_from(said, 4));
+                    block := new _int8[count];
+                    for(i : _int64 = 0; i < count; i++) { block[i] = 'a' + (i % 26); }
+                    guest.write(block);
+                } else if(said == "silent") {
+                    // (answers nothing: the guest's read has to time out)
+                } else {
+                    guest.write_text("you said: " + said + "\n");
+                }
+            }
+            guest.close();
+            if(stop) { break; }
+        }
+    } catch(problem: throwable) {
+        shared.problem = problem.get_message();
+    }
+    shared.server!!.close();
+    return 0;
+}
+
+/** the server is told to end (by a guest of its own), and its thread is waited for */
+def stop_server(port: _int64, worker: thread) {
+    last := tcp_socket.connect("127.0.0.1", port);
+    last.write_text("close\n");
+    last.read_all();
+    last.close();
+    worker.join();
+}
+
+def tcp_tests() {
+    tests("tcp") {
+        tests("conversation") {
+            // each test: a server on a free port, its thread, and a guest connected to it
+            server : tcp_server?;
+            port : _int64 = 0;
+            worker : thread?;
+            guest : tcp_socket?;
+            before_each {
+                shared.served = 0;
+                shared.problem = "";
+                server = new tcp_server(0, true);
+                shared.server = server;
+                port = server!!.port();
+                worker = new thread("server", serve);
+                worker!!.start();
+                guest = tcp_socket.connect("127.0.0.1", port);
+            }
+            after_each {
+                guest!!.close();                        // (the server goes on to its next guest)
+                if(server!!.is_open()) { stop_server(port, worker!!); }
+            }
+
+            test("the server got a port, and is open") {
+                expect_true(port > 0 && port < 65536);
+                expect_true(server!!.is_open());
+            };
+
+            // ---- one conversation
+            test("connected: its host and port") {
+                expect_true(guest!!.is_open());
+                expect(guest!!.host()).named("host").should_be("127.0.0.1");
+                expect(guest!!.port()).named("port").should_be(port);
+            };
+            test("write_text returns the bytes sent, and the answer comes as a line") {
+                expect(guest!!.write_text("hello\n")).should_be(6);
+                expect(guest!!.read_line()!!).should_be("you said: hello");
+            };
+            test("two lines in one write") {
+                guest!!.write_text("one\r\ntwo\n");
+                expect(guest!!.read_line()!!).named("the first").should_be("you said: one");
+                expect(guest!!.read_line()!!).named("the second").should_be("you said: two");
+            };
+
+            // ---- more bytes than one read brings
+            test("read_exactly: the count, the first byte, the last, and those between") {
+                guest!!.write_text("big 100000\n");
+                block := guest!!.read_exactly(100000);
+                expect(sizeof(block)).should_be(100000);
+                expect(block[0]).should_be('a');
+                expect(block[99999]).should_be('a' + (99999 % 26));
+                for(i : _int64 = 0; i < 100000; i = i + 997) { expect(block[i]).named("byte " + i).should_be('a' + (i % 26)); }
+            };
+
+            // ---- a read that takes too long
+            test("a read gives up after the timeout, and the connection still works after it") {
+                guest!!.set_timeout(200);
+                guest!!.write_text("silent\n");
+                expect_throws<socket_timeout>() { guest!!.read(10); };
+                guest!!.set_timeout(0);
+                guest!!.write_text("after\n");
+                expect(guest!!.read_line()!!).should_be("you said: after");
+            };
+
+            // ---- the guest says bye: the server closes, the guest reads "closed"
+            test("read after the other side closed: nothing; read_line: null") {
+                guest!!.write_text("bye\n");
+                expect(sizeof(guest!!.read(10))).should_be(0);
+                expect_null(guest!!.read_line());
+            };
+            test("closed; closing twice does nothing, and a closed socket refuses a write") {
+                guest!!.write_text("bye\n");
+                guest!!.read(10);
+                guest!!.close();
+                expect_false(guest!!.is_open());
+                guest!!.close();
+                expect_throws<socket_exception>() { guest!!.write_text("x"); };
+            };
+
+            // ---- a second guest: read_all takes everything up to the close
+            test("read_all, of a second guest; the server saw both guests") {
+                guest!!.write_text("bye\n");
+                guest!!.read(10);
+                second := tcp_socket.connect("127.0.0.1", port);
+                second.write_text("big 5000\nbye\n");
+                everything := second.read_all();
+                second.close();
+                expect(sizeof(everything)).should_be(5000);
+                expect(shared.served).should_be(2);
+            };
+
+            test("a port that is taken") { expect_throws<socket_exception>() { new tcp_server(port, true); }; };
+
+            // ---- the server is told to end
+            test("the server thread ended without a problem, and the server is closed") {
+                guest!!.close();
+                stop_server(port, worker!!);
+                expect(shared.problem).should_be("");
+                expect_false(server!!.is_open());
+            };
+        };
+
+        // ---- what cannot be connected to
+        test("nobody listens there") {
+            spare := new tcp_server(0, true);
+            free_port : _int64 = spare.port();
+            spare.close();
+            expect_throws<socket_exception>() { tcp_socket.connect("127.0.0.1", free_port); };
+        };
+        test("a host nobody knows") { expect_throws<socket_exception>() { tcp_socket.connect("no-such-host.invalid", 80); }; };
+        test("a port that is not one") { expect_throws<illegal_argument_exception>() { tcp_socket.connect("127.0.0.1", 70000); }; };
+    };
+}

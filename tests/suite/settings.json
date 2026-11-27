@@ -1,0 +1,5 @@
+{
+  "name": "suite",
+  "output": "suite",
+  "ignore_folders": [ "build", "known_bugs" ]
+}

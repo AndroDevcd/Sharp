@@ -1,0 +1,83 @@
+mod suite.library.basics.string_builder_fixes;
+
+import ( std.testing )
+
+/**
+ * std string_builder: size(), to_string(), ==, +, the copy constructor,
+ * substring, at() past the end, ends_with and `= ""` - all of which used to be
+ * wrong (the builder counted one character too many) and were fixed. Kept as
+ * its own file so the old bugs stay covered. (string_builder.sharp reads
+ * the content back with at() only.)
+ */
+
+def abc_builder() : string_builder {
+    sb := new string_builder();
+    sb.append("abc");
+    return sb;
+}
+
+def string_builder_fixes_tests() {
+    tests("string_builder_fixes") {
+        // ---- fixed, used to be wrong (1): size() is one too large; an empty builder has size 1
+        test("size of a new builder") { expect(new string_builder().size()).should_be(0); };
+        test("size after append(\"abc\")") { expect(abc_builder().size()).should_be(3); };
+
+        // ---- fixed, used to be wrong (2): to_string() has one character too many: a 0 character at the end,
+        // so the result never equals the text that was appended
+        test("to_string() is the text appended, no longer") {
+            sb := abc_builder();
+            expect(sb.to_string()!!.size()).named("length").should_be(3);
+            expect(sb.to_string()!!).should_be("abc");
+        };
+        test("to_string() of an empty builder") { expect(new string_builder().to_string()!!).should_be(""); };
+
+        // ---- fixed, used to be wrong (3): == with the same text is false (it compares cursor + 1 with the length)
+        test("builder == \"abc\"") { expect_true((abc_builder() == "abc")); };
+
+        // ---- fixed, used to be wrong (4): + copies the whole 255 character buffer of the left side, so the
+        // appended text lands far behind the original text, after 250 zero characters
+        test("\"hello\" + \" world\" puts the second text right after the first") {
+            hello := new string_builder("hello");
+            both := hello + " world";
+            expect(both.at(5).value).named("character 5").should_be(' ');
+            expect(both.at(6).value).named("character 6").should_be('w');
+        };
+
+        // ---- fixed, used to be wrong (5): the copy constructor does the same: the copy of a 5 character
+        // builder reports size 261
+        test("size of a copy") {
+            copied := new string_builder(new string_builder("hello"));
+            expect(copied.size()).should_be(5);
+        };
+
+        // ---- fixed, used to be wrong (6): substring() gives a builder whose cursor was never set (size 1)
+        test("size of substring(2, 5)") {
+            part := new string_builder("abcdefgh").substring(2, 5);
+            expect(part.size()).should_be(3);
+        };
+
+        // ---- fixed, used to be wrong (7): at(length) is allowed (it gives the 0 character) instead of throwing
+        test("at(3) of \"abc\" throws") {
+            sb := abc_builder();
+            expect_throws<out_of_bounds_exception>() { sb.at(3); };
+        };
+
+        // ---- fixed, used to be wrong (8): ends_with throws out_of_bounds_exception for a matching ending
+        // (it indexes the postfix with the position in the builder: `postfix[i]`)
+        test("\"hello\" ends_with \"lo\"") { expect_true(new string_builder("hello").ends_with("lo")); };
+
+        // ---- fixed, used to be wrong (9): after `builder = ""` the next append throws invalid_operation_exception
+        // ("invalid call to memcopy(); dest start: -1"): the empty string arrives in
+        // operator= as null, which sets cursor to -1
+        test("append after = \"\"") {
+            emptied := new string_builder("first");
+            emptied = "";
+            emptied.append("next");
+            expect(emptied.to_string()!!).should_be("next");
+        };
+
+        // ---- STILL OPEN, a compile error so it cannot be a check: += with a char object or with an object of a user class that is
+        // printable does not compile ("call to method `operator+=` is ambiguous" between
+        // the printable, string and string_builder versions) - nothing to run here.
+    };
+}

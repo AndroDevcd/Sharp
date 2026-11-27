@@ -1,0 +1,369 @@
+mod suite.classes.init_blocks;
+
+import ( std.testing )
+
+/**
+ * Init blocks: `init { }` in a class runs for every new object, before the
+ * constructor that was called. Several blocks run from top to bottom. With
+ * a base class the order is: base init blocks, base constructor, the
+ * class's own init blocks, its own constructor.
+ *
+ * `static init { }` runs once for the class, before main() starts.
+ * `init(x: decimal) { }` is something else: it lets a variable of the class be
+ * declared with a number as its value (`m : money = 250;`).
+ *
+ * To show the order, every block and constructor here appends a digit to
+ * the number in `trace`: 123 means block 1 ran, then 2, then 3.
+ *
+ * The fields written by init blocks have no initial value here on purpose,
+ * no init block assigns a string literal, and the class with a loop has a
+ * single init block: see init_blocks_order.sharp and init_blocks_locals.sharp.
+ */
+
+class steps {
+    trace : decimal;
+    ready : decimal;
+
+    init {
+        trace = trace * 10 + 1;
+        ready = 7;
+    }
+
+    steps() {
+        trace = trace * 10 + 3;
+    }
+
+    steps(extra: decimal) {
+        trace = trace * 10 + 4;
+        ready = ready + extra;
+    }
+
+    steps(a: decimal, b: decimal) {
+        trace = trace * 10 + 5;
+        ready = ready * a + b;
+    }
+
+    /* a block written below the constructors still runs before them */
+    init {
+        trace = trace * 10 + 2;
+    }
+}
+
+class lower_steps base steps {
+    lower_ready : decimal;
+
+    init {
+        trace = trace * 10 + 6;
+        lower_ready = ready + 1;
+    }
+
+    lower_steps() -> base() {
+        trace = trace * 10 + 7;
+    }
+
+    lower_steps(extra: decimal) -> base(extra) {
+        trace = trace * 10 + 8;
+    }
+}
+
+class lowest_steps base lower_steps {
+    init {
+        trace = trace * 10 + 9;
+    }
+
+    lowest_steps() -> base() {
+        trace = trace * 10 + 5;
+    }
+}
+
+/* an init block and no constructor at all */
+class only_init {
+    value : decimal;
+    half : decimal;
+
+    init {
+        value = 42;
+        half = value / 2;
+    }
+}
+
+/* init blocks can do anything a method can */
+class table {
+    cells : decimal[]?;
+    total : decimal;
+    size : decimal;
+    origin : marker?;
+
+    init {
+        size = 5;
+        cells = new decimal[5];
+        for(i : decimal = 0; i < 5; i++) {
+            cells[i] = (i + 1) * (i + 1);
+        }
+        fill_total();
+        origin = new marker(size);
+    }
+
+    /* a method called from an init block */
+    def fill_total() {
+        for(i : decimal = 0; i < size; i++) {
+            total = total + cells[i];
+        }
+    }
+
+    table() {
+    }
+}
+
+class marker {
+    number : decimal;
+    doubled : decimal;
+
+    init {
+        doubled = 0 - 1;
+    }
+
+    marker(n: decimal) {
+        number = n;
+        doubled = n * 2;
+    }
+}
+
+/* a constructor sees what the init block left, and can replace it */
+class defaults {
+    width : decimal;
+    height : decimal;
+
+    init {
+        width = 80;
+        height = 24;
+    }
+
+    defaults() {
+    }
+
+    defaults(w: decimal) {
+        width = w;
+    }
+
+    def area(): decimal {
+        return width * height;
+    }
+}
+
+/* init blocks run once per object: this one counts them in a static field */
+class counted {
+    static made : decimal = 0;
+    serial : decimal;
+
+    init {
+        made++;
+        serial = made;
+    }
+
+    counted() {
+    }
+}
+
+/* static init: once for the class, before main */
+class settings {
+    static level : decimal;
+    static squares : decimal[]?;
+    static runs : decimal;
+
+    static init {
+        level = 3;
+        squares = new decimal[4];
+        for(i : decimal = 0; i < 4; i++) {
+            squares[i] = i * i;
+        }
+        runs = runs + 1;
+    }
+
+    value : decimal;
+
+    settings() {
+        value = level * 10;
+    }
+}
+
+/* a static init block and an init block in one class */
+class both_kinds {
+    static shared : decimal;
+    own : decimal;
+
+    static init {
+        shared = 100;
+    }
+
+    init {
+        shared = shared + 1;
+        own = shared;
+    }
+
+    both_kinds() {
+    }
+}
+
+/* init(x): a money variable can be declared with a number as its value */
+class money {
+    cents : decimal;
+    made_from_number : decimal;
+
+    init(c: decimal) {
+        cents = c;
+        made_from_number = 1;
+    }
+
+    def dollars(): decimal {
+        return cents / 100;
+    }
+}
+
+def cents_of(m: money): decimal {
+    return m.cents;
+}
+
+def init_blocks_tests() {
+    tests("init_blocks") {
+        // ---- init blocks run top to bottom, then the constructor
+        test("two init blocks, then the constructor") { expect(new steps().trace).should_be(123); };
+        test("a field set by an init block") { expect(new steps().ready).should_be(7); };
+        test("another constructor: the same blocks run first, and the constructor sees what they set") {
+            s1 := new steps(5);
+            expect(s1.trace).named("trace").should_be(124);
+            expect(s1.ready).named("ready").should_be(12);
+        };
+        test("a third constructor, working with the value from init") {
+            s2 := new steps(3, 4);
+            expect(s2.trace).named("trace").should_be(125);
+            expect(s2.ready).named("ready").should_be(25);
+        };
+        test("the first object is not touched by the others") {
+            s := new steps();
+            s1 := new steps(5);
+            s2 := new steps(3, 4);
+            expect(s.trace).should_be(123);
+        };
+
+        // ---- with a base class
+        test("base inits, base constructor, own init, own constructor") { expect(new lower_steps().trace).should_be(12367); };
+        test("the class's init block sees what the base set up") { expect(new lower_steps().lower_ready).should_be(8); };
+        test("the base constructor that was chosen runs between the inits, and its work is visible to the class's init block") {
+            low1 := new lower_steps(10);
+            expect(low1.trace).named("trace").should_be(12468);
+            expect(low1.lower_ready).named("lower_ready").should_be(18);
+        };
+        test("three levels: each class's init, then its constructor") { expect(new lowest_steps().trace).should_be(1236795); };
+        test("three levels: a field from the middle class") { expect(new lowest_steps().lower_ready).should_be(8); };
+        test("three levels: a field from the top class") { expect(new lowest_steps().ready).should_be(7); };
+
+        // ---- a class with init blocks and no constructor
+        test("init runs without a constructor being written, for every field it sets") {
+            o := new only_init();
+            expect(o.value).named("value").should_be(42);
+            expect(o.half).named("half").should_be(21);
+        };
+
+        // ---- what an init block can do
+        test("an array made in an init block, filled by a loop") {
+            t := new table();
+            expect(sizeof(t.cells)).named("length").should_be(5);
+            expect(t.cells[0]).named("first").should_be(1);
+            expect(t.cells[4]).named("last").should_be(25);
+        };
+        test("a method called from the init block") { expect(new table().total).should_be(55); };
+        test("an object made in an init block, whose own init block and constructor ran") {
+            t := new table();
+            expect_not_null(t.origin);
+            expect(t.origin!!.number).named("constructor argument").should_be(5);
+            expect(t.origin!!.doubled).named("constructor wins").should_be(10);
+        };
+
+        // ---- a constructor after an init block
+        test("values from the init block, used by a method") {
+            d := new defaults();
+            expect(d.width).named("width").should_be(80);
+            expect(d.height).named("height").should_be(24);
+            expect(d.area()).named("area()").should_be(1920);
+        };
+        test("a constructor replacing one of them, the other stays") {
+            wide := new defaults(132);
+            expect(wide.width).named("width").should_be(132);
+            expect(wide.height).named("height").should_be(24);
+            expect(wide.area()).named("area()").should_be(3168);
+        };
+
+        // ---- once per object
+        // (the only test that makes `counted` objects, so the static count starts at 0 here)
+        test("init blocks run once per object") {
+            expect(counted.made).named("no object yet").should_be(0);
+            c1 := new counted();
+            c2 := new counted();
+            c3 := new counted();
+            expect(counted.made).named("three objects, three runs").should_be(3);
+            expect(c1.serial).named("first object's number").should_be(1);
+            expect(c2.serial).named("second object's number").should_be(2);
+            expect(c3.serial).named("third object's number").should_be(3);
+            for(i : decimal = 0; i < 10; i++) {
+                extra := new counted();
+            }
+            expect(counted.made).named("ten more in a loop").should_be(13);
+        };
+
+        // ---- static init
+        tests("static_init") {
+            after_each { settings.level = 3; };
+
+            test("static init ran before main, once") {
+                expect(settings.level).named("number").should_be(3);
+                expect(sizeof(settings.squares)).named("array length").should_be(4);
+                expect(settings.squares[3]).named("array element").should_be(9);
+                expect(settings.runs).named("runs").should_be(1);
+            };
+            test("a constructor using what static init set; creating objects does not run static init again") {
+                first_settings := new settings();
+                second_settings := new settings();
+                expect(first_settings.value).named("value").should_be(30);
+                expect(settings.runs).named("runs").should_be(1);
+            };
+            test("a later object sees a later change, and an earlier one keeps its value") {
+                second_settings := new settings();
+                settings.level = 5;
+                expect(new settings().value).named("the later object").should_be(50);
+                expect(second_settings.value).named("the earlier object").should_be(30);
+            };
+        };
+
+        // ---- static init and init in one class
+        // (the only test that makes `both_kinds` objects, so the static is still 100 here)
+        test("static init alone before any object, then init for each object") {
+            expect(both_kinds.shared).named("before any object").should_be(100);
+            k1 := new both_kinds();
+            k2 := new both_kinds();
+            expect(k1.own).named("init ran for the first object").should_be(101);
+            expect(k2.own).named("init ran for the second object").should_be(102);
+            expect(both_kinds.shared).named("the static they share").should_be(102);
+        };
+
+        // ---- init(x): a variable declared with a number
+        test("a number assigned to a money variable, made by the init(x) block, is a full object") {
+            m : money = 250;
+            expect(m.cents).named("cents").should_be(250);
+            expect(m.made_from_number).named("made by init(x)").should_be(1);
+            expect(m.dollars()).named("dollars()").should_be(2.5);
+        };
+        test("from an expression: the two are separate objects") {
+            m : money = 250;
+            n : money = 100 + 23;
+            expect(n.cents).named("the new one").should_be(123);
+            expect(m.cents).named("the first one").should_be(250);
+        };
+        test("from a var variable, passed on like any other object") {
+            amount : decimal = 75;
+            from_variable : money = amount;
+            expect(from_variable.cents).named("cents").should_be(75);
+            expect(cents_of(from_variable)).named("passed on").should_be(75);
+        };
+    };
+}

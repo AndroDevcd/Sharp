@@ -1,0 +1,75 @@
+mod suite.library.coroutines.closure_across_fibers;
+
+import (
+    std.testing,
+    std.io.fiber
+)
+
+/**
+ * THE BUG THIS GUARDS (language, fixed): a lambda that used a local variable
+ * of the function that created it only saw that variable on the fiber that
+ * created it. On any other fiber the variable read as null.
+ *
+ * WHERE
+ *   The compiler kept captured locals in one "closure object" per enclosing
+ *   function, and the reference to that object lived in fiber-local storage
+ *   (closure_ref_<function> was created as a localized field, in the
+ *   compiler's code around create_closure_field / staticClosureRef;
+ *   platform.tls_init() gave every new fiber a fresh, empty closure object).
+ *   Now a function value is an object that carries the variables its lambda
+ *   captured (platform/kernel/function_value.sharp), so they are there on
+ *   whatever fiber the lambda runs.
+ *
+ * WHAT std.io.coroutines DID ABOUT IT
+ *   Everything that runs a block on another fiber (launch, async, produce,
+ *   launch_on, with_context, invoke_on_completion) got an overload that takes
+ *   a state object and hands it to the block: launch(state, { s: object -> ... }).
+ *   (They are still there, and no longer needed for this.) Blocks that run
+ *   in-line in the caller (coroutine_scope, run_blocking, with_timeout,
+ *   mutex.with_lock, channel.for_each) captured normally.
+ *   See "THE CLOSURE RULE" in std/io/coroutines/builders.sharp.
+ *
+ * EXPECTED: both checks pass. Before the fix the lambda on the other fiber
+ * died with a nullptr_exception (it was printed as an unhandled exception)
+ * and the second check failed.
+ */
+
+class box { value : decimal = 0; }
+
+seen_on_other_fiber := new box();      // a global: every fiber can see it
+finished := new box();
+
+def call_it(block: ()()) {
+    block();
+}
+
+def closure_across_fibers_tests() {
+    tests("closure_across_fibers") {
+        // 1. the lambda runs on the fiber that created it
+        test("a captured local on the same fiber") {
+            captured := new box();
+            captured.value = 7;
+            same := new box();
+            call_it({ -> same.value = captured.value; });
+            expect(same.value).should_be(7);
+        };
+
+        // 2. the same kind of lambda runs on another fiber
+        test("a captured local on another fiber") {
+            seen_on_other_fiber.value = 0;
+            finished.value = 0;
+            captured := new box();
+            captured.value = 7;
+            slice({ a: object[] -> (int)
+                seen_on_other_fiber.value = captured.value;     // `captured` was null here before the fix
+                finished.value = 1;
+                return 0;
+            });
+
+            for(i : decimal = 0; i < 200 && finished.value == 0; i++) {
+                delay(5);
+            }
+            expect(seen_on_other_fiber.value).should_be(7);
+        };
+    };
+}

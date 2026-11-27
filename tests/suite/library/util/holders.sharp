@@ -1,0 +1,645 @@
+mod suite.library.util.holders;
+
+import ( std.testing, std.util )
+
+/**
+ * std.util - the holder classes: optional<T>, either<L, R>, ref<T>, lazy<T>,
+ * counter, id_generator and bit_flags, plus the preconditions checks.
+ */
+
+/* counts how often the lazy supplier below has run (a lambda can change an object, not a local) */
+supplier_runs : decimal = 0;
+
+def make_text(): string {
+    supplier_runs++;
+    return "computed";
+}
+
+/* run a lambda (lambdas are passed as arguments; a local needs its full function type written out) */
+def call(action: ()()) {
+    action();
+}
+
+def call_with(action: (int)(), n: int) {
+    action(n);
+}
+
+def check_optional() {
+    tests("optional") {
+        full : optional<string>;
+        none : optional<string>;
+        before_each {
+            full = optional<string>.of("ada");
+            none = optional<string>.empty();
+        };
+
+        test("of: is_present") { expect_true(full.is_present()); };
+        test("of: is_empty") { expect_false(full.is_empty()); };
+        test("empty: is_present") { expect_false(none.is_present()); };
+        test("empty: is_empty") { expect_true(none.is_empty()); };
+        test("value") { expect(full.value()).should_be("ada"); };
+        test("or_else on a value") { expect(full.or_else("nobody")).should_be("ada"); };
+        test("or_else on empty") { expect(none.or_else("nobody")).should_be("nobody"); };
+        test("or_else_get on a value") { expect(full.or_else_get({ -> (string) return "made"; })).should_be("ada"); };
+        test("or_else_get on empty") { expect(none.or_else_get({ -> (string) return "made"; })).should_be("made"); };
+        test("or_null on a value") { expect_not_null(full.or_null()); };
+        test("or_null on empty") { expect_null(none.or_null()); };
+        test("or_throw on a value") { expect(full.or_throw("missing")).should_be("ada"); };
+
+        test("value() on empty throws") {
+            expect_throws<no_such_element_exception>() { none.value(); };
+        };
+        test("or_throw on empty throws, with the message") {
+            message : string = "nothing caught";
+            try {
+                none.or_throw("no user");
+                fail_test("no exception");
+            } catch(e: no_such_element_exception) {
+                message = e.get_message();
+            }
+            expect(message).should_be("no user");
+        };
+
+        test("of_nullable(null) is empty") {
+            maybe : string? = null;
+            expect_false(optional<string>.of_nullable(maybe).is_present());
+        };
+        test("of_nullable(value) is present") { expect_true(optional<string>.of_nullable("x").is_present()); };
+
+        test("map, which leaves the original alone") {
+            shouted := full.map({ s: string -> (string) return s + "!"; });
+            expect(shouted.value()).named("map").should_be("ada!");
+            expect(full.value()).named("the original").should_be("ada");
+        };
+        test("map on empty stays empty") { expect_false(none.map({ s: string -> (string) return s + "!"; }).is_present()); };
+        test("filter keeps a match") {
+            kept := full.filter({ s: string -> (bool) return s.size() == 3; });
+            expect_true(kept.is_present());
+        };
+        test("filter drops a mismatch") {
+            dropped := full.filter({ s: string -> (bool) return s.size() == 5; });
+            expect_false(dropped.is_present());
+        };
+        test("filter on empty stays empty") { expect_false(none.filter({ s: string -> (bool) return true; }).is_present()); };
+        test("or: the first when present") { expect(full.or(optional<string>.of("other")).value()).should_be("ada"); };
+        test("or: the second when empty") { expect(none.or(optional<string>.of("other")).value()).should_be("other"); };
+
+        test("if_present runs for a value") {
+            seen := new ref<string>("");
+            full.if_present({ s: string -> seen.value = s; });
+            expect(seen.value).should_be("ada");
+        };
+        test("if_present does not run for empty") {
+            seen := new ref<string>("untouched");
+            none.if_present({ s: string -> seen.value = s; });
+            expect(seen.value).should_be("untouched");
+        };
+
+        test("optional<int>") {
+            numbers := optional<int>.of(41);
+            expect(numbers.map({ n: int -> (int) return n + 1; }).value().value).should_be(42);
+        };
+    };
+}
+
+def check_either() {
+    tests("either") {
+        good : either<string, int>;
+        bad : either<string, int>;
+        before_each {
+            good = either<string, int>.right(8080);
+            bad = either<string, int>.left("no port");
+        };
+
+        test("right: is_right") { expect_true(good.is_right()); };
+        test("right: is_left") { expect_false(good.is_left()); };
+        test("left: is_left") { expect_true(bad.is_left()); };
+        test("left: is_right") { expect_false(bad.is_right()); };
+        test("right_value") { expect(good.right_value().value).should_be(8080); };
+        test("left_value") { expect(bad.left_value()).should_be("no port"); };
+        test("right_or on a right") { expect(good.right_or(1).value).should_be(8080); };
+        test("right_or on a left") { expect(bad.right_or(1).value).should_be(1); };
+        test("left_or on a left") { expect(bad.left_or("fine")).should_be("no port"); };
+        test("left_or on a right") { expect(good.left_or("fine")).should_be("fine"); };
+        test("left_or_null on a right") { expect_null(good.left_or_null()); };
+        test("right_or_null on a right") { expect_not_null(good.right_or_null()); };
+        test("right_or_null on a left") { expect_null(bad.right_or_null()); };
+
+        test("the missing side throws") {
+            expect_throws<no_such_element_exception>() { good.left_value(); };
+            expect_throws<no_such_element_exception>() { bad.right_value(); };
+        };
+
+        test("swap turns a right into a left, and keeps the value") {
+            swapped := good.swap();
+            expect_true(swapped.is_left());
+            expect(swapped.left_value().value).named("swap keeps the value").should_be(8080);
+        };
+        test("swap turns a left into a right") { expect_true(bad.swap().is_right()); };
+        test("swap twice gives the original back") {
+            swapped := good.swap();
+            expect(swapped.swap().right_value().value).should_be(8080);
+        };
+
+        test("map_right") {
+            next_port := good.map_right({ n: int -> (int) return n + 1; });
+            expect(next_port.right_value().value).should_be(8081);
+        };
+        test("map_right leaves a left alone") { expect_true(bad.map_right({ n: int -> (int) return n + 1; }).is_left()); };
+        test("map_left") {
+            louder := bad.map_left({ s: string -> (string) return s + "!"; });
+            expect(louder.left_value()).should_be("no port!");
+        };
+        test("map_left leaves a right alone") { expect(good.map_left({ s: string -> (string) return s + "!"; }).right_value().value).should_be(8080); };
+
+        test("if_left") {
+            note := new ref<string>("");
+            bad.if_left({ s: string -> note.value = s; });
+            expect(note.value).should_be("no port");
+        };
+        test("if_left does not run for a right") {
+            note := new ref<string>("no port");
+            good.if_left({ s: string -> note.value = "wrong"; });
+            expect(note.value).should_be("no port");
+        };
+        test("if_right") {
+            note := new ref<string>("no port");
+            good.if_right({ n: int -> note.value = "right"; });
+            expect(note.value).should_be("right");
+        };
+        test("to_optional of a right") { expect_true(good.to_optional().is_present()); };
+        test("to_optional of a left") { expect_false(bad.to_optional().is_present()); };
+    };
+}
+
+def check_ref() {
+    tests("ref") {
+        test("value") {
+            holder := new ref<string>("first");
+            expect(holder.value).should_be("first");
+        };
+        test("assign") {
+            holder := new ref<string>("first");
+            holder.value = "second";
+            expect(holder.value).should_be("second");
+        };
+        test("replace returns the old value and stores the new one") {
+            holder := new ref<string>("second");
+            old := holder.replace("third");
+            expect(old).named("replace returns the old value").should_be("second");
+            expect(holder.value).named("replace stores the new value").should_be("third");
+        };
+        test("swap exchanges the values of two refs") {
+            holder := new ref<string>("third");
+            other := new ref<string>("other");
+            holder.swap(other);
+            expect(holder.value).named("swap: this").should_be("other");
+            expect(other.value).named("swap: other").should_be("third");
+        };
+        test("update returns and stores the result") {
+            holder := new ref<string>("other");
+            expect(holder.update({ s: string -> (string) return s + "+"; })).named("update").should_be("other+");
+            expect(holder.value).named("update stores the result").should_be("other+");
+        };
+        test("same_as: a ref to the same object, and to another one") {
+            holder := new ref<string>("other+");
+            other := new ref<string>("third");
+            shared := new ref<string>(holder.value);
+            expect_true(holder.same_as(shared));
+            expect_false(holder.same_as(other));
+        };
+
+        // the reason the class exists: a lambda changing something outside itself
+        test("a lambda can change what a ref holds") {
+            total := new ref<int>(0);
+            call_with({ n: int -> total.value = total.value + n; }, 5);
+            call_with({ n: int -> total.value = total.value + n; }, 7);
+            expect(total.value.value).should_be(12);
+        };
+    };
+}
+
+def check_lazy() {
+    tests("lazy") {
+        later : lazy<string>;
+        before_each {
+            supplier_runs = 0;
+            later = new lazy<string>(make_text);
+        };
+
+        test("not initialized at first, and the supplier has not run") {
+            expect_false(later.is_initialized());
+            expect(supplier_runs).named("the supplier has not run").should_be(0);
+        };
+        test("value runs the supplier once, and it is initialized after value()") {
+            expect(later.value()).named("value").should_be("computed");
+            expect(supplier_runs).named("the supplier ran once").should_be(1);
+            expect_true(later.is_initialized());
+        };
+        test("value again does not run the supplier again") {
+            later.value();
+            expect(later.value()).named("value again").should_be("computed");
+            expect(supplier_runs).named("the supplier did not run again").should_be(1);
+        };
+        test("reset forgets the value; value after reset runs the supplier a second time") {
+            later.value();
+            later.reset();
+            expect_false(later.is_initialized());
+            expect(later.value()).named("value after reset").should_be("computed");
+            expect(supplier_runs).named("the supplier ran a second time").should_be(2);
+        };
+
+        test("of_value is initialized, with the value") {
+            ready := lazy<string>.of_value("given");
+            expect_true(ready.is_initialized());
+            expect(ready.value()).named("of_value").should_be("given");
+        };
+        test("of_value survives reset") {
+            ready := lazy<string>.of_value("given");
+            ready.reset();
+            expect(ready.value()).should_be("given");
+        };
+
+        test("a lambda as supplier") {
+            from_lambda := new lazy<string>({ -> (string) return "from a lambda"; });
+            expect(from_lambda.value()).should_be("from a lambda");
+        };
+    };
+}
+
+def check_preconditions() {
+    tests("preconditions") {
+        test("true conditions do not throw") {
+            preconditions.require(1 < 2, "never thrown");
+            preconditions.require(true);
+            preconditions.check(2 > 1, "never thrown");
+            preconditions.check(true);
+        };
+
+        test("require(false) throws, with the message") {
+            message : string = "nothing caught";
+            try {
+                preconditions.require(1 > 2, "amount must be positive");
+                fail_test("no exception");
+            } catch(e: illegal_argument_exception) {
+                message = e.get_message();
+            }
+            expect(message).should_be("amount must be positive");
+        };
+        test("require(false) without message throws, with the default message") {
+            message : string = "nothing caught";
+            try {
+                preconditions.require(false);
+                fail_test("no exception");
+            } catch(e: illegal_argument_exception) {
+                message = e.get_message();
+            }
+            expect(message).should_be("requirement failed");
+        };
+        test("check(false) throws, with the message") {
+            message : string = "nothing caught";
+            try {
+                preconditions.check(false, "the account is closed");
+                fail_test("no exception");
+            } catch(e: illegal_state_exception) {
+                message = e.get_message();
+            }
+            expect(message).should_be("the account is closed");
+        };
+        test("check(false) without message throws, with the default message") {
+            message : string = "nothing caught";
+            try {
+                preconditions.check(false);
+                fail_test("no exception");
+            } catch(e: illegal_state_exception) {
+                message = e.get_message();
+            }
+            expect(message).should_be("check failed");
+        };
+
+        test("require_not_null returns the object") {
+            thing : string = "here";
+            expect_not_null(preconditions.require_not_null(thing, "missing"));
+        };
+        test("require_not_null(null) throws, with the message") {
+            nothing : string? = null;
+            message : string = "nothing caught";
+            try {
+                preconditions.require_not_null(nothing, "name is missing");
+                fail_test("no exception");
+            } catch(e: nullptr_exception) {
+                message = e.get_message();
+            }
+            expect(message).should_be("name is missing");
+        };
+
+        test("require_index returns the index") { expect(preconditions.require_index(2, 3)).should_be(2); };
+        test("require_index outside throws") {
+            expect_throws<out_of_bounds_exception>() { preconditions.require_index(3, 3); };
+            expect_throws<out_of_bounds_exception>() { preconditions.require_index(0 - 1, 3); };
+            expect_throws<out_of_bounds_exception>() { preconditions.require_index(0, 0); };
+        };
+        test("require_index message") {
+            message : string = "nothing caught";
+            try {
+                preconditions.require_index(7, 3);
+            } catch(e: out_of_bounds_exception) {
+                message = e.get_message();
+            }
+            expect(message).should_be("index 7 is outside 0 .. 3 (exclusive)");
+        };
+
+        test("require_in_range returns the value") { expect(preconditions.require_in_range(5, 1, 10, "bad")).should_be(5); };
+        test("require_in_range includes the ends") { expect(preconditions.require_in_range(10, 1, 10, "bad")).should_be(10); };
+        test("require_in_range outside throws, with the message") {
+            message : string = "nothing caught";
+            try {
+                preconditions.require_in_range(11, 1, 10, "volume must be 1 .. 10");
+                fail_test("no exception");
+            } catch(e: illegal_argument_exception) {
+                message = e.get_message();
+            }
+            expect(message).should_be("volume must be 1 .. 10");
+        };
+
+        test("require_not_empty returns the text") { expect(preconditions.require_not_empty("abc", "empty")).should_be("abc"); };
+        test("require_not_empty throws for empty and null") {
+            nothing : string? = null;
+            expect_throws<illegal_argument_exception>() { preconditions.require_not_empty("", "empty"); };
+            expect_throws<illegal_argument_exception>() { preconditions.require_not_empty(nothing, "empty"); };
+        };
+
+        test("error() throws, with the message") {
+            message : string = "nothing caught";
+            try {
+                preconditions.error("unknown shape");
+                fail_test("no exception");
+            } catch(e: illegal_state_exception) {
+                message = e.get_message();
+            }
+            expect(message).should_be("unknown shape");
+        };
+        test("todo() throws, with the message") {
+            message : string = "nothing caught";
+            try {
+                preconditions.todo("the export");
+                fail_test("no exception");
+            } catch(e: not_implemented_error) {
+                message = e.get_message();
+            }
+            expect(message).should_be("not implemented: the export");
+        };
+        test("todo() without text throws, with the default message") {
+            message : string = "nothing caught";
+            try {
+                preconditions.todo();
+                fail_test("no exception");
+            } catch(e: not_implemented_error) {
+                message = e.get_message();
+            }
+            expect(message).should_be("not implemented");
+        };
+    };
+}
+
+def check_counter() {
+    tests("counter") {
+        c : counter;
+        before_each { c = new counter(); };
+
+        test("starts at 0") { expect(c.value).should_be(0); };
+        test("is_zero") { expect_true(c.is_zero()); };
+        test("increment returns the new value") {
+            expect(c.increment()).named("increment").should_be(1);
+            expect(c.increment()).named("increment again").should_be(2);
+        };
+        test("decrement") {
+            c.value = 2;
+            expect(c.decrement()).should_be(1);
+        };
+        test("add, also a negative fraction") {
+            c.value = 1;
+            expect(c.add(10)).named("add").should_be(11);
+            expect(c.add(0 - 0.5)).named("add a negative fraction").should_be(10.5);
+        };
+        test("the field can be assigned") {
+            c.value = 3;
+            expect(c.value).should_be(3);
+        };
+        test("next returns the old value, and then counts up") {
+            c.value = 3;
+            expect(c.next()).named("next returns the old value").should_be(3);
+            expect(c.value).named("...and then counts up").should_be(4);
+        };
+        test("reset, and to_string") {
+            c.value = 4;
+            c.reset();
+            expect(c.value).named("reset").should_be(0);
+            expect(c.to_string()!!).named("to_string").should_be("0");
+        };
+
+        test("to_string of 15") {
+            from_ten := new counter(10);
+            from_ten.add(5);
+            expect(from_ten.to_string()!!).should_be("15");
+        };
+        test("reset returns to the start") {
+            from_ten := new counter(10);
+            from_ten.add(5);
+            from_ten.reset();
+            expect(from_ten.value).should_be(10);
+        };
+
+        // counting from inside a lambda
+        test("a lambda can count") {
+            calls := new counter();
+            call({ -> calls.increment(); });
+            call({ -> calls.increment(); });
+            call({ -> calls.increment(); });
+            expect(calls.value).should_be(3);
+        };
+    };
+}
+
+def check_id_generator() {
+    tests("id_generator") {
+        ids : id_generator;
+        before_each { ids = new id_generator(); };
+
+        test("peek") { expect(ids.peek()).should_be(1); };
+        test("ids count up from 1") {
+            expect(ids.next_id()).named("first id").should_be(1);
+            expect(ids.next_id()).named("second id").should_be(2);
+            expect(ids.next_id()).named("third id").should_be(3);
+            expect(ids.last_id()).named("last_id").should_be(3);
+            expect(ids.issued()).named("issued").should_be(3);
+        };
+        test("peek does not use an id up") {
+            ids.next_id(); ids.next_id(); ids.next_id();
+            expect(ids.peek() + ids.peek()).named("peek twice").should_be(8);
+            expect(ids.next_text()).named("next_text without a prefix").should_be("4");
+        };
+        test("reset") {
+            ids.next_id(); ids.next_id();
+            ids.reset();
+            expect(ids.next_id()).should_be(1);
+        };
+
+        test("custom start") {
+            from_100 := new id_generator(100);
+            expect(from_100.next_id()).named("custom start").should_be(100);
+            expect(from_100.next_id()).named("custom start continues").should_be(101);
+        };
+
+        test("prefixed text, and text and numbers share one sequence") {
+            tickets := new id_generator("T-", 1000);
+            expect(tickets.next_text()).named("prefixed text").should_be("T-1000");
+            expect(tickets.next_text()).named("prefixed text continues").should_be("T-1001");
+            expect(tickets.next_id()).named("text and numbers share one sequence").should_be(1002);
+            expect(tickets.issued()).named("issued with a custom start").should_be(3);
+        };
+
+        test("generators are independent") {
+            ids.next_id(); ids.next_id();
+            other := new id_generator();
+            expect(other.next_id()).should_be(1);
+        };
+        test("a fractional start throws") {
+            expect_throws<illegal_argument_exception>() { new id_generator(1.5); };
+        };
+    };
+}
+
+def check_bit_flags() {
+    tests("bit_flags") {
+        read : decimal;
+        write : decimal;
+        execute : decimal;
+        access : bit_flags;
+        before_each {
+            read = 1;
+            write = 2;
+            execute = 4;
+            access = new bit_flags();
+        };
+
+        test("flag(0)") { expect(bit_flags.flag(0)).should_be(1); };
+        test("flag(1)") { expect(bit_flags.flag(1)).should_be(2); };
+        test("flag(5)") { expect(bit_flags.flag(5)).should_be(32); };
+        test("flag(31)") { expect(bit_flags.flag(31)).should_be(2147483648); };
+
+        test("starts empty") { expect_true(access.is_empty()); };
+        test("value of the empty set") { expect(access.value).should_be(0); };
+        test("add, and adding twice changes nothing") {
+            access.add(read);
+            access.add(write);
+            expect(access.value).named("add").should_be(3);
+            access.add(write);
+            expect(access.value).named("adding twice changes nothing").should_be(3);
+        };
+
+        tests("read_write") {
+            before_each {
+                access.add(read);
+                access.add(write);
+            };
+
+            test("has") { expect_true(access.has(write)); };
+            test("has all of two") { expect_true(access.has(read + write)); };
+            test("has not all") { expect_false(access.has(read + execute)); };
+            test("has_any") { expect_true(access.has_any(read + execute)); };
+            test("has_any of none") { expect_false(access.has_any(execute)); };
+            test("has_none") { expect_true(access.has_none(execute)); };
+            test("has_none when one is set") { expect_false(access.has_none(write + execute)); };
+            test("has the empty mask") { expect_true(access.has(0)); };
+            test("count") { expect(access.count()).should_be(2); };
+            test("remove, and removing twice changes nothing") {
+                access.remove(read);
+                expect(access.value).named("remove").should_be(2);
+                access.remove(read);
+                expect(access.value).named("removing twice changes nothing").should_be(2);
+            };
+        };
+
+        test("toggle on and off") {
+            access.add(write);
+            access.toggle(execute);
+            expect(access.value).named("toggle on").should_be(6);
+            access.toggle(write);
+            expect(access.value).named("toggle off").should_be(4);
+        };
+        test("assign true and false") {
+            access.add(execute);
+            access.assign(read, true);
+            expect(access.value).named("assign true").should_be(5);
+            access.assign(execute, false);
+            expect(access.value).named("assign false").should_be(1);
+        };
+        test("chained calls, and to_string") {
+            access.add(read);
+            expect(access.clear().add(write).add(execute).value).named("chained calls").should_be(6);
+            expect(access.to_string()!!).named("to_string").should_be("110");
+        };
+        test("to_string of the empty set") { expect(new bit_flags().to_string()!!).should_be("0"); };
+
+        tests("sets") {
+            start : bit_flags;
+            before_each {
+                start = new bit_flags(read + execute);
+                access.add(write);
+                access.add(execute);
+            };
+
+            test("constructor with a mask") { expect(start.value).should_be(5); };
+            test("union_with") {
+                joined := start.union_with(access);
+                expect(joined.value).should_be(7);
+            };
+            test("intersection") {
+                common := start.intersection(access);
+                expect(common.value).should_be(4);
+            };
+            test("the operands are unchanged") {
+                joined := start.union_with(access);
+                common := start.intersection(access);
+                expect(start.value * 10 + access.value).should_be(56);
+            };
+            test("copy_of is independent") {
+                twin := start.copy_of();
+                twin.add(write);
+                expect(start.value).should_be(5);
+            };
+            test("==") { expect_true((start == new bit_flags(5))); };
+            test("!=") {
+                twin := start.copy_of();
+                twin.add(write);
+                expect_true((start != twin));
+            };
+        };
+        test("flag 31") {
+            high := new bit_flags(bit_flags.flag(31));
+            expect_true(high.has(2147483648));
+        };
+        test("count of all 32") { expect(new bit_flags(4294967295).count()).should_be(32); };
+
+        test("bad masks throw") {
+            expect_throws<illegal_argument_exception>() { access.add(0 - 1); };
+            expect_throws<illegal_argument_exception>() { access.has(1.5); };
+            expect_throws<illegal_argument_exception>() { new bit_flags(4294967296); };
+            expect_throws<illegal_argument_exception>() { bit_flags.flag(32); };
+        };
+    };
+}
+
+def holders_tests() {
+    tests("holders") {
+        check_optional();
+        check_either();
+        check_ref();
+        check_lazy();
+        check_preconditions();
+        check_counter();
+        check_id_generator();
+        check_bit_flags();
+    };
+}

@@ -1,0 +1,38 @@
+mod suite.control.ternary_nullable_side;
+
+import ( std.testing )
+
+/**
+ * `?:` with a `T` on one side and a `T?` (or null) on the other, in either
+ * order: the result is a `T?`.
+ *
+ *      def pick(first: decimal, a: node, b: node?) : node? { return first ? a : b; }
+ *
+ * (It was error S8028, "nullability mismatch".)
+ */
+
+class node { value : decimal; }
+
+def pick(first: decimal, a: node, b: node?) : node? { return first ? a : b; }
+
+def ternary_nullable_side_tests() {
+    tests("ternary_nullable_side") {
+        n : node;
+        before_each {
+            n = new node();
+            n.value = 4;
+        };
+
+        test("the non-null side") { expect(pick(1, n, null)!!.value).should_be(4); };
+        test("the nullable side") { expect_true(pick(0, n, null) == null); };
+
+        test("null written on the second side") {
+            second : node? = n.value == 0 ? n : null;
+            expect_true(second == null);
+        };
+        test("null written on the first side") {
+            first : node? = n.value == 0 ? null : n;
+            expect(first!!.value).should_be(4);
+        };
+    };
+}

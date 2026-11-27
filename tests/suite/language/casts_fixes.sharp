@@ -1,0 +1,83 @@
+mod suite.language.casts_fixes;
+
+import ( std.testing )
+
+/**
+ * THE BUGS THIS GUARDS (fixed), all around casts:
+ *
+ * 1. A cast to an unrelated class was not checked. `a_dog as cat` raised
+ *    nothing and gave a `cat` reference to a dog object; methods of cat could
+ *    then be called on it. (Only a cast between an array and a class was
+ *    checked - that one is in language/casts.sharp.) Now a wrong cast raises
+ *    an exception. The same went for `object as <wrong class>`.
+ *
+ * 2. `is` answered true for any class: `a_dog is cat` was true.
+ *
+ * 3. A number passed to a sized PARAMETER was not cut to its size:
+ *    `def f(x: _int8)` called with 200 saw 200, although a local, a field
+ *    and a return value of type _int8 all held -56.
+ */
+
+class animal {
+    name : string;
+    animal(n: string) { name = n; }
+}
+
+class dog base animal {
+    dog(n: string) -> base(n) {}
+    def fetch() : decimal { return 1; }
+}
+
+class cat base animal {
+    cat(n: string) -> base(n) {}
+    def purr() : decimal { return 2; }
+}
+
+class unrelated {
+    v : decimal;
+}
+
+def through_int8(x: _int8) : decimal { return x; }
+def through_uint8(x: _uint8) : decimal { return x; }
+def through_int16(x: _int16) : decimal { return x; }
+
+def casts_fixes_tests() {
+    tests("casts_fixes") {
+        // ---- 1. casts to the wrong class must raise an exception
+        test("dog as cat") {
+            a_dog : animal = new dog("rex");
+            expect_throws<exception>() { wrong := a_dog as cat; };
+        };
+        test("object holding a dog, as cat") {
+            anything : object = new dog("rex");
+            expect_throws<exception>() { wrong := anything as cat; };
+        };
+        test("object holding an unrelated class, as dog") {
+            anything : object = new unrelated();
+            expect_throws<exception>() { wrong := anything as dog; };
+        };
+        test("object holding a string, as dog") {
+            anything : object = new string("text");
+            expect_throws<exception>() { wrong := anything as dog; };
+        };
+
+        // ---- 2. `is`
+        test("a dog is a dog") {
+            a_dog : animal = new dog("rex");
+            expect_true(a_dog is dog);
+        };
+        test("a dog is an animal") {
+            a_dog : animal = new dog("rex");
+            expect_true(a_dog is animal);
+        };
+        test("a dog is not a cat") {
+            a_dog : animal = new dog("rex");
+            expect_false(a_dog is cat);
+        };
+
+        // ---- 3. sized parameters
+        test("200 passed to an _int8 parameter") { expect(through_int8(200)).should_be(0 - 56); };
+        test("300 passed to a _uint8 parameter") { expect(through_uint8(300)).should_be(44); };
+        test("70000 passed to an _int16 parameter") { expect(through_int16(70000)).should_be(4464); };
+    };
+}

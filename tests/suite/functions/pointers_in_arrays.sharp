@@ -1,0 +1,16 @@
+mod suite.functions.pointers_in_arrays;
+import ( std.testing )
+def twice(x: decimal): decimal { return x * 2; }
+def thrice(x: decimal): decimal { return x * 3; }
+def pointers_in_arrays_tests() {
+    tests("pointers_in_arrays") {
+        fns : (decimal)(decimal)[];
+        before_each {
+            fns = new (decimal)(decimal)[2];
+            fns[0] = twice;
+            fns[1] = thrice;
+        };
+        test("called straight out of an array") { expect(fns[0](4)).should_be(8); };
+        test("second") { expect(fns[1](4)).should_be(12); };
+    };
+}

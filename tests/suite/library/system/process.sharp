@@ -1,0 +1,443 @@
+mod suite.library.system.process;
+
+import ( std.testing, std.io, std.system )
+
+/**
+ * std.system process (running shell commands, exit codes, captured
+ * output, input, environment) and platform_info, and std ansi / console
+ * (the parts that do not need a person at the keyboard).
+ *
+ * The commands are those of the system's shell: plain POSIX shell (echo,
+ * printf, cat, exit, test) in test_process, cmd.exe's in test_process_windows.
+ * Works only inside /tmp/sharp_suite_io_process (on windows:
+ * sharp_suite_io_process in the directory for temporary files) and removes it
+ * at the end.
+ */
+
+/** is this windows? (its paths are written with back slashes) */
+def on_windows(): bool {
+    return std.io#path.separator() != '/';
+}
+
+/** `path`, written with slashes here, the way this system writes it */
+def os(path: string): string {
+    return io_strings.replace_char(path, '/', std.io#path.separator());
+}
+
+/** the folder this test works in: below /tmp, or on windows below the directory for temporary files */
+def suite_dir(name: string): string {
+    return on_windows() ? os(temp_files.directory() + "/" + name) : "/tmp/" + name;
+}
+
+base_dir : string = suite_dir("sharp_suite_io_process");
+
+/** a dollar sign (it cannot be written inside a string literal, where it starts an interpolation) */
+def dollar(): string {
+    return io_strings.from_char(36);
+}
+
+def esc(): string {
+    return io_strings.from_char(27);
+}
+
+/** base_dir, made new and empty: true when it could be made */
+def fresh_base_dir() : bool {
+    start := new file(base_dir);
+    start.delete_recursively();
+    return start.mkdirs();
+}
+
+/** base_dir/dir with space/file name.txt, holding "content\n" */
+def spaced_file() : file {
+    spaced := new file(base_dir + "/dir with space/file name.txt");
+    spaced.parent()!!.mkdirs();
+    spaced.write_text("content\n");
+    return spaced;
+}
+
+/** how many capture files (sharp_proc_...) are in the folder `dir` */
+def capture_files_in(dir: string) : decimal {
+    left : decimal = 0;
+    names := new file(dir).list_names();
+    foreach(name in names) {
+        if(io_strings.starts_with(name, "sharp_proc_")) {
+            left++;
+        }
+    }
+    return left;
+}
+
+/**
+ * The work folder, and the capture files. Each test makes base_dir new; the
+ * temporary directory is set to a folder of this group's own while the
+ * capture files are counted, so that what other programs have in /tmp
+ * (files of programs that run at the same time, or of one that was killed
+ * in the middle of a command) is not counted as left behind by this one.
+ */
+def test_work_folder() {
+    tests("work_folder") {
+        temp_before : string;
+        before_each {
+            temp_before = temp_files.directory();
+            fresh_base_dir();
+        }
+        after_each {
+            temp_files.set_directory(temp_before);
+            new file(base_dir).delete_recursively();
+        }
+
+        test("the test directory is created, and removed again") {
+            expect_true(fresh_base_dir());
+            expect_true(new file(base_dir).delete_recursively());
+        };
+
+        test("capture files are deleted") {
+            commands := new string[] { "echo hello", "echo out; echo err 1>&2; exit 2", "printf 'a\nb'", "this_command_does_not_exist_12345" };
+            if(on_windows()) {
+                commands = new string[] { "echo hello", "echo out& echo err 1>&2& exit 2", "echo a& echo b", "this_command_does_not_exist_12345" };
+            }
+            own := new file(base_dir + "/temp");
+            own.mkdirs();
+            temp_files.set_directory(own.path);
+            foreach(command in commands) {
+                process.run(command);
+                process.run_merged(command);
+                process.run_with_input(command, "fed in\n");
+            }
+            expect(capture_files_in(own.path)).should_be(0);
+        };
+    };
+}
+
+def test_process() {
+    tests("commands") {
+        test("echo hello: exit code 0, succeeded, its output, no error output, and the command") {
+            r := process.run("echo hello");
+            expect(r.exit_code()).named("exit code").should_be(0);
+            expect_true(r.succeeded());
+            expect(r.output()).named("output").should_be("hello\n");
+            expect(r.output_trimmed()).named("output_trimmed").should_be("hello");
+            expect(r.error_output()).named("error output").should_be("");
+            expect(r.command()).named("command").should_be("echo hello");
+        };
+        test("check returns the result") { expect_true(process.run("echo hello").check().succeeded()); };
+
+        test("exit 3: exit code 3, not succeeded, no output and no output lines") {
+            r := process.run("exit 3");
+            expect(r.exit_code()).should_be(3);
+            expect_false(r.succeeded());
+            expect(r.output()).should_be("");
+            expect(r.output_lines().size()).should_be(0);
+        };
+        test("check on failure throws, and its message names the code") {
+            r := process.run("exit 3");
+            expect_throws<io_exception>() { r.check(); };
+            message := "";
+            try { r.check(); } catch(e: io_exception) { message = e.get_message(); }
+            expect_true(io_strings.contains(message, "exit code 3"));
+        };
+        test("exit code 255") { expect(process.run("exit 255").exit_code()).should_be(255); };
+        test("false is 1") { expect(process.run("false").exit_code()).should_be(1); };
+
+        test("stdout and stderr apart, and the code with both") {
+            r := process.run("echo out; echo err 1>&2; exit 2");
+            expect(r.output()).should_be("out\n");
+            expect(r.error_output()).should_be("err\n");
+            expect(r.exit_code()).should_be(2);
+        };
+        test("merged output, and no separate error output") {
+            r := process.run_merged("echo out; echo err 1>&2");
+            expect(r.output()).should_be("out\nerr\n");
+            expect(r.error_output()).should_be("");
+        };
+
+        test("output_lines: an empty line, and the last line without newline") {
+            lines := process.run("printf 'a\\nb\\n\\nc'").output_lines();
+            expect(lines.size()).should_be(4);
+            expect(lines.at(0)).should_be("a");
+            expect(lines.at(2)).should_be("");
+            expect(lines.at(3)).should_be("c");
+        };
+
+        test("command not found, with a message on stderr") {
+            r := process.run("this_command_does_not_exist_12345");
+            expect(r.exit_code()).should_be(127);
+            expect_true(io_strings.length(r.error_output()) > 0);
+        };
+        test("killed by a signal") { expect(process.run("kill -9 " + dollar() + dollar()).exit_code()).should_be(137); };
+        test("pipes and &&, and the status of the last command") {
+            r := process.run("echo one && echo two | tr a-z A-Z; test -d /");
+            expect(r.output()).should_be("one\nTWO\n");
+            expect(r.exit_code()).should_be(0);
+        };
+
+        // input
+        test("input passed through") { expect(process.run_with_input("cat", "fed in\nline 2\n").output()).should_be("fed in\nline 2\n"); };
+        test("input length") { expect(process.run_with_input("wc -c", "12345").output_trimmed()).should_be("5"); };
+        test("empty input") { expect(process.run_with_input("cat", "").output()).should_be(""); };
+
+        // quoting
+        test("quoted argument arrives unchanged") {
+            odd : string = "it's a \"test\" & more; `x` \\ end";
+            expect(process.run("printf '%s' " + process.quote(odd)).output()).should_be(odd);
+        };
+        test("quote plain") { expect(process.quote("plain")).should_be("'plain'"); };
+        test("quote empty") { expect(process.quote("")).should_be("''"); };
+
+        tests("files") {
+            before_each { fresh_base_dir(); }
+            after_each { new file(base_dir).delete_recursively(); }
+
+            test("path with spaces") { expect(process.run("cat " + process.quote(spaced_file().path)).output()).should_be("content\n"); };
+
+            // a command that writes a file
+            test("file made by a command") {
+                process.run("echo written > " + process.quote(base_dir + "/made.txt"));
+                expect(new file(base_dir + "/made.txt").read_text()).should_be("written\n");
+            };
+        };
+
+        // larger output
+        test("2000 lines captured, the last one whole") {
+            r := process.run("seq 0 1999 | sed s/^/line./");
+            expect(r.output_lines().size()).should_be(2000);
+            expect(r.output_lines().at(1999)).should_be("line.1999");
+        };
+
+        test("execute") { expect(process.execute("exit 4")).should_be(4); };
+        test("execute success") { expect(process.execute("true")).should_be(0); };
+
+        // environment
+        test("PATH is set") { expect_true(!io_strings.is_null(environment.value("PATH"))); };
+        test("unset variable is null") { expect_true(io_strings.is_null(environment.value("SHARP_SUITE_NO_SUCH_VARIABLE"))); };
+        test("empty variable name") { expect_throws<illegal_argument_exception>() { environment.value(""); }; };
+        test("variables reach child commands") {
+            r := process.run("SHARP_SUITE_VAR='some value' sh -c 'printf %s " + io_strings.from_char(34) + dollar() + "SHARP_SUITE_VAR" + io_strings.from_char(34) + "'");
+            expect(r.output()).should_be("some value");
+        };
+        test("command_exists sh") { expect_true(process.command_exists("sh")); };
+        test("command_exists nonsense") { expect_false(process.command_exists("this_command_does_not_exist_12345")); };
+    };
+}
+
+/**
+ * The same as test_process, with the commands of cmd.exe. What differs from a unix shell: lines
+ * end with "\r\n", echo prints the blank that stands before a redirection or an &, a command that
+ * is not found is exit code 1, and an argument is quoted with double quotes.
+ */
+def test_process_windows() {
+    tests("commands") {
+        test("echo hello: exit code 0, succeeded, its output, no error output, and the command") {
+            r := process.run("echo hello");
+            expect(r.exit_code()).named("exit code").should_be(0);
+            expect_true(r.succeeded());
+            expect(r.output()).named("output").should_be("hello\r\n");
+            expect(r.output_trimmed()).named("output_trimmed").should_be("hello");
+            expect(r.error_output()).named("error output").should_be("");
+            expect(r.command()).named("command").should_be("echo hello");
+        };
+        test("check returns the result") { expect_true(process.run("echo hello").check().succeeded()); };
+
+        test("exit 3: exit code 3, not succeeded, no output and no output lines") {
+            r := process.run("exit 3");
+            expect(r.exit_code()).should_be(3);
+            expect_false(r.succeeded());
+            expect(r.output()).should_be("");
+            expect(r.output_lines().size()).should_be(0);
+        };
+        test("check on failure throws, and its message names the code") {
+            r := process.run("exit 3");
+            expect_throws<io_exception>() { r.check(); };
+            message := "";
+            try { r.check(); } catch(e: io_exception) { message = e.get_message(); }
+            expect_true(io_strings.contains(message, "exit code 3"));
+        };
+        test("exit code 255") { expect(process.run("exit 255").exit_code()).should_be(255); };
+
+        test("stdout and stderr apart, and the code with both") {
+            r := process.run("echo out& echo err 1>&2& exit 2");
+            expect(r.output()).should_be("out\r\n");
+            expect(io_strings.trim(r.error_output())).should_be("err");
+            expect(r.exit_code()).should_be(2);
+        };
+        test("merged output: both lines, and no separate error output") {
+            r := process.run_merged("echo out& echo err 1>&2");
+            merged := r.output_lines();
+            expect(merged.size()).should_be(2);
+            expect(merged.at(0)).should_be("out");
+            expect(io_strings.trim(merged.at(1))).should_be("err");
+            expect(r.error_output()).should_be("");
+        };
+
+        test("output_lines: an empty line, and the last line") {
+            lines := process.run("echo a& echo b& echo.& echo c").output_lines();
+            expect(lines.size()).should_be(4);
+            expect(lines.at(0)).should_be("a");
+            expect(lines.at(2)).should_be("");
+            expect(lines.at(3)).should_be("c");
+        };
+
+        test("command not found, with a message on stderr") {
+            r := process.run("this_command_does_not_exist_12345");
+            expect(r.exit_code()).should_be(1);
+            expect_true(io_strings.length(r.error_output()) > 0);
+        };
+        test("pipes and &&, and the status of the last command") {
+            r := process.run("echo one&& echo abc | findstr b");
+            expect(r.output()).should_be("one\r\nabc \r\n");
+            expect(r.exit_code()).should_be(0);
+        };
+        // (a variable with a bracket in it: once the reason every command with one failed)
+        test("a bracket in the command") { expect(process.run("echo (x86) done").output_trimmed()).should_be("(x86) done"); };
+
+        // input
+        test("input passed through: the lines asked for") {
+            fed := process.run_with_input("findstr x", "x1\ny\nx2\n").output_lines();
+            expect(fed.size()).should_be(2);
+            expect(fed.at(0) + " " + fed.at(1)).should_be("x1 x2");
+        };
+        test("input: two of three lines") { expect(process.run_with_input("findstr e", "one\ntwo\nthree\n").output_lines().size()).should_be(2); };
+
+        // quoting
+        test("quote plain") { expect(process.quote("plain")).should_be(io_strings.from_char(34) + "plain" + io_strings.from_char(34)); };
+        test("quote empty") { expect(process.quote("")).should_be(io_strings.from_char(34) + io_strings.from_char(34)); };
+
+        tests("files") {
+            before_each { fresh_base_dir(); }
+            after_each { new file(base_dir).delete_recursively(); }
+
+            test("path with spaces") { expect(process.run("type " + process.quote(spaced_file().path)).output()).should_be("content\n"); };
+
+            // a command that writes a file
+            test("file made by a command") {
+                process.run("echo written> " + process.quote(base_dir + "/made.txt"));
+                expect(new file(base_dir + "/made.txt").read_text()).should_be("written\r\n");
+            };
+        };
+
+        // larger output
+        test("2000 lines captured, the last one whole") {
+            r := process.run("for /L %i in (0,1,1999) do @echo line.%i");
+            expect(r.output_lines().size()).should_be(2000);
+            expect(r.output_lines().at(1999)).should_be("line.1999");
+        };
+
+        test("execute") { expect(process.execute("exit 4")).should_be(4); };
+        test("execute success") { expect(process.execute("exit 0")).should_be(0); };
+
+        // environment
+        test("PATH is set") { expect_true(!io_strings.is_null(environment.value("PATH"))); };
+        test("unset variable is null") { expect_true(io_strings.is_null(environment.value("SHARP_SUITE_NO_SUCH_VARIABLE"))); };
+        test("empty variable name") { expect_throws<illegal_argument_exception>() { environment.value(""); }; };
+        test("command_exists cmd") { expect_true(process.command_exists("cmd")); };
+        test("command_exists nonsense") { expect_false(process.command_exists("this_command_does_not_exist_12345")); };
+    };
+}
+
+def test_platform() {
+    tests("platform") {
+        test("is_windows") { expect(platform_info.is_windows()).should_be(on_windows()); };
+        test("is_unix") { expect(platform_info.is_unix()).should_be(!on_windows()); };
+        test("os_name") { expect(platform_info.os_name()).should_be(on_windows() ? "windows" : "unix"); };
+        test("os_id") { expect(platform_info.os_id()).should_be(on_windows() ? "win" : "posix"); };
+        test("processor_count") { expect_true(platform_info.processor_count() >= 1); };
+        test("path_separator") { expect(platform_info.path_separator()).should_be(on_windows() ? '\\' : '/'); };
+        test("path_list_separator") { expect(platform_info.path_list_separator()).should_be(on_windows() ? ';' : ':'); };
+        test("line_separator") { expect(platform_info.line_separator()).should_be(on_windows() ? "\r\n" : "\n"); };
+        test("current_directory is absolute") { expect_true(new file(platform_info.current_directory()).is_absolute()); };
+        test("temp_directory exists") { expect_true(new file(platform_info.temp_directory()).is_directory()); };
+        test("app_name") { expect_true(io_strings.length(platform_info.app_name()) > 0); };
+        test("app_version") { expect_true(io_strings.length(platform_info.app_version()) > 0); };
+        test("platform_version") { expect_true(io_strings.length(platform_info.platform_version()) > 0); };
+        test("environment_or fallback") { expect(environment.value_or("SHARP_SUITE_NO_SUCH_VARIABLE", "dflt")).should_be("dflt"); };
+        test("environment_or set") { expect_true(io_strings.length(environment.value_or("PATH", "")) > 0); };
+        test("home_directory is HOME, and is remembered") {
+            home := platform_info.home_directory();
+            expect(home).should_be(environment.value_or(on_windows() ? "USERPROFILE" : "HOME", ""));
+            expect(platform_info.home_directory()).should_be(home);
+        };
+        test("host_name is what hostname prints") { expect(platform_info.host_name()).should_be(process.run("hostname").output_trimmed()); };
+        test("user_name is USERNAME (on windows), USER or LOGNAME") {
+            wanted : string = on_windows()
+                ? environment.value_or("USERNAME", "")
+                : environment.value_or("USER", environment.value_or("LOGNAME", ""));
+            expect(platform_info.user_name()).should_be(wanted);
+        };
+        test("free_disk_space") { expect_true(platform_info.free_disk_space() > 0); };
+        test("total_disk_space is at least the free space") { expect_true(platform_info.total_disk_space() >= platform_info.free_disk_space()); };
+        test("summary") { expect_true(io_strings.starts_with(platform_info.summary(), on_windows() ? "windows, " : "unix, ")); };
+    };
+}
+
+def test_ansi_console() {
+    tests("ansi") {
+        test("enabled by default") { expect_true(ansi.is_enabled()); };
+        test("foreground") { expect(ansi.foreground(ansi.red)).should_be(esc() + "[31m"); };
+        test("foreground bright") { expect(ansi.foreground(ansi.bright_blue)).should_be(esc() + "[94m"); };
+        test("foreground black") { expect(ansi.foreground(ansi.black)).should_be(esc() + "[30m"); };
+        test("background") { expect(ansi.background(ansi.green)).should_be(esc() + "[42m"); };
+        test("background bright") { expect(ansi.background(ansi.bright_white)).should_be(esc() + "[107m"); };
+        test("style") { expect(ansi.style(ansi.bold)).should_be(esc() + "[1m"); };
+        test("reset") { expect(ansi.reset()).should_be(esc() + "[0m"); };
+        test("colored") { expect(ansi.colored("hi", ansi.yellow)).should_be(esc() + "[33mhi" + esc() + "[0m"); };
+        test("colored on background") { expect(ansi.colored("hi", ansi.white, ansi.blue)).should_be(esc() + "[37m" + esc() + "[44mhi" + esc() + "[0m"); };
+        test("styled") { expect(ansi.styled("hi", ansi.underline)).should_be(esc() + "[4mhi" + esc() + "[0m"); };
+        test("clear_screen") { expect(ansi.clear_screen()).should_be(esc() + "[2J" + esc() + "[H"); };
+        test("clear_line") { expect(ansi.clear_line()).should_be(esc() + "[2K\r"); };
+        test("move_to") { expect(ansi.move_to(3, 14)).should_be(esc() + "[3;14H"); };
+        test("cursor hidden") { expect(ansi.cursor_visible(false)).should_be(esc() + "[?25l"); };
+        test("cursor shown") { expect(ansi.cursor_visible(true)).should_be(esc() + "[?25h"); };
+        test("strip") { expect(ansi.strip(ansi.colored("plain", ansi.red) + " and " + ansi.styled("bold", ansi.bold))).should_be("plain and bold"); };
+        test("strip without codes") { expect(ansi.strip("nothing here [31m")).should_be("nothing here [31m"); };
+        test("strip cursor codes") { expect(ansi.strip("a" + ansi.move_to(1, 1) + "b" + ansi.clear_screen() + "c")).should_be("abc"); };
+        test("colour 16") { expect_throws<illegal_argument_exception>() { ansi.foreground(16); }; };
+        test("negative colour") { expect_throws<illegal_argument_exception>() { ansi.background(0 - 1); }; };
+        test("fractional colour") { expect_throws<illegal_argument_exception>() { ansi.colored("x", 2.5); }; };
+        test("row 0") { expect_throws<illegal_argument_exception>() { ansi.move_to(0, 1); }; };
+
+        tests("disabled") {
+            before_each { ansi.set_enabled(false); }
+            after_each { ansi.set_enabled(true); }
+
+            test("disabled") { expect_false(ansi.is_enabled()); };
+            test("colored when disabled") { expect(ansi.colored("hi", ansi.red)).should_be("hi"); };
+            test("colored on background when disabled") { expect(ansi.colored("hi", ansi.red, ansi.blue)).should_be("hi"); };
+            test("styled when disabled") { expect(ansi.styled("hi", ansi.bold)).should_be("hi"); };
+            test("foreground when disabled") { expect(ansi.foreground(ansi.red)).should_be(""); };
+            test("reset when disabled") { expect(ansi.reset()).should_be(""); };
+            test("clear_screen when disabled") { expect(ansi.clear_screen()).should_be(""); };
+            test("clear_line when disabled") { expect(ansi.clear_line()).should_be(""); };
+            test("move_to when disabled") { expect(ansi.move_to(1, 1)).should_be(""); };
+
+            // console output helpers: with codes switched off they print plain text or nothing
+            test("console helpers print nothing visible when there is nothing to print") {
+                console.print_text("");
+                console.clear();
+                console.clear_line();
+                console.move_cursor(1, 1);
+                console.new_lines(0);
+                console.print_colored("", ansi.red);
+            };
+        };
+
+        test("enabled again after being disabled") {
+            ansi.set_enabled(false);
+            ansi.set_enabled(true);
+            expect_true(ansi.is_enabled());
+        };
+    };
+}
+
+def process_tests() {
+    tests("process") {
+        // the commands of the system's shell: the one group or the other
+        if(on_windows()) {
+            test_process_windows();
+        } else {
+            test_process();
+        }
+        test_work_folder();
+        test_platform();
+        test_ansi_console();
+    };
+}

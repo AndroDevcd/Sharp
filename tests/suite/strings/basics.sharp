@@ -1,0 +1,319 @@
+mod suite.strings.basics;
+
+import ( std.testing )
+
+/**
+ * Strings, the basics: joining with + and +=, putting values into a string
+ * with "$name" and "${expression}", comparing with == and !=, empty strings,
+ * and numbers inside strings.
+ *
+ * Kept out of this file because they used to be wrong (fixed; the checks are
+ * in fixes.sharp): joining or interpolating an EMPTY string, += with a
+ * number, and s += s.
+ */
+
+motto := "global";
+
+def greet(name: string): string {
+    return "hello " + name;
+}
+
+def repeat(piece: string, times: decimal): string {
+    result := "";
+    for(i : decimal = 0; i < times; i++) {
+        result += piece;
+    }
+    return result;
+}
+
+def double_it(n: decimal): decimal { return n * 2; }
+
+def basics_tests() {
+    tests("basics") {
+        // ---- joining with +
+        test("literal + literal") { expect("ab" + "cd").should_be("abcd"); };
+        tests("joining") {
+            a : string;
+            b : string;
+            before_each { a = "ab"; b = "cd"; };
+
+            test("variable + literal") { expect(a + "cd").should_be("abcd"); };
+            test("literal + variable") { expect("ab" + b).should_be("abcd"); };
+            test("variable + variable") { expect(a + b).should_be("abcd"); };
+            test("the other way round") { expect(b + a).should_be("cdab"); };
+            test("a variable with itself") { expect(a + a).should_be("abab"); };
+            test("three pieces") { expect(a + "-" + b).should_be("ab-cd"); };
+            test("five pieces") { expect(a + b + a + b + a).should_be("abcdabcdab"); };
+            test("a joined string stored in a variable") {
+                joined := a + b;
+                expect(joined).named("stored in a variable").should_be("abcd");
+                expect(joined.size()).named("the size of a joined string").should_be(4);
+            };
+            test("+ makes a new string: a and b are unchanged") {
+                joined := a + b;
+                expect(a).named("a").should_be("ab");
+                expect(b).named("b").should_be("cd");
+            };
+
+            // ---- joining with +=
+            test("+= literal, variable and expression") {
+                s := "x";
+                s += "y";
+                expect(s).named("+= literal").should_be("xy");
+                s += a;
+                expect(s).named("+= variable").should_be("xyab");
+                s += a + b;
+                expect(s).named("+= an expression").should_be("xyababcd");
+                expect(s.size()).named("the size after +=").should_be(8);
+            };
+        };
+        test("with spaces") { expect("one" + " " + "two").should_be("one two"); };
+        test("+= onto an empty string") {
+            letters := "";
+            letters += "a";
+            letters += "b";
+            letters += "c";
+            expect(letters).should_be("abc");
+        };
+        test("+= in a loop") {
+            built := "";
+            for(i : decimal = 0; i < 5; i++) {
+                built += "ab";
+            }
+            expect(built).should_be("ababababab");
+        };
+        test("+= a character") {
+            with_char := "ab";
+            with_char += 'c';
+            expect(with_char).should_be("abc");
+        };
+
+        // ---- += changes the string itself, so another name for it sees the change
+        test("+= changes the string itself, so another name for it sees the change") {
+            first := "one";
+            other := first;
+            first += "two";
+            expect(first).named("the string after +=").should_be("onetwo");
+            expect(other).named("the other name for the same string").should_be("onetwo");
+        };
+
+        // ---- string + number
+        test("string + whole number literal") { expect("n" + 5).should_be("n5"); };
+        test("string + 0") { expect("n" + 0).should_be("n0"); };
+        test("string + a large literal") { expect("n" + 123456789).should_be("n123456789"); };
+        test("string + int object") {
+            count : int = 42;
+            expect("count=" + count).should_be("count=42");
+        };
+        test("string + negative int object") {
+            minus : int = 0 - 7;
+            expect("t=" + minus).should_be("t=-7");
+        };
+        test("string + long object") {
+            big : long = 5000000000;
+            expect("big=" + big).should_be("big=5000000000");
+        };
+        test("string + var is written the short way") {
+            number : decimal = 2.5;
+            expect("n=" + number).should_be("n=2.5");
+        };
+        test("...also for a whole number") {
+            whole : decimal = 3;
+            expect("n=" + whole).should_be("n=3");
+        };
+        test("string + number + string") {
+            count : int = 42;
+            expect("<" + count + ">").should_be("<42>");
+        };
+        test("the numbers are joined, not added") { expect("1" + 2 + 3).should_be("123"); };
+        test("parentheses add first") {
+            two : int = 2;
+            expect("1" + (two + 3)).should_be("15");
+        };
+
+        // ---- string + other objects
+        test("string + true") {
+            yes : bool = true;
+            expect("it is " + yes).should_be("it is true");
+        };
+        test("string + false") {
+            no : bool = false;
+            expect("it is " + no).should_be("it is false");
+        };
+        test("string + char object") {
+            letter : char = 'q';
+            expect("letter " + letter).should_be("letter q");
+        };
+
+        tests("interpolation") {
+            a : string;
+            b : string;
+            name : string;
+            count : int;
+            number : decimal;
+            yes : bool;
+            no : bool;
+            letter : char;
+            before_each {
+                a = "ab";
+                b = "cd";
+                name = "world";
+                count = 42;
+                number = 2.5;
+                yes = true;
+                no = false;
+                letter = 'q';
+            };
+
+            // ---- "$name" puts a variable into the string
+            test("$$name") { expect("$name").should_be("world"); };
+            test("at the end") { expect("hello $name").should_be("hello world"); };
+            test("at the start") { expect("$name is big").should_be("world is big"); };
+            test("in the middle") { expect("hello $name!").should_be("hello world!"); };
+            test("twice") { expect("$name and $name").should_be("world and world"); };
+            test("two variables") { expect("$a and $b").should_be("ab and cd"); };
+            test("back to back") { expect("$a$b").should_be("abcd"); };
+            test("a dot ends the name") { expect("$a.$b").should_be("ab.cd"); };
+            test("an apostrophe ends the name") { expect("$name's").should_be("world's"); };
+            test("an int object") { expect("count is $count").should_be("count is 42"); };
+            test("a var is written the short way") { expect("number is $number").should_be("number is 2.5"); };
+            test("a bool object") { expect("$yes or $no").should_be("true or false"); };
+            test("a char object") { expect("letter $letter").should_be("letter q"); };
+            test("a global") { expect("$motto").should_be("global"); };
+
+            // ---- "${expression}" puts any expression into the string
+            test("$${name}") { expect("${name}").should_be("world"); };
+            test("text right after the brace") { expect("${name}s").should_be("worlds"); };
+            test("arithmetic on int objects") { expect("${count + 1}").should_be("43"); };
+            test("arithmetic on vars keeps the fraction") { expect("${number + 1}").should_be("3.5"); };
+            test("...when dividing") { expect("${number / 2}").should_be("1.25"); };
+            test("...when the result is whole") { expect("${number * 2}").should_be("5"); };
+            test("...and in a join") { expect("n=" + (number * 3)).should_be("n=7.5"); };
+            test("a comparison of objects") { expect("${count == 42}").should_be("true"); };
+            test("a function call") { expect("${greet(name)}").should_be("hello world"); };
+            test("a string inside the braces") { expect("${greet("you")}").should_be("hello you"); };
+            test("a method call") { expect("size ${name.size()}").should_be("size 5"); };
+            test("a number function") { expect("${double_it(4)}").should_be("8"); };
+            test("joining inside the braces") { expect("${a + b}").should_be("abcd"); };
+            test("two expressions") { expect("${a}-${b}").should_be("ab-cd"); };
+            test("$$name and $${expression} together") { expect("$a${b}$a").should_be("abcdab"); };
+            test("in a sentence") { expect("$name has ${name.size()} letters").should_be("world has 5 letters"); };
+            test("parentheses inside the braces") { expect("${(count + 8) * 2}").should_be("100"); };
+            test("an interpolated string keeps the value it was built with") {
+                message := "total: ${count + count}";
+                expect(message).named("stored in a variable").should_be("total: 84");
+                count = 50;
+                expect(message).named("after count changed").should_be("total: 84");
+            };
+        };
+        test("$$$$ is one character, a dollar sign") {
+            price := "$$5";
+            expect(price.size()).named("size").should_be(2);
+            expect(price.at(0).value).named("the character").should_be(36);
+        };
+
+        // ---- comparing with == and !=
+        tests("comparing") {
+            a : string;
+            b : string;
+            same : string;
+            joined : string;
+            before_each {
+                a = "ab";
+                b = "cd";
+                same = "abcd";
+                joined = a + b;
+            };
+
+            test("variable == literal") { expect_true((same == "abcd")); };
+            test("variable == a different literal") { expect_false((same == "abce")); };
+            test("variable != a different literal") { expect_true((same != "abce")); };
+            test("variable != the same literal") { expect_false((same != "abcd")); };
+            test("two strings built differently, same characters") { expect_true((same == joined)); };
+            test("...are not !=") { expect_false((same != joined)); };
+            test("a string equals itself") { expect_true((same == same)); };
+            test("capitals matter") { expect_false((same == "ABCD")); };
+            test("a shorter string is different") { expect_false((same == "abc")); };
+            test("a longer string is different") { expect_false((same == "abcde")); };
+            test("a space matters") { expect_false((same == "abcd ")); };
+            test("the order matters") { expect_false((same == "dcba")); };
+            test("a joined string == literal") { expect_true((a + b == "abcd")); };
+            test("an interpolated string == literal") { expect_true(("$a$b" == "abcd")); };
+            test("if(same == \"abcd\")") {
+                if(same == "abcd") {
+                } else {
+                    fail_test("the else branch ran");
+                }
+            };
+            test("if(same != \"abcd\")") {
+                if(same != "abcd") {
+                    fail_test("the if branch ran");
+                }
+            };
+            test("two string comparisons with &&") {
+                if(same == "abcd" && a != b) {
+                } else {
+                    fail_test("the else branch ran");
+                }
+            };
+        };
+
+        // ---- empty strings
+        tests("empty") {
+            empty : string;
+            before_each { empty = ""; };
+
+            test("the size of \"\"") { expect(empty.size()).should_be(0); };
+            test("\"\".empty()") { expect_true(empty.is_empty()); };
+            test("\"\" == \"\"") { expect_true((empty == "")); };
+            test("\"\" == \"a\"") { expect_false((empty == "a")); };
+            test("\"\" != \"a\"") { expect_true((empty != "a")); };
+            test("\" \" is not empty") { expect_false((empty == " ")); };
+            test("two empty strings are equal") {
+                another_empty := "";
+                expect_true((empty == another_empty));
+            };
+            test("an empty string is not null") { expect_not_null(empty); };
+        };
+        test("\"x\".empty()") {
+            s := "x";
+            expect_false(s.is_empty());
+        };
+
+        // ---- numbers inside strings are characters
+        tests("digits") {
+            digits : string;
+            before_each { digits = "12" + "34"; };
+
+            test("\"12\" + \"34\"") { expect(digits).should_be("1234"); };
+            test("...has 4 characters") { expect(digits.size()).should_be(4); };
+            test("the first is the character '1'") { expect(digits.at(0).value).should_be('1'); };
+            test("...which is 49, not 1") { expect(digits.at(0).value).should_be(49); };
+            test("a digit's value is the character - '0'") { expect(digits.at(3).value - '0').should_be(4); };
+        };
+        test("\"1\" is not \"1.0\"") { expect_false(("1" == "1.0")); };
+        test("\"07\" is not \"7\"") { expect_false(("07" == "7")); };
+        test("letters and digits") {
+            mixed := "abc123";
+            expect(mixed.size()).should_be(6);
+        };
+        test("a version number") { expect("v" + 9 + "." + 99).should_be("v9.99"); };
+        test("an int turned into a string") {
+            seven : int = 7;
+            expect_true(("" + seven == "7"));
+        };
+
+        // ---- strings in and out of functions
+        test("greet(\"bob\")") { expect(greet("bob")).should_be("hello bob"); };
+        test("greet(name)") {
+            name := "world";
+            expect(greet(name)).should_be("hello world");
+        };
+        test("greet(greet(...))") { expect(greet(greet("you"))).should_be("hello hello you"); };
+        test("repeat(\"ab\", 3)") { expect(repeat("ab", 3)).should_be("ababab"); };
+        test("repeat(\"-\", 1)") { expect(repeat("-", 1)).should_be("-"); };
+        test("repeat(\"abc\", 100) size") { expect(repeat("abc", 100).size()).should_be(300); };
+        test("a call in a join") { expect(greet("a") + "!" + greet("b")).should_be("hello a!hello b"); };
+
+    };
+}

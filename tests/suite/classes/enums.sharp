@@ -1,0 +1,369 @@
+mod suite.classes.enums;
+
+import ( std.testing )
+
+/**
+ * Enums: a fixed list of named values. Each member is an object with a
+ * number (`.ordinal`) and its name (`to_string()`), written `color.red`.
+ *
+ * Two members are compared with == and != (the result is a bool OBJECT, so
+ * outside an `if` its number is read with `.value`), and a `when` block picks
+ * a branch by member.
+ *
+ * Members without a value are numbered upwards in steps of one, but the
+ * first number is chosen by the compiler and is not 0: only members given a
+ * value with `=` have a known ordinal.
+ */
+
+enum color {
+    red,
+    green,
+    blue
+}
+
+/* every member given its own number */
+enum level {
+    low = 10,
+    medium = 20,
+    high = 30
+}
+
+enum http_status {
+    ok = 200,
+    not_found = 404,
+    server_error = 500
+}
+
+enum direction {
+    north,
+    east,
+    south,
+    west
+}
+
+/* one member */
+enum lonely {
+    only = 7
+}
+
+/* an enum as a field, a parameter and a return value */
+class traffic_light {
+    showing : color = color.red;
+    changes : decimal = 0;
+
+    def next() {
+        if(showing == color.red) {
+            showing = color.green;
+        } else if(showing == color.green) {
+            showing = color.blue;
+        } else {
+            showing = color.red;
+        }
+        changes++;
+    }
+
+    def is_showing(wanted: color): decimal {
+        if(showing == wanted) {
+            return 1;
+        }
+        return 0;
+    }
+
+    def current(): color {
+        return showing;
+    }
+}
+
+/* 1 when both are the same member */
+def same(a: color, b: color): decimal {
+    if(a == b) {
+        return 1;
+    }
+    return 0;
+}
+
+def different(a: color, b: color): decimal {
+    if(a != b) {
+        return 1;
+    }
+    return 0;
+}
+
+/* when: one member per branch */
+def letter_of(c: color): string {
+    when(c) {
+        red -> { return "R"; }
+        green -> { return "G"; }
+        blue -> { return "B"; }
+    }
+    return "?";
+}
+
+/* when: several members on one branch, and an else branch */
+def is_vertical(d: direction): decimal {
+    when(d) {
+        north, south -> { return 1; }
+        else -> { return 0; }
+    }
+    return 0 - 1;
+}
+
+/* when: members written with the enum's name */
+def percent_of(l: level): decimal {
+    when(l) {
+        level.low -> { return 25; }
+        level.medium -> { return 50; }
+        level.high -> { return 100; }
+    }
+    return 0;
+}
+
+/* when: branches that fall out of the block instead of returning */
+def describe(s: http_status): string {
+    text : string = "unknown";
+    when(s) {
+        ok -> { text = "fine"; }
+        not_found, server_error -> { text = "failed"; }
+    }
+    return text;
+}
+
+def opposite(d: direction): direction {
+    if(d == direction.north) { return direction.south; }
+    if(d == direction.south) { return direction.north; }
+    if(d == direction.east) { return direction.west; }
+    return direction.east;
+}
+
+def turn_right(d: direction): direction {
+    when(d) {
+        north -> { return direction.east; }
+        east -> { return direction.south; }
+        south -> { return direction.west; }
+        else -> { return direction.north; }
+    }
+    return d;
+}
+
+def level_for(score: decimal): level {
+    if(score >= 90) {
+        return level.high;
+    }
+    if(score >= 50) {
+        return level.medium;
+    }
+    return level.low;
+}
+
+/* a route of four steps: north, north, east, south */
+def a_route(): direction[] {
+    route : direction[] = new direction[4];
+    route[0] = direction.north;
+    route[1] = direction.north;
+    route[2] = direction.east;
+    route[3] = direction.south;
+    return route;
+}
+
+def enums_tests() {
+    tests("enums") {
+        // ---- explicit values
+        test("explicit value: first") { expect(level.low.ordinal).should_be(10); };
+        test("explicit value: second") { expect(level.medium.ordinal).should_be(20); };
+        test("explicit value: third") { expect(level.high.ordinal).should_be(30); };
+        test("explicit value: 200") { expect(http_status.ok.ordinal).should_be(200); };
+        test("explicit value: 404") { expect(http_status.not_found.ordinal).should_be(404); };
+        test("explicit value: 500") { expect(http_status.server_error.ordinal).should_be(500); };
+        test("an enum with one member") { expect(lonely.only.ordinal).should_be(7); };
+        test("ordinals in arithmetic") { expect(level.high.ordinal - level.low.ordinal).should_be(20); };
+        test("ordinals compared: low < high") { expect(level.low.ordinal < level.high.ordinal).should_be(1); };
+        test("ordinals compared: high < medium") { expect(level.high.ordinal < level.medium.ordinal).should_be(0); };
+
+        // ---- members without a value follow each other in steps of one
+        test("second member is one after the first") { expect(color.green.ordinal - color.red.ordinal).should_be(1); };
+        test("third member is two after the first") { expect(color.blue.ordinal - color.red.ordinal).should_be(2); };
+        test("fourth member is three after the first") { expect(direction.west.ordinal - direction.north.ordinal).should_be(3); };
+        test("declared order is ordinal order") { expect(color.red.ordinal < color.blue.ordinal).should_be(1); };
+
+        // ---- names
+        test("to_string() of a member") { expect(color.red.to_string()).should_be("red"); };
+        test("to_string() of another member") { expect(color.blue.to_string()).should_be("blue"); };
+        test("to_string() of a member with a value") { expect(http_status.not_found.to_string()).should_be("not_found"); };
+        test("a member in a string") { expect("the light is " + color.green).should_be("the light is green"); };
+        test("a variable in a string") {
+            picked := color.blue;
+            expect("picked $picked").should_be("picked blue");
+        };
+
+        // ---- variables
+        test("a variable holding a member, then assigned another") {
+            c := color.green;
+            expect(c.to_string()).named("first").should_be("green");
+            c = color.red;
+            expect(c.to_string()).named("after the assignment").should_be("red");
+        };
+        test("a variable with the enum as its type") {
+            typed : color = color.blue;
+            expect(typed.to_string()).should_be("blue");
+        };
+        test("copied from another variable: the same name and ordinal") {
+            typed : color = color.blue;
+            other := typed;
+            expect(other.to_string()).named("the name").should_be("blue");
+            expect(other.ordinal - typed.ordinal).named("the ordinals apart").should_be(0);
+        };
+        test("ordinal through a variable") {
+            l : level = level.medium;
+            expect(l.ordinal).should_be(20);
+        };
+
+        // ---- == and !=
+        test("== and != on a variable") {
+            c := color.green;
+            c = color.red;
+            expect((c == color.red)).named("== same member").should_be(1);
+            expect((c == color.green)).named("== different member").should_be(0);
+            expect((c != color.red)).named("!= same member").should_be(0);
+            expect((c != color.blue)).named("!= different member").should_be(1);
+        };
+        test("== between two variables") {
+            typed : color = color.blue;
+            other := typed;
+            expect((typed == other)).should_be(1);
+        };
+        test("== member with itself") { expect((color.green == color.green)).should_be(1); };
+        test("== and != with explicit values") {
+            l : level = level.medium;
+            expect((l == level.medium)).named("==").should_be(1);
+            expect((l != level.high)).named("!=").should_be(1);
+        };
+
+        // ---- in an if
+        test("if with ==") {
+            c := color.red;
+            if(c == color.red) {
+            } else {
+                fail_test("the else branch ran");
+            }
+        };
+        test("if with !=") {
+            c := color.red;
+            if(c != color.red) {
+                fail_test("the if branch ran");
+            }
+        };
+        test("if / else if") {
+            c := color.red;
+            if(c == color.green) {
+                fail_test("the first branch ran");
+            } else if(c == color.red) {
+            } else {
+                fail_test("the last branch ran");
+            }
+        };
+        test("== and != inside a function") {
+            typed : color = color.blue;
+            c := color.red;
+            expect(same(color.blue, typed)).named("== same").should_be(1);
+            expect(same(color.blue, c)).named("== different").should_be(0);
+            expect(different(color.blue, typed)).named("!= same").should_be(0);
+            expect(different(color.blue, c)).named("!= different").should_be(1);
+        };
+        test("two comparisons joined with &&") {
+            c := color.red;
+            typed : color = color.blue;
+            if(c == color.red && typed == color.blue) {
+            } else {
+                fail_test("the else branch ran");
+            }
+        };
+
+        // ---- when
+        test("when: first branch") { expect(letter_of(color.red)).should_be("R"); };
+        test("when: second branch") { expect(letter_of(color.green)).should_be("G"); };
+        test("when: third branch") { expect(letter_of(color.blue)).should_be("B"); };
+        test("when: on a variable") {
+            c := color.green;
+            c = color.red;
+            expect(letter_of(c)).should_be("R");
+        };
+        test("when with two members on a branch: first of them") { expect(is_vertical(direction.north)).should_be(1); };
+        test("when with two members on a branch: second of them") { expect(is_vertical(direction.south)).should_be(1); };
+        test("when: else branch") { expect(is_vertical(direction.east)).should_be(0); };
+        test("when: else branch, another member") { expect(is_vertical(direction.west)).should_be(0); };
+        test("when with qualified names: low") { expect(percent_of(level.low)).should_be(25); };
+        test("when with qualified names: medium") { expect(percent_of(level.medium)).should_be(50); };
+        test("when with qualified names: high") { expect(percent_of(level.high)).should_be(100); };
+        test("when that falls out of the block: single branch") { expect(describe(http_status.ok)).should_be("fine"); };
+        test("when that falls out of the block: shared branch") { expect(describe(http_status.not_found)).should_be("failed"); };
+        test("when that falls out of the block: shared branch, other member") { expect(describe(http_status.server_error)).should_be("failed"); };
+
+        // ---- as parameters and return values
+        test("return a member: opposite of north") { expect(opposite(direction.north).to_string()).should_be("south"); };
+        test("return a member: opposite of west") { expect(opposite(direction.west).to_string()).should_be("east"); };
+        test("a result passed straight back in") { expect(opposite(opposite(direction.east)).to_string()).should_be("east"); };
+        test("return from a when") { expect(turn_right(direction.north).to_string()).should_be("east"); };
+        test("return from a when's else") { expect(turn_right(direction.west).to_string()).should_be("north"); };
+        test("six right turns from north") {
+            facing := direction.north;
+            for(i : decimal = 0; i < 6; i++) {
+                facing = turn_right(facing);
+            }
+            expect(facing.to_string()).should_be("south");
+        };
+        test("a member chosen from a number: high") { expect(level_for(95).ordinal).should_be(30); };
+        test("a member chosen from a number: medium") { expect(level_for(50).ordinal).should_be(20); };
+        test("a member chosen from a number: low") { expect(level_for(3).ordinal).should_be(10); };
+
+        // ---- as a field
+        test("a field with a member as its initial value") { expect(new traffic_light().showing.to_string()).should_be("red"); };
+        test("compared inside the class: yes") { expect(new traffic_light().is_showing(color.red)).should_be(1); };
+        test("compared inside the class: no") { expect(new traffic_light().is_showing(color.green)).should_be(0); };
+        test("changed by a method, again, and round to the start") {
+            light := new traffic_light();
+            light.next();
+            expect(light.showing.to_string()).named("after one change").should_be("green");
+            light.next();
+            expect(light.current().to_string()).named("after two").should_be("blue");
+            light.next();
+            expect(light.current().to_string()).named("after three").should_be("red");
+            expect(light.changes).named("the method ran three times").should_be(3);
+        };
+        test("a field assigned from outside") {
+            light := new traffic_light();
+            light.showing = color.blue;
+            expect(light.is_showing(color.blue)).should_be(1);
+        };
+        test("another object has its own field") {
+            light := new traffic_light();
+            light.showing = color.blue;
+            second_light := new traffic_light();
+            expect(second_light.is_showing(color.red)).should_be(1);
+        };
+
+        // ---- in an array
+        test("array elements") {
+            route := a_route();
+            expect(route[0].to_string()).named("element 0").should_be("north");
+            expect(route[2].to_string()).named("element 2").should_be("east");
+        };
+        test("a loop over an array of members") {
+            route := a_route();
+            vertical_steps : decimal = 0;
+            for(i : decimal = 0; i < sizeof(route); i++) {
+                vertical_steps += is_vertical(route[i]);
+            }
+            expect(vertical_steps).should_be(3);
+        };
+        test("comparing array elements") {
+            route := a_route();
+            north_steps : decimal = 0;
+            for(i : decimal = 0; i < sizeof(route); i++) {
+                if(route[i] == direction.north) {
+                    north_steps++;
+                }
+            }
+            expect(north_steps).should_be(2);
+        };
+    };
+}

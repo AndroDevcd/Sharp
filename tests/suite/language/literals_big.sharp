@@ -1,0 +1,56 @@
+mod suite.language.literals_big;
+
+import ( std.testing )
+
+/**
+ * Whole number literals and constants outside the 32 bit range, negative ones
+ * included, as values, arguments and operands.
+ */
+
+def id(x: decimal): decimal { return x; }
+
+def literals_big_tests() {
+    tests("literals_big") {
+        test("large negative literal") {
+            a : decimal = -12345678901;
+            expect(a).should_be(0 - id(12345678901));
+        };
+        test("0 - 2208988800") {
+            b : decimal = 0 - 2208988800;
+            expect(b).should_be(0 - id(2208988800));
+        };
+        test("1 << 40") {
+            c : decimal = 1 << 40;
+            expect(c).should_be(id(1099511627776));
+        };
+        test("1 << 40 at run time") {
+            d : decimal = id(1) << id(40);
+            expect(d).should_be(id(1099511627776));
+        };
+        test("long 0 - 5000000000") {
+            big : long = 0 - 5000000000;
+            expect(big.value).should_be(0 - id(5000000000));
+        };
+        test("-1.0 / 0.0 is below everything") {
+            e : decimal = -1.0 / 0.0;
+            expect_true(e < 0 - id(1000000000000));
+        };
+        test("pass a large negative literal") { expect(id(-5000000000)).should_be(0 - id(5000000000)); };
+        test("5000000000 * 3") {
+            f : decimal = 5000000000 * 3;
+            expect(f).should_be(id(15000000000));
+        };
+        test("4294967296 / 2") {
+            g : decimal = 4294967296 / 2;
+            expect(g).should_be(id(2147483648));
+        };
+        test("-2147483648") {
+            h : decimal = -2147483648;
+            expect(h).should_be(0 - id(2147483648));
+        };
+        test("-2147483649") {
+            i : decimal = -2147483649;
+            expect(i).should_be(0 - id(2147483649));
+        };
+    };
+}

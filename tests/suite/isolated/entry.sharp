@@ -1,0 +1,42 @@
+mod suite.isolated;
+
+import (
+    std.io,
+    std.system,
+    suite.isolated.gc_limit,
+    suite.isolated.print_is_seen,
+    suite.isolated.signals,
+    suite.isolated.subprocess,
+    suite.isolated.testing_ide,
+    suite.isolated.testing_mocks
+)
+
+/**
+ * suite.isolated: the tests that need a process of their own. They start
+ * this program again as a child, or check what happens outside any group
+ * of tests, so they cannot run inside the group `suite`.
+ *
+ *      sharp suite isolated <name> [more...]
+ *
+ * runs one of them, and that is the whole run: no group of the suite is
+ * opened, and the program ends the way the isolated tests end (0 when every
+ * one passed). In the one run each shows up as a test of its own, in the
+ * group it belongs to: that test starts the program like this
+ * (run_isolated, suite.helpers) and expects it to end with 0.
+ */
+def isolated_program(args: string[]) {
+    name : string = args[1];
+    rest := new string[sizeof(args) - 2];       // what comes after `isolated <name>`
+    for(i : _int64 = 2; i < sizeof(args); i++) { rest[i - 2] = args[i]; }
+
+    if(name == "gc_limit") { gc_limit_program(rest); }
+    else if(name == "print_is_seen") { print_is_seen_program(rest); }
+    else if(name == "signals") { signals_program(rest); }
+    else if(name == "subprocess") { subprocess_program(rest); }
+    else if(name == "testing_ide") { testing_ide_program(rest); }
+    else if(name == "testing_mocks") { testing_mocks_program(rest); }
+    else {
+        println("isolated: no such tests: " + name);
+        exit(1);
+    }
+}

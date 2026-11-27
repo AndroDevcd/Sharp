@@ -1,0 +1,63 @@
+mod suite.exceptions.catch_and_remainder;
+
+import ( std.testing )
+
+/**
+ * catch matches subclasses of the named class; remainder by zero raises
+ * invalid_operation_exception instead of ending the VM.
+ */
+
+class p_err base exception {
+    p_err(message: string) -> base(message) {}
+}
+class q_err base p_err {
+    q_err(message: string) -> base(message) {}
+}
+
+def rem(a: decimal, b: decimal): decimal { return a % b; }
+
+def catch_and_remainder_tests() {
+    tests("catch_and_remainder") {
+        test("subclass caught by its base class handler") {
+            hit : decimal = 0;
+            try { throw new q_err("x"); } catch(e: p_err) { hit = 1; }
+            expect(hit).should_be(1);
+        };
+
+        test("caught as exception") {
+            hit : decimal = 0;
+            try { throw new q_err("x"); } catch(e: exception) { hit = 2; }
+            expect(hit).should_be(2);
+        };
+
+        test("an unrelated handler is skipped") {
+            hit : decimal = 0;
+            try {
+                try { throw new illegal_state_exception("x"); } catch(e: p_err) { hit = 5; }
+            } catch(e: illegal_state_exception) { hit = 3; }
+            expect(hit).should_be(3);
+        };
+
+        test("a base class object is not caught by a subclass handler") {
+            hit : decimal = 0;
+            try { throw new p_err("x"); } catch(e: q_err) { hit = 9; } catch(e: p_err) { hit = 4; }
+            expect(hit).should_be(4);
+        };
+
+        test("remainder by zero raises an exception") {
+            hit : decimal = 0;
+            try { rem(5, 0); } catch(e: invalid_operation_exception) { hit = 6; }
+            expect(hit).should_be(6);
+        };
+        test("remainder still works") { expect(rem(17, 5)).should_be(2); };
+        test("negative remainder") { expect(rem(0 - 7, 3)).should_be(0 - 1); };
+
+        test("hot loop with remainder by zero") {
+            total : decimal = 0;
+            for(i : decimal = 0; i < 5000; i++) {
+                try { total += rem(i, i % 3); } catch(e: exception) { total += 1000; }
+            }
+            expect(total).should_be(1667833);
+        };
+    };
+}

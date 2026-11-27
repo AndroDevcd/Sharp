@@ -1,0 +1,80 @@
+mod suite.arrays.sized_elements;
+
+import ( std.testing )
+
+/**
+ * Elements of sized number arrays hold values of their size: a store wraps
+ * exactly as it does for a local or a field of that type.
+ */
+def sized_elements_tests() {
+    tests("sized_elements") {
+        test("128 stored in _int8[]") {
+            bytes := new _int8[4];
+            v : decimal = 128;
+            bytes[0] = v;
+            expect(bytes[0]).should_be(0 - 128);
+        };
+        test("129 stored in _int8[]") {
+            bytes := new _int8[4];
+            bytes[1] = 129;
+            expect(bytes[1]).should_be(0 - 127);
+        };
+        test("200 stored in _int8[]") {
+            bytes := new _int8[4];
+            bytes[2] = 200;
+            expect(bytes[2]).should_be(0 - 56);
+        };
+        test("-129 stored in _int8[]") {
+            bytes := new _int8[4];
+            bytes[3] = 0 - 129;
+            expect(bytes[3]).should_be(127);
+        };
+        test("_int8 element += past the range") {
+            bytes := new _int8[4];
+            bytes[0] = 100;
+            bytes[0] += 100;
+            expect(bytes[0]).should_be(0 - 56);
+        };
+        test("_int8 element ++ past the range") {
+            bytes := new _int8[4];
+            bytes[0] = 127;
+            bytes[0]++;
+            expect(bytes[0]).should_be(0 - 128);
+        };
+
+        test("-1 stored in _uint8[]") {
+            ub := new _uint8[2];
+            ub[0] = 0 - 1;
+            expect(ub[0]).should_be(255);
+        };
+        test("300 stored in _uint8[]") {
+            ub := new _uint8[2];
+            ub[1] = 300;
+            expect(ub[1]).should_be(44);
+        };
+
+        test("70000 stored in _int16[]") {
+            shorts := new _int16[1];
+            shorts[0] = 70000;
+            expect(shorts[0]).should_be(4464);
+        };
+
+        test("2^32 + 1 stored in _int32[]") {
+            ints := new _int32[1];
+            ints[0] = 4294967297;
+            expect(ints[0]).should_be(1);
+        };
+
+        test("2.75 stored in _int64[]") {
+            longs := new _int64[1];
+            longs[0] = 2.75;
+            expect(longs[0]).should_be(2);
+        };
+
+        test("var[] keeps the value") {
+            plain := new decimal[1];
+            plain[0] = 200.5;
+            expect(plain[0]).should_be(200.5);
+        };
+    };
+}

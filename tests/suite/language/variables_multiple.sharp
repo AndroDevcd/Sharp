@@ -1,0 +1,56 @@
+mod suite.language.variables_multiple;
+
+import ( std.testing )
+
+/**
+ * THE BUGS THIS GUARDS (fixed): variable declarations. Declaring several
+ * LOCAL variables in one statement went wrong as soon as a later variable
+ * had a value of its own. (Globals were right, and so was
+ * `a : decimal = 1, b;` where only the first has a value.)
+ *
+ * Not in this file because it does not compile at all: unary plus,
+ * `y : decimal = +x;` gives "expected expression".
+ */
+
+def variables_multiple_tests() {
+    tests("variables_multiple") {
+        // ---- BUG 1 (fixed): the later values were stored in the FIRST variable
+        //      before the fix: a was 2 and b was never assigned
+        //      (b is whatever was in its slot: 0 or a leftover number)
+        test("a of `a : var = 1, b = 2;`") {
+            a : decimal = 1, b = 2;
+            expect(a).should_be(1);
+        };
+        test("b of `a : var = 1, b = 2;`") {
+            a : decimal = 1, b = 2;
+            expect(b).should_be(2);
+        };
+
+        //      before the fix: c was 7, d and e were never assigned
+        test("c of `c : var = 5, d = 6, e = 7;`") {
+            c : decimal = 5, d = 6, e = 7;
+            expect(c).should_be(5);
+        };
+        test("d of `c : var = 5, d = 6, e = 7;`") {
+            c : decimal = 5, d = 6, e = 7;
+            expect(d).should_be(6);
+        };
+        test("e of `c : var = 5, d = 6, e = 7;`") {
+            c : decimal = 5, d = 6, e = 7;
+            expect(e).should_be(7);
+        };
+
+        // ---- BUG 2 (fixed): with := the first variable lost its value
+        //      before the fix: p was 0 (q was right)
+        test("p of `p := 1, q;`") {
+            p := 1, q;
+            q = 2;
+            expect(p.value).should_be(1);
+        };
+        test("q of `p := 1, q;` after q = 2") {
+            p := 1, q;
+            q = 2;
+            expect("$q").should_be("2");
+        };
+    };
+}

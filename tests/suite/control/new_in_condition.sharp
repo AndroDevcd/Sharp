@@ -1,0 +1,26 @@
+mod suite.control.new_in_condition;
+
+import ( std.testing )
+
+/**
+ * THE BUG THIS GUARDS (compiler, fixed): a method call on a `new` expression
+ * inside a condition did not compile; it stopped the code generator with
+ * "fatal error: attempting to consume empty machine data!" (or
+ * "incorrect operation_step").
+ * Workaround that was used in the I/O library: put the object in a local
+ * variable first.
+ */
+
+class probe_box {
+    def is_ok(): bool { return true; }
+}
+
+def new_in_condition_tests() {
+    tests("new_in_condition") {
+        test("new in condition") {
+            if(!new probe_box().is_ok()) {
+                fail_test("wrong branch");
+            }
+        };
+    };
+}

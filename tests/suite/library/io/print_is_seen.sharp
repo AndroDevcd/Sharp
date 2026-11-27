@@ -1,0 +1,19 @@
+mod suite.library.io.print_is_seen;
+
+import ( std.testing, suite.helpers )
+
+/**
+ * What a program prints is seen in time, without flush(). The tests read a
+ * child started from this program through a pipe, so they run in a process
+ * of their own: suite.isolated.print_is_seen (isolated/print_is_seen.sharp).
+ * Here they are one test.
+ */
+def print_is_seen_tests() {
+    tests("print_is_seen") {
+        test("the tests of printed output pass, in a process of their own") {
+            ran := run_isolated("print_is_seen");
+            expect(ran.code).named("suite isolated print_is_seen said:\n" + ran.said).should_be(0);
+            expect(ran.said).should_contain("RESULT PASS print_is_seen");
+        };
+    };
+}

@@ -1,0 +1,75 @@
+mod suite.language.whole_numbers_as_text;
+
+import ( std.testing )
+
+/**
+ * A whole number becomes text digit for digit, however large it is.
+ * (Until VM 4.0.14 the way to text went through a decimal, which holds a
+ * whole number exactly only up to 2^53 = 9007199254740992: a larger one lost
+ * its low digits - 9007199254740993 came out as 9007199254740992 - with
+ * `"" + n`, with "$n" and with to_string(). The number itself was right.)
+ */
+def whole_numbers_as_text_tests() {
+    tests("whole_numbers_as_text") {
+        // built at run time, so that nothing is worked out by the compiler:
+        // n is 2^53 + 1, most the largest _int64
+        n : _int64;
+        most : _int64;
+        before_each {
+            n = 9007199254740990;
+            n = n + 3;
+            most = 9223372036854775800;
+            most = most + 7;
+        };
+
+        test("text + number") { expect("" + n).should_be("9007199254740993"); };
+        test("number in text") { expect("$n").should_be("9007199254740993"); };
+        test("to_string of a long") { expect(new long(n).to_string()!!).should_be("9007199254740993"); };
+        test("text += number") {
+            s := "n=";
+            s += n;
+            expect(s).should_be("n=9007199254740993");
+        };
+
+        test("a negative one") {
+            negative : _int64 = 0 - n;
+            expect("" + negative).should_be("-9007199254740993");
+        };
+
+        // the largest and the smallest 64-bit numbers
+        test("the largest _int64") { expect("" + most).should_be("9223372036854775807"); };
+        test("the smallest _int64") {
+            least : _int64 = 0 - most;
+            least = least - 1;
+            expect("" + least).should_be("-9223372036854775808");
+        };
+
+        // an unsigned number above the largest signed one
+        test("an _uint64 above 2^63") {
+            wide : _uint64 = most;
+            wide = wide + 10;
+            expect("" + wide).should_be("9223372036854775817");
+        };
+        test("to_string of a ulong") {
+            wide : _uint64 = most;
+            wide = wide + 10;
+            expect(new ulong(wide).to_string()!!).should_be("9223372036854775817");
+        };
+
+        // the small ones are what they were
+        test("an _int32") {
+            small : _int32 = 0 - 42;
+            expect("" + small).should_be("-42");
+        };
+        test("an _int16") {
+            short_one : _int16 = 1234;
+            expect("" + short_one).should_be("1234");
+        };
+        test("zero") {
+            zero : _int64 = 0;
+            expect("" + zero).should_be("0");
+        };
+        test("to_string of an int") { expect(new int(7).to_string()!!).should_be("7"); };
+        test("a decimal is still a decimal") { expect("" + 2.5).should_be("2.5"); };
+    };
+}

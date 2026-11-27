@@ -1,0 +1,360 @@
+mod suite.functions.lambdas_closures;
+
+import ( std.testing )
+
+/**
+ * Lambdas (functions written in place) and closures (lambdas that use
+ * variables of the function they were written in).
+ *
+ *     { x: decimal -> (decimal) return x * 2; }     one parameter, returns a number
+ *     { -> n += 3; }                        no parameters, no result
+ *
+ * A closure used to capture OBJECTS only - int boxes, strings, class
+ * instances, arrays - and not native `decimal` locals (a native local can be
+ * captured now: see "the block runs once" in library/time/measure.sharp). The
+ * tests here capture objects. What a closure captures is the object itself:
+ * the closure and the code around it see each other's changes, and the
+ * object stays alive for as long as the closure does.
+ */
+
+class point {
+    x : decimal;
+    y : decimal;
+}
+
+/** a class with lambdas in its fields */
+class machine {
+    step : (decimal)(decimal);
+    check : (decimal)(bool);
+
+    def run(start: decimal, times: decimal) : decimal {
+        value : decimal = start;
+        for(i : decimal = 0; i < times; i++) {
+            value = step(value);
+        }
+        return value;
+    }
+}
+
+// ---- functions that take lambdas
+def apply(f: (decimal)(decimal), x: decimal) : decimal { return f(x); }
+def apply_twice(f: (decimal)(decimal), x: decimal) : decimal { return f(f(x)); }
+def combine(f: (decimal, decimal)(decimal), a: decimal, b: decimal) : decimal { return f(a, b); }
+def run(work: ()()) { work(); }
+def run_times(work: ()(), n: decimal) {
+    for(i : decimal = 0; i < n; i++) {
+        work();
+    }
+}
+def count_matching(numbers: decimal[], wanted: (decimal)(bool)) : decimal {
+    count : decimal = 0;
+    foreach(n in numbers) {
+        if(wanted(n)) { count++; }
+    }
+    return count;
+}
+
+// ---- functions that make closures. The local variables they capture
+// ---- outlive the call that created them.
+
+/** every call makes a new counter that starts at 0 */
+def make_counter() : ()(decimal) {
+    count := new int(0);
+    next : ()(decimal) = { -> (decimal) count += 1; return count.value; };
+    return next;
+}
+
+/** a function that adds `amount` to its argument */
+def make_adder(amount: decimal) : (decimal)(decimal) {
+    kept := new int(amount);
+    add : (decimal)(decimal) = { x: decimal -> (decimal) return x + kept.value; };
+    return add;
+}
+
+/** a function that moves the given point to the right */
+def make_mover(target: point) : (decimal)() {
+    p := target;
+    move : (decimal)() = { distance: decimal -> p.x += distance; };
+    return move;
+}
+
+/** a function that hands out the numbers of its own private array, one by one */
+def make_reader() : ()(decimal) {
+    values := new decimal[] { 10, 20, 30 };
+    position := new int(0);
+    read : ()(decimal) = { -> (decimal)
+        current : decimal = values[position.value];
+        position += 1;
+        return current;
+    };
+    return read;
+}
+
+/** a machine whose step doubles */
+def doubling_machine() : machine {
+    m := new machine();
+    m.step = { x: decimal -> (decimal) return x * 2; };
+    return m;
+}
+
+def lambdas_closures_tests() {
+    tests("lambdas_closures") {
+        // ---- lambdas in variables
+        tests("in_variables") {
+            double_it : (decimal)(decimal);
+            add : (decimal, decimal)(decimal);
+            before_each {
+                double_it = { x: decimal -> (decimal) return x * 2; };
+                add = { x: decimal, y: decimal -> (decimal) return x + y; };
+            };
+
+            test("one parameter") { expect(double_it(21)).should_be(42); };
+            test("called again") { expect(double_it(0 - 4)).should_be(0 - 8); };
+            test("its result as its argument") { expect(double_it(double_it(5))).should_be(20); };
+
+            test("two parameters") { expect(add(3, 4)).should_be(7); };
+            test("add(add(1, 2), 3)") { expect(add(add(1, 2), 3)).should_be(6); };
+
+            // a variable can be given another lambda
+            test("after assigning a different lambda") {
+                double_it = { x: decimal -> (decimal) return x * 2 + 1; };
+                expect(double_it(21)).should_be(43);
+            };
+        };
+
+        test("no parameters") {
+            constant : ()(decimal) = { -> (decimal) return 99; };
+            expect(constant()).should_be(99);
+        };
+
+        test("the variable's type taken from the lambda") {
+            inferred := { x: decimal -> (decimal) return x + 100; };
+            expect(inferred(1)).should_be(101);
+        };
+
+        // several statements, with an early return
+        test("body with several statements, and taking the early return") {
+            capped : (decimal)(decimal) = { x: decimal -> (decimal)
+                doubled : decimal = x * 2;
+                if(doubled > 10) { return 10; }
+                return doubled;
+            };
+            expect(capped(3)).named("capped(3)").should_be(6);
+            expect(capped(30)).named("capped(30), the early return").should_be(10);
+        };
+
+        // objects as parameters and results
+        test("returns a bool object") {
+            is_big : (decimal)(bool) = { x: decimal -> (bool) return x > 3; };
+            expect_true(is_big(5));
+            expect_false(is_big(1));
+        };
+        test("int object in, int object out") {
+            square : (int)(int) = { n: int -> (int) return n * n; };
+            expect(square(6).value).should_be(36);
+        };
+
+        // a lambda inside a lambda
+        test("lambda defined and called inside a lambda") {
+            outer : (decimal)(decimal) = { x: decimal -> (decimal)
+                inner : (decimal)(decimal) = { y: decimal -> (decimal) return y * 10; };
+                return inner(x) + 1;
+            };
+            expect(outer(2)).should_be(21);
+        };
+
+        // ---- lambdas as arguments
+        test("lambda as argument") { expect(apply({ x: decimal -> (decimal) return x * x; }, 9)).should_be(81); };
+        test("lambda applied twice") { expect(apply_twice({ x: decimal -> (decimal) return x + 5; }, 1)).should_be(11); };
+        test("lambda variable as argument") { expect(apply(add_100(), 1)).should_be(101); };
+        test("two parameter lambda as argument") { expect(combine({ a: decimal, b: decimal -> (decimal) return a * b; }, 6, 7)).should_be(42); };
+        test("the same function with another lambda") { expect(combine({ a: decimal, b: decimal -> (decimal) return a - b; }, 6, 7)).should_be(0 - 1); };
+        tests("counting") {
+            numbers : decimal[];
+            before_each { numbers = new decimal[] { 1, 5, 2, 8, 3, 9 }; };
+
+            test("count numbers > 3") {
+                is_big : (decimal)(bool) = { x: decimal -> (bool) return x > 3; };
+                expect(count_matching(numbers, is_big)).should_be(3);
+            };
+            test("count numbers < 3") { expect(count_matching(numbers, { x: decimal -> (bool) return x < 3; })).should_be(2); };
+            test("count numbers == 100") { expect(count_matching(numbers, { x: decimal -> (bool) return x == 100; })).should_be(0); };
+        };
+
+        // ---- lambdas in an array
+        tests("in_an_array") {
+            first : (decimal)(decimal);
+            second : (decimal)(decimal);
+            before_each {
+                steps := new (decimal)(decimal)[2];
+                steps[0] = { x: decimal -> (decimal) return x + 1; };
+                steps[1] = { x: decimal -> (decimal) return x * 5; };
+                first = steps[0];
+                second = steps[1];
+            };
+
+            test("(1 + 1) * 5") { expect(second(first(1))).should_be(10); };
+            test("1 * 5 + 1") { expect(first(second(1))).should_be(6); };
+        };
+
+        // ---- lambdas in fields
+        test("field lambda called from a method: 1 doubled 5 times") { expect(doubling_machine().run(1, 5)).should_be(32); };
+        test("field lambda called directly") { expect(doubling_machine().step(10)).should_be(20); };
+        test("field given another lambda: 20 - 3 - 3") {
+            m := doubling_machine();
+            m.step = { x: decimal -> (decimal) return x - 3; };
+            expect(m.run(20, 2)).should_be(14);
+        };
+        test("second field") {
+            m := doubling_machine();
+            m.step = { x: decimal -> (decimal) return x - 3; };
+            m.check = { x: decimal -> (bool) return x == 14; };
+            expect_true(m.check(m.run(20, 2)));
+        };
+        test("each object has its own lambda") {
+            m := doubling_machine();
+            m.step = { x: decimal -> (decimal) return x - 3; };
+            other := new machine();
+            other.step = { x: decimal -> (decimal) return x + 1; };
+            expect(m.run(10, 1) + other.run(10, 1)).should_be(18);
+        };
+
+        // ---- a closure changes the int box it captured
+        test("a closure changes the int box it captured, and sees a change made outside it") {
+            n := new int(5);
+            add_three : ()() = { -> n += 3; };
+            add_three();
+            expect(n.value).named("after one call").should_be(8);
+            add_three();
+            expect(n.value).named("after two calls").should_be(11);
+            n += 100;
+            add_three();
+            expect(n.value).named("after a change made outside it").should_be(114);
+        };
+
+        // ---- closures as arguments
+        test("closure passed to a function") {
+            hits := new int(0);
+            run({ -> hits += 1; });
+            expect(hits.value).should_be(1);
+        };
+        test("closure called 4 times by a function") {
+            hits := new int(1);
+            run_times({ -> hits += 10; }, 4);
+            expect(hits.value).should_be(41);
+        };
+        test("closure variable passed to a function") {
+            n := new int(114);
+            add_three : ()() = { -> n += 3; };
+            run_times(add_three, 2);
+            expect(n.value).should_be(120);
+        };
+
+        // ---- several closures sharing one captured object
+        test("several closures sharing one captured object") {
+            shared := new int(0);
+            up : ()() = { -> shared += 1; };
+            down : ()() = { -> shared -= 1; };
+            read : ()(decimal) = { -> (decimal) return shared.value; };
+            up();
+            up();
+            up();
+            down();
+            expect(read()).named("up, up, up, down").should_be(2);
+            expect(shared.value).named("the function around them sees it too").should_be(2);
+            shared += 10;
+            expect(read()).named("a change from outside reaches the closures").should_be(12);
+            down();
+            expect(shared.value).named("and they carry on from there").should_be(11);
+        };
+
+        // ---- capturing a class instance
+        test("a closure changes the fields of a captured object, and reads the current ones") {
+            p := new point();
+            move : (decimal)() = { d: decimal -> p.x += d; p.y -= d; };
+            move(3);
+            move(4);
+            expect(p.x).named("x").should_be(7);
+            expect(p.y).named("y").should_be(0 - 7);
+            p.x = 100;
+            where : ()(decimal) = { -> (decimal) return p.x + p.y; };
+            expect(where()).named("read by a closure after x changed").should_be(93);
+        };
+
+        // ---- capturing an array
+        test("a closure writes the elements of a captured array, and reads the current ones") {
+            slots := new decimal[3];
+            store : (decimal)() = { v: decimal -> slots[0] = v; slots[2] = v * 2; };
+            store(6);
+            expect(slots[0]).named("element written by the closure").should_be(6);
+            expect(slots[2]).named("another element").should_be(12);
+            expect(slots[1]).named("an element it did not touch").should_be(0);
+            slots[1] = 50;
+            sum_slots : ()(decimal) = { -> (decimal) return slots[0] + slots[1] + slots[2]; };
+            expect(sum_slots()).named("read by a closure").should_be(68);
+        };
+
+        // ---- capturing a string
+        test("string appended to by the closure") {
+            text := new string("ab");
+            append_c : ()() = { -> text += "c"; };
+            append_c();
+            append_c();
+            expect(text).should_be("abcc");
+        };
+
+        // ---- a closure outliving the function that made it
+        test("a counter made by a function goes on counting after it returned") {
+            counter := make_counter();
+            expect(counter()).named("first call").should_be(1);
+            expect(counter()).named("second call").should_be(2);
+            expect(counter()).named("third call").should_be(3);
+            hits := new int(0);
+            hits += 1000;
+            expect(counter()).named("still counting after other work").should_be(4);
+        };
+
+        tests("make_adder") {
+            add_ten : (decimal)(decimal);
+            before_each { add_ten = make_adder(10); };
+
+            test("make_adder(10)") { expect(add_ten(5)).should_be(15); };
+            test("called again") { expect(add_ten(1)).should_be(11); };
+            test("returned closure as an argument") { expect(apply(add_ten, 100)).should_be(110); };
+            test("returned closure applied twice") { expect(apply_twice(add_ten, 0)).should_be(20); };
+        };
+
+        test("a returned closure changes the caller's object") {
+            target := new point();
+            mover := make_mover(target);
+            mover(5);
+            mover(6);
+            expect(target.x).should_be(11);
+        };
+
+        test("a closure hands out its private array one by one") {
+            reader := make_reader();
+            expect(reader()).named("first").should_be(10);
+            expect(reader()).named("second").should_be(20);
+            expect(reader()).named("third").should_be(30);
+        };
+
+        // ---- a copy of a closure shares what was captured
+        test("a copy of a closure shares what was captured") {
+            counter := make_counter();
+            counter();
+            counter();
+            counter();
+            counter();
+            counter_again := counter;
+            expect(counter_again()).named("the copy continues the same count").should_be(5);
+            expect(counter()).named("and so does the original").should_be(6);
+        };
+    };
+}
+
+/** returns a lambda that captures nothing */
+def add_100() : (decimal)(decimal) {
+    f : (decimal)(decimal) = { x: decimal -> (decimal) return x + 100; };
+    return f;
+}

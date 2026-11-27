@@ -1,0 +1,362 @@
+mod suite.library.basics.misc;
+
+import ( std.testing, std.io )
+
+/**
+ * The small classes and functions of std:
+ *
+ *   pair, triplet, quad, quint     fixed groups of values
+ *   result<T, E>                   a value together with a possible error
+ *   unique                         interface: hash() and guid()
+ *   deferred_init<T>               a value that is made the first time it is asked for
+ *   char_array                     a wrapper around the characters of a text
+ *   rand, rand_int, rand_double    random numbers - only what ALWAYS holds is
+ *                                  checked: the range, and that the same seed
+ *                                  gives the same numbers
+ *   the clock                      only that it reads after 2020, and that
+ *                                  thread.sleep takes about its time
+ */
+
+class point {
+    x : decimal = 0;
+    y : decimal = 0;
+
+    point(px: decimal, py: decimal) {
+        x = px;
+        y = py;
+    }
+}
+
+// ---- a class that implements unique
+class badge : unique {
+    number : decimal = 0;
+
+    badge(n: decimal) { number = n; }
+
+    override def hash() : int { return number * 31; }
+    override def guid() : int { return number; }
+}
+
+def hash_of(u: unique): decimal {
+    return u.hash().value;
+}
+
+// ---- for deferred_init: a function that makes the value and counts how often it ran
+class settings {
+    port : decimal = 0;
+
+    settings(p: decimal) { port = p; }
+}
+
+times_made := new int(0);       // set back to 0 before every deferred_init test
+
+def make_settings(): settings {
+    times_made.value++;
+    return new settings(8080);
+}
+
+// ---- functions that give back several values at once
+def min_and_max(a: decimal, b: decimal, c: decimal): pair<int, int> {
+    low : decimal = a;
+    high : decimal = a;
+    if(b < low) low = b;
+    if(c < low) low = c;
+    if(b > high) high = b;
+    if(c > high) high = c;
+    return new pair<int, int>(low, high);
+}
+
+/** a division that reports a zero divisor as an error instead of throwing */
+def checked_divide(a: decimal, b: decimal): result<double, exception> {
+    if(b == 0) {
+        return new result<double, exception>(0, new illegal_argument_exception("division by zero"));
+    }
+    no_error : exception;                       // stays null: no error
+    return new result<double, exception>(a / b, no_error);
+}
+
+def misc_tests() {
+    tests("misc") {
+        // ================= pair
+        test("pair.first and pair.second") {
+            p := new pair<string, int>("apples", 3);
+            expect(p.first).named("first").should_be("apples");
+            expect(p.second.value).named("second").should_be(3);
+        };
+
+        // the fields can be changed
+        test("the fields of a pair can be assigned") {
+            p := new pair<string, int>("apples", 3);
+            p.first = "pears";
+            p.second = 4;
+            expect(p.first).named("first").should_be("pears");
+            expect(p.second.value).named("second").should_be(4);
+        };
+
+        // objects as members: the pair holds the objects themselves
+        tests("pair_of_objects") {
+            origin : point;
+            corner : point;
+            line : pair<point, point>;
+            before_each {
+                origin = new point(0, 0);
+                corner = new point(3, 4);
+                line = new pair<point, point>(origin, corner);
+            };
+
+            test("pair of objects: field of second") { expect(line.second.y).should_be(4); };
+            test("pair holds the object, not a copy") { expect_true(line.first == origin); };
+            test("a change of the object is seen through the pair") {
+                corner.x = 30;
+                expect(line.second.x).should_be(30);
+            };
+        };
+
+        // a pair as a return value
+        test("pair returned from a function") {
+            range := min_and_max(7, 2, 9);
+            expect(range.first.value).named("first").should_be(2);
+            expect(range.second.value).named("second").should_be(9);
+        };
+        test("pair returned from a function, all equal") {
+            range := min_and_max(5, 5, 5);
+            expect(range.first.value).named("first").should_be(5);
+            expect(range.second.value).named("second").should_be(5);
+        };
+
+        // two pairs are independent
+        test("a second pair has its own values, and the first one is untouched") {
+            p := new pair<string, int>("pears", 4);
+            other := new pair<string, int>("plums", 1);
+            expect(other.first).named("the second pair").should_be("plums");
+            expect(p.first).named("the first pair").should_be("pears");
+        };
+
+        // pairs inside a pair
+        test("pair in a pair") {
+            other := new pair<string, int>("plums", 1);
+            nested := new pair<pair<string, int>, string>(other, "outer");
+            expect(nested.first.first).named("inner first").should_be("plums");
+            expect(nested.first.second.value).named("inner second").should_be(1);
+            expect(nested.second).named("outer second").should_be("outer");
+        };
+
+        // ================= triplet, quad, quint
+        test("triplet") {
+            t := new triplet<string, int, point>("label", 2, new point(3, 4));
+            expect(t.first).named("first").should_be("label");
+            expect(t.second.value).named("second").should_be(2);
+            expect(t.third.y).named("third").should_be(4);
+        };
+
+        test("quad") {
+            q := new quad<int, int, int, int>(10, 20, 30, 40);
+            expect(q.first.value).named("first").should_be(10);
+            expect(q.second.value).named("second").should_be(20);
+            expect(q.third.value).named("third").should_be(30);
+            expect(q.fourth.value).named("fourth").should_be(40);
+        };
+
+        tests("quint") {
+            five : quint<string, string, string, string, string>;
+            before_each { five = new quint<string, string, string, string, string>("a", "b", "c", "d", "e"); };
+
+            test("quint.first") { expect(five.first).should_be("a"); };
+            test("quint.third") { expect(five.third).should_be("c"); };
+            test("quint.fifth") { expect(five.fifth).should_be("e"); };
+            test("quint: all five in order") { expect(five.first + five.second + five.third + five.fourth + five.fifth).should_be("abcde"); };
+            test("quint: a field assigned") {
+                five.third = "C";
+                expect(five.second + five.third + five.fourth).should_be("bCd");
+            };
+        };
+
+        // ================= result
+        test("result without an error") {
+            good := checked_divide(10, 4);
+            expect_true(good.is_success);
+            expect(good.data.value).named("data").should_be(2.5);
+            expect_null(good.error);
+        };
+
+        test("result with an error") {
+            failed := checked_divide(1, 0);
+            expect_false(failed.is_success);
+            expect_not_null(failed.error);
+            expect(failed.error!!.get_message()).named("its message").should_be("division by zero");
+            expect(failed.data.value).named("the data that was given").should_be(0);
+        };
+
+        // a result with other types: text as data, text as error
+        test("result<string, string> with an error") {
+            parsed := new result<string, string>("parsed", "unexpected end");
+            expect_false(parsed.is_success);
+            expect(parsed.data).named("its data").should_be("parsed");
+            expect(parsed.error!!).named("its error").should_be("unexpected end");
+        };
+
+        // ================= unique
+        test("hash() and guid() of a class that implements unique") {
+            b := new badge(5);
+            expect(b.hash().value).named("hash()").should_be(155);
+            expect(b.guid().value).named("guid()").should_be(5);
+        };
+        test("called through the interface") {
+            u : unique = new badge(2);
+            expect(u.hash().value).named("hash()").should_be(62);
+            expect(u.guid().value).named("guid()").should_be(2);
+        };
+        test("passed to a function that takes a unique") { expect(hash_of(new badge(5))).should_be(155); };
+        test("two objects, two hashes") { expect(hash_of(new badge(1)) + hash_of(new badge(10))).should_be(341); };
+
+        // ================= deferred_init
+        tests("deferred_init") {
+            lazy : deferred_init<settings>;
+            before_each {
+                times_made.value = 0;
+                lazy = new deferred_init<settings>(make_settings);
+            };
+
+            test("nothing is made when the deferred_init is created") { expect(times_made.value).should_be(0); };
+            test("the first read of .value makes the object, the function ran once") {
+                expect(lazy.value.port).should_be(8080);
+                expect(times_made.value).named("times the function ran").should_be(1);
+            };
+            test("the second read gives the same value, without running the function again") {
+                lazy.value;
+                expect(lazy.value.port).should_be(8080);
+                expect(times_made.value).named("times the function ran").should_be(1);
+            };
+            test("every read gives the same object") {
+                first_read := lazy.value;
+                second_read := lazy.value;
+                expect_true(first_read == second_read);
+            };
+            test("a change made through one read is seen by the next") {
+                first_read := lazy.value;
+                first_read.port = 9090;
+                expect(lazy.value.port).should_be(9090);
+            };
+            test("a second deferred_init makes its own object, the function runs again for it") {
+                lazy.value.port = 9090;
+                another := new deferred_init<settings>(make_settings);
+                expect(another.value.port).should_be(8080);
+                expect(times_made.value).named("times the function ran").should_be(2);
+            };
+            test("one that is never read never runs the function") {
+                lazy.value;
+                never_read := new deferred_init<settings>(make_settings);
+                expect(times_made.value).should_be(1);
+            };
+        };
+
+        // ================= char_array
+        tests("char_array") {
+            hello : char_array;
+            before_each { hello = new char_array("hello"); };
+
+            test("char_array from a string: number of characters") { expect(sizeof(hello.data)).should_be(5); };
+            test("first character") { expect(hello.data[0]).should_be('h'); };
+            test("last character") { expect(hello.data[4]).should_be('o'); };
+            test("to_string gives the text back") { expect(hello.to_string()).should_be("hello"); };
+
+            // foreach goes through the characters: h + e + l + l + o = 104 + 101 + 108 + 108 + 111
+            test("foreach over a char_array") {
+                sum : decimal = 0;
+                count : decimal = 0;
+                foreach(c in hello) {
+                    sum += c;
+                    count++;
+                }
+                expect(count).named("trips").should_be(5);
+                expect(sum).named("sum of the character codes").should_be(532);
+            };
+
+            // from another char_array
+            test("char_array from a char_array") {
+                again := new char_array(hello);
+                expect(again.to_string()).should_be("hello");
+            };
+
+            // get_elements is the same array as data
+            test("get_elements: size") { expect(sizeof(hello.get_elements())).should_be(5); };
+            test("get_elements: a character") { expect(hello.get_elements()[1]).should_be('e'); };
+        };
+
+        // from an array of numbers (character codes)
+        test("char_array from a number array makes its own copy of the numbers") {
+            codes := new decimal[3];
+            codes[0] = 'a';
+            codes[1] = 'b';
+            codes[2] = 'c';
+            abc := new char_array(codes);
+            expect(sizeof(abc.data)).named("size").should_be(3);
+            expect(abc.to_string()).named("text").should_be("abc");
+            codes[0] = 'z';
+            expect(abc.data[0]).named("after the numbers changed").should_be('a');
+        };
+
+        // ================= the clock every program has: only that it reads after 2020
+        test("utc_mills() is after 2020") { expect_true(utc_mills().value > 1577836800000); };
+        test("nano_time() is after 2020") { expect_true(nano_time().value > 1577836800000000000); };
+        test("nano_time() and utc_mills() are the same clock") {
+            apart : decimal = nano_time().value / 1000000 - utc_mills().value;
+            expect_true(apart >= 0 - 5 && apart < 60000);
+        };
+        test("thread.sleep and sleep_micros take about their time") {
+            slept : _int64 = utc_mills().value;
+            thread.sleep(20);
+            thread.sleep_micros(5000);
+            slept = utc_mills().value - slept;
+            expect_true(slept >= 20 && slept < 5000);
+        };
+        test("a negative sleep is refused") {
+            expect_throws<error>() { thread.sleep(0 - 1); };
+        };
+
+        // ================= random numbers: always inside the range that was asked for
+        test("12000 random numbers, none outside its range; rand_int gives whole numbers") {
+            outside : decimal = 0;
+            fractions : decimal = 0;
+            for(i : decimal = 0; i < 2000; i++) {
+                r : decimal = rand().value;                         // 0 .. 1
+                if(r < 0 || r > 1) outside++;
+
+                k : decimal = rand_int(5, 10).value;                // a whole number, 5 .. 10
+                if(k < 5 || k > 10) outside++;
+                if(k % 1 != 0) fractions++;
+
+                d : decimal = rand_double(2, 3).value;              // 2 .. 3
+                if(d < 2 || d > 3) outside++;
+
+                n : decimal = rand_int(0 - 3, 3).value;             // a range around zero
+                if(n < 0 - 3 || n > 3) outside++;
+
+                big : decimal = rand_int().value;                   // 0 .. 1e9
+                if(big < 0 || big > 1000000000) outside++;
+
+                wide : decimal = rand_double().value;               // 0 .. 1e9
+                if(wide < 0 || wide > 1000000000) outside++;
+            }
+            expect(outside).named("numbers outside their range").should_be(0);
+            expect(fractions).named("rand_int results with a fraction").should_be(0);
+        };
+
+        test("rand_int(7, 7) can only be 7") { expect(rand_int(7, 7).value).should_be(7); };
+
+        // the same seed gives the same numbers again
+        test("same seed: the same numbers repeat") {
+            set_seed(1234);
+            a1 : decimal = rand_int(0, 1000000).value;
+            a2 : decimal = rand_int(0, 1000000).value;
+            a3 : decimal = rand().value;
+            set_seed(1234);
+            b1 : decimal = rand_int(0, 1000000).value;
+            b2 : decimal = rand_int(0, 1000000).value;
+            b3 : decimal = rand().value;
+            expect_true(a1 == b1);      // first number
+            expect_true(a2 == b2);      // second number
+            expect_true(a3 == b3);      // third number (a double)
+        };
+    };
+}

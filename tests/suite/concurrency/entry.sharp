@@ -1,0 +1,25 @@
+mod suite.concurrency;
+
+import (
+    std.testing,
+    suite.concurrency.fiber_recursive_suspend,
+    suite.concurrency.lock_exception_and_nesting,
+    suite.concurrency.lock_release_rules,
+    suite.concurrency.locks,
+    suite.concurrency.thread_exit,
+    suite.concurrency.thread_fiber_id,
+    suite.concurrency.threads
+)
+
+/** suite.concurrency: threads, locks, fibers */
+def concurrency_tests() {
+    tests("concurrency") {
+        fiber_recursive_suspend_tests();
+        lock_exception_and_nesting_tests();
+        lock_release_rules_tests();
+        locks_tests();
+        thread_exit_tests();
+        thread_fiber_id_tests();
+        threads_tests();
+    };
+}

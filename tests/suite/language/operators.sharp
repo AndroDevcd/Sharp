@@ -1,0 +1,468 @@
+mod suite.language.operators;
+
+import ( std.testing )
+
+/**
+ * Operator overloads: a class says what + - * / == != < > += [] and the
+ * others mean for its objects with `def operator+(...)`. The result can be a
+ * new object, a native number, or nothing at all.
+ */
+
+class vector {
+    x : decimal = 0;
+    y : decimal = 0;
+
+    vector(px: decimal, py: decimal) {
+        x = px;
+        y = py;
+    }
+
+    // ---- arithmetic that gives a new vector
+    def operator+(other: vector): vector {
+        return new vector(x + other.x, y + other.y);
+    }
+
+    def operator-(other: vector): vector {
+        return new vector(x - other.x, y - other.y);
+    }
+
+    /* the same operator twice, told apart by the type on the right */
+    def operator*(factor: decimal): vector {
+        return new vector(x * factor, y * factor);
+    }
+
+    /* vector * vector is the dot product: a native number */
+    def operator*(other: vector): decimal {
+        return x * other.x + y * other.y;
+    }
+
+    def operator/(divisor: decimal): vector {
+        return new vector(x / divisor, y / divisor);
+    }
+
+    def operator%(divisor: decimal): vector {
+        return new vector(x % divisor, y % divisor);
+    }
+
+    // ---- comparisons that give a native number (1 or 0)
+    def operator==(other: vector): decimal {
+        return x == other.x && y == other.y;
+    }
+
+    def operator!=(other: vector): decimal {
+        return x != other.x || y != other.y;
+    }
+
+    /* ordered by x + y */
+    def operator<(other: vector): decimal {
+        return x + y < other.x + other.y;
+    }
+
+    def operator>(other: vector): decimal {
+        return x + y > other.x + other.y;
+    }
+
+    def operator<=(other: vector): decimal {
+        return x + y <= other.x + other.y;
+    }
+
+    def operator>=(other: vector): decimal {
+        return x + y >= other.x + other.y;
+    }
+
+    // ---- compound assignment changes the object on the left
+    def operator+=(other: vector) {
+        x += other.x;
+        y += other.y;
+    }
+
+    def operator-=(other: vector) {
+        x -= other.x;
+        y -= other.y;
+    }
+
+    def operator*=(factor: decimal) {
+        x *= factor;
+        y *= factor;
+    }
+
+    def operator/=(divisor: decimal) {
+        x /= divisor;
+        y /= divisor;
+    }
+
+    // ---- index: [0] is x, anything else is y
+    def operator[](index: decimal): decimal {
+        if(index == 0) {
+            return x;
+        }
+        return y;
+    }
+}
+
+/* operators whose right side is a native number, and that give native numbers back */
+class money {
+    cents : decimal = 0;
+
+    money(c: decimal) {
+        cents = c;
+    }
+
+    def operator+(more: decimal): decimal {
+        return cents + more;
+    }
+
+    def operator-(less: decimal): decimal {
+        return cents - less;
+    }
+
+    def operator+(other: money): money {
+        return new money(cents + other.cents);
+    }
+
+    def operator==(amount: decimal): decimal {
+        return cents == amount;
+    }
+
+    def operator==(other: money): decimal {
+        return cents == other.cents;
+    }
+
+    def operator<(amount: decimal): decimal {
+        return cents < amount;
+    }
+
+    def operator>(amount: decimal): decimal {
+        return cents > amount;
+    }
+}
+
+/* [] with other kinds of index and result */
+class table {
+    cells : decimal[];
+    reads : decimal = 0;
+
+    table(size: decimal) {
+        cells = new decimal[size];
+        for(i : decimal = 0; i < size; i++) {
+            cells[i] = i * 10;
+        }
+    }
+
+    /* counts how often it is used, to show that [] really runs this method */
+    def operator[](index: decimal): decimal {
+        reads++;
+        return cells[index];
+    }
+
+    def operator[](key: string): decimal {
+        return key.size();
+    }
+}
+
+class shelf {
+    books : vector[];
+
+    shelf() {
+        books = new vector[3];
+        books[0] = new vector(1, 2);
+        books[1] = new vector(3, 4);
+        books[2] = new vector(5, 6);
+    }
+
+    /* [] that gives an object */
+    def operator[](index: decimal): vector {
+        return books[index];
+    }
+}
+
+/* a class that builds a string with + */
+class sentence {
+    text : string = "";
+    words : decimal = 0;
+
+    def operator+(word: string): sentence {
+        result := new sentence();
+        if(words == 0) {
+            result.text = word;
+        } else {
+            result.text = text + " " + word;
+        }
+        result.words = words + 1;
+        return result;
+    }
+
+    def operator+=(word: string) {
+        text = text + word;
+        words++;
+    }
+}
+
+def add_three(a: vector, b: vector, c: vector): vector {
+    return a + b + c;
+}
+
+def operators_tests() {
+    tests("operators") {
+        a : vector;
+        b : vector;
+        before_each {
+            a = new vector(1, 2);
+            b = new vector(10, 20);
+        };
+
+        // ---- + and -
+        test("a + b") {
+            sum := a + b;
+            expect(sum.x).named("x").should_be(11);
+            expect(sum.y).named("y").should_be(22);
+        };
+        test("a + b leaves a and b alone") {
+            sum := a + b;
+            expect(a.x).named("a.x").should_be(1);
+            expect(b.x).named("b.x").should_be(10);
+        };
+        test("b - a") {
+            difference := b - a;
+            expect(difference.x).named("x").should_be(9);
+            expect(difference.y).named("y").should_be(18);
+        };
+        test("a - b") {
+            backwards := a - b;
+            expect(backwards.x).named("x").should_be(0 - 9);
+            expect(backwards.y).named("y").should_be(0 - 18);
+        };
+        test("the result used without a variable") { expect((a + b).y).should_be(22); };
+
+        // ---- * and / and %
+        test("vector * number") {
+            scaled := a * 5;
+            expect(scaled.x).named("x").should_be(5);
+            expect(scaled.y).named("y").should_be(10);
+        };
+        test("vector * vector gives a number") { expect(a * b).should_be(50); };
+        test("vector * a var variable") {
+            factor : decimal = 3;
+            expect((a * factor).y).should_be(6);
+        };
+        test("vector / number") {
+            halved := b / 4;
+            expect(halved.x).named("x").should_be(2.5);
+            expect(halved.y).named("y").should_be(5);
+        };
+        test("vector % number") {
+            remainder := new vector(17, 9) % 5;
+            expect(remainder.x).named("x").should_be(2);
+            expect(remainder.y).named("y").should_be(4);
+        };
+
+        // ---- chains and precedence
+        test("a + b + a") {
+            three := a + b + a;
+            expect(three.x).named("x").should_be(12);
+            expect(three.y).named("y").should_be(24);
+        };
+        test("a + b * 2 multiplies first") {
+            mixed := a + b * 2;
+            expect(mixed.x).named("x").should_be(21);
+            expect(mixed.y).named("y").should_be(42);
+        };
+        test("(a + b) * 2") {
+            grouped := (a + b) * 2;
+            expect(grouped.x).named("x").should_be(22);
+            expect(grouped.y).named("y").should_be(44);
+        };
+        test("five + and one -") {
+            long_chain := a + a + a + a + a - b;
+            expect(long_chain.x).named("x").should_be(0 - 5);
+            expect(long_chain.y).named("y").should_be(0 - 10);
+        };
+        test("operators inside a function") {
+            sum := a + b;
+            expect(add_three(a, b, sum).x).should_be(22);
+        };
+        test("a number result used in arithmetic") { expect((a * b) + 1).should_be(51); };
+        test("two overloaded results multiplied") { expect((a * a) * (b * b)).should_be(2500); };
+
+        // ---- == and !=
+        test("== with equal fields") {
+            same_values := new vector(1, 2);
+            expect(a == same_values).should_be(1);
+        };
+        test("== with different fields") { expect(a == b).should_be(0); };
+        test("!= with equal fields") {
+            same_values := new vector(1, 2);
+            expect(a != same_values).should_be(0);
+        };
+        test("!= with different fields") { expect(a != b).should_be(1); };
+        test("== with itself") { expect(a == a).should_be(1); };
+        test("== on a computed vector") { expect((a + a) == new vector(2, 4)).should_be(1); };
+        test("== in an if") {
+            same_values := new vector(1, 2);
+            if(a == same_values) {
+            } else {
+                fail_test("the else branch ran");
+            }
+        };
+        test("!= in an if") {
+            same_values := new vector(1, 2);
+            if(a != same_values) {
+                fail_test("the if branch ran");
+            }
+        };
+
+        // ---- < > <= >=
+        test("a < b") { expect(a < b).should_be(1); };
+        test("b < a") { expect(b < a).should_be(0); };
+        test("b > a") { expect(b > a).should_be(1); };
+        test("a > b") { expect(a > b).should_be(0); };
+        test("a <= an equal vector") { expect(a <= new vector(1, 2)).should_be(1); };
+        test("a >= an equal vector") { expect(a >= new vector(1, 2)).should_be(1); };
+        test("b <= a") { expect(b <= a).should_be(0); };
+        test("a >= b") { expect(a >= b).should_be(0); };
+        test("a < an equal vector") { expect(a < new vector(1, 2)).should_be(0); };
+
+        // ---- += -= *= /=
+        test("c += a changes the object itself, not a copy") {
+            c := new vector(100, 200);
+            also_c := c;
+            c += a;
+            expect(c.x).named("c.x").should_be(101);
+            expect(c.y).named("c.y").should_be(202);
+            expect(also_c.x).named("the other name: x").should_be(101);
+            expect(also_c.y).named("the other name: y").should_be(202);
+        };
+        test("c -= b") {
+            c := new vector(101, 202);
+            c -= b;
+            expect(c.x).named("x").should_be(91);
+            expect(c.y).named("y").should_be(182);
+        };
+        test("c *= 2") {
+            c := new vector(91, 182);
+            c *= 2;
+            expect(c.x).named("x").should_be(182);
+            expect(c.y).named("y").should_be(364);
+        };
+        test("c /= 4") {
+            c := new vector(182, 364);
+            c /= 4;
+            expect(c.x).named("x").should_be(45.5);
+            expect(c.y).named("y").should_be(91);
+        };
+        test("+= left the right side alone") {
+            c := new vector(100, 200);
+            c += a;
+            expect(a.x).should_be(1);
+        };
+        test("+= ten times in a loop") {
+            c := new vector(45.5, 91);
+            for(i : decimal = 0; i < 10; i++) {
+                c += a;
+            }
+            expect(c.x).named("x").should_be(55.5);
+            expect(c.y).named("y").should_be(111);
+        };
+
+        // ---- []
+        test("vector[0]") { expect(a[0]).should_be(1); };
+        test("vector[1]") { expect(a[1]).should_be(2); };
+        test("vector[variable]") {
+            index : decimal = 1;
+            expect(b[index]).should_be(20);
+        };
+        test("[] on a computed vector") { expect((a + b)[0]).should_be(11); };
+        test("[] inside arithmetic") { expect(b[0] * b[1] + a[0]).should_be(201); };
+
+        // (a number literal was ambiguous between the two [] overloads of
+        //  table, see functions/fixes.sharp, so the index is a decimal variable)
+        test("table[0]") {
+            t := new table(5);
+            zero : decimal = 0;
+            expect(t[zero]).should_be(0);
+        };
+        test("table[3]") {
+            t := new table(5);
+            three_ : decimal = 3;
+            expect(t[three_]).should_be(30);
+        };
+        test("table[4]") {
+            t := new table(5);
+            four : decimal = 4;
+            expect(t[four]).should_be(40);
+        };
+        test("every [] ran the method") {
+            t := new table(5);
+            zero : decimal = 0;
+            three_ : decimal = 3;
+            four : decimal = 4;
+            first : decimal = t[zero];
+            second : decimal = t[three_];
+            third : decimal = t[four];
+            expect(t.reads).should_be(3);
+        };
+        test("[] with a string index, which does not run the number version") {
+            t := new table(5);
+            expect(t["four"]).should_be(4);
+            expect(t.reads).named("reads of the number version").should_be(0);
+        };
+        test("[] giving an object: a field of it") {
+            s := new shelf();
+            expect(s[1].x).should_be(3);
+        };
+        test("[] giving an object: an operator on it") {
+            s := new shelf();
+            expect((s[0] + s[2]).y).should_be(8);
+        };
+        test("[] giving an object, then [] on that") {
+            s := new shelf();
+            expect(s[2][1]).should_be(6);
+        };
+
+        // ---- a right side that is a native number
+        tests("money") {
+            m : money;
+            fifty : decimal;
+            amount : decimal;
+            limit : decimal;
+            before_each {
+                m = new money(250);
+                fifty = 50;
+                amount = 250;
+                limit = 300;
+            };
+
+            test("money + number gives a number") { expect(m + fifty).should_be(300); };
+            test("money - number gives a number") { expect(m - fifty).should_be(200); };
+            test("money == number") { expect(m == amount).should_be(1); };
+            test("money == another number") { expect(m == limit).should_be(0); };
+            test("money < number") { expect(m < limit).should_be(1); };
+            test("money > number") { expect(m > limit).should_be(0); };
+            test("money + money gives money") {
+                both := m + new money(750);
+                expect(both.cents).should_be(1000);
+            };
+            test("money == money with the same amount") {
+                both := m + new money(750);
+                expect(both == new money(1000)).should_be(1);
+            };
+            test("money == money with another amount") {
+                both := m + new money(750);
+                expect(both == m).should_be(0);
+            };
+        };
+
+        // ---- a string on the right
+        test("+ with strings, chained: each + ran once") {
+            words := new sentence() + "operators" + "are" + "methods";
+            expect(words.text).should_be("operators are methods");
+            expect(words.words).named("words").should_be(3);
+        };
+        test("+= with a string changes the object") {
+            words := new sentence() + "operators" + "are" + "methods";
+            words += "!";
+            expect(words.text).should_be("operators are methods!");
+            expect(words.words).named("words").should_be(4);
+        };
+    };
+}

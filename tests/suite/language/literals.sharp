@@ -1,0 +1,260 @@
+mod suite.language.literals;
+
+import ( std.testing )
+
+/**
+ * Literals: the values that can be written directly in the source.
+ * Whole numbers, fractions, digit separators, exponents, hexadecimal,
+ * characters (which are numbers), true / false, and string literals.
+ */
+
+def literals_tests() {
+    tests("literals") {
+        // ---- whole numbers
+        test("0 is nothing") { expect(0 + 0).should_be(0); };
+        test("10 is ten ones") { expect(10).should_be(1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1); };
+        test("100 is ten tens") { expect(100).should_be(10 * 10); };
+        test("leading zeros change nothing") { expect(007).should_be(7); };
+        test("2147483647 + 1 (past 32 bits)") { expect(2147483647 + 1).should_be(2147483648); };
+        test("4294967296 is 65536 squared") { expect(4294967296).should_be(65536 * 65536); };
+        test("1099511627776 is 2 to the 40th") { expect(1099511627776).should_be(1048576 * 1048576); };
+        test("9007199254740992 is 2 to the 53rd") { expect(9007199254740992).should_be(4503599627370496 * 2); };
+        test("a quintillion") { expect(1000000000000000000).should_be(1000000000 * 1000000000); };
+
+        // ---- a number literal prints the way it was written
+        test("1000 as text") {
+            thousand : int = 1000;
+            expect("$thousand").should_be("1000");
+        };
+        test("0 as text") {
+            zero : int = 0;
+            expect("$zero").should_be("0");
+        };
+        test("-45 as text") {
+            minus : int = 0 - 45;
+            expect("$minus").should_be("-45");
+        };
+
+        // ---- fractions
+        test("0.5 is a half") { expect(0.5).should_be(1.0 / 2); };
+        test("0.25 is a quarter") { expect(0.25).should_be(1.0 / 4); };
+        test("0.125 is an eighth") { expect(0.125).should_be(1.0 / 8); };
+        test("1.0 is 1") { expect(1.0).should_be(1); };
+        test("2.50 is 2.5") { expect(2.50).should_be(2.5); };
+        test("0.5 + 0.5") { expect(0.5 + 0.5).should_be(1); };
+        test("1.75 * 4") { expect(1.75 * 4).should_be(7); };
+        test("12.375 * 8") { expect(12.375 * 8).should_be(99); };
+        test("3.14159 is above 3.14") { expect_true(3.14159 > 3.14); };
+        test("3.14159 is below 3.15") { expect_true(3.14159 < 3.15); };
+        test("0.1 * 3") { expect(0.1 * 3).should_be_near(0.3, 0.000000001); };
+        test("0.000001 * 1000000") { expect(0.000001 * 1000000).should_be_near(1, 0.000000001); };
+        test("a fraction as text is written the short way") {
+            pi : decimal = 3.25;
+            expect("$pi").should_be("3.25");
+        };
+
+        // ---- digit separators
+        test("1_000") { expect(1_000).should_be(1000); };
+        test("1_000_000") { expect(1_000_000).should_be(1000000); };
+        test("12_34 (anywhere between digits)") { expect(12_34).should_be(1234); };
+        test("1_0") { expect(1_0).should_be(10); };
+        test("1__000 (two in a row)") { expect(1__000).should_be(1000); };
+        test("1_000.5") { expect(1_000.5).should_be(1000.5); };
+        test("1.2_5 (after the point)") { expect(1.2_5).should_be(1.25); };
+        test("1_000 * 1_000") { expect(1_000 * 1_000).should_be(1000000); };
+
+        // ---- exponents
+        test("1e3") { expect(1e3).should_be(1000); };
+        test("1E3") { expect(1E3).should_be(1000); };
+        test("1e0") { expect(1e0).should_be(1); };
+        test("1e+2") { expect(1e+2).should_be(100); };
+        test("1.5e3") { expect(1.5e3).should_be(1500); };
+        test("2.5e-1") { expect(2.5e-1).should_be(0.25); };
+        test("5e-1") { expect(5e-1).should_be(0.5); };
+        test("1e15") { expect(1e15).should_be(1000000000000000); };
+        test("1e9 + 9") { expect(1e9 + 9).should_be(1000000009); };
+
+        // ---- hexadecimal
+        test("0x0") { expect(0x0).should_be(0); };
+        test("0x1") { expect(0x1).should_be(1); };
+        test("0xa") { expect(0xa).should_be(10); };
+        test("0xF") { expect(0xF).should_be(15); };
+        test("0x10") { expect(0x10).should_be(16); };
+        test("0xff") { expect(0xff).should_be(255); };
+        test("0xFF") { expect(0xFF).should_be(255); };
+        test("0x100") { expect(0x100).should_be(256); };
+        test("0xDEAD") { expect(0xDEAD).should_be(57005); };
+        test("0xabcdef") { expect(0xabcdef).should_be(11259375); };
+        test("0xff_ff") { expect(0xff_ff).should_be(65535); };
+        test("0x7fffffff") { expect(0x7fffffff).should_be(2147483647); };
+        test("0xffffffff") { expect(0xffffffff).should_be(4294967295); };
+        test("0x10 + 0x10") { expect(0x10 + 0x10).should_be(32); };
+
+        // ---- characters are numbers
+        test("'a'") { expect('a').should_be(97); };
+        test("'z'") { expect('z').should_be(122); };
+        test("'A'") { expect('A').should_be(65); };
+        test("'Z'") { expect('Z').should_be(90); };
+        test("'0'") { expect('0').should_be(48); };
+        test("'9'") { expect('9').should_be(57); };
+        test("' ' (space)") { expect(' ').should_be(32); };
+        test("'!'") { expect('!').should_be(33); };
+        test("'_'") { expect('_').should_be(95); };
+        test("'~'") { expect('~').should_be(126); };
+        test("'a' + 1 is 'b'") { expect('a' + 1).should_be('b'); };
+        test("'z' - 'a'") { expect('z' - 'a').should_be(25); };
+        test("'7' - '0' turns a digit into its value") { expect('7' - '0').should_be(7); };
+        test("'a' - 'A' is the distance between the cases") { expect('a' - 'A').should_be(32); };
+        test("'a' < 'b'") { expect_true('a' < 'b'); };
+        test("'Z' < 'a'") { expect_true('Z' < 'a'); };
+
+        // ---- escaped characters
+        test("'\\n' new line") { expect('\n').should_be(10); };
+        test("'\\t' tab") { expect('\t').should_be(9); };
+        test("'\\r' carriage return") { expect('\r').should_be(13); };
+        test("'\\b' backspace") { expect('\b').should_be(8); };
+        test("'\\v' vertical tab") { expect('\v').should_be(11); };
+        test("'\\f' form feed") { expect('\f').should_be(12); };
+        test("'\\a' bell") { expect('\a').should_be(7); };
+        test("'\\0' zero") { expect('\0').should_be(0); };
+        test("'\\\\' backslash") { expect('\\').should_be(92); };
+        test("'\\'' single quote") { expect('\'').should_be(39); };
+        test("'\\\"' double quote") { expect('\"').should_be(34); };
+        test("'\"' double quote without the backslash") { expect('"').should_be(34); };
+
+        // ---- characters in variables
+        test("char in a var") {
+            letter : decimal = 'q';
+            expect(letter).should_be(113);
+        };
+        test("char in a char object") {
+            boxed : char = 'x';
+            expect(boxed.value).should_be(120);
+        };
+        test("a char object prints as the character") {
+            boxed : char = 'x';
+            expect("$boxed").should_be("x");
+        };
+
+        // ---- true and false
+        test("true is 1") { expect(true).should_be(1); };
+        test("false is 0") { expect(false).should_be(0); };
+        test("true") { expect_true(true); };
+        test("false") { expect_false(false); };
+        test("true != false") { expect_true(true != false); };
+        test("true in a var") {
+            yes : decimal = true;
+            expect(yes).should_be(1);
+        };
+        test("false in a var") {
+            no : decimal = false;
+            expect(no).should_be(0);
+        };
+        test("true in a bool object") {
+            flag : bool = true;
+            expect(flag).should_be(1);
+        };
+        test("a bool object prints as a word") {
+            flag : bool = true;
+            expect("$flag").should_be("true");
+        };
+        test("false in a bool object") {
+            flag : bool = true;
+            flag = false;
+            expect(flag).should_be(0);
+        };
+        test("false prints as a word") {
+            flag : bool = true;
+            flag = false;
+            expect("$flag").should_be("false");
+        };
+
+        // ---- string literals
+        test("\"hello\" has 5 characters") {
+            hello := "hello";
+            expect(hello.size()).should_be(5);
+        };
+        test("first character") {
+            hello := "hello";
+            expect(hello.at(0).value).should_be('h');
+        };
+        test("last character") {
+            hello := "hello";
+            expect(hello.at(4).value).should_be('o');
+        };
+        test("index operator") {
+            hello := "hello";
+            expect(hello[1].value).should_be('e');
+        };
+        test("\"\" has no characters") {
+            empty := "";
+            expect(empty.size()).should_be(0);
+        };
+        test("a space is a character") {
+            spaced := "a b";
+            expect(spaced.size()).should_be(3);
+        };
+        test("the space") {
+            spaced := "a b";
+            expect(spaced.at(1).value).should_be(32);
+        };
+        test("digits in a string are characters") {
+            digits := "123";
+            expect(digits.at(0).value).should_be(49);
+        };
+        test("\"123\" has 3 characters") {
+            digits := "123";
+            expect(digits.size()).should_be(3);
+        };
+        test("// inside a string is not a comment") {
+            symbols := "a//b{c}";
+            expect(symbols.size()).should_be(7);
+        };
+        test("single quote inside a string") {
+            quote := "it's";
+            expect(quote.at(2).value).should_be(39);
+        };
+
+        // ---- escapes inside strings
+        test("\\t is one character") {
+            tabbed := "a\tb";
+            expect(tabbed.size()).should_be(3);
+        };
+        test("\\t is a tab") {
+            tabbed := "a\tb";
+            expect(tabbed.at(1).value).should_be(9);
+        };
+        test("\\n is one character") {
+            lines := "one\ntwo";
+            expect(lines.size()).should_be(7);
+        };
+        test("\\n is a new line") {
+            lines := "one\ntwo";
+            expect(lines.at(3).value).should_be(10);
+        };
+        test("\\\" is one character") {
+            quoted := "a\"b";
+            expect(quoted.size()).should_be(3);
+        };
+        test("\\\" is a double quote") {
+            quoted := "a\"b";
+            expect(quoted.at(1).value).should_be(34);
+        };
+        test("\\\\ is one character") {
+            slashed := "a\\b";
+            expect(slashed.size()).should_be(3);
+        };
+        test("\\\\ is a backslash") {
+            slashed := "a\\b";
+            expect(slashed.at(1).value).should_be(92);
+        };
+        test("$$$$ is one character") {
+            dollar := "a$$b";
+            expect(dollar.size()).should_be(3);
+        };
+        test("$$$$ is a dollar sign") {
+            dollar := "a$$b";
+            expect(dollar.at(1).value).should_be(36);
+        };
+    };
+}

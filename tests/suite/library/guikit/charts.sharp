@@ -1,0 +1,380 @@
+mod suite.library.guikit.charts;
+import ( std.testing, std.guikit.* )
+
+/**
+ * The charts of the GUI library (std/guikit/charts), as far as they can be
+ * tried without a window: how numbers are written, the curves a motion
+ * follows, how a motion spreads over its marks and changes them, what a
+ * series keeps of its numbers, and that the words of a chart's block only
+ * work inside one. What a chart PAINTS is looked at in examples/gui/charts.
+ */
+
+def charts_tests() {
+    tests("charts") {
+        test("numbers are written as short as they honestly can be") {
+            expect(chart_text.number(0)).should_be("0");
+            expect(chart_text.number(7)).should_be("7");
+            expect(chart_text.number(3.5)).should_be("3.5");
+            expect(chart_text.number(0.125)).should_be("0.13");
+            expect(chart_text.number(2.05)).should_be("2.05");
+            expect(chart_text.number(0 - 19)).should_be("-19");
+            expect(chart_text.number(0 - 0.001)).should_be("0");
+        };
+        test("a comma between the thousands") {
+            expect(chart_text.number(999)).should_be("999");
+            expect(chart_text.number(1000)).should_be("1,000");
+            expect(chart_text.number(1005)).should_be("1,005");
+            expect(chart_text.number(12050)).should_be("12,050");
+            expect(chart_text.number(1234567.25)).should_be("1,234,567.25");
+            expect(chart_text.number(0 - 15000)).should_be("-15,000");
+        };
+
+        test("every curve starts at 0 and ends at 1") {
+            for(curve : _int64 = EASE_LINEAR; curve <= EASE_BOUNCE; curve++) {
+                expect(easing.at(curve, 0)).should_be(0);
+                expect(easing.at(curve, 1)).should_be(1);
+                expect(easing.at(curve, 0 - 3)).should_be(0);
+                expect(easing.at(curve, 7)).should_be(1);
+            }
+        };
+        test("the curves at half time") {
+            expect(easing.at(EASE_LINEAR, 0.5)).should_be(0.5);
+            expect(easing.at(EASE_OUT, 0.5)).should_be(0.875);
+            expect(easing.at(EASE_IN, 0.5)).should_be(0.125);
+            expect(easing.at(EASE_IN_OUT, 0.5)).should_be(0.5);
+            expect(easing.at(EASE_IN_OUT, 0.25)).should_be(0.0625);
+        };
+        test("overshoot and spring go past the end and come back") {
+            expect(easing.at(EASE_OVERSHOOT, 0.7)).should_be_above(1);
+            expect(easing.at(EASE_SPRING, 0.3)).should_be_above(1);
+            expect(easing.at(EASE_BOUNCE, 0.5)).should_be_at_most(1);
+        };
+
+        test("a motion with a stagger: each mark starts later than the one before") {
+            wave := motion.grow().over(1).stagger(0.5).ease(EASE_LINEAR);
+            expect(wave.moves()).should_be(1);
+            expect(wave.total(3)).should_be(2);
+            expect(wave.progress(0.5, 0, 3)).should_be(0.5);
+            expect(wave.progress(0.5, 1, 3)).should_be(0);
+            expect(wave.progress(1, 1, 3)).should_be(0.5);
+            expect(wave.progress(2, 2, 3)).should_be(1);
+            expect(wave.progress(9, 0, 3)).should_be(1);
+        };
+        test("no motion: everything is there at once") {
+            still := motion.none();
+            expect(still.moves()).should_be(0);
+            expect(still.total(12)).should_be(0);
+            expect(still.progress(0, 5, 12)).should_be(1);
+            expect(still.overall(0)).should_be(1);
+        };
+        test("drawing on: the marks share the whole time") {
+            pen := motion.draw_on().over(1).ease(EASE_LINEAR);
+            expect(pen.sweeps()).should_be(1);
+            expect(pen.total(5)).should_be(1);
+            expect(pen.progress(0.2, 0, 5)).should_be(0.5);
+            expect(pen.progress(0.2, 4, 5)).should_be(0);
+            expect(pen.progress(1, 4, 5)).should_be(1);
+            expect(pen.overall(0.25)).should_be(0.25);
+        };
+        test("a curve of the program's own") {
+            squared := motion.grow().over(2).ease { t: decimal -> return t * t; };
+            expect(squared.progress(1, 0, 1)).should_be(0.25);
+            expect(squared.progress(2, 0, 1)).should_be(1);
+        };
+
+        test("a bar grows from the baseline, above it and below it") {
+            m := new mark();
+            m.is_bar = 1;
+            m.baseline = 100;
+            m.y = 10;
+            m.height = 90;
+            m.grow(0.5);
+            expect(m.y).should_be(55);
+            expect(m.height).should_be(45);
+
+            m.y = 100;
+            m.height = 40;
+            m.grow(0.5);
+            expect(m.y).should_be(100);
+            expect(m.height).should_be(20);
+        };
+        test("a point grows from the baseline to its place") {
+            m := new mark();
+            m.baseline = 100;
+            m.y = 20;
+            m.grow(0.25);
+            expect(m.y).should_be(80);
+        };
+        test("a motion of the program's own changes the mark it is handed") {
+            own := motion.custom { m: mark, t: decimal ->
+                m.grow(t);
+                m.opacity = t;
+            };
+            m := new mark();
+            m.is_bar = 1;
+            m.baseline = 200;
+            m.y = 100;
+            m.height = 100;
+            own.shape(m, 0.5);
+            expect(m.y).should_be(150);
+            expect(m.height).should_be(50);
+            expect(m.opacity).should_be(0.5);
+        };
+        test("fading and rising change how solid a mark is") {
+            m := new mark();
+            motion.fade().shape(m, 0.25);
+            expect(m.opacity).should_be(0.25);
+            m.opacity = 1;
+            m.y = 50;
+            motion.rise().shape(m, 0.5);
+            expect(m.opacity).should_be(0.5);
+            expect(m.y).should_be(59);
+        };
+
+        test("a series keeps its own copy of the numbers") {
+            numbers : decimal[] = new decimal[] { 3, 5, 8 };
+            series := new bar_series("Sales", numbers);
+            numbers[1] = 500;
+            expect(series.count).should_be(3);
+            expect(series.values[1]).should_be(5);
+            expect(series.is_bars()).should_be(1);
+            expect(series.name).should_be("Sales");
+        };
+        test("a series from a list") {
+            numbers := new list<double>();
+            numbers.add(new double(1.5));
+            numbers.add(new double(2.5));
+            series := new line_series("", numbers);
+            expect(series.count).should_be(2);
+            expect(series.values[1]).should_be(2.5);
+            expect(series.is_bars()).should_be(0);
+        };
+        test("between where a number stood and where it is going") {
+            series := new bar_series("", new decimal[] { 10, 20 });
+            series.start[0] = 0;
+            series.start[1] = 40;
+            expect(series.value_at(0, 0)).should_be(0);
+            expect(series.value_at(0, 0.5)).should_be(5);
+            expect(series.value_at(0, 1)).should_be(10);
+            expect(series.value_at(1, 0.25)).should_be(35);
+        };
+        test("the same numbers, and not") {
+            first := new bar_series("", new decimal[] { 1, 2, 3 });
+            second := new line_series("", new decimal[] { 1, 2, 3 });
+            third := new bar_series("", new decimal[] { 1, 2, 4 });
+            fourth := new bar_series("", new decimal[] { 1, 2 });
+            expect(first.same_numbers(second)).should_be(1);
+            expect(first.same_numbers(third)).should_be(0);
+            expect(first.same_numbers(fourth)).should_be(0);
+        };
+
+        test("a chart is made from its block") {
+            sales : decimal[] = new decimal[] { 4, 8, 15 };
+            made := chart {
+                bars("Sales", sales).corner(6).gradient(rgb(1, 2, 3), rgb(4, 5, 6));
+                line(sales).curved().dots(3).fill_below();
+                x_axis(new string[] { "a", "b", "c" });
+                y_axis().ticks(4);
+                grid_lines().dashed();
+                legend();
+                marker();
+            }.stacked().range(0, 20).enter(motion.grow()).change(motion.glide());
+            expect(made.kind()).should_be("chart");
+            expect_null(chart.open);
+        };
+        test("for_each goes over the labels of an axis and may change each") {
+            red := rgb(255, 0, 0);
+            axis := new chart_axis().for_each { l: axis_label ->
+                if(l.index == 2) { l.tint = red; l.bold = 1; l.words = l.words + "!"; }
+                if(l.value < 0) { l.hidden = 1; }
+            };
+            plain := axis.dressed(0, 5, "Jan");
+            expect(plain.words).should_be("Jan");
+            expect(plain.bold).should_be(0);
+            expect(plain.hidden).should_be(0);
+            expect_null(plain.tint);
+
+            marked := axis.dressed(2, 5, "Mar");
+            expect(marked.words).should_be("Mar!");
+            expect(marked.bold).should_be(1);
+            expect_same(marked.tint, red);
+
+            // every label starts afresh: nothing of the one before is left on it
+            after := axis.dressed(3, 0 - 1, "Apr");
+            expect(after.words).should_be("Apr");
+            expect(after.bold).should_be(0);
+            expect(after.hidden).should_be(1);
+            expect_null(after.tint);
+        };
+        test("an axis without for_each leaves its labels as they are") {
+            label := new chart_axis().dressed(4, 20, "20");
+            expect(label.index).should_be(4);
+            expect(label.value).should_be(20);
+            expect(label.words).should_be("20");
+        };
+        test("the legend's and the marker's looks are kept as said") {
+            key := new chart_legend().bottom().align(ALIGN_CENTER).sign(LEGEND_DOT).pills().bold().size(14).gap(10);
+            expect(key.below).should_be(1);
+            expect(key.sideways).should_be(ALIGN_CENTER);
+            expect(key.mark_kind).should_be(LEGEND_DOT);
+            expect(key.boxed).should_be(1);
+            expect(key.heavy).should_be(1);
+            expect(key.pixels).should_be(14);
+            expect(key.apart).should_be(10);
+
+            pointer := new chart_marker().guide(GUIDE_BAND).dim_others().dashed().dot(9).corner(3).above();
+            expect(pointer.guide_kind).should_be(GUIDE_BAND);
+            expect(pointer.fading).should_be(1);
+            expect(pointer.broken).should_be(1);
+            expect(pointer.ring).should_be(9);
+            expect(pointer.round).should_be(3);
+            expect(pointer.over).should_be(1);
+            expect(pointer.boxed).should_be(1);
+            expect(pointer.no_box().boxed).should_be(0);
+        };
+        test("what a marker's box says is filled line by line") {
+            tip := new chart_tip();
+            tip.title("Thursday");
+            tip.line(rgb(1, 2, 3), "7,595 steps");
+            tip.line("goal: 8,000");
+            expect(tip.size()).should_be(3);
+            expect(tip.kind_at(0)).should_be(chart_tip.TITLE);
+            expect(tip.kind_at(1)).should_be(chart_tip.DOTTED);
+            expect(tip.kind_at(2)).should_be(chart_tip.WORDS);
+            expect(tip.texts.at(1)).should_be("7,595 steps");
+            expect(tip.tints.at(1).blue).should_be(3);
+            tip.clear();
+            expect(tip.size()).should_be(0);
+        };
+        test("a marker's own functions are kept and can be called") {
+            pointer := new chart_marker()
+                .title { i: _int64 -> return "Week " + (i + 1); }
+                .format { v: decimal -> return chart_text.number(v) + " km"; }
+                .tip { h: chart_hover, tip: chart_tip -> tip.line(h.name + " #" + h.index); };
+            expect(pointer.heading!!(2)).should_be("Week 3");
+            expect(pointer.writer!!(1500)).should_be("1,500 km");
+            told := new chart_hover();
+            told.index = 4;
+            told.name = "Fri";
+            filled := new chart_tip();
+            pointer.filler!!(told, filled);
+            expect(filled.texts.at(0)).should_be("Fri #4");
+        };
+
+        test("the parts of a chart can hold widgets: each becomes a child of the chart") {
+            labels_built : _int64 = 0;
+            made := chart {
+                bars("Sales", new decimal[] { 1, 2, 3 }) { text("" + it.value); };
+                x_axis { labels_built = labels_built + 1; text(it.words); };
+                y_axis { text(it.words); }.ticks(2);                               // 0, 2, 4
+                legend { text(it.name); chip("#" + it.index); };
+                marker { text(it.name); };                                         // built when the mouse comes, not now
+            };
+            expect(labels_built).should_be(3);
+            expect(made.node().kid_count()).should_be(3 + 3 + 1 + 3);
+
+            // a scale said after the block: the y axis' widgets are made again for it (0, 5)
+            made.range(0, 6);
+            expect(made.node().kid_count()).should_be(3 + 2 + 1 + 3);
+
+            // what a block made is inside its own small container
+            first : view = made.node().kids.at(0);
+            expect(first.kid_count()).should_be(1);
+            expect(first.kids.at(0).how.kind()).should_be("label");
+        };
+        test("a chart whose parts have no block has no children") {
+            made := chart {
+                bars(new decimal[] { 1, 2 }).value_labels();
+                x_axis();
+                y_axis();
+                legend();
+                marker();
+            };
+            expect(made.node().kid_count()).should_be(0);
+        };
+        test("a widget made in a label's block does not land in the container around the chart") {
+            around := column {
+                chart {
+                    line(new decimal[] { 1, 2 });
+                    x_axis { text(it.words); };
+                };
+                text("after");
+            };
+            expect(around.node().kid_count()).should_be(2);
+        };
+        test("the block of a part is told which label, entry or mark it builds") {
+            seen : string = "";
+            values : string = "";
+            entries : string = "";
+            made := chart {
+                bars("Sales", new decimal[] { 4, 8 }) { values = values + it.index + "=" + it.value + ";"; };
+                line("Aim", new decimal[] { 5, 5 });
+                x_axis(new string[] { "Mon", "Tue" }) { seen = seen + it.index + ":" + it.words + " "; };
+                legend { entries = entries + it.index + ":" + it.name + " "; };
+            };
+            expect(seen).should_be("0:Mon 1:Tue ");
+            expect(values).should_be("0=4;1=8;");
+            expect(entries).should_be("0:Sales 1:Aim ");
+        };
+        test("any widget can be written in a chart: it is the chart's child, with the place its modifier says") {
+            made := chart {
+                bars(new decimal[] { 1, 2, 3 });
+                chip("here", modifier().at(2, 3));
+                text("level", modifier().at_value(2));
+                text("top", modifier().at_place(1.5));
+                text("corner");
+            };
+            kids : view = made.node();
+            expect(kids.kid_count()).should_be(4);
+            expect(kids.kids.at(0).how.kind()).should_be("chip");
+            expect(kids.kids.at(0).at_set).should_be(3);
+            expect(kids.kids.at(0).at_across).should_be(2);
+            expect(kids.kids.at(0).at_up).should_be(3);
+            expect(kids.kids.at(1).at_set).should_be(2);
+            expect(kids.kids.at(1).at_up).should_be(2);
+            expect(kids.kids.at(2).at_set).should_be(1);
+            expect(kids.kids.at(2).at_across).should_be(1.5);
+            expect(kids.kids.at(3).at_set).should_be(0);
+        };
+        test("a place said in one modifier is kept when modifiers are joined") {
+            joined := modifier().at(3, 9).then(modifier().padding(4));
+            target := text("x", joined).node();
+            expect(target.at_set).should_be(3);
+            expect(target.at_across).should_be(3);
+            expect(target.at_up).should_be(9);
+            expect(target.pad_left).should_be(4);
+        };
+        test("widgets written in the chart come before the widgets its parts build") {
+            made := chart {
+                bars(new decimal[] { 1, 2 });
+                x_axis { text(it.words); };
+                text("note", modifier().at(0, 1));
+            };
+            expect(made.node().kid_count()).should_be(3);
+            expect(made.node().kids.at(0).how.kind()).should_be("label");      // the note itself
+            expect(made.node().kids.at(1).how.kind()).should_be("column");     // a container made for a label of the axis
+        };
+        test("a chart takes a state to keep at the place under the mouse") {
+            pointed := gui.state(0 - 1);
+            made := chart { bars(new decimal[] { 1, 2 }); }.hover(pointed);
+            expect(made.kind()).should_be("chart");
+            expect(pointed.value).should_be(0 - 1);
+        };
+
+        test("the words of a chart only work inside one") {
+            expect_throws<illegal_state_exception>() { bars(new decimal[] { 1 }); };
+            expect_throws<illegal_state_exception>() { line(new decimal[] { 1 }); };
+            expect_throws<illegal_state_exception>() { x_axis(); };
+            expect_throws<illegal_state_exception>() { marker(); };
+        };
+        test("a chart inside a chart's block: each gets its own") {
+            outer := chart {
+                bars(new decimal[] { 1, 2 });
+                inner := chart { line(new decimal[] { 3, 4 }); };
+                expect_not_null(chart.open);
+                line(new decimal[] { 5, 6 });
+            };
+            expect_null(chart.open);
+        };
+    };
+}

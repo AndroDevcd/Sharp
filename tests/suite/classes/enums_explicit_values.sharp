@@ -1,0 +1,55 @@
+mod suite.classes.enums_explicit_values;
+
+import ( std.testing )
+
+/**
+ * Enum members after an explicit value count on from it.
+ *
+ * Members of an enum WITHOUT any explicit value are numbered from a number
+ * that depends on when the enum is compiled (that is by design): only the
+ * steps between them are checked here, never the first value.
+ */
+
+enum mixed {
+    first = 5,
+    second,
+    third
+}
+
+enum gaps {
+    low = 10,
+    low_next,
+    high = 100,
+    high_next,
+    high_after
+}
+
+enum letters {
+    a_letter = 'a',
+    after_a
+}
+
+enum color {
+    red,
+    green,
+    blue
+}
+
+def enums_explicit_values_tests() {
+    tests("enums_explicit_values") {
+        test("explicit value") { expect(mixed.first.ordinal).should_be(5); };
+        test("the member after it is one higher") { expect(mixed.second.ordinal).should_be(6); };
+        test("...and the next one higher again") { expect(mixed.third.ordinal).should_be(7); };
+        test("first and second are different members") { expect((mixed.first == mixed.second)).should_be(0); };
+
+        test("after 10") { expect(gaps.low_next.ordinal).should_be(11); };
+        test("a second explicit value") { expect(gaps.high.ordinal).should_be(100); };
+        test("after 100") { expect(gaps.high_next.ordinal).should_be(101); };
+        test("two after 100") { expect(gaps.high_after.ordinal).should_be(102); };
+
+        test("after a char value") { expect(letters.after_a.ordinal).should_be(98); };
+
+        test("without values: green is one after red") { expect(color.green.ordinal - color.red.ordinal).should_be(1); };
+        test("without values: blue is two after red") { expect(color.blue.ordinal - color.red.ordinal).should_be(2); };
+    };
+}

@@ -1,0 +1,35 @@
+mod suite.library.io;
+
+import (
+    std.testing,
+    suite.library.io.atomic_comparisons,
+    suite.library.io.binary,
+    suite.library.io.file,
+    suite.library.io.file_stream,
+    suite.library.io.folder_watcher,
+    suite.library.io.language,
+    suite.library.io.path,
+    suite.library.io.print_is_seen,
+    suite.library.io.streams,
+    suite.library.io.strings,
+    suite.library.io.syntax,
+    suite.library.io.tree
+)
+
+/** suite.library.io: std.io */
+def io_tests() {
+    tests("io") {
+        atomic_comparisons_tests();
+        binary_tests();
+        file_tests();
+        file_stream_tests();
+        folder_watcher_tests();
+        language_tests();
+        path_tests();
+        print_is_seen_tests();
+        streams_tests();
+        strings_tests();
+        syntax_tests();
+        tree_tests();
+    };
+}

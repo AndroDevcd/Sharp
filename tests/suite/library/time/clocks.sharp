@@ -1,0 +1,640 @@
+mod suite.library.time.clocks;
+
+import ( std.testing, std.time )
+
+/**
+ * The clock interface and everything built on it: fixed_clock, manual_clock,
+ * offset_clock, system_clock, stopwatch, deadline, rate_limiter and
+ * interval_timer. (measure_time is checked in measure.sharp.)
+ *
+ * Every timing check runs on a manual_clock that the test moves itself, so
+ * the numbers are exact and the test never sleeps. The real clock is only
+ * checked for properties that always hold.
+ */
+
+/** a function that takes any clock: the point of the interface */
+def seconds_on(c: clock): decimal {
+    return c.now().epoch_second();
+}
+
+/** where the manual clocks of these tests start: 1000 seconds after the epoch */
+def start_time(): instant {
+    return instant.of_epoch_second(1000);
+}
+
+/** a manual_clock that moves 250 ms every time it is read */
+def ticking_clock(): manual_clock {
+    ticking := new manual_clock(start_time());
+    ticking.auto_advance(duration.of_millis(250));
+    return ticking;
+}
+
+/** 2024-02-29T13:00:00Z */
+def leap_day_clock(): fixed_clock {
+    return new fixed_clock(instant.of_epoch_second(1709211600));
+}
+
+/** laps of 100, 250 and 50 ms */
+def take_three_laps(c: manual_clock, watch: stopwatch) {
+    c.advance_millis(100);
+    watch.lap();
+    c.advance_millis(250);
+    watch.lap();
+    c.advance_millis(50);
+    watch.lap();
+}
+
+/** the three laps, one of no time, and 20 of 1 ms: 24 laps */
+def take_24_laps(c: manual_clock, watch: stopwatch) {
+    take_three_laps(c, watch);
+    watch.lap();
+    for(i : decimal = 0; i < 20; i++) {
+        c.advance_millis(1);
+        watch.lap();
+    }
+}
+
+/** asks `asked` times for one permit; how many were granted */
+def burst(limiter: rate_limiter, asked: decimal): decimal {
+    granted : decimal = 0;
+    for(i : decimal = 0; i < asked; i++) {
+        if(limiter.try_acquire()) {
+            granted++;
+        }
+    }
+    return granted;
+}
+
+def clocks_tests() {
+    tests("clocks") {
+        // ================= the clocks =================
+
+        // ---- fixed_clock
+        test("fixed_clock shows its moment, every time") {
+            fixed := new fixed_clock(start_time());
+            expect(fixed.now().epoch_second()).named("the first reading").should_be(1000);
+            expect(fixed.now().epoch_second()).named("the second reading").should_be(1000);
+        };
+        test("a fixed_clock is a clock") { expect(seconds_on(new fixed_clock(start_time()))).should_be(1000); };
+
+        // ---- manual_clock
+        test("manual_clock starts where it was put") { expect(new manual_clock(start_time()).now().epoch_second()).should_be(1000); };
+        test("it does not move by itself") {
+            c := new manual_clock(start_time());
+            c.now();
+            expect(c.now().epoch_second()).should_be(1000);
+        };
+        test("advance(duration)") {
+            c := new manual_clock(start_time());
+            c.advance(duration.of_seconds(5));
+            expect(c.now().epoch_second()).should_be(1005);
+        };
+        test("advance_seconds") {
+            c := new manual_clock(start_time());
+            c.advance(duration.of_seconds(5));
+            c.advance_seconds(10);
+            expect(c.now().epoch_second()).should_be(1015);
+        };
+        test("advance_millis moves the seconds and the nanos") {
+            c := new manual_clock(start_time());
+            c.advance_seconds(15);
+            c.advance_millis(1500);
+            expect(c.now().epoch_second()).named("seconds").should_be(1016);
+            expect(c.now().nano()).named("nanos").should_be(500000000);
+        };
+        test("a negative advance moves it back") {
+            c := new manual_clock(start_time());
+            c.advance_millis(16500);
+            c.advance(duration.of_seconds(0 - 16, 0 - 500000000));
+            expect(c.now().epoch_second()).should_be(1000);
+        };
+        test("set_time") {
+            c := new manual_clock(start_time());
+            c.set_time(instant.of_epoch_second(50));
+            expect(c.now().epoch_second()).should_be(50);
+        };
+        test("a manual_clock is a clock") {
+            c := new manual_clock(start_time());
+            c.set_time(instant.of_epoch_second(50));
+            expect(seconds_on(c)).should_be(50);
+        };
+        test("advance returns the clock for chaining") {
+            c := new manual_clock(instant.of_epoch_second(50));
+            expect(c.advance_seconds(1).advance_seconds(1).now().epoch_second()).should_be(52);
+        };
+        test("the default manual_clock starts at the epoch") { expect(new manual_clock().now().epoch_second()).should_be(0); };
+
+        test("read_count starts at 0") { expect(new manual_clock(start_time()).read_count()).should_be(0); };
+        test("read_count counts now()") {
+            counted := new manual_clock(start_time());
+            counted.now();
+            counted.now();
+            expect(counted.read_count()).should_be(2);
+        };
+        test("peek shows the time without counting") {
+            counted := new manual_clock(start_time());
+            counted.now();
+            counted.now();
+            expect(counted.peek().epoch_second()).should_be(1000);
+            expect(counted.read_count()).named("read_count after peek").should_be(2);
+        };
+
+        test("auto_advance: every reading is one tick after the one before, the first is the start") {
+            ticking := ticking_clock();
+            expect(ticking.now().to_epoch_milli()).named("the first reading").should_be(1000000);
+            expect(ticking.now().to_epoch_milli()).named("the second reading").should_be(1000250);
+            expect(ticking.now().to_epoch_milli()).named("the third reading").should_be(1000500);
+        };
+        test("peek does not tick") {
+            ticking := ticking_clock();
+            ticking.now();
+            ticking.now();
+            ticking.now();
+            expect(ticking.peek().to_epoch_milli()).named("the first peek").should_be(1000750);
+            expect(ticking.peek().to_epoch_milli()).named("the second peek").should_be(1000750);
+        };
+        test("auto_advance(zero) switches it off") {
+            ticking := ticking_clock();
+            ticking.now();
+            ticking.now();
+            ticking.now();
+            ticking.auto_advance(duration.zero);
+            ticking.now();
+            expect(ticking.now().to_epoch_milli()).should_be(1000750);
+        };
+
+        // ---- offset_clock
+        tests("offset_clock") {
+            under : manual_clock;
+            ahead : offset_clock;
+            behind : offset_clock;
+            before_each {
+                under = new manual_clock(start_time());
+                ahead = new offset_clock(under, duration.of_hours(1));
+                behind = new offset_clock(under, duration.of_seconds(0 - 30));
+            };
+
+            test("offset_clock ahead") { expect(ahead.now().epoch_second()).should_be(4600); };
+            test("offset_clock behind") { expect(behind.now().epoch_second()).should_be(970); };
+            test("it follows the clock underneath") {
+                under.advance_seconds(10);
+                expect(ahead.now().epoch_second()).should_be(4610);
+            };
+            test("shift_amount") { expect(ahead.shift_amount().to_minutes()).should_be(60); };
+            test("an offset_clock is a clock") {
+                under.advance_seconds(10);
+                expect(seconds_on(behind)).should_be(980);
+            };
+        };
+
+        // ---- system_clock: only what is always true
+        test("the system clock is after 2020-01-01") { expect_true(system_clock.instance.now().epoch_second() > 1577836800); };
+        test("its nano is in range") {
+            real := system_clock.instance.now();
+            expect_true(real.nano() >= 0 && real.nano() <= 999999999);
+        };
+        test("millis() is after 2020-01-01") { expect_true(system_clock.instance.millis() > 1577836800000); };
+        test("the system clock is a clock") { expect_true(seconds_on(system_clock.instance) > 1577836800); };
+        test("instant.now() agrees to within a minute") {
+            real := system_clock.instance.now();
+            expect_true(time_math.abs(instant.now().epoch_second() - real.epoch_second()) < 60);
+        };
+        test("date.today() is 2020 or later") { expect_true(date.today().year() >= 2020); };
+        test("date_time.now() is 2020 or later") { expect_true(date_time.now().year() >= 2020); };
+        test("offset_date_time.now() is at UTC") { expect_true(offset_date_time.now().offset().is_utc()); };
+        test("time_of_day.now() is a valid time") {
+            hour_now : decimal = time_of_day.now().hour();
+            expect_true(hour_now >= 0 && hour_now <= 23);
+        };
+
+        // ---- "now" through an injected clock is exact
+        test("date.today(clock, utc)") { expect(date.today(leap_day_clock(), zone_offset.utc).to_string()!!).should_be("2024-02-29"); };
+        test("date.today(clock, +14:00) is already tomorrow") { expect(date.today(leap_day_clock(), zone_offset.of_hours(14)).to_string()!!).should_be("2024-03-01"); };
+        test("time_of_day.now(clock, +02:00)") { expect(time_of_day.now(leap_day_clock(), zone_offset.of_hours(2)).to_string()!!).should_be("15:00:00"); };
+        test("date_time.now(clock, -05:00)") { expect(date_time.now(leap_day_clock(), zone_offset.of_hours(0 - 5)).to_string()!!).should_be("2024-02-29T08:00:00"); };
+        test("offset_date_time.now(clock, +05:30)") { expect(offset_date_time.now(leap_day_clock(), zone_offset.of_hours_minutes(5, 30)).to_string()!!).should_be("2024-02-29T18:30:00+05:30"); };
+
+        // ================= stopwatch =================
+
+        tests("stopwatch") {
+            wc : manual_clock;
+            watch : stopwatch;
+            before_each {
+                wc = new manual_clock(start_time());
+                watch = new stopwatch(wc);
+            };
+
+            test("a new stopwatch is not running and shows zero") {
+                expect_false(watch.is_running());
+                expect(watch.elapsed().to_nanos()).should_be(0);
+            };
+            test("time before start does not count") {
+                wc.advance_seconds(100);
+                expect(watch.elapsed().to_nanos()).should_be(0);
+            };
+            test("running after start") {
+                watch.start();
+                expect_true(watch.is_running());
+            };
+            test("elapsed while running, and it keeps growing") {
+                watch.start();
+                wc.advance_millis(1500);
+                expect(watch.elapsed().to_millis()).named("elapsed").should_be(1500);
+                expect(watch.elapsed_millis()).named("elapsed_millis").should_be(1500);
+                wc.advance_millis(500);
+                expect(watch.elapsed().to_millis()).named("elapsed 500 ms later").should_be(2000);
+            };
+            test("stop returns the total, and the watch is not running after") {
+                watch.start();
+                wc.advance_millis(2000);
+                expect(watch.stop().to_millis()).should_be(2000);
+                expect_false(watch.is_running());
+            };
+            test("time while stopped does not count") {
+                watch.start();
+                wc.advance_millis(2000);
+                watch.stop();
+                wc.advance_seconds(60);
+                expect(watch.elapsed().to_millis()).should_be(2000);
+            };
+            test("a second run adds to the first") {
+                watch.start();
+                wc.advance_millis(2000);
+                watch.stop();
+                wc.advance_seconds(60);
+                watch.start();
+                wc.advance_millis(250);
+                expect(watch.elapsed().to_millis()).named("while running").should_be(2250);
+                watch.stop();
+                expect(watch.elapsed().to_millis()).named("the total after two runs").should_be(2250);
+            };
+            test("to_string is the elapsed time") {
+                watch.start();
+                wc.advance_millis(2250);
+                watch.stop();
+                expect(watch.to_string()!!).should_be("2.25s");
+            };
+
+            test("reset goes back to zero and stops") {
+                watch.start();
+                wc.advance_millis(2250);
+                watch.stop();
+                watch.reset();
+                expect(watch.elapsed().to_nanos()).should_be(0);
+                expect_false(watch.is_running());
+            };
+            test("reset while running: zero and stopped") {
+                watch.start();
+                wc.advance_seconds(3);
+                watch.reset();
+                expect(watch.elapsed().to_nanos()).should_be(0);
+                expect_false(watch.is_running());
+            };
+            test("restart keeps running, begins from zero and measures again") {
+                watch.start();
+                wc.advance_seconds(3);
+                watch.restart();
+                expect_true(watch.is_running());
+                expect(watch.elapsed().to_nanos()).named("just after restart").should_be(0);
+                wc.advance_millis(7);
+                expect(watch.elapsed().to_millis()).named("7 ms later").should_be(7);
+            };
+
+            // wrong use
+            test("stop() when not running throws") { expect_throws<illegal_state_exception>() { watch.stop(); }; };
+            test("start() when running throws") { expect_throws<illegal_state_exception>() { stopwatch.started(wc).start(); }; };
+        };
+
+        // nanosecond exactness at a present-day clock value (1.7e18 ns since 1970 does not fit a decimal)
+        test("started(clock) is running") { expect_true(stopwatch.started(new manual_clock(instant.of_epoch_second(1700000000, 123456789))).is_running()); };
+        test("one nanosecond and one second are measured exactly") {
+            precise_clock := new manual_clock(instant.of_epoch_second(1700000000, 123456789));
+            precise := stopwatch.started(precise_clock);
+            precise_clock.advance(duration.of_nanos(1));
+            expect(precise.elapsed().to_nanos()).named("one nanosecond").should_be(1);
+            precise_clock.advance(duration.of_nanos(999999999));
+            expect(precise.elapsed().to_nanos()).named("one second").should_be(1000000000);
+        };
+
+        // the clock is set back while running: no negative time
+        test("a clock set back gives zero, not a negative time, also from stop()") {
+            back_clock := new manual_clock(start_time());
+            back := stopwatch.started(back_clock);
+            back_clock.advance_seconds(0 - 30);
+            expect(back.elapsed().to_nanos()).named("elapsed").should_be(0);
+            expect(back.stop().to_nanos()).named("stop()").should_be(0);
+        };
+
+        // laps
+        tests("laps") {
+            lc : manual_clock;
+            laps : stopwatch;
+            before_each {
+                lc = new manual_clock(start_time());
+                laps = stopwatch.started(lc);
+            };
+
+            test("no laps yet") { expect(laps.lap_count()).should_be(0); };
+            test("each lap is the time since the one before") {
+                lc.advance_millis(100);
+                expect(laps.lap().to_millis()).named("the first lap").should_be(100);
+                lc.advance_millis(250);
+                expect(laps.lap().to_millis()).named("the second lap").should_be(250);
+                lc.advance_millis(50);
+                expect(laps.lap().to_millis()).named("the third lap").should_be(50);
+            };
+            test("lap_count") {
+                take_three_laps(lc, laps);
+                expect(laps.lap_count()).should_be(3);
+            };
+            test("lap_at gives each lap") {
+                take_three_laps(lc, laps);
+                expect(laps.lap_at(0).to_millis()).named("lap_at(0)").should_be(100);
+                expect(laps.lap_at(1).to_millis()).named("lap_at(1)").should_be(250);
+                expect(laps.lap_at(2).to_millis()).named("lap_at(2)").should_be(50);
+            };
+            test("laps() gives them all") {
+                take_three_laps(lc, laps);
+                expect(sizeof(laps.laps())).named("length").should_be(3);
+                expect(laps.laps()[1].to_millis()).named("laps()[1]").should_be(250);
+            };
+            test("the laps add up to elapsed") {
+                take_three_laps(lc, laps);
+                expect(laps.elapsed().to_millis()).should_be(400);
+            };
+            test("a lap with no time passed") {
+                take_three_laps(lc, laps);
+                expect(laps.lap().to_millis()).should_be(0);
+            };
+            test("more laps than the first array holds") {
+                take_24_laps(lc, laps);
+                expect(laps.lap_count()).should_be(24);
+                expect(laps.lap_at(23).to_millis()).named("the last of them").should_be(1);
+            };
+            test("lap_at past the end throws") {
+                take_24_laps(lc, laps);
+                expect_throws<out_of_bounds_exception>() { laps.lap_at(24); };
+            };
+            test("reset forgets the laps") {
+                take_24_laps(lc, laps);
+                laps.reset();
+                expect(laps.lap_count()).should_be(0);
+                expect(sizeof(laps.laps())).named("laps() after reset").should_be(0);
+            };
+        };
+
+        // ================= deadline =================
+
+        tests("deadline") {
+            dc : manual_clock;
+            limit : deadline;
+            before_each {
+                dc = new manual_clock(start_time());
+                limit = deadline.after(duration.of_seconds(10), dc);
+            };
+
+            test("expires_at") { expect(limit.expires_at().epoch_second()).should_be(1010); };
+            test("not passed at the start") { expect_false(limit.has_passed()); };
+            test("remaining at the start") { expect(limit.remaining().to_seconds()).should_be(10); };
+            test("remaining_millis") { expect(limit.remaining_millis()).should_be(10000); };
+            test("not overdue") { expect(limit.overdue_by().to_nanos()).should_be(0); };
+            test("remaining after 4 s") {
+                dc.advance_seconds(4);
+                expect(limit.remaining().to_seconds()).should_be(6);
+            };
+            test("one nanosecond before: not passed, one nanosecond remains") {
+                dc.advance(duration.of_seconds(9, 999999999));
+                expect_false(limit.has_passed());
+                expect(limit.remaining().to_nanos()).should_be(1);
+            };
+            test("passed exactly at the deadline, nothing remains") {
+                dc.advance(duration.of_seconds(9, 999999999));
+                dc.advance(duration.of_nanos(1));
+                expect_true(limit.has_passed());
+                expect(limit.remaining().to_nanos()).should_be(0);
+            };
+            test("after it: remaining never goes negative, overdue_by says by how much") {
+                dc.advance_seconds(15);
+                expect(limit.remaining().to_nanos()).named("remaining").should_be(0);
+                expect(limit.overdue_by().to_seconds()).named("overdue_by").should_be(5);
+            };
+            test("to_string") { expect(limit.to_string()!!).should_be("deadline at 1970-01-01T00:16:50Z"); };
+
+            test("extended_by makes a later deadline, which has not passed, and leaves the original alone") {
+                dc.advance_seconds(15);
+                longer := limit.extended_by(duration.of_seconds(60));
+                expect(longer.expires_at().epoch_second()).named("the later one").should_be(1070);
+                expect_false(longer.has_passed());
+                expect(limit.expires_at().epoch_second()).named("the original").should_be(1010);
+            };
+            test("earliest picks the earlier one, either way round") {
+                longer := limit.extended_by(duration.of_seconds(60));
+                expect(longer.earliest(limit).expires_at().epoch_second()).named("longer.earliest(limit)").should_be(1010);
+                expect(limit.earliest(longer).expires_at().epoch_second()).named("limit.earliest(longer)").should_be(1010);
+            };
+
+            test("deadline.at") {
+                dc.advance_seconds(15);
+                expect(deadline.at(instant.of_epoch_second(2000), dc).remaining().to_seconds()).should_be(985);
+            };
+            test("a zero deadline has passed at once") { expect_true(deadline.after(duration.zero, dc).has_passed()); };
+            test("a negative deadline has passed") { expect_true(deadline.after(duration.of_seconds(0 - 1), dc).has_passed()); };
+            test("a deadline on the system clock far ahead has not passed") { expect_false(deadline.after(duration.of_days(1)).has_passed()); };
+            test("a deadline at the epoch on the system clock has passed") { expect_true(deadline.at(instant.epoch).has_passed()); };
+
+            test("check() before the deadline does nothing") {
+                dc.advance_seconds(15);
+                limit.extended_by(duration.of_seconds(60)).check("still fine");
+            };
+            test("check() after the deadline") {
+                dc.advance_seconds(15);
+                try {
+                    limit.check("loading the file");
+                    fail_test("no exception");
+                } catch(e: date_time_exception) {
+                    expect(e.get_message()).should_be("deadline exceeded by 5s: loading the file");
+                }
+            };
+        };
+
+        // ================= rate_limiter =================
+
+        tests("rate_limiter") {
+            rc : manual_clock;
+            limiter : rate_limiter;
+            before_each {
+                rc = new manual_clock(start_time());
+                limiter = new rate_limiter(5, duration.of_seconds(1), rc);
+            };
+
+            test("permits_per_window") { expect(limiter.permits_per_window()).should_be(5); };
+            test("one permit comes back every 200 ms") { expect(limiter.interval().to_millis()).should_be(200); };
+            test("starts full") { expect(limiter.available()).should_be(5); };
+            test("a burst of 8 gets 5, then nothing is available and the next one is refused") {
+                expect(burst(limiter, 8)).named("granted").should_be(5);
+                expect(limiter.available()).named("available after").should_be(0);
+                expect_false(limiter.try_acquire());
+            };
+            test("time until the next permit") {
+                burst(limiter, 8);
+                expect(limiter.time_until_available().to_millis()).should_be(200);
+            };
+            test("199 ms after: still nothing, 1 ms to go") {
+                burst(limiter, 8);
+                rc.advance_millis(199);
+                expect(limiter.available()).named("available").should_be(0);
+                expect(limiter.time_until_available().to_millis()).named("time_until_available").should_be(1);
+            };
+            test("200 ms after: one permit, no wait, and it can be taken only once") {
+                burst(limiter, 8);
+                rc.advance_millis(200);
+                expect(limiter.available()).named("available").should_be(1);
+                expect(limiter.time_until_available().to_nanos()).named("time_until_available").should_be(0);
+                expect_true(limiter.try_acquire());
+                expect_false(limiter.try_acquire());
+            };
+            test("the left-over 50 ms were not lost: a third permit after 150 more") {
+                burst(limiter, 8);
+                rc.advance_millis(200);
+                limiter.try_acquire();
+                limiter.try_acquire();
+                rc.advance_millis(450);
+                expect(limiter.available()).named("450 ms later").should_be(2);
+                rc.advance_millis(150);
+                expect(limiter.available()).named("150 ms more").should_be(3);
+            };
+            test("the bucket never holds more than its size") {
+                burst(limiter, 8);
+                rc.advance_seconds(3600);
+                expect(limiter.available()).should_be(5);
+            };
+            test("try_acquire(3) takes three, or nothing when fewer are left") {
+                expect_true(limiter.try_acquire(3));
+                expect(limiter.available()).named("left after the first").should_be(2);
+                expect_false(limiter.try_acquire(3));
+                expect(limiter.available()).named("left after the refused one").should_be(2);
+            };
+            test("time until three and five are available") {
+                limiter.try_acquire(3);
+                expect(limiter.time_until_available(3).to_millis()).named("three").should_be(200);
+                expect(limiter.time_until_available(5).to_millis()).named("five").should_be(600);
+            };
+            test("a clock set back adds nothing") {
+                limiter.try_acquire(3);
+                rc.advance_seconds(0 - 100);
+                expect(limiter.available()).should_be(2);
+            };
+
+            test("asking for more than the bucket holds throws") { expect_throws<date_time_exception>() { limiter.try_acquire(6); }; };
+            test("asking for 0 permits throws") { expect_throws<date_time_exception>() { limiter.try_acquire(0); }; };
+        };
+
+        // long run: at 5 per second, 10 seconds polled every 10 ms let through the burst of 5 plus 50
+        test("5 per second over 10 seconds") {
+            steady_clock := new manual_clock(start_time());
+            steady := new rate_limiter(5, duration.of_seconds(1), steady_clock);
+            passed_through : decimal = 0;
+            for(i : decimal = 0; i < 1000; i++) {
+                if(steady.try_acquire()) {
+                    passed_through++;
+                }
+                steady_clock.advance_millis(10);
+            }
+            expect(passed_through).should_be(54);
+        };
+
+        // a rate that does not divide evenly: 3 per second = one every 333,333,333 ns
+        test("3 per second: interval") { expect(new rate_limiter(3, duration.of_seconds(1), new manual_clock(start_time())).interval().to_nanos()).should_be(333333333); };
+        test("3 per second: nothing one nanosecond early, one exactly on time") {
+            thirds_clock := new manual_clock(start_time());
+            thirds := new rate_limiter(3, duration.of_seconds(1), thirds_clock);
+            thirds.try_acquire(3);
+            thirds_clock.advance(duration.of_nanos(333333332));
+            expect(thirds.available()).named("one nanosecond early").should_be(0);
+            thirds_clock.advance(duration.of_nanos(1));
+            expect(thirds.available()).named("exactly on time").should_be(1);
+        };
+
+        test("0 permits throws") { expect_throws<date_time_exception>() { new rate_limiter(0, duration.of_seconds(1), new manual_clock(start_time())); }; };
+        test("a fraction of a permit throws") { expect_throws<date_time_exception>() { new rate_limiter(1.5, duration.of_seconds(1), new manual_clock(start_time())); }; };
+        test("a zero window throws") { expect_throws<date_time_exception>() { new rate_limiter(5, duration.zero, new manual_clock(start_time())); }; };
+        test("a window shorter than the permits throws") { expect_throws<date_time_exception>() { new rate_limiter(5, duration.of_nanos(4), new manual_clock(start_time())); }; };
+        test("a limiter on the system clock grants its first permit") { expect_true(new rate_limiter(1, duration.of_hours(1)).try_acquire()); };
+
+        // ================= interval_timer =================
+
+        tests("interval_timer") {
+            ic : manual_clock;
+            every : interval_timer;
+            before_each {
+                ic = new manual_clock(start_time());
+                every = new interval_timer(duration.of_seconds(5), ic);
+            };
+
+            test("period_duration") { expect(every.period_duration().to_seconds()).should_be(5); };
+            test("not due at the start") { expect_false(every.is_due()); };
+            test("poll at the start") { expect(every.poll()).should_be(0); };
+            test("first due one period from the start") { expect(every.next_due_at().epoch_second()).should_be(1005); };
+            test("time_until_due") { expect(every.time_until_due().to_seconds()).should_be(5); };
+            test("one nanosecond early: not due") {
+                ic.advance(duration.of_seconds(4, 999999999));
+                expect(every.poll()).should_be(0);
+            };
+            test("due exactly on time: is_due does not consume, poll reports it once") {
+                ic.advance(duration.of_seconds(4, 999999999));
+                every.poll();
+                ic.advance(duration.of_nanos(1));
+                expect_true(every.is_due());
+                expect(every.time_until_due().to_nanos()).named("time_until_due after is_due").should_be(0);
+                expect(every.poll()).named("the first poll").should_be(1);
+                expect(every.poll()).named("a second poll").should_be(0);
+                expect(every.next_due_at().epoch_second()).named("next due").should_be(1010);
+            };
+            test("a late poll reports every missed period, and the grid has not shifted") {
+                ic.advance_seconds(5);
+                every.poll();
+                ic.advance_seconds(12);                                // now 1017: 1010 and 1015 have passed
+                expect(every.poll()).named("the late poll").should_be(2);
+                expect(every.next_due_at().epoch_second()).named("next due").should_be(1020);
+                expect(every.time_until_due().to_seconds()).named("time until the next grid point").should_be(3);
+                expect(every.fired_count()).named("fired_count").should_be(3);
+            };
+            test("due again on the grid") {
+                ic.advance_seconds(5);
+                every.poll();
+                ic.advance_seconds(12);
+                every.poll();
+                ic.advance_seconds(3);                                 // now 1020
+                expect(every.poll()).should_be(1);
+            };
+            test("a clock set back is simply not due") {
+                ic.advance_seconds(20);
+                every.poll();
+                ic.advance_seconds(0 - 500);
+                expect(every.poll()).should_be(0);
+            };
+            test("reset counts from now and clears the count") {
+                ic.advance_seconds(20);
+                every.poll();
+                every.reset();
+                expect(every.next_due_at().epoch_second()).named("next due").should_be(1025);
+                expect(every.fired_count()).named("fired_count").should_be(0);
+            };
+        };
+
+        test("every 30 ms over one second, polled every 10 ms") {
+            fast_clock := new manual_clock(start_time());
+            fast := new interval_timer(duration.of_millis(30), fast_clock);
+            fired : decimal = 0;
+            for(i : decimal = 0; i < 100; i++) {
+                fast_clock.advance_millis(10);
+                fired += fast.poll();
+            }
+            expect(fired).should_be(33);
+        };
+
+        test("a zero period throws") { expect_throws<date_time_exception>() { new interval_timer(duration.zero, new manual_clock(start_time())); }; };
+        test("a negative period throws") { expect_throws<date_time_exception>() { new interval_timer(duration.of_seconds(0 - 1), new manual_clock(start_time())); }; };
+        test("a timer on the system clock is not due at once") { expect_false(new interval_timer(duration.of_hours(1)).is_due()); };
+    };
+}

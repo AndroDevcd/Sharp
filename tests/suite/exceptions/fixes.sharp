@@ -1,0 +1,116 @@
+mod suite.exceptions.fixes;
+
+import ( std.testing )
+
+/**
+ * Exception handling that used to be wrong and was fixed - kept as its own file
+ * so the old bugs stay covered. (The everyday behaviour is in basics.sharp.)
+ */
+
+class parse_error base exception {
+    public parse_error(message: string) -> base(message) {}
+}
+class number_error base parse_error {
+    public number_error(message: string) -> base(message) {}
+}
+
+class shape { sides : decimal = 0; }
+class dog { legs : decimal = 4; }
+class cat { lives : decimal = 9; }
+
+def remainder(a: decimal, b: decimal): decimal {
+    return a % b;
+}
+
+def fixes_tests() {
+    tests("fixes") {
+        // ---- a catch clause for a user-defined base class catches its subclasses
+        // (used to be wrong: a clause only matched the EXACT class of the exception)
+        test("number_error is caught by catch(parse_error)") {
+            where : decimal = 0;
+            try {
+                try {
+                    throw new number_error("x");
+                } catch(e: parse_error) {
+                    where = 1;                          // number_error IS a parse_error
+                }
+            } catch(e: exception) {
+                where = 2;
+            }
+            expect(where).should_be(1);
+        };
+
+        // ---- catch(e: error) only catches errors
+        // (used to be wrong: it caught EVERY exception; illegal_state_exception does not derive from error)
+        test("catch(error) leaves an illegal_state_exception alone") {
+            where : decimal = 0;
+            try {
+                throw new illegal_state_exception("x");
+            } catch(e: error) {
+                where = 1;
+            } catch(e: illegal_state_exception) {
+                where = 2;
+            }
+            expect(where).should_be(2);
+        };
+
+        // ...and still catches what is one
+        test("catch(error) catches an assertion_error") {
+            where : decimal = 0;
+            try {
+                throw new assertion_error("x");
+            } catch(e: error) {
+                where = 1;
+            } catch(e: exception) {
+                where = 2;
+            }
+            expect(where).should_be(1);
+        };
+
+        // ---- a cast between two unrelated classes throws
+        // (used to be wrong: no check at all, the result was a `cat` reference to a dog)
+        test("casting a dog to cat throws") {
+            where : decimal = 0;
+            try {
+                anything : object = new dog();
+                c := anything as cat;
+                where = 1;
+            } catch(e: exception) {
+                where = 2;
+            }
+            expect(where).should_be(2);
+        };
+
+        // ---- storing to a number field of a null ARRAY ELEMENT throws
+        // (used to be wrong: no exception, the store went somewhere)
+        test("storing to a field of a null array element throws") {
+            where : decimal = 0;
+            shapes := new shape[3];                     // three null elements
+            try {
+                shapes[1].sides = 5;
+                where = 1;
+            } catch(e: nullptr_exception) {
+                where = 2;
+            }
+            expect(where).should_be(2);
+        };
+
+        // ---- remainder by zero throws
+        // (used to be wrong: it killed the whole VM with SIGFPE)
+        test("5 % 0 throws an exception") {
+            where : decimal = 0;
+            try {
+                r : decimal = remainder(5, 0);
+                where = 1;
+            } catch(e: exception) {
+                where = 2;
+            }
+            expect(where).should_be(2);
+        };
+        test("the program carries on after it") {
+            expect_throws<exception>() { r : decimal = remainder(5, 0); };
+            expect(remainder(17, 5)).should_be(2);
+        };
+
+    };
+}

@@ -1,0 +1,18 @@
+mod suite.library.system.gc_limit;
+
+import ( std.testing, suite.helpers )
+
+/**
+ * std.system gc at the memory limit. The tests start a child with a small
+ * limit (`sharp -mem 64mb ...`), so they run in a process of their own:
+ * suite.isolated.gc_limit (isolated/gc_limit.sharp). Here they are one test.
+ */
+def gc_limit_tests() {
+    tests("gc_limit") {
+        test("the tests at the memory limit pass, in a process of their own") {
+            ran := run_isolated("gc_limit");
+            expect(ran.code).named("suite isolated gc_limit said:\n" + ran.said).should_be(0);
+            expect(ran.said).should_contain("RESULT PASS gc_limit");
+        };
+    };
+}

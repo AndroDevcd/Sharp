@@ -1,0 +1,86 @@
+mod suite.classes.init_blocks_order;
+
+import ( std.testing )
+
+/**
+ * Bugs found while writing init_blocks.sharp, kept here as a guard.
+ *
+ * BUG 1 (fixed) - init blocks ran BEFORE the fields got their initial values.
+ *   An init block therefore saw 0 / null instead of the value written
+ *   next to the field, and whatever it stored in such a field was then
+ *   overwritten by the initial value. The order is now: initial values, init
+ *   blocks, constructor. (Fields without an initial value always worked: see
+ *   init_blocks.sharp.) The same holds for `static init` and static fields.
+ *
+ * BUG 2 - assigning a string literal to a null string field throws
+ *         nullptr_exception (in std#string.operator=):
+ *       text : string?;
+ *       init { text = "set by init"; }
+ *   Not special to init blocks; it is the usual way such a field gets its
+ *   first value there. (kept as a comment below, it ends the program)
+ *
+ * BUG 3 (fixed) - the compiler crashed (segmentation fault, no message) when
+ *         a class had two init blocks and the FIRST one declared a local
+ *         variable (also a `for(i : decimal = 0; ...)` counter):
+ *       class c {
+ *           a : decimal;
+ *           b : decimal;
+ *           init { i : decimal = 4; a = i; }
+ *           init { b = 2; }
+ *           c() { }
+ *       }
+ *   A local in the last init block, or a single init block, was fine.
+ *   (The class is now in init_blocks_locals.sharp.)
+ *
+ * BUG 4 - `new coffee {}` / `new coffee { water_left = 100 }`, the "inline
+ *         initialization" shown in examples/new_class.sharp, does not parse:
+ *       error S807: expected '[' or '(' or '{' after new expression
+ *   (kept as a comment below)
+ *
+ * Bug 1 was the same in the four configurations ({no -O, -O} x {JIT, -nojit}).
+ */
+
+class order {
+    width : decimal = 80;
+    seen_width : decimal;
+    doubled : decimal = 1;
+
+    init {
+        seen_width = width;         // 80 (before the fix: 0)
+        doubled = 2;                // stays 2 (before the fix: overwritten with 1)
+    }
+
+    order() {
+    }
+}
+
+class static_order {
+    static level : decimal = 5;
+    static seen_level : decimal;
+
+    static init {
+        seen_level = level;         // 5 (before the fix: 0)
+        level = 11;                 // stays 11 (before the fix: overwritten with 5)
+    }
+}
+
+def init_blocks_order_tests() {
+    tests("init_blocks_order") {
+        // ---- bug 1
+        test("an init block sees a field's initial value") { expect(new order().seen_width).should_be(80); };
+        test("what an init block stores is kept") { expect(new order().doubled).should_be(2); };
+        test("a static init block sees a static field's initial value") { expect(static_order.seen_level).should_be(5); };
+        test("what a static init block stores is kept") { expect(static_order.level).should_be(11); };
+
+        // ---- bug 2 (nullptr_exception)
+        //   class with_text { text : string?;  init { text = "set by init"; }  with_text() { } }
+        //   expect_str("a string set by an init block", new with_text().text!!, "set by init");
+
+        // ---- bug 3 (compiler segmentation fault): see init_blocks_locals.sharp
+
+        // ---- bug 4 (does not parse)
+        //   o2 := new order { width = 132 };
+        //   expect("inline initialization", o2.width, 132);
+
+    };
+}

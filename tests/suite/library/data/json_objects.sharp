@@ -1,0 +1,326 @@
+mod suite.library.data.json_objects;
+
+import ( std.testing, std.io, std.data, std.reflect )
+
+/**
+ * std.data json (json.sharp): json text into objects of the program's own
+ * classes and back, field by field, with nothing written per class
+ * (std.reflect underneath it: library/reflect).
+ */
+
+enum level { low, middle = 5, high };
+
+class task {
+    title : string = "";
+    urgency : level = level.low;
+    earlier : level?;
+}
+
+class address {
+    street : string = "";
+    city : string = "nowhere";
+}
+
+class record {
+    id : _int64 = 0;
+}
+
+class user base record {
+    name : string = "";
+    age : _int64 = 0;
+    height : decimal = 0;
+    admin : bool = false;
+    home : address?;
+    tags : list<string> = new list<string>();
+    photo_url : string?;
+    scores : _int64[]?;
+    ratios : decimal[]?;
+    friends : list<user>?;
+    places : address[]?;
+    nicknames : string[]?;
+    extra : json_value?;
+    level : int = 1;
+    weight : double = 2.5;
+    small : _int8 = 0;
+    made_with_constructor : _int64 = 0;
+
+    user() { made_with_constructor = 42; }
+}
+
+class page<t> {
+    items : list<t> = new list<t>();
+    next : string?;
+    total : _int64 = 0;
+}
+
+class needs_arguments {
+    value : _int64;
+    needs_arguments(v: _int64) { value = v; }
+}
+
+class holder {
+    inner : needs_arguments?;
+}
+
+class plain {
+    text : string = "none";
+    number : _int64 = 5;
+    plain() { number = 9; }
+}
+
+class account {
+    name : string = "";
+    private token : string = "none";
+    const version : _int64 = 2;
+    def shown() : string { return token; }
+}
+
+/** a user with a field of every kind filled, and one member the class does not have */
+def user_text(): string {
+    return "{\"id\":7,\"name\":\"ann\",\"age\":31,\"height\":1.75,\"admin\":true,\"home\":{\"street\":\"main st\"},"
+        + "\"tags\":[\"a\",\"b\",\"c\"],\"photoUrl\":\"http://x/y.png\",\"scores\":[1,2,3],\"ratios\":[0.5,1.5],"
+        + "\"friends\":[{\"name\":\"bob\",\"age\":40},{\"name\":\"cy\",\"home\":{\"city\":\"Oslo\"}}],"
+        + "\"places\":[{\"city\":\"A\"},null,{\"city\":\"C\"}],\"nicknames\":[\"n1\",\"n2\"],\"extra\":{\"k\":[1,2]},"
+        + "\"level\":9,\"weight\":70.25,\"small\":-3,\"unknown\":5}";
+}
+
+def three_users(): list<user> {
+    return json.to<list<user> >("[{\"name\":\"x\"},{\"name\":\"y\"},{\"name\":\"z\"}]");
+}
+
+def quoted_street(): address {
+    small := new address();
+    small.street = "a \"quoted\" st";
+    return small;
+}
+
+def ship_task(): task {
+    return json.to<task>("{\"title\":\"ship\",\"urgency\":\"high\"}");
+}
+
+def json_objects_tests() {
+    tests("json_objects") {
+        // ---------------------------------------------------------------- reading
+        tests("reading") {
+            u : user;
+            before_each { u = json.to<user>(user_text()); };
+
+            test("a field of the class above") { expect(u.id).should_be(7); };
+            test("a string") { expect(u.name).should_be("ann"); };
+            test("a whole number") { expect(u.age).should_be(31); };
+            test("a decimal") { expect(u.height).should_be(1.75); };
+            test("a bool") { expect_true(u.admin); };
+            test("a small number") { expect(u.small).should_be(0 - 3); };
+            test("an object inside, whose missing member keeps its written value") {
+                expect(u.home!!.street).should_be("main st");
+                expect(u.home!!.city).should_be("nowhere");
+            };
+            test("a list of strings, a working list") {
+                expect(u.tags.size()).should_be(3);
+                expect(u.tags.at(0) + u.tags.at(1) + u.tags.at(2)).named("its items").should_be("abc");
+                u.tags.add("d");
+                expect(u.tags.at(3)).named("is a working list").should_be("d");
+            };
+            test("photoUrl fills photo_url") { expect(u.photo_url!!).should_be("http://x/y.png"); };
+            test("a number array") {
+                expect(sizeof(u.scores)).should_be(3);
+                expect(u.scores!![0] + u.scores!![1] + u.scores!![2]).named("its items").should_be(6);
+            };
+            test("a decimal array") { expect(u.ratios!![1]).should_be(1.5); };
+            test("a list of objects") {
+                expect(u.friends!!.size()).should_be(2);
+                expect(u.friends!!.at(0).name).named("the first").should_be("bob");
+                expect(u.friends!!.at(0).age).named("its number").should_be(40);
+                expect(u.friends!!.at(1).home!!.city).named("an object in an object in a list").should_be("Oslo");
+            };
+            test("an array of objects, where null stays null") {
+                expect(sizeof(u.places)).should_be(3);
+                expect(u.places!![0].city).named("the first").should_be("A");
+                expect_true(u.places!![1] == null);
+            };
+            test("an array of strings") { expect(u.nicknames!![1]).should_be("n2"); };
+            test("a json_value field takes the value as it is") { expect(u.extra!!.to_string()!!).should_be("{\"k\":[1,2]}"); };
+            test("an int object") { expect(u.level.value).should_be(9); };
+            test("a double object") { expect(u.weight.value).should_be(70.25); };
+            test("the constructor ran, for the objects inside too") {
+                expect(u.made_with_constructor).should_be(42);
+                expect(u.friends!!.at(1).made_with_constructor).named("for the objects inside too").should_be(42);
+            };
+        };
+
+        tests("sparse") {
+            sparse : user;
+            before_each { sparse = json.to<user>("{\"name\":null}"); };
+
+            test("null leaves the field alone") { expect(sparse.name).should_be(""); };
+            test("a missing list keeps the one the class made, which works") {
+                expect(sparse.tags.size()).should_be(0);
+                sparse.tags.add("works");
+                expect(sparse.tags.at(0)).named("which works").should_be("works");
+            };
+            test("a missing object stays null") { expect_true(sparse.home == null); };
+            test("a missing object number keeps its written value") { expect(sparse.level.value).should_be(1); };
+        };
+
+        tests("lenient") {
+            lenient : user;
+            before_each { lenient = json.to<user>("{\"age\":\"31\",\"admin\":\"true\",\"name\":12,\"tags\":[]}"); };
+
+            test("a number in quotes") { expect(lenient.age).should_be(31); };
+            test("true in quotes") { expect_true(lenient.admin); };
+            test("a number where a string is wanted") { expect(lenient.name).should_be("12"); };
+            test("an empty json array leaves a working list") {
+                lenient.tags.add("after empty");
+                expect(lenient.tags.size()).should_be(1);
+            };
+        };
+
+        test("a list at the top") {
+            many := three_users();
+            expect(many.size()).should_be(3);
+            expect(many.at(2).name).named("its last").should_be("z");
+        };
+        test("a generic class") {
+            paged := json.to<page<user> >("{\"items\":[{\"name\":\"p1\"},{\"name\":\"p2\"}],\"next\":\"abc\",\"total\":2}");
+            expect(paged.items.size()).should_be(2);
+            expect(paged.items.at(1).name).named("its items").should_be("p2");
+            expect(paged.next!! + paged.total).named("its other fields").should_be("abc2");
+        };
+        test("from a json_value") {
+            from_value := json.value_to<address>(json.parse("{\"city\":\"Rome\"}"));
+            expect(from_value.city).should_be("Rome");
+        };
+        test("fill an object that exists") {
+            mine := new address();
+            json.fill(mine, json.parse("{\"street\":\"side st\"}"));
+            expect(mine.street + "/" + mine.city).should_be("side st/nowhere");
+        };
+
+        // ---------------------------------------------------------------- what is wrong with the json
+        test("a text where a number is wanted") {
+            try {
+                json.to<user>("{\"age\":\"old\"}");
+                fail_test("no exception");
+            } catch(bad: json_exception) {
+                expect(bad.get_message()).should_be("user.age: expected a number, found a string");
+            }
+        };
+        test("the message says where") {
+            try {
+                json.to<user>("{\"friends\":[{},{\"home\":5}]}");
+                fail_test("no exception");
+            } catch(bad: json_exception) {
+                expect(bad.get_message()).should_be("user.friends[1].home: expected an object, found a number");
+            }
+        };
+        test("an object where a list is wanted") {
+            try {
+                json.to<user>("{\"tags\":{}}");
+                fail_test("no exception");
+            } catch(bad: json_exception) {
+                expect(bad.get_message()).should_be("user.tags: expected an array, found an object");
+            }
+        };
+        test("an array where an object is wanted") {
+            try {
+                json.to<user>("[1]");
+                fail_test("no exception");
+            } catch(bad: json_exception) {
+                expect(bad.get_message()).should_be("user: expected an object, found an array");
+            }
+        };
+        test("an array where a bool is wanted") {
+            try {
+                json.to<user>("{\"admin\":[]}");
+                fail_test("no exception");
+            } catch(bad: json_exception) {
+                expect(bad.get_message()).should_be("user.admin: expected true or false, found an array");
+            }
+        };
+        test("text that is not json") { expect_throws<json_exception>() { json.to<user>("{\"name\": }"); }; };
+        // (a class whose written constructors all take parameters still has the one without: the compiler adds it)
+        test("a class whose written constructor takes parameters") {
+            held := json.to<holder>("{\"inner\":{\"value\":1}}");
+            expect(held.inner!!.value).should_be(1);
+        };
+
+        // ---------------------------------------------------------------- writing
+        test("an object as json") { expect(json.of(quoted_street())).should_be("{\"street\":\"a \\\"quoted\\\" st\",\"city\":\"nowhere\"}"); };
+
+        tests("written") {
+            u : user;
+            written : json_value;
+            before_each {
+                u = json.to<user>(user_text());
+                u.tags.add("d");
+                written = json.value_of(u);
+            };
+
+            test("written: the class above comes first") { expect(written.key_at(0)).should_be("id"); };
+            test("written: a bool is true or false") { expect_true(written.member("admin").is_bool()); };
+            test("written: a decimal") { expect(written.number_or("height", 0)).should_be(1.75); };
+            test("written: a list") { expect(written.member("tags").size()).should_be(4); };
+            test("written: an object inside") { expect(written.member("home").string_or("street", "")).should_be("main st"); };
+            test("written: null") { expect_true(written.member("places").at(1).is_null()); };
+            test("written: an int object") { expect(written.number_or("level", 0)).should_be(9); };
+            test("written: a json_value") { expect(written.member("extra").member("k").size()).should_be(2); };
+            test("written: the field's own name") { expect_true(written.has("photo_url")); };
+            test("there and back gives the same json") {
+                back := json.to<user>(json.of(u));
+                expect(json.of(back)).should_be(json.of(u));
+            };
+        };
+
+        test("a list at the top, written") {
+            many := three_users();
+            expect(json.of(many)).should_be(json.of(json.to<list<user> >(json.of(many))));
+        };
+        test("a number array, written") {
+            numbers := new _int64[3];
+            numbers[0] = 4; numbers[1] = 5; numbers[2] = 6;
+            expect(json.of(numbers)).should_be("[4,5,6]");
+        };
+        test("null, written") { expect(json.of(null)).should_be("null"); };
+        test("a string, written") {
+            label : string = "plain text";
+            expect(json.of(label)).should_be("\"plain text\"");
+        };
+        test("pretty") { expect_true(io_strings.contains(json.pretty(quoted_street()), "\n")); };
+
+        // ---------------------------------------------------------------- enums
+        test("an enum by its name") {
+            job := ship_task();
+            expect_true(job.urgency == level.high && job.title == "ship");
+        };
+        test("an enum field the json leaves out keeps its value") { expect_true(json.to<task>("{\"title\":\"x\"}").urgency == level.low); };
+        test("an enum by its number") { expect_true(json.to<task>("{\"urgency\":5}").urgency == level.middle); };
+        test("a nullable enum") { expect_true(json.to<task>("{\"earlier\":\"middle\"}").earlier!! == level.middle && ship_task().earlier == null); };
+        test("an enum, written, and read back") {
+            job := ship_task();
+            expect(json.of(job)).should_be("{\"title\":\"ship\",\"urgency\":\"high\",\"earlier\":null}");
+            expect_true(json.to<task>(json.of(job)).urgency == level.high);
+        };
+        test("a name the enum does not have") {
+            try {
+                json.to<task>("{\"urgency\":\"extreme\"}");
+                fail_test("no exception");
+            } catch(wrong: json_exception) {
+                expect(wrong.get_message()).should_be("task.urgency: expected one of low, middle, high, found \"extreme\"");
+            }
+        };
+        test("enums in a list of objects") {
+            tasks := json.to<list<task> >("[{\"urgency\":\"low\"},{\"urgency\":\"high\"}]");
+            expect_true(tasks.size() == 2 && tasks.at(1).urgency == level.high);
+        };
+
+        // ---------------------------------------------------------------- private and const fields
+        tests("private_and_const") {
+            login : account;
+            before_each { login = json.to<account>("{\"name\":\"ann\",\"token\":\"abc\",\"version\":7}"); };
+
+            test("a private field is filled") { expect(login.name + login.shown()).should_be("annabc"); };
+            test("a const keeps its value") { expect_true(login.version == 2); };
+            test("private and const fields are written") { expect(json.of(login)).should_be("{\"name\":\"ann\",\"token\":\"abc\",\"version\":2}"); };
+        };
+    };
+}

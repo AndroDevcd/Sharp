@@ -1,0 +1,61 @@
+mod suite.concurrency.thread_fiber_id;
+
+import (
+    std.testing,
+    std.io,
+    std.io.fiber
+)
+
+/**
+ * THE BUG THIS GUARDS (runtime, fixed): the first fiber of every thread
+ * reported id 0, the id of the MAIN fiber. fiber.current().suspend() /
+ * unsuspend() / kill() on such a fiber therefore acted on the main fiber of
+ * the program.
+ *
+ * WHERE
+ *   runtime/multitasking/thread/thread_controller.cpp, setup_thread():
+ *       assign_numeric_class_field(resolve_field("id", fib->o)->o, thread->task->id);
+ *   assign_numeric_class_field expects a number OBJECT (it looks for a field
+ *   called "value"), but fiber.id is a native `decimal`, so nothing was written
+ *   and the field kept its zero. assign_numeric_field(..., 0, id) is the
+ *   right call.
+ *
+ * WHAT THE LIBRARY DID ABOUT IT
+ *   std.io.fiber waiter could not park such a fiber by id; it notices the case
+ *   (id 0 on a thread that is not the main thread) and waits in short timed
+ *   naps instead (waiter.polling). The dispatcher threads of std.io.coroutines
+ *   keep their first fiber asleep and do all work in fibers they start.
+ *
+ * EXPECTED: the id seen on the second thread is not 0. Before the fix it
+ * was 0.
+ */
+
+class box { value : decimal = 0; }
+
+id_on_thread := new box();
+finished := new box();
+
+def thread_main(args: object[]) : int {
+    id_on_thread.value = fiber.current().id;
+    finished.value = 1;
+    return 0;
+}
+
+def thread_fiber_id_tests() {
+    tests("thread_fiber_id") {
+        test("the main fiber has id 0") { expect(fiber.current().id).should_be(0); };
+
+        test("the first fiber of another thread has its own id") {
+            id_on_thread.value = 0;
+            finished.value = 0;
+            t := new thread("second", thread_main);
+            t.start();
+            for(i : decimal = 0; i < 400 && finished.value == 0; i++) {
+                delay(5);
+            }
+
+            expect(finished.value).named("the thread ran").should_be(1);
+            expect_true(id_on_thread.value != 0);
+        };
+    };
+}

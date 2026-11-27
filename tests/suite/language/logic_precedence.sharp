@@ -1,0 +1,81 @@
+mod suite.language.logic_precedence;
+
+import ( std.testing )
+
+/**
+ * THE BUGS THIS GUARDS (fixed): && and ||, described next to the checks
+ * below. The same result with and without -O, with and without the JIT.
+ *
+ * The operands are locals of each test, as they were when the bug was found.
+ */
+
+def yes(): decimal { return 1; }
+def no(): decimal { return 0; }
+
+def logic_precedence_tests() {
+    tests("logic_precedence") {
+        // ---- BUG 1 (fixed): && did not bind tighter than ||
+        //      `a && b || c` groups as `(a && b) || c`.
+        //      Before the fix it grouped from the right, as `a && (b || c)`,
+        //      so `f && f || t` was 0 instead of 1.
+        test("f && f || t") {
+            t : decimal = 1;
+            f : decimal = 0;
+            expect(f && f || t).should_be(1);
+        };
+        test("f && t || t") {
+            t : decimal = 1;
+            f : decimal = 0;
+            expect(f && t || t).should_be(1);
+        };
+        test("f && t || t && t") {
+            t : decimal = 1;
+            f : decimal = 0;
+            expect(f && t || t && t).should_be(1);
+        };
+        test("no() && no() || yes()") { expect(no() && no() || yes()).should_be(1); };
+        test("if(f && f || t)") {
+            t : decimal = 1;
+            f : decimal = 0;
+            if(f && f || t) {
+            } else {
+                fail_test("the else branch ran");
+            }
+        };
+        // (these group the same either way, and pass)
+        test("t || f && f") {
+            t : decimal = 1;
+            f : decimal = 0;
+            expect(t || f && f).should_be(1);
+        };
+        test("(f && f) || t") {
+            t : decimal = 1;
+            f : decimal = 0;
+            expect((f && f) || t).should_be(1);
+        };
+
+        // ---- BUG 2 (fixed): || on variables gave back the operand instead of 1
+        //      before the fix: 0 || 7 was 7 and 0.5 || 0 was 0.5
+        //      (&& gives 1, and so does || on literals: `0 || 7` is 1)
+        test("0 || 7") {
+            zero : decimal = 0;
+            seven : decimal = 7;
+            expect(zero || seven).should_be(1);
+        };
+        test("7 || 0") {
+            zero : decimal = 0;
+            seven : decimal = 7;
+            expect(seven || zero).should_be(1);
+        };
+        test("0.5 || 0") {
+            zero : decimal = 0;
+            half : decimal = 0.5;
+            expect(half || zero).should_be(1);
+        };
+        test("counting with ||") {
+            zero : decimal = 0;
+            seven : decimal = 7;
+            expect(((zero || seven) as _int32) + ((seven || zero) as _int32)).should_be(2);
+        };
+    };
+}

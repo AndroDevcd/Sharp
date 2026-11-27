@@ -1,0 +1,419 @@
+mod suite.library.util.ordering;
+
+import ( std.testing, std.util )
+
+/**
+ * std.util - range (arithmetic progressions) and the ordering classes
+ * comparator<T> and comparators.
+ */
+
+class person {
+    name : string = "";
+    age : decimal = 0;
+
+    person(name: string, age: decimal) {
+        self->name = name;
+        self->age = age;
+    }
+}
+
+/* the names of the people in an array, joined with commas */
+def names_of(people: person[]): string {
+    text : string = "";
+    for(i : decimal = 0; i < sizeof(people); i++) {
+        if(i > 0) text = text + ",";
+        text = text + people[i].name;
+    }
+    return text;
+}
+
+def join(words: string[]): string {
+    text : string = "";
+    for(i : decimal = 0; i < sizeof(words); i++) {
+        if(i > 0) text = text + ",";
+        text = text + words[i];
+    }
+    return text;
+}
+
+/* the values of a range as digits, e.g. "1 3 5" */
+def values_of(r: range): string {
+    text : string = "";
+    numbers := r.to_array();
+    for(i : decimal = 0; i < sizeof(numbers); i++) {
+        if(i > 0) text = text + " ";
+        shown : int = numbers[i];
+        text = text + shown;
+    }
+    return text;
+}
+
+def check_range() {
+    tests("range") {
+        r : range;
+        odd : range;
+        down : range;
+        nothing : range;
+        before_each {
+            r = new range(1, 5);
+            odd = new range(1, 10, 2);
+            down = new range(10, 1, 0 - 3);
+            nothing = new range(5, 1);
+        };
+
+        test("first") { expect(r.first).should_be(1); };
+        test("last") { expect(r.last).should_be(5); };
+        test("step") { expect(r.step).should_be(1); };
+        test("size") { expect(r.size()).should_be(5); };
+        test("is_empty") { expect_false(r.is_empty()); };
+        test("values") { expect(values_of(r)).should_be("1 2 3 4 5"); };
+        test("sum") { expect(r.sum()).should_be(15); };
+        test("to_string") { expect(r.to_string()!!).should_be("1..5"); };
+
+        test("foreach visits every value, summing to 15") {
+            total : decimal = 0;
+            rounds : decimal = 0;
+            foreach(i in r) {
+                total += i;
+                rounds++;
+            }
+            expect(rounds).named("foreach visits every value").should_be(5);
+            expect(total).named("foreach sums to 15").should_be(15);
+        };
+
+        test("contains the first") { expect_true(r.contains(1)); };
+        test("contains the last") { expect_true(r.contains(5)); };
+        test("contains a middle value") { expect_true(r.contains(3)); };
+        test("does not contain 0") { expect_false(r.contains(0)); };
+        test("does not contain 6") { expect_false(r.contains(6)); };
+        test("does not contain 2.5") { expect_false(r.contains(2.5)); };
+        test("at(0)") { expect(r.at(0)).should_be(1); };
+        test("at(4)") { expect(r.at(4)).should_be(5); };
+        test("index_of(4)") { expect(r.index_of(4)).should_be(3); };
+        test("index_of a missing value") { expect(r.index_of(9)).should_be(0 - 1); };
+        test("at outside throws") {
+            expect_throws<out_of_bounds_exception>() { r.at(5); };
+            expect_throws<out_of_bounds_exception>() { r.at(0 - 1); };
+        };
+
+        test("step 2") { expect(values_of(odd)).should_be("1 3 5 7 9"); };
+        test("the end is normalised") { expect(odd.last).should_be(9); };
+        test("size with a step") { expect(odd.size()).should_be(5); };
+        test("off the step grid") { expect_false(odd.contains(4)); };
+        test("on the step grid") { expect_true(odd.contains(7)); };
+        test("past the normalised end") { expect_false(odd.contains(10)); };
+        test("index_of with a step") { expect(odd.index_of(7)).should_be(3); };
+        test("sum with a step") { expect(odd.sum()).should_be(25); };
+        test("to_string with a step") { expect(odd.to_string()!!).should_be("1..9 step 2"); };
+
+        test("counting down") { expect(values_of(down)).should_be("10 7 4 1"); };
+        test("counting down: last") { expect(down.last).should_be(1); };
+        test("counting down contains 4") { expect_true(down.contains(4)); };
+        test("counting down does not contain 5") { expect_false(down.contains(5)); };
+        test("to_string counting down") { expect(down.to_string()!!).should_be("10..1 step -3"); };
+        test("down_to") { expect(values_of(range.down_to(3, 0))).should_be("3 2 1 0"); };
+        test("until") { expect(values_of(range.until(0, 4))).should_be("0 1 2 3"); };
+        test("indices") { expect(values_of(range.indices(3))).should_be("0 1 2"); };
+        test("one value") { expect(new range(7, 7).size()).should_be(1); };
+
+        test("an empty range has size 0") { expect(nothing.size()).should_be(0); };
+        test("an empty range is_empty") { expect_true(nothing.is_empty()); };
+        test("an empty range contains nothing") { expect_false(nothing.contains(3)); };
+        test("an empty range gives an empty array") { expect(sizeof(nothing.to_array())).should_be(0); };
+        test("the sum of nothing") { expect(nothing.sum()).should_be(0); };
+        test("until with equal bounds is empty") { expect(range.until(3, 3).size()).should_be(0); };
+        test("indices(0) is empty") { expect(range.indices(0).size()).should_be(0); };
+        test("foreach over an empty range does not run") {
+            rounds : decimal = 0;
+            foreach(i in nothing) {
+                rounds++;
+            }
+            expect(rounds).should_be(0);
+        };
+
+        test("reversed") { expect(values_of(r.reversed())).should_be("5 4 3 2 1"); };
+        test("reversed with a step") { expect(values_of(odd.reversed())).should_be("9 7 5 3 1"); };
+        test("reversed twice") { expect(values_of(down.reversed().reversed())).should_be("10 7 4 1"); };
+        test("reversed empty stays empty") { expect(nothing.reversed().size()).should_be(0); };
+        test("stepped") { expect(values_of(new range(1, 10).stepped(3))).should_be("1 4 7 10"); };
+        test("stepped keeps the direction") { expect(values_of(range.down_to(10, 1).stepped(4))).should_be("10 6 2"); };
+
+        test("fractional steps") {
+            quarters := new range(0, 1, 0.25);
+            expect(quarters.size()).named("size").should_be(5);
+            expect(quarters.at(3)).named("at(3)").should_be(0.75);
+            expect_true(quarters.contains(0.5));
+        };
+
+        test("for_each") {
+            collected := new counter();
+            r.for_each({ v: decimal -> collected.add(v * 10); });
+            expect(collected.value).should_be(150);
+        };
+
+        test("==") { expect_true((r == new range(1, 5))); };
+        test("== after normalising") { expect_true((odd == new range(1, 9, 2))); };
+        test("== with another step") { expect_false((r == new range(1, 5, 2))); };
+        test("two empty ranges are equal") { expect_true((nothing == new range(9, 0))); };
+        test("!=") { expect_true((r != odd)); };
+
+        test("a zero step throws") {
+            expect_throws<illegal_argument_exception>() { new range(1, 5, 0); };
+            expect_throws<illegal_argument_exception>() { r.stepped(0); };
+            expect_throws<illegal_argument_exception>() { r.stepped(0 - 1); };
+        };
+    };
+}
+
+def make_people(): person[] {
+    people := new person[5];
+    people[0] = new person("dora", 31);
+    people[1] = new person("adam", 25);
+    people[2] = new person("cleo", 31);
+    people[3] = new person("bert", 19);
+    people[4] = new person("eve", 25);
+    return people;
+}
+
+def check_comparator() {
+    tests("comparator") {
+        by_age : comparator<person>;
+        by_name : comparator<person>;
+        by_name_length : comparator<person>;
+        young : person;
+        old : person;
+        twin : person;
+        people : person[];
+        before_each {
+            by_age = comparator<person>.by_key({ p: person -> (decimal) return p.age; });
+            by_name = comparator<person>.by_text({ p: person -> (string) return p.name; });
+            by_name_length = new comparator<person>({ a: person, b: person -> (decimal) return a.name.size() - b.name.size(); });
+            young = new person("young", 10);
+            old = new person("old", 90);
+            twin = new person("twin", 10);
+            people = make_people();
+        };
+
+        test("by_key: smaller first") { expect_true(by_age.compare(young, old) < 0); };
+        test("by_key: larger last") { expect_true(by_age.compare(old, young) > 0); };
+        test("by_key: equal") { expect(by_age.compare(young, twin)).should_be(0); };
+        test("by_text") { expect_true(by_name.compare(old, young) < 0); };
+        test("a compare function") { expect_true(by_name_length.compare(old, young) < 0); };
+        test("reversed") { expect_true(by_age.reversed().compare(young, old) > 0); };
+        test("reversed keeps equal equal") { expect(by_age.reversed().compare(young, twin)).should_be(0); };
+        test("reversed twice") { expect_true(by_age.reversed().reversed().compare(young, old) < 0); };
+        test("then_by decides ties") { expect_true(by_age.then_by(by_name).compare(twin, young) < 0); };
+        test("then_by keeps the first order") { expect_true(by_age.then_by(by_name).compare(young, old) < 0); };
+        test("in_order") { expect_true(by_age.in_order(young, old)); };
+        test("in_order for equal") { expect_true(by_age.in_order(young, twin)); };
+        test("in_order reversed") { expect_false(by_age.in_order(old, young)); };
+
+        test("compare_text equal") { expect(comparator<string>.compare_text("abc", "abc")).should_be(0); };
+        test("compare_text smaller") { expect_true(comparator<string>.compare_text("abc", "abd") < 0); };
+        test("compare_text larger") { expect_true(comparator<string>.compare_text("b", "abc") > 0); };
+        test("compare_text prefix first") { expect_true(comparator<string>.compare_text("ab", "abc") < 0); };
+        test("compare_text capitals first") { expect_true(comparator<string>.compare_text("Zebra", "apple") < 0); };
+
+        // stable: dora stays before cleo (both 31), adam before eve (both 25)
+        test("sort by age (stable), and is_sorted") {
+            by_age.sort(people);
+            expect(names_of(people)).named("sort by age (stable)").should_be("bert,adam,eve,dora,cleo");
+            expect_true(by_age.is_sorted(people));
+            expect_false(by_name.is_sorted(people));
+        };
+
+        test("sort by name") {
+            by_age.sort(people);
+            by_name.sort(people);
+            expect(names_of(people)).should_be("adam,bert,cleo,dora,eve");
+        };
+        // the input is in name order here, so the stable sort keeps cleo before dora
+        test("sort oldest first (stable)") {
+            by_name.sort(people);
+            by_age.reversed().sort(people);
+            expect(names_of(people)).should_be("cleo,dora,adam,eve,bert");
+        };
+
+        test("sort by age, then name") {
+            by_age.then_by(by_name).sort(people);
+            expect(names_of(people)).should_be("bert,adam,eve,cleo,dora");
+        };
+        test("sort by age descending, then name descending") {
+            by_age.reversed().then_by(by_name.reversed()).sort(people);
+            expect(names_of(people)).should_be("dora,cleo,eve,adam,bert");
+        };
+        test("reversing a combined order reverses all of it") {
+            by_age.then_by(by_name).reversed().sort(people);
+            expect(names_of(people)).should_be("dora,cleo,eve,adam,bert");
+        };
+        test("then_by_key") {
+            by_name_length.then_by_key({ p: person -> (decimal) return p.age; }).sort(people);
+            expect(names_of(people)).should_be("eve,bert,adam,dora,cleo");
+        };
+        test("then_by_text") {
+            by_age.then_by_text({ p: person -> (string) return p.name; }).sort(people);
+            expect(names_of(people)).should_be("bert,adam,eve,cleo,dora");
+        };
+
+        test("min_of") { expect(by_age.min_of(people).name).should_be("bert"); };
+        test("max_of (the last of the equal ones)") { expect(by_age.max_of(people).name).should_be("cleo"); };
+        test("min_of by name") { expect(by_name.min_of(people).name).should_be("adam"); };
+        test("max_of by name") { expect(by_name.max_of(people).name).should_be("eve"); };
+        test("min_of / max_of of nothing throw") {
+            expect_throws<no_such_element_exception>() { by_age.min_of(new person[0]); };
+            expect_throws<no_such_element_exception>() { by_age.max_of(new person[0]); };
+        };
+
+        test("binary_search finds the first") {
+            by_name.sort(people);
+            expect(by_name.binary_search(people, new person("adam", 0))).should_be(0);
+        };
+        test("binary_search finds the middle") {
+            by_name.sort(people);
+            expect(by_name.binary_search(people, new person("cleo", 0))).should_be(2);
+        };
+        test("binary_search finds the last") {
+            by_name.sort(people);
+            expect(by_name.binary_search(people, new person("eve", 0))).should_be(4);
+        };
+        test("binary_search of a missing name") {
+            by_name.sort(people);
+            expect(by_name.binary_search(people, new person("carl", 0))).should_be(0 - 1);
+        };
+        test("binary_search in nothing") { expect(by_name.binary_search(new person[0], young)).should_be(0 - 1); };
+
+        test("sorting nothing, and sorting one element") {
+            by_age.sort(new person[0]);
+            lonely := new person[1];
+            lonely[0] = young;
+            by_age.sort(lonely);
+            expect(names_of(lonely)).should_be("young");
+        };
+        test("an empty array is sorted") { expect_true(by_age.is_sorted(new person[0])); };
+
+        test("sort a list, by name and by age") {
+            crowd := new list<person>();
+            crowd.add(new person("zed", 3));
+            crowd.add(new person("amy", 2));
+            crowd.add(new person("moe", 1));
+            by_name.sort(crowd);
+            expect(crowd.at(0).name).named("sort a list: first").should_be("amy");
+            expect(crowd.at(2).name).named("sort a list: last").should_be("zed");
+            by_age.sort(crowd);
+            expect(crowd.at(0).name).named("sort a list by age").should_be("moe");
+        };
+    };
+}
+
+// (new string(...): assigning a literal to an empty string array element used to be a bug, see language/assign_to_null_targets.sharp)
+def some_words() : string[] {
+    words := new string[5];
+    words[0] = new string("pear");
+    words[1] = new string("Apple");
+    words[2] = new string("fig");
+    words[3] = new string("banana");
+    words[4] = new string("Cherry");
+    return words;
+}
+
+def some_ints() : int[] {
+    numbers := new int[6];
+    numbers[0] = new int(5);
+    numbers[1] = new int(0 - 3);
+    numbers[2] = new int(12);
+    numbers[3] = new int(0);
+    numbers[4] = new int(5);
+    numbers[5] = new int(7);
+    return numbers;
+}
+
+def check_comparators() {
+    tests("comparators") {
+        words : string[];
+        before_each { words = some_words(); };
+
+        test("strings (capitals first)") {
+            comparators.strings().sort(words);
+            expect(join(words)).should_be("Apple,Cherry,banana,fig,pear");
+        };
+        test("strings_ignore_case") {
+            comparators.strings_ignore_case().sort(words);
+            expect(join(words)).should_be("Apple,banana,Cherry,fig,pear");
+        };
+        test("strings reversed") {
+            comparators.strings().reversed().sort(words);
+            expect(join(words)).should_be("pear,fig,banana,Cherry,Apple");
+        };
+        test("by length, then alphabet") {
+            comparators.string_length().then_by(comparators.strings()).sort(words);
+            expect(join(words)).should_be("fig,pear,Apple,Cherry,banana");
+        };
+        test("strings: equal") { expect(comparators.strings().compare("same", "same")).should_be(0); };
+        test("strings_ignore_case: equal") { expect(comparators.strings_ignore_case().compare("SaMe", "same")).should_be(0); };
+        test("min_of strings") { expect(comparators.strings().min_of(words)).should_be("Apple"); };
+        // Cherry and banana are both the longest: max_of gives the last of them, here banana
+        test("max_of by length") {
+            comparators.string_length().then_by(comparators.strings()).sort(words);
+            expect(comparators.string_length().max_of(words)).should_be("banana");
+        };
+
+        test("ints sorted") {
+            numbers := some_ints();
+            comparators.ints().sort(numbers);
+            expect(numbers[0].value).named("ints: smallest").should_be(0 - 3);
+            expect(numbers[1].value).named("ints: second").should_be(0);
+            expect(numbers[5].value).named("ints: largest").should_be(12);
+            expect_true(comparators.ints().is_sorted(numbers));
+        };
+        test("ints reversed") {
+            numbers := some_ints();
+            comparators.ints().reversed().sort(numbers);
+            expect(numbers[0].value).named("ints reversed: first").should_be(12);
+            expect(numbers[5].value).named("ints reversed: last").should_be(0 - 3);
+        };
+        test("ints: binary_search") {
+            numbers := some_ints();
+            seven : int = 7;
+            comparators.ints().sort(numbers);
+            expect(comparators.ints().binary_search(numbers, seven)).should_be(4);
+        };
+
+        test("doubles sorted") {
+            fractions := new double[3];
+            fractions[0] = new double(2.5);
+            fractions[1] = new double(0 - 0.5);
+            fractions[2] = new double(1.25);
+            comparators.doubles().sort(fractions);
+            expect(fractions[0].value).named("doubles: smallest").should_be(0 - 0.5);
+            expect(fractions[2].value).named("doubles: largest").should_be(2.5);
+        };
+
+        test("longs") {
+            big_one : long = 5000000000;
+            small_one : long = 7;
+            expect_true(comparators.longs().compare(small_one, big_one) < 0);
+        };
+        test("chars") {
+            letter_a : char = 'a';
+            letter_b : char = 'b';
+            expect_true(comparators.chars().compare(letter_a, letter_b) < 0);
+        };
+        test("bools: false before true") {
+            yes : bool = true;
+            no : bool = false;
+            expect_true(comparators.bools().compare(no, yes) < 0);
+        };
+        test("bools: equal") {
+            yes : bool = true;
+            expect(comparators.bools().compare(yes, yes)).should_be(0);
+        };
+    };
+}
+
+def ordering_tests() {
+    tests("ordering") {
+        check_range();
+        check_comparator();
+        check_comparators();
+    };
+}

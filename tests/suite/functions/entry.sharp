@@ -1,0 +1,27 @@
+mod suite.functions;
+
+import (
+    std.testing,
+    suite.functions.basics,
+    suite.functions.fixes,
+    suite.functions.lambdas_capture_per_call,
+    suite.functions.lambdas_closures,
+    suite.functions.pointers,
+    suite.functions.pointers_in_arrays,
+    suite.functions.recursion,
+    suite.functions.trailing_lambdas
+)
+
+/** suite.functions: functions, function values, lambdas, recursion */
+def functions_tests() {
+    tests("functions") {
+        basics_tests();
+        fixes_tests();
+        lambdas_capture_per_call_tests();
+        lambdas_closures_tests();
+        pointers_tests();
+        pointers_in_arrays_tests();
+        recursion_tests();
+        trailing_lambdas_tests();
+    };
+}
