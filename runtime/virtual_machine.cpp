@@ -75,6 +75,7 @@ void main_vm_loop(sharp_function *frame)
     // give every function that was running as machine code its machine frame
     // back. (By call depth, not by function - see next_rebuild_frame(). Which
     // functions: see continues_in_machine_code().)
+    bool walkEnteredMachineCode = false;
     while(thread_self->task->rebuilding) {
         frame = next_rebuild_frame();
         if(frame == nullptr) break;
@@ -84,6 +85,7 @@ void main_vm_loop(sharp_function *frame)
             // comes back the call stack has changed, so stop walking and let the
             // interpreter continue from wherever task->pc is now.
             invoke_next_frame(frame, true);
+            walkEnteredMachineCode = true;
             break;
         }
     }
@@ -91,6 +93,35 @@ void main_vm_loop(sharp_function *frame)
     run:
     try
     {
+        // THE FRAMES THE WALK ENTERED MAY HAVE COME BACK TO SWITCH AGAIN.
+        // invoke_next_frame() returns either because the compiled function
+        // finished (task->pc is then in its caller, which this loop goes on
+        // with) or because the fiber is being switched out once more: a delay,
+        // a lock, a park in some function above it. In the second case
+        // task->current is still that function, its pc is in the middle of it,
+        // and the switch is pending in thread->signal. Look at the signal FIRST,
+        // as after any CALL (check_state): without this the loop dispatched the
+        // next instruction of the function on top - and, one level of walk per
+        // compiled caller, the next few instructions after it - before the
+        // switch was taken. A fiber that slept in delay() ran on for a few
+        // instructions before it really slept:
+        //
+        //      group (compiled) -> lambda -> test -> lambda -> delay(10);
+        //                                                      x := job.child_count();
+        //
+        //      before: child_count() was called and its result kept BEFORE the
+        //              fiber slept (the coroutine that changes it had not run
+        //              yet), so x was 0 after the delay; only with the JIT, only
+        //              after the fiber had been continued once, and only with
+        //              enough compiled callers on the stack (one instruction per
+        //              level: the test suite as a whole, not its parts)
+        //      after:  the loop returns at once and the switch happens where it
+        //              was asked for
+        if(walkEnteredMachineCode) {
+            walkEnteredMachineCode = false;
+            if(thread->signal)
+                goto state_check;
+        }
         if(hasSignal(thread->signal, tsig_except))
             goto catch_exception;
 
