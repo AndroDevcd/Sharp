@@ -179,7 +179,7 @@ def streams_tests() {
 
         test("string reader: chars are 0..255, and char 255 is not the end") {
             high := new _int8[2];
-            high[0] = 200; high[1] = 255;
+            high[0] = (200) as _int8; high[1] = (255) as _int8;
             bytes := new string_text_reader(new string(high));
             expect(bytes.read_char()).should_be(200);
             expect(bytes.read_char()).should_be(255);

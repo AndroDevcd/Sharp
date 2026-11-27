@@ -8,12 +8,12 @@ import ( std.testing, std.io, std.data, std.reflect )
  * (std.reflect underneath it: library/reflect).
  */
 
-enum level { low, middle = 5, high };
+enum priority { low, middle = 5, high };
 
 class task {
     title : string = "";
-    urgency : level = level.low;
-    earlier : level?;
+    urgency : priority = priority.low;
+    earlier : priority?;
 }
 
 class address {
@@ -290,15 +290,15 @@ def json_objects_tests() {
         // ---------------------------------------------------------------- enums
         test("an enum by its name") {
             job := ship_task();
-            expect_true(job.urgency == level.high && job.title == "ship");
+            expect_true(job.urgency == priority.high && job.title == "ship");
         };
-        test("an enum field the json leaves out keeps its value") { expect_true(json.to<task>("{\"title\":\"x\"}").urgency == level.low); };
-        test("an enum by its number") { expect_true(json.to<task>("{\"urgency\":5}").urgency == level.middle); };
-        test("a nullable enum") { expect_true(json.to<task>("{\"earlier\":\"middle\"}").earlier!! == level.middle && ship_task().earlier == null); };
+        test("an enum field the json leaves out keeps its value") { expect_true(json.to<task>("{\"title\":\"x\"}").urgency == priority.low); };
+        test("an enum by its number") { expect_true(json.to<task>("{\"urgency\":5}").urgency == priority.middle); };
+        test("a nullable enum") { expect_true(json.to<task>("{\"earlier\":\"middle\"}").earlier!! == priority.middle && ship_task().earlier == null); };
         test("an enum, written, and read back") {
             job := ship_task();
             expect(json.of(job)).should_be("{\"title\":\"ship\",\"urgency\":\"high\",\"earlier\":null}");
-            expect_true(json.to<task>(json.of(job)).urgency == level.high);
+            expect_true(json.to<task>(json.of(job)).urgency == priority.high);
         };
         test("a name the enum does not have") {
             try {
@@ -310,7 +310,7 @@ def json_objects_tests() {
         };
         test("enums in a list of objects") {
             tasks := json.to<list<task> >("[{\"urgency\":\"low\"},{\"urgency\":\"high\"}]");
-            expect_true(tasks.size() == 2 && tasks.at(1).urgency == level.high);
+            expect_true(tasks.size() == 2 && tasks.at(1).urgency == priority.high);
         };
 
         // ---------------------------------------------------------------- private and const fields

@@ -135,6 +135,11 @@ def add_ignored_directory(dirpath : string) {
    options.ignored_directories.add(ignored_dir.absolute_path());
 }
 
+/**
+ * -L <folder>, and "extern_lib" of settings.json: one more library. It is
+ * ADDED to what the program is built from - it never takes the place of the
+ * standard library (that is set_standard_library, below).
+ */
 def add_library_path(libpath: string) {
    library_dir := new file(libpath);
 
@@ -150,6 +155,86 @@ def add_library_path(libpath: string) {
    }
 
    options.libraries.add(library_dir.absolute_path());
+}
+
+/**
+ * THE STANDARD LIBRARY, said outright: -stdlib <folder>, and
+ * "standard_library" of settings.json.
+ *
+ *      sharpc main.sharp                           the installed one
+ *      sharpc main.sharp -stdlib ../Sharp/stdlib   that one instead
+ *      "standard_library": "../../stdlib"          that one instead, whatever the command line says
+ *
+ * There is one. The installed `sharpc` names the installed library with a
+ * -stdlib of its own at the END of the command line, so the FIRST one on the
+ * line is the one that counts; and settings.json is read after the command
+ * line and wins over it, as for every setting.
+ *
+ * -L is not a way to say this: a library added with -L is read as well as the
+ * standard library. (A program that is started without any -stdlib - the
+ * compiler run by hand, without the installed starter - gets its standard
+ * library from a -L, as it always has.)
+ */
+def set_standard_library(libpath: string, from_settings: bool) {
+   library_dir := new file(libpath);
+   said : string = "-stdlib";
+   if(from_settings) { said = "\"standard_library\" in settings.json"; }
+
+   if(!library_dir.exists() || !library_dir.is_directory()) {
+      error_with_help("the standard library `$libpath` ($said) is not a folder that exists",
+                      "name the folder that holds `std` and `platform`: the repository's `stdlib`, or the `lib` folder of an installed Sharp");
+   }
+   path : string = library_dir.absolute_path();
+   if(!is_standard_library(path)) {
+      error_with_help("`$libpath` ($said) is not a standard library: it has no `std` and `platform` folders",
+                      "a library of your own is added with -L (or \"extern_lib\"); -stdlib names the folder the standard library itself is in");
+   }
+
+   if(options.standard_library.size() > 0) {
+      // one is said already: only settings.json, naming one after the command line did, takes its place
+      if(!from_settings || options.standard_library_from_settings) { return; }
+   }
+   options.standard_library = path;
+   options.standard_library_from_settings = from_settings;
+}
+
+/** is this folder a standard library? (it holds the two folders every one has: `std` and `platform`) */
+def is_standard_library(path: string) : bool {
+   std_folder := new file(path + "/std");
+   platform_folder := new file(path + "/platform");
+   return std_folder.is_directory() && platform_folder.is_directory();
+}
+
+/**
+ * After the command line and settings.json: the standard library goes in
+ * front of the libraries that are read, and a SECOND standard library among
+ * the -L folders is refused here, in one message. Read together, two of them
+ * are every class and function twice: thousands of errors, none of which
+ * says what happened.
+ */
+def settle_standard_library() {
+   chosen : string = options.standard_library;
+   others := new list<string>();
+   for(i := 0; i < options.libraries.size(); i++) {
+      folder : string = options.libraries.at(i);
+      if(folder == chosen) { continue; }
+      if(is_standard_library(folder)) {
+         if(chosen.size() == 0) {
+            chosen = folder;                 // no -stdlib: the first -L that is one (the compiler run by hand)
+         } else if(folder != chosen) {
+            error_with_help("two standard libraries: `$folder` was added as a library (-L or \"extern_lib\"), and the standard library is `$chosen`",
+                            "to build with `$folder` INSTEAD, say so: `-stdlib $folder` (or \"standard_library\" in settings.json). -L adds a library; it does not replace the standard one");
+         }
+      } else {
+         others.add(folder);
+      }
+   }
+
+   settled := new list<string>();
+   if(chosen.size() > 0) { settled.add(chosen); }
+   for(i := 0; i < others.size(); i++) { settled.add(others.at(i)); }
+   options.libraries = settled;
+   options.standard_library = chosen;
 }
 
 /** -testdir <folder>: the `main` in that folder is where the program starts; a `main` elsewhere is an ordinary function */

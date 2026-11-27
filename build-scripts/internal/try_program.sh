@@ -20,7 +20,7 @@ if [ -d "$what" ]; then
     # a project: the compiler's options up to `--`, the program's arguments after it
     options=(); while [ $# -gt 0 ] && [ "$1" != "--" ]; do options+=("$1"); shift; done; [ "$1" = "--" ] && shift
     rm -rf "$what/build/outputs"
-    timeout -s KILL 300 "$VM" "$COMPILER" -P "$what" -j 1 -L "$STDLIB" "${options[@]}" > "$OUT/project.compile.txt" 2>&1
+    timeout -s KILL 300 "$VM" "$COMPILER" -P "$what" -j 1 -stdlib "$STDLIB" "${options[@]}" > "$OUT/project.compile.txt" 2>&1
     grep -vE "^(time:|unknown)" "$OUT/project.compile.txt" | head -60
     program=$(ls -t "$what"/build/outputs/* 2>/dev/null | grep -v "\.names$\|/sni$" | head -1)
     [ -f "$program" ] || { echo "DID NOT COMPILE"; exit 1; }

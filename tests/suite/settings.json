@@ -1,5 +1,6 @@
 {
   "name": "suite",
   "output": "suite",
+  "standard_library": "../../stdlib",
   "ignore_folders": [ "build", "known_bugs" ]
 }

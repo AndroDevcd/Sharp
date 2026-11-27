@@ -61,7 +61,7 @@ def wait_for_all(threads: thread[]) {
 // ---- thread bodies. A thread body takes object[] and returns a number.
 
 /** args[0] is a slot: leaves 1 + 2 + ... + 1000 in it */
-def sum_to_thousand(args: object[]) : decimal {
+def sum_to_thousand(args: object[]) : int {
     out := args[0] as slot;
     total : decimal = 0;
     for(i : decimal = 1; i <= 1000; i++) {
@@ -72,14 +72,14 @@ def sum_to_thousand(args: object[]) : decimal {
 }
 
 /** args[0] is a slot holding n: replaces it by n * n */
-def square_own_slot(args: object[]) : decimal {
+def square_own_slot(args: object[]) : int {
     own := args[0] as slot;
     own.value = own.value * own.value;
     return 0;
 }
 
 /** args[0] is a slot: adds 1 to it 10000 times (nobody else touches that slot) */
-def count_in_own_slot(args: object[]) : decimal {
+def count_in_own_slot(args: object[]) : int {
     own := args[0] as slot;
     for(i : decimal = 0; i < 10000; i++) {
         own.value++;
@@ -88,7 +88,7 @@ def count_in_own_slot(args: object[]) : decimal {
 }
 
 /** adds 1 to the shared tally 20000 times, each time inside the lock */
-def count_in_shared(args: object[]) : decimal {
+def count_in_shared(args: object[]) : int {
     for(i : decimal = 0; i < 20000; i++) {
         lock(shared) {
             shared.count++;
@@ -105,7 +105,7 @@ def bump_shared(): decimal {
     }
 }
 
-def count_in_shared_through_calls(args: object[]) : decimal {
+def count_in_shared_through_calls(args: object[]) : int {
     for(i : decimal = 0; i < 5000; i++) {
         bump_shared();
     }
@@ -113,7 +113,7 @@ def count_in_shared_through_calls(args: object[]) : decimal {
 }
 
 /** an exception thrown and caught inside the lock, on every trip */
-def count_in_shared_with_exceptions(args: object[]) : decimal {
+def count_in_shared_with_exceptions(args: object[]) : int {
     for(i : decimal = 0; i < 2000; i++) {
         try {
             lock(shared) {
@@ -127,7 +127,7 @@ def count_in_shared_with_exceptions(args: object[]) : decimal {
 }
 
 /** args: a slot, then two strings; joins the strings into the slot */
-def join_words(args: object[]) : decimal {
+def join_words(args: object[]) : int {
     out := args[0] as slot;
     first := args[1] as string;
     second := args[2] as string;
@@ -136,19 +136,19 @@ def join_words(args: object[]) : decimal {
     return 0;
 }
 
-def count_with_atomic(args: object[]) : decimal {
+def count_with_atomic(args: object[]) : int {
     for(i : decimal = 0; i < 5000; i++) {
         hits++;
     }
     return 0;
 }
 
-def always_fails(args: object[]) : decimal {
+def always_fails(args: object[]) : int {
     throw new illegal_state_exception("thread failed on purpose");
 }
 
 /** a thread that handles its own exception and still leaves a result */
-def recovers(args: object[]) : decimal {
+def recovers(args: object[]) : int {
     out := args[0] as slot;
     try {
         throw new illegal_argument_exception("inside the thread");
@@ -202,7 +202,7 @@ def threads_tests() {
         test("a lambda as the thread body") {
             unguarded.value = 0;
             unguarded.text = "";
-            inline_thread := new thread("inline", { args: object[] -> (decimal)
+            inline_thread := new thread("inline", { args: object[] -> (int)
                 unguarded.value = 77;
                 unguarded.text = "from a lambda";
                 return 0;

@@ -38,6 +38,10 @@ sharp build/outputs/suite -test-only suite.library.collections
 sharp -nojit build/outputs/suite
 ```
 
+The suite is always built with the standard library of the repository, not the installed one: its
+`settings.json` says so (`"standard_library": "../../stdlib"`). The installed compiler and VM are
+the ones that build and run it here; `bash test.sh suite` uses the repository's for those too.
+
 Run it with `tests/suite` as the current folder. `-test-only` may be given more than once; a name
 that matches no group makes the run fail, so a typing mistake never passes with nothing run.
 

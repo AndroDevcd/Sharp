@@ -71,6 +71,14 @@ void op_kbhit(Int interrupt) {
 }
 
 //
+// console_colors(): does what the program prints go to a console that shows colours? Result
+// (0 or 1) in CMT. 0 when the output is a file or a pipe: colour codes there are noise.
+//
+void op_console_colors(Int interrupt) {
+    registers[CMT].i = console_shows_colors() ? 1 : 0;
+}
+
+//
 // strtod(string): parse a decimal out of a string. The string is popped off the
 // stack; the decimal result goes in EBX. A null or non-text object is a fault.
 //

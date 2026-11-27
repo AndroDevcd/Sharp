@@ -63,7 +63,7 @@ for build in plain O; do
     case " $CONFIGURATIONS " in *" $build "*|*" $build-nojit "*) ;; *) continue ;; esac
     options=""; [ $build = O ] && options="-O"
     mkdir -p "$OUT/$build"
-    suite_build "$SUITE" "$OUT/$build/suite" "$OUT/$build/compile.txt" "$SHARP" "$COMPILER" -P "$SUITE" -j 1 -L "$LIBRARY" $options \
+    suite_build "$SUITE" "$OUT/$build/suite" "$OUT/$build/compile.txt" "$SHARP" "$COMPILER" -P "$SUITE" -j 1 -stdlib "$LIBRARY" $options \
         || { echo "the suite, built ${options:-plain}: DID NOT COMPILE"; ok=0; }
 done
 

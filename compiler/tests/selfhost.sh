@@ -189,7 +189,7 @@ else
     PROJECT="$OUT/suite_project"; mkdir -p "$PROJECT"
     rsync -a --delete --exclude /build "$SUITE/" "$PROJECT/"
     # build_with <the file to keep it as> <compiler> <option>: the suite, built from nothing in the one folder
-    build_with() { suite_build "$PROJECT" "$1" "$1.txt" "$SHARP" "$2" -P "$PROJECT" -j 1 -L "$LIBRARY" $3 > /dev/null; }
+    build_with() { suite_build "$PROJECT" "$1" "$1.txt" "$SHARP" "$2" -P "$PROJECT" -j 1 -stdlib "$LIBRARY" $3 > /dev/null; }
     # same <first> <second>: the same executable and the same output of the compiler (else what differs)
     same() {
         [ -f "$1" ] && cmp -s "$1" "$2" && [ "$(steady "$1.txt")" = "$(steady "$2.txt")" ] && return 0

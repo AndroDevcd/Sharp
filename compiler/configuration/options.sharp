@@ -256,6 +256,13 @@ class options {
     static libraries := new list<string>();
 
     /*
+     * The standard library, when it was said outright (-stdlib, "standard_library":
+     * settings.sharp, set_standard_library), and whether settings.json said it
+     */
+    static standard_library : string = "";
+    static standard_library_from_settings : bool = false;
+
+    /*
      * List of ignored directories (only used in project mode)
      */
     static ignored_directories := new list<string>();

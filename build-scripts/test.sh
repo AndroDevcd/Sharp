@@ -118,13 +118,13 @@ test_3() { echo "== [3] the suite compiles (tests/suite, one project, with the l
 check=$W/out/boot/suite_check; mkdir -p $check
 rsync -a --delete --exclude /build $W/suite/ $check/
 out=$W/out/boot/suite_check.txt; rm -f $out $out.crash $out.again
-timeout -s KILL 1200 $RUN -P $check -c -L $STDLIB > $out 2>&1
+timeout -s KILL 1200 $RUN -P $check -c -stdlib $STDLIB > $out 2>&1
 # A VM crash (SIGSEGV) while compiling is a FAILURE. The suite is compiled once more, so the report
 # says whether the crash comes back - but it counts as failing either way.
 crashes=0
 if ! grep -q "^analysis complete" $out && ! grep -q "^error" $out && grep -q "SIGSEGV\|Unhandled exception" $out; then
   crashes=1; cp $out $out.crash
-  timeout -s KILL 1200 $RUN -P $check -c -L $STDLIB > $out.again 2>&1
+  timeout -s KILL 1200 $RUN -P $check -c -stdlib $STDLIB > $out.again 2>&1
   grep -q "^analysis complete" $out.again && again="passed" || again="FAILED again"
   echo "VM CRASH while compiling the suite (output kept: $out.crash); compiled again: $again"
 fi

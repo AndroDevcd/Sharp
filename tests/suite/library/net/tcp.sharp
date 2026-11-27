@@ -21,7 +21,7 @@ class shared {
  * The server: for each guest, lines are answered until the guest says
  * "bye" or closes. "big <n>" is answered with n bytes; "close" ends the server.
  */
-def serve(args: object[]) : decimal {
+def serve(args: object[]) : int {
     try {
         while(true) {
             guest := shared.server!!.accept();

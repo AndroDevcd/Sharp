@@ -223,7 +223,7 @@ def sqlite_tests() {
         test("bytes: the length, with zeros inside") {
             db.run("create table files (name text, data blob)");
             raw := new _int8[5];
-            raw[0] = 0; raw[1] = 255; raw[2] = 10; raw[3] = 0; raw[4] = 65;
+            raw[0] = 0; raw[1] = (255) as _int8; raw[2] = 10; raw[3] = 0; raw[4] = 65;
             db.sql("insert into files values (?, ?)").with("f").with_bytes(raw).run();
             stored := db.sql("select data from files").first_row()!!.bytes("data");
             expect(sizeof(stored)).named("bytes: the length").should_be(5);

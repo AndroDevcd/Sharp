@@ -54,7 +54,9 @@ import (
  *                                          left out of the program, built with -tests (project.sharp)
  *      ignore_files, ignore_folders        -ignore, -ignoredir: a path inside the project,
  *                                          or else a path as written
- *      extern_lib, extern_libs             -L: likewise
+ *      extern_lib, extern_libs             -L: likewise (libraries of your own: ADDED to the standard one)
+ *      standard_library                    -stdlib: the standard library to build with, instead of the
+ *                                          installed one (settings.sharp, set_standard_library)
  *      ignore_extern_files, ignore_extern_folders   -ignore, -ignoredir with paths as written
  *      native                      the C++ of the project's native functions and the
  *                                  compiler that builds it (read_native_setting, below)
@@ -309,6 +311,11 @@ def process_settings() {
             }
          }
 
+         if((member = setting(obj, "standard_library")) != null) {
+            require_type(member!!, json_value.kind_string);
+            set_standard_library(project_path(member!!.as_string()), true);
+         }
+
          if((member = setting(obj, "ignore_extern_files")) != null) {
             require_type(member!!, json_value.kind_array);
 
@@ -553,6 +560,7 @@ def known_settings() : list<string> {
    names.add("magic_mode");             names.add("compiler_debug_mode");
    names.add("ignore_files");           names.add("ignore_folders");
    names.add("extern_lib");             names.add("extern_libs");
+   names.add("standard_library");
    names.add("ignore_extern_files");    names.add("ignore_extern_folders");
    names.add("native");                 names.add("c_libraries");
    names.add("tests_folder");

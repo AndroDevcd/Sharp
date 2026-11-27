@@ -33,7 +33,7 @@ echo "the Windows suite: $("$VM" -V 2>&1 | head -1), compiled by $(basename "$CO
 passed=0; failed=0
 for kind in plain O; do
     option=""; [ "$kind" = O ] && option="-O"
-    if ! suite_build "$PROJECT" "$WORK/$kind/suite" "$WORK/$kind/compile.txt" "$VM" "$COMPILER" -P "$PROJECT" -j 1 -L "$LIBRARY" $option; then
+    if ! suite_build "$PROJECT" "$WORK/$kind/suite" "$WORK/$kind/compile.txt" "$VM" "$COMPILER" -P "$PROJECT" -j 1 -stdlib "$LIBRARY" $option; then
         echo "FAIL  the suite ($kind): did not compile, see $WORK/$kind/compile.txt"; failed=$((failed + 2)); continue
     fi
     for jit in jit nojit; do

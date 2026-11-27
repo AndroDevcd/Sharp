@@ -44,9 +44,18 @@ import (
  * bug was so rare outside the bootstrap compiler.
  */
 
+/**
+ * A count that is changed in place, through its setter. (A number object - `int` - is not
+ * for that: its setter is private to it.)
+ */
+class running_count {
+    value : _int64 = 0;
+        set value -> { self->value = value; }
+}
+
 guard := new string("guard");
-waited := new int(0);
-quick := new int(0);
+waited := new running_count();
+quick := new running_count();
 
 /** blocks while the test holds `guard` */
 def wait_here() {

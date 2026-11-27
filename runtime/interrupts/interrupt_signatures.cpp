@@ -72,6 +72,7 @@ static const interrupt_signature signatures[] = {
     // ---- process
     { OP_SYSTEM_EXE,            "system",               "",                     "o",            "cmt:i" },
     { OP_KBHIT,                 "kbhit",                "",                     "",             "cmt:i" },
+    { OP_CONSOLE_COLORS,        "console_colors",       "",                     "",             "cmt:i" },
     { OP_EXIT,                  "exit",                 "",                     "i",            "" },
     { OP_SIGNAL_WATCH,          "signal_watch",         "ebx:i ecx:i",          "",             "" },
     { OP_SIGNAL_TAKE,           "signal_take",          "ebx:i",                "",             "ebx:i" },

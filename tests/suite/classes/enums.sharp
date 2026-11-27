@@ -105,7 +105,6 @@ def is_vertical(d: direction): decimal {
         north, south -> { return 1; }
         else -> { return 0; }
     }
-    return 0 - 1;
 }
 
 /* when: members written with the enum's name */
@@ -142,7 +141,6 @@ def turn_right(d: direction): direction {
         south -> { return direction.west; }
         else -> { return direction.north; }
     }
-    return d;
 }
 
 def level_for(score: decimal): level {

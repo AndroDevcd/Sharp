@@ -253,7 +253,7 @@ def http_server_tests() {
             };
             test("websocket: bytes are bytes, the same ones") {
                 raw := new _int8[4];
-                raw[0] = 0; raw[1] = 255; raw[2] = 7; raw[3] = 0;
+                raw[0] = 0; raw[1] = (255) as _int8; raw[2] = 7; raw[3] = 0;
                 live!!.send_bytes(raw);
                 bytes_back := live!!.receive()!!;
                 expect_false(bytes_back.is_text());

@@ -23,7 +23,7 @@ class node {
 
     def total(): decimal {
         sum : decimal = number;
-        if(left != null) { sum += left!!.total(); }
+        if(left != null) { sum += left.total(); }
         sum -= seven();
         sum *= seven();
         return sum;

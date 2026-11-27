@@ -75,6 +75,10 @@ def read_command_line(args: string[]) {
             add_library_path(value_after(args, i, "a library folder"));
             i++;
         }
+        else if(arg == "-stdlib"){
+            set_standard_library(value_after(args, i, "the folder of the standard library"), false);
+            i++;
+        }
         else if(arg == "-j"){
             // how many worker threads parse the files (C++: `-j`, set_target_threads). The
             // suite runner and the benchmark scripts pass `-j 1`.
@@ -409,7 +413,8 @@ def help() {
     println(              "    -run              run the program after a successful compile (with `sharp` from the PATH)" );
     println(              "    -watch            build, then build again whenever a file of the program is saved (Ctrl+C stops)" );
     println(              "    -a                show every error (this compiler always does; accepted for scripts)" );
-    println(              "    -L <path>         library directory path: every .sharp file in it and below" );
+    println(              "    -L <path>         one more library: every .sharp file in the folder and below" );
+    println(              "    -stdlib <path>    the standard library to build with, instead of the installed one" );
     println(              "    -files <list>     more source files: a text file with one path on each line"  );
     println(              "    -j <amount>       how many threads parse the source files"                   );
     println(              "    -w                disable all warnings"                                      );

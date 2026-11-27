@@ -349,5 +349,27 @@ grep -q "error\[E0930\]" testdir_two_mains.txt && pass || fail "testdir_two_main
 compile testdir.txt market/src/main.sharp market/checks/price_tests.sharp -j 1 -L "$LIBRARY" -testdir market/checks -o testdir.exe
 if [ "$("$SHARP" testdir.exe 2>&1 | head -1)" = "tests got 0" ]; then pass; else fail "testdir" "-testdir did not make the tests' main the entry point:" "$(tail -3 testdir.txt)"; fi
 
+# ---- THE STANDARD LIBRARY is said with -stdlib (and "standard_library" in settings.json): the first
+# on the line counts - the installed starter puts its own at the end - and settings.json wins over
+# the line. -L only ever ADDS: a second standard library given with it is one message, not thousands.
+rm -rf "second library"; cp -r "$LIBRARY" "second library"
+echo 'mod marked; def which_library() : string { return "the second one"; }' > "second library/marked.sharp"
+printf 'mod main;\nimport ( marked )\ndef main(args: string[]) { println("built with " + which_library()); }\n' > src/which.sharp
+builds_and_prints stdlib_option   "sum 123" src/prog.sharp -j 1 -stdlib "$LIBRARY" -L "my lib"
+builds_and_prints stdlib_first    "built with the second one" src/which.sharp -j 1 -stdlib "second library" -stdlib "$LIBRARY"
+builds_and_prints stdlib_and_own  "sum 123" src/prog.sharp -j 1 -L "my lib" -stdlib "$LIBRARY"
+exits_with two_libraries 1 src/prog.sharp -j 1 -stdlib "$LIBRARY" -L "my lib" -L "second library"
+if grep -q "error: two standard libraries" two_libraries.txt && grep -q "INSTEAD, say so: .-stdlib" two_libraries.txt && [ "$(grep -c "error" two_libraries.txt)" = 1 ]; then pass
+else fail "two_libraries" "not the one message about a second standard library:" "$(head -3 two_libraries.txt)"; fi
+exits_with two_by_L 1 src/prog.sharp -j 1 -L "$LIBRARY" -L "second library"
+grep -q "error: two standard libraries" two_by_L.txt && pass || fail "two_by_L" "two standard libraries given with -L were not refused:" "$(head -2 two_by_L.txt)"
+exits_with stdlib_not_one 1 src/prog.sharp -j 1 -stdlib "my lib"
+grep -q "is not a standard library" stdlib_not_one.txt && pass || fail "stdlib_not_one" "a folder that is no standard library was taken for one:" "$(head -2 stdlib_not_one.txt)"
+mkdir -p one_library/src; cp src/which.sharp one_library/src/main.sharp; cp -r "second library" one_library/
+echo '{ "output": "one_library", "standard_library": "second library" }' > one_library/settings.json
+compile one_library.txt -P one_library -j 1 -stdlib "$LIBRARY"
+if [ "$("$SHARP" one_library/build/outputs/one_library 2>&1 | head -1)" = "built with the second one" ]; then pass
+else fail "one_library" "settings.json's standard_library did not take the place of the command line's:" "$(head -3 one_library.txt)"; fi
+
 echo "driver tests: $passed passed, $failed failed   (work folder: $WORK)"
 [ "$failed" -eq 0 ]

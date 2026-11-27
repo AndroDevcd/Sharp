@@ -146,3 +146,29 @@ long long vm_read_key(bool echo) {
     return _read(0, &ch, 1) == 1 ? (long long) ch : -1;
 }
 #endif
+
+//
+// IS THE OUTPUT A CONSOLE THAT SHOWS COLOURS? (termios.h)
+//
+static bool colors_not_wanted() {
+    const char *off = getenv("NO_COLOR");               // (the agreed way to say "no colours": no-color.org)
+    return off != NULL && off[0] != '\0';
+}
+
+#ifdef POSIX_
+bool console_shows_colors() {
+    if(!isatty(1) || colors_not_wanted()) return false;
+    const char *kind = getenv("TERM");
+    return kind != NULL && strcmp(kind, "dumb") != 0;
+}
+#else
+bool console_shows_colors() {
+    if(colors_not_wanted()) return false;
+    // (a console that is no console - a file, a pipe - has no mode to ask for)
+    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD mode = 0;
+    if(out == INVALID_HANDLE_VALUE || !GetConsoleMode(out, &mode)) return false;
+    if(mode & ENABLE_VIRTUAL_TERMINAL_PROCESSING) return true;
+    return SetConsoleMode(out, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING) != 0;
+}
+#endif

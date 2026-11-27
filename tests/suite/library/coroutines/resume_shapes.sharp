@@ -53,18 +53,27 @@ import (
  * they finish on several worker threads at once.)
  */
 
+/**
+ * A count that is changed in place, through its setter. (A number object - `int` - is not
+ * for that: its setter is private to it.)
+ */
+class running_count {
+    value : _int64 = 0;
+        set value -> { self->value = value; }
+}
+
 guard := new string("guard");
-waited := new int(0);
-sum_a := new int(0);
-sum_b := new int(0);
-sum_c := new int(0);
-sum_d := new int(0);
-sum_e := new int(0);
-sum_f := new int(0);
-caught := new int(0);
+waited := new running_count();
+sum_a := new running_count();
+sum_b := new running_count();
+sum_c := new running_count();
+sum_d := new running_count();
+sum_e := new running_count();
+sum_f := new running_count();
+caught := new running_count();
 
 /** adds `amount` to a counter that several threads share */
-def record(counter: int, amount: decimal) {
+def record(counter: running_count, amount: decimal) {
     lock(counter) {
         counter.value = counter.value + amount;
     }

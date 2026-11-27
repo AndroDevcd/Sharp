@@ -8,7 +8,7 @@ rem     sharpc --debug ...                the debug compiler: also prints how th
 rem                                       stage, and has -Oreport, -Otrace, -ir, -listing, -timings ...
 rem
 rem The compiler is itself a Sharp program: this starts the VM on it, and adds the standard
-rem library that was installed beside it, so no -L is ever needed for it.
+rem library that was installed beside it (-stdlib; one of your own on the line comes first and wins).
 setlocal
 set "BIN=%~dp0"
 for %%I in ("%BIN%..") do set "ROOT=%%~fI"
@@ -26,5 +26,5 @@ if "%~1"=="--unoptimized" (
 shift
 goto next
 :run
-"%BIN%sharp.exe" "%COMPILER%" %ARGS% -L "%ROOT%\lib"
+"%BIN%sharp.exe" "%COMPILER%" %ARGS% -stdlib "%ROOT%\lib"
 exit /b %ERRORLEVEL%

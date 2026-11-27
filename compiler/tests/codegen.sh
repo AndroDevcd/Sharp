@@ -356,7 +356,7 @@ if [ -f "$SUITE/settings.json" ]; then
     PROJECT="$OUT/suite_project"
     rm -rf "$OUT/suite"; mkdir -p "$OUT/suite" "$PROJECT"
     rsync -a --delete --exclude /build "$SUITE/" "$PROJECT/"
-    if ! said=$(suite_build "$PROJECT" "$OUT/suite/suite" "$OUT/suite/compile.txt" "$SHARP" "$COMPILER" -P "$PROJECT" -j 1 -L "$LIBRARY"); then
+    if ! said=$(suite_build "$PROJECT" "$OUT/suite/suite" "$OUT/suite/compile.txt" "$SHARP" "$COMPILER" -P "$PROJECT" -j 1 -stdlib "$LIBRARY"); then
         fail "the suite" "no file was written:" "$said"
     else
         broken=0

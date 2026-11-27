@@ -95,7 +95,8 @@ for f in win-install.cmd win-uninstall.cmd sharpc.cmd; do fill "$T/windows/$f" "
 for f in unix-install.sh unix-uninstall.sh sharpc; do fill "$T/linux/$f" "$D/linux/$f" lf; chmod +x "$D/linux/$f"; done
 fill "$T/shared/examples/hello.sharp" "$D/shared/examples/hello.sharp" lf
 commit=$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)
-[ -n "$(git -C "$REPO" status --porcelain 2>/dev/null | grep -v '^??' | head -1)" ] && commit="$commit + changes not committed yet"
+# (seen from WSL a Windows checkout differs in line ends and file modes only: those are not changes)
+[ -n "$(git -C "$REPO" -c core.fileMode=false -c core.autocrlf=true status --porcelain 2>/dev/null | grep -v '^??' | head -1)" ] && commit="$commit + changes not committed yet"
 {
   echo "Sharp $V"
   echo ""

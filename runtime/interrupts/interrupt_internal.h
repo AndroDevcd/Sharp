@@ -77,6 +77,7 @@ void op_flush(Int interrupt);
 void op_print_bytes(Int interrupt);
 void op_whole_text(Int interrupt);
 void op_kbhit(Int interrupt);
+void op_console_colors(Int interrupt);
 void op_strtod(Int interrupt);
 void op_strtol(Int interrupt);
 

@@ -350,7 +350,7 @@ def binary_tests() {
 
             test("wrap copies the bytes") {
                 raw := new _int8[3];
-                raw[0] = 9; raw[1] = 0; raw[2] = 200;
+                raw[0] = 9; raw[1] = 0; raw[2] = (200) as _int8;
                 wrapped := byte_buffer.wrap(raw);
                 expect(wrapped.size()).named("wrap size").should_be(3);
                 expect(wrapped.position()).named("wrap position").should_be(0);

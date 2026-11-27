@@ -68,8 +68,8 @@ PROJECT=$OUT/suite_project; mkdir -p $PROJECT
 rsync -a --delete --exclude /build $W/suite/ $PROJECT/
 for flag in "" "-O"; do
   n=$((n+1))
-  suite_build $PROJECT $OUT/s1/suite $OUT/s1/out.txt $VM $OUT/plain/sharpc -P $PROJECT -j 1 -L $LIBRARY $flag > /dev/null
-  suite_build $PROJECT $OUT/s2/suite $OUT/s2/out.txt $VM $OUT/O/sharpc -P $PROJECT -j 1 -L $LIBRARY $flag > /dev/null
+  suite_build $PROJECT $OUT/s1/suite $OUT/s1/out.txt $VM $OUT/plain/sharpc -P $PROJECT -j 1 -stdlib $LIBRARY $flag > /dev/null
+  suite_build $PROJECT $OUT/s2/suite $OUT/s2/out.txt $VM $OUT/O/sharpc -P $PROJECT -j 1 -stdlib $LIBRARY $flag > /dev/null
   if [ -f $OUT/s1/suite ] && cmp -s $OUT/s1/suite $OUT/s2/suite \
      && verdict=$(suite_way "the suite ${flag:-plain}" $PROJECT $OUT/s1/run${flag}.txt 900 $SHARP $OUT/s1/suite); then :
   else bad=$((bad+1)); echo "DIFFERENT or failing: the suite ${flag:-plain} ($(tail -1 $OUT/s2/out.txt | cut -c1-120)) $(echo "$verdict" | head -4)"; fi

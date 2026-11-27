@@ -268,6 +268,7 @@ def add_library_files(version_num: string) {
     // compiler takes a library (the standard library is std/..., platform/...), sorted, so
     // the files come in the same order on every compile (source_folders.sharp says how they
     // are found, and why not with file.walk()).
+    settle_standard_library();          // (the one standard library first; a second one is refused: settings.sharp)
     for(i := 0; i < options.libraries.size(); i++) {
         library_folder := options.libraries.at(i);
 

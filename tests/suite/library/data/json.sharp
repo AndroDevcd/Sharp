@@ -631,7 +631,7 @@ def json_tests() {
         };
         test("invalid UTF-8 escaped byte by byte") {
             broken := new _int8[2];
-            broken[0] = 0xC3; broken[1] = 'x';
+            broken[0] = (0xC3) as _int8; broken[1] = 'x';
             expect(new json_writer().set_ascii_only(true).write(json_value.of_string(new string(broken)))).should_be(q + "\\u00c3x" + q);
         };
         test("negative indent") { expect_throws<illegal_argument_exception>() { new json_writer().set_indent(0 - 1); }; };

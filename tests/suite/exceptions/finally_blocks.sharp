@@ -189,7 +189,6 @@ def return_in_catch(): decimal {
     } finally {
         mark("f");
     }
-    return 0;
 }
 
 // ---- throw from a catch block that has a finally

@@ -46,6 +46,10 @@ copy_sources() {
           --exclude /tests "$REPO/" "$WORK/src/"
     rsync -a --delete "$LIBRARY_SOURCE/" "$WORK/stdlib/"
     rsync -a --delete --exclude /build "$REPO/tests/suite/" "$WORK/suite/"     # (not its build/: the tests build it there)
+    # the suite says which standard library it is built with: the repository's, by a path from where
+    # it lies there ("standard_library": "../../stdlib"). In this copy that is the copy of the library.
+    sed -i "s|\"standard_library\": *\"[^\"]*\"|\"standard_library\": \"$WORK/stdlib\"|" "$WORK/suite/settings.json"
+    grep -q "\"standard_library\": \"$WORK/stdlib\"" "$WORK/suite/settings.json" || { echo "tests/suite/settings.json: no \"standard_library\" setting to point at $WORK/stdlib"; return 1; }
 }
 
 # How many compiles and test programs run at once: one per core, but no more than the free memory

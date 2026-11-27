@@ -144,7 +144,7 @@ if [ $MODE = suite ]; then
             source "$REPO/compiler/tests/suite_program.sh"
             VM="$REPO/cmake-build-windows-vm/sharp.exe"; PROJECT="$REPO/tests/suite"; mkdir -p "$LOGS/suite_windows"
             if suite_build "$PROJECT" "$LOGS/suite_windows/suite" "$LOGS/suite_windows/compile.txt" \
-                   "$VM" "$LOGS/sharpc" -P "$PROJECT" -j 1 -L "$REPO/stdlib" $SUITE_OPTION; then
+                   "$VM" "$LOGS/sharpc" -P "$PROJECT" -j 1 -stdlib "$REPO/stdlib" $SUITE_OPTION; then
                 SUITE_PICK="$GROUPS_NAMED" suite_way "the suite on the Windows VM" "$PROJECT" "$LOGS/suite_windows/run.txt" 900 \
                     "$VM" "$LOGS/suite_windows/suite" || ok=0
             else

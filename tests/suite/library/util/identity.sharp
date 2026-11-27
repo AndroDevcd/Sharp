@@ -14,10 +14,10 @@ import ( std.testing, std.util )
 /* four bytes, including bytes above 127 (stored as negative _int8 values) */
 def some_bytes() : _int8[] {
     data := new _int8[4];
-    data[0] = 200;
-    data[1] = 255;
+    data[0] = (200) as _int8;
+    data[1] = (255) as _int8;
     data[2] = 0;
-    data[3] = 128;
+    data[3] = (128) as _int8;
     return data;
 }
 

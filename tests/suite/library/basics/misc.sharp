@@ -48,7 +48,10 @@ class settings {
     settings(p: decimal) { port = p; }
 }
 
-times_made := new int(0);       // set back to 0 before every deferred_init test
+/** how often make_settings ran (a count changed in place: a number object - `int` - is not for that) */
+class run_count { value : _int64 = 0; }
+
+times_made := new run_count();  // set back to 0 before every deferred_init test
 
 def make_settings(): settings {
     times_made.value++;

@@ -115,6 +115,12 @@ stable class test_run {
     private static place_file : string = "";        // what find_place found last
     private static place_line : string = "";
 
+    // colours, for a person reading on a console: 0 not looked yet, 1 yes, 2 no
+    private static in_colour : _int64 = 0;
+    private static const green : _int64 = 32;
+    private static const red : _int64 = 31;
+    private static const yellow : _int64 = 33;
+
     // ------------------------------------------------------------ groups
 
     /**
@@ -175,7 +181,7 @@ stable class test_run {
             if(to_editor()) {
                 tell_editor("testIgnored name='" + escaped("the rest of the group") + "' message='" + escaped(left.get_message()) + "'");
             } else if(quiet == 0) {
-                println(moved_in(levels.size() - 1) + "  skip  the rest of the group   (" + left.get_message() + ")");
+                println(moved_in(levels.size() - 1) + "  " + painted("skip", yellow) + "  the rest of the group   (" + left.get_message() + ")");
             }
         } catch(broke: throwable) {
             // a line of the group itself threw: that is a failure with a name, not the end of the program
@@ -188,8 +194,8 @@ stable class test_run {
                 tell_editor("testFailed name='the group|'s own lines'" + failure_for_editor(problem));
                 tell_editor("testFinished name='the group|'s own lines'");
             } else {
-                if(quiet == 1) { println("  FAIL  " + full + " > the group's own lines"); }
-                else { println(moved_in(levels.size() - 1) + "  FAIL  the group's own lines"); }
+                if(quiet == 1) { println("  " + painted("FAIL", red) + "  " + full + " > the group's own lines"); }
+                else { println(moved_in(levels.size() - 1) + "  " + painted("FAIL", red) + "  the group's own lines"); }
                 print_indented(problem);
             }
         }
@@ -342,7 +348,7 @@ stable class test_run {
                 tell_editor("testIgnored name='" + escaped(name) + "' message='" + escaped(why_left_out) + "'");
                 tell_editor("testFinished name='" + escaped(name) + "' duration='0'");
             } else if(quiet == 0) {
-                println(room + "  skip  " + name + "   (" + why_left_out + ")");
+                println(room + "  " + painted("skip", yellow) + "  " + name + "   (" + why_left_out + ")");
             }
         } else if(to_editor()) {
             if(went_wrong == 0) {
@@ -355,12 +361,12 @@ stable class test_run {
             tell_editor("testFinished name='" + escaped(name) + "' duration='" + (utc_mills().value - began) + "'");
         } else if(went_wrong == 0) {
             passed = passed + 1;
-            if(quiet == 0) { println(room + "  ok    " + name); }
+            if(quiet == 0) { println(room + "  " + painted("ok", green) + "    " + name); }
         } else {
             failed = failed + 1;
             failures.add(group_name + " > " + name);
-            if(quiet == 1) { println("  FAIL  " + group_name + " > " + name); }
-            else { println(room + "  FAIL  " + name); }
+            if(quiet == 1) { println("  " + painted("FAIL", red) + "  " + group_name + " > " + name); }
+            else { println(room + "  " + painted("FAIL", red) + "  " + name); }
             print_indented(problem);
         }
     }
@@ -439,6 +445,30 @@ stable class test_run {
             }
         }
         return for_editor == 1;
+    }
+
+    /**
+     * `words` in a colour - `ok` green, `FAIL` red, `skip` yellow - when a person
+     * reads them on a console that shows colours. As they are when the output
+     * goes to a file, to another program (a script that reads the lines) or to
+     * an editor: colour codes there are noise.
+     */
+    private static def painted(words: string, colour: _int64) : string {
+        if(in_colour == 0) {
+            in_colour = 2;
+            shows : _int64 = 0;
+            asm {
+                int 0x6a
+                smovr2 [shows], cmt
+            }
+            if(shows != 0 && !to_editor()) { in_colour = 1; }
+        }
+        if(in_colour == 2) { return words; }
+
+        escape : char = 27;
+        code : string = "";
+        code.append(escape);
+        return code + "[" + colour + "m" + words + code + "[0m";
     }
 
     /** one line for the editor's test view, sent at once (output into a pipe is collected otherwise) */
@@ -651,11 +681,11 @@ stable class test_run {
                 println("  " + failures.at(i));
             }
             println("");
-            println("" + failed + " failed, " + passed + " passed (" + (failed + passed) + " tests)" + and_skipped());
+            println(painted("" + failed + " failed, " + passed + " passed (" + (failed + passed) + " tests)" + and_skipped(), red));
         } else if(passed == 0) {
             println("no tests were run" + and_skipped());
         } else {
-            println("all " + passed + " tests passed" + and_skipped());
+            println(painted("all " + passed + " tests passed" + and_skipped(), green));
         }
         return failed + wrong_names;
     }

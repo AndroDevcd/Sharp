@@ -8,7 +8,7 @@
 #                                       stage, and has -Oreport, -Otrace, -ir, -listing, -timings ...
 #
 # The compiler is itself a Sharp program: this starts the VM on it, and adds the standard
-# library that was installed beside it, so no -L is ever needed for it.
+# library that was installed beside it (-stdlib; one of your own on the line comes first and wins).
 HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(dirname "$HERE")
 COMPILER="$ROOT/compiler/sharpc-v@VERSION@"
@@ -19,4 +19,4 @@ elif [ "$1" = "--debug" ]; then
     COMPILER="$ROOT/compiler/sharpc-debug-v@VERSION@"
     shift
 fi
-exec "$HERE/sharp" "$COMPILER" "$@" -L "$ROOT/lib"
+exec "$HERE/sharp" "$COMPILER" "$@" -stdlib "$ROOT/lib"
