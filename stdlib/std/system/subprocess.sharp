@@ -165,10 +165,26 @@ class subprocess {
     }
 
     static def run(program: string, arguments: string[], merge_errors: bool) : subprocess {
-        both := new string[sizeof(arguments) + 1];
-        both[0] = program;
-        for(i : _int64 = 0; i < sizeof(arguments); i++) { both[i + 1] = arguments[i]; }
-        return start_program(runtime_path(), both, merge_errors);
+        return run(program, arguments, new string[0], merge_errors);
+    }
+
+    /**
+     * The same, with options for the `sharp` that runs the program - what
+     * is written before the program on the command line (`sharp -h` lists them):
+     *
+     *      small := subprocess.run(program_path(), { "child" }, { "-mem", "64mb" });
+     *      plain := subprocess.run(program_path(), { "child" }, { "-nojit" });
+     */
+    static def run(program: string, arguments: string[], vm_options: string[]) : subprocess {
+        return run(program, arguments, vm_options, false);
+    }
+
+    static def run(program: string, arguments: string[], vm_options: string[], merge_errors: bool) : subprocess {
+        all := new string[sizeof(vm_options) + 1 + sizeof(arguments)];
+        for(i : _int64 = 0; i < sizeof(vm_options); i++) { all[i] = vm_options[i]; }
+        all[sizeof(vm_options)] = program;
+        for(i : _int64 = 0; i < sizeof(arguments); i++) { all[sizeof(vm_options) + 1 + i] = arguments[i]; }
+        return start_program(runtime_path(), all, merge_errors);
     }
 
     // ------------------------------------------------------------------ starting

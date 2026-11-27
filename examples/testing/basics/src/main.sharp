@@ -55,7 +55,7 @@ class counter_model base view_model {
 // ============================================================================ the tests
 
 def main() {
-    tests("a basket") {
+    tests("basket") {
         test("a new basket is empty") {
             b := basket();
             expect(b.count()).should_be(0);
@@ -83,7 +83,7 @@ def main() {
         };
     };
 
-    tests("a form") {
+    tests("form") {
         test("a required field that is empty has a problem after check") {
             title := gui.state("");
             rules := form().require(title, "Give it a title");
@@ -111,7 +111,7 @@ def main() {
         };
     };
 
-    tests("a watched list") {
+    tests("watched_list") {
         test("add, move and remove keep the items in order") {
             names := state_list<string>();
             names.add("a");
@@ -139,7 +139,7 @@ def main() {
         };
     };
 
-    tests("a view model, with no window") {
+    tests("view_model") {
         test("slow work reaches the state once the main queue is run") {
             model := counter_model();
             model.add_slowly().join();

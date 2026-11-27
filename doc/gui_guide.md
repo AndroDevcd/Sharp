@@ -493,7 +493,7 @@ import (
 )
 
 def main(args: string[]) {
-    tests("the screens of the GUI guide") {
+    tests("gui_guide_screens") {
         ui_test("the counter counts") {
             set_content(counter());
             on_tag("total").should_say("Count: 0");

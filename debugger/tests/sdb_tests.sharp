@@ -255,7 +255,7 @@ def main(args: string[]) {
         };
     };
 
-    tests("localized variables") {
+    tests("localized_variables") {
         said := answers("fiber_values.dbg", "break app#show\ncontinue\nprint turn\nfiber 0 print app#turn\nset turn = 12\ncontinue\nprint turn\ncontinue\n");
         test("a localized variable is the looked-at fiber's own") {
             expect(said).should_contain("turn = 9");
@@ -267,7 +267,7 @@ def main(args: string[]) {
         };
     };
 
-    tests("lambdas and bools") {
+    tests("lambdas_and_bools") {
         said := answers("lambdas.dbg", "break lambdas.sharp:53\nbreak lambdas.sharp:65\ncontinue\nlocals\nclear 1\ncontinue\nprint board\nprint flags\nquit\n");
         test("a lambda sees its own variables and those of the functions around it") {
             expect(said).should_contain("step      = 5");
@@ -281,7 +281,7 @@ def main(args: string[]) {
         };
     };
 
-    tests("threads and fibers") {
+    tests("threads_and_fibers") {
         said := answers("workers.dbg", "break app#work\nbreak workers.sharp:39\ncontinue\nthreads\nthread 0 backtrace\nclear 1\ncontinue\n"
             + "fibers\nfibers 2\nfibers nap\nfiber 5\nfiber 5 backtrace\nquit\n");
         test("a breakpoint in a second thread is reported with its thread") { expect(said).should_contain("breakpoint 1: app#work  workers.sharp:13   (thread "); };
@@ -321,7 +321,7 @@ def main(args: string[]) {
         };
     };
 
-    tests("obfuscated programs") {
+    tests("obfuscated_programs") {
         said := answers("values_obf", "break point.length_squared\ncontinue\nlocals\nprint self.label\nquit\n");
         test("with its name map the names are the written ones, the program's own beside them") {
             expect(said).should_contain("name map: ");
@@ -347,7 +347,7 @@ def main(args: string[]) {
         test("an unknown word") { expect(said).should_contain("no topic and no command `nope`"); };
     };
 
-    tests("a conversation") {
+    tests("conversation") {
         child := subprocess.start_program(sdb_program, new string[] { built + "/notebook.dbg" }, true);
         first := read_up_to(child, "at the start of the program");
         test("sdb says where it stopped before anything is typed") { expect(first).should_contain("app#main"); };

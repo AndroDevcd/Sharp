@@ -184,7 +184,7 @@ def create_project() {
        tests_file := new file(options.new_project_dir + "/tests/main_tests.sharp");
        data = "mod main_tests;\n\nimport ( std.testing, main )\n\n"
             + "def main() {\n"
-            + "    tests(\"hello world\") {\n"
+            + "    tests(\"hello_world\") {\n"
             + "        test(\"the program greets the world\") {\n"
             + "            expect(greeting()).should_be(\"hello, world!\");\n"
             + "        };\n"

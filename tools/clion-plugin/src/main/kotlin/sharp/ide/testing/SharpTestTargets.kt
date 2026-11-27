@@ -9,7 +9,7 @@
  *     }
  *
  *     def basket_tests() {                    <- the groups written in this function
- *         tests("a shopping basket") {        <- this group
+ *         tests("shopping_basket") {        <- this group
  *             test("a new basket is empty") { <- this one test
  *                 ...
  *             };
@@ -38,7 +38,7 @@ enum class TestTargetKind { ALL, FUNCTION, GROUP, TEST }
 data class TestTarget(val offset: Int, val kind: TestTargetKind, val title: String, val filters: List<String>)
 
 object SharpTestTargets {
-    /** Between a group and a test in a filter and in what is shown: `a shopping basket > a new basket is empty`. */
+    /** Between a group and a test in a filter and in what is shown: `shopping_basket > a new basket is empty`. */
     const val INSIDE = " > "
 
     /** Everything in the file that can be run, in the order it is written. */

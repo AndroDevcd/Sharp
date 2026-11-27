@@ -68,7 +68,7 @@ def advice(sky: weather) : string {
 }
 
 def main() {
-    tests("what to take") {
+    tests("what_to_take") {
         test("a rainy day needs an umbrella") {
             sky := mock&lt;weather&gt;();                     // no fake class to write
             given { sky.today(); }.returns("rain");     // pretend it is raining
@@ -88,7 +88,7 @@ def main() {
           <span class="label">Output</span>
           <pre data-out="hello">hello, world!</pre>
           <pre data-out="di" hidden>Good morning, ada!</pre>
-          <pre data-out="mock" hidden>what to take
+          <pre data-out="mock" hidden>what_to_take
   ok    a rainy day needs an umbrella
 
 all 1 tests passed</pre>

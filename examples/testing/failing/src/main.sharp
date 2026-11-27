@@ -14,7 +14,7 @@ def half(n: decimal) : decimal {
 def main() {
     made : _int64 = 0;          // counts how often before_each ran
 
-    tests("what failures look like") {
+    tests("failures") {
         before_each { made = made + 1; };
 
         test("a number that is wrong") {

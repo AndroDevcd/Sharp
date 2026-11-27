@@ -100,7 +100,7 @@ def two_tasks() : list<string> {
 // ============================================================================ the tests
 
 def main() {
-    tests("a planner, with stand-ins for its edges") {
+    tests("planner") {
         test("the headline uses the clock it was given") {
             store := mock<task_store>();
             given { store.read_all(); }.returns(two_tasks());

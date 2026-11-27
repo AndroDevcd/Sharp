@@ -8,7 +8,7 @@ import ( std.di, platform )
  *      import ( std.testing )
  *
  *      def main() {
- *          tests("a shopping basket") {
+ *          tests("shopping_basket") {
  *              test("a new basket is empty") {
  *                  b := basket();
  *                  expect(b.count()).should_be(0);
@@ -32,7 +32,8 @@ import ( std.di, platform )
  *
  * THE WORDS
  *
- *      tests(name) { ... }         a group of tests that belong together
+ *      tests(name) { ... }         a group of tests that belong together; its name is one word
+ *                                  of letters, digits and _ ("shopping_basket")
  *      test(name) { ... }          one test: one thing the code should do, said as a sentence
  *      expect(value).should_be(...)       a check. When it does not hold, the test fails THERE and the
  *                                  rest of that test is skipped (expect.sharp lists the checks)
@@ -55,11 +56,15 @@ import ( std.di, platform )
  * changed for it.
  *
  * ONLY SOME OF THEM. `-test-only <which>` runs a part of the tests and passes
- * the rest by without a word: a group by its name, or one test as
- * "<group> > <test>". It may be given several times.
+ * the rest by without a word: a group by its name - with every group inside
+ * it - or one test as "<group> > <test>". A group inside a group is named
+ * with dots (`shop.basket`). It may be given several times.
  *
- *      sharp basket_tests -test-only "a shopping basket"
- *      sharp basket_tests -test-only "a shopping basket > a new basket is empty"
+ *      sharp basket_tests -test-only shopping_basket
+ *      sharp basket_tests -test-only "shopping_basket > a new basket is empty"
+ *
+ * The summary then says that only a part was run. A name that fits no group
+ * or test is a failure: a misspelled name does not pass with nothing run.
  *
  * ONE TEST, ONE THING. Each test builds what it needs from scratch, does one
  * thing, and checks the result. Tests do not share objects and do not depend
@@ -67,7 +72,7 @@ import ( std.di, platform )
  *
  * WHAT A FAILURE LOOKS LIKE
  *
- *      a shopping basket
+ *      shopping_basket
  *        ok    a new basket is empty
  *        FAIL  adding an item puts it in the basket
  *              expected 1
@@ -89,7 +94,7 @@ import ( std.di, platform )
  * top to bottom is what happens.
  */
 stable class test_run {
-    private static group_name : string = "";        // the open group, with the groups around it: "shop > the basket"
+    private static group_name : string = "";        // the open group, with the groups around it: "shop.basket"
     private static inside_group : _int64 = 0;
     private static inside_test : _int64 = 0;
     private static levels : list<test_group> = new list<test_group>();     // the open groups, the outermost first
@@ -100,9 +105,10 @@ stable class test_run {
     private static skipped : _int64 = 0;
     private static failures : list<string> = new list<string>();        // "group > test" of every test that failed
 
-    // -test-only: what to run ("group", or "group > test"); empty: everything
+    // -test-only: what to run ("group", "group.inner", or "group > test"); empty: everything
     private static only : list<string> = new list<string>();
     private static only_read : _int64 = 0;
+    private static only_met : list<string> = new list<string>();        // those of `only` that a group or test answered to
 
     // reporting for an editor (the argument -ide-tests): 0 not looked yet, 1 yes, 2 no
     private static for_editor : _int64 = 0;
@@ -114,19 +120,22 @@ stable class test_run {
     /**
      * A GROUP MAY HOLD GROUPS:
      *
-     *      tests("the basket") {
+     *      tests("basket") {
      *          before_each { ... }                     // before every test below, the inner group's too
      *          test("a new basket is empty") { ... };
      *
-     *          tests("with three things in it") {
+     *          tests("three_things") {
      *              before_each { ... }                 // after the outer one, before these tests only
      *              test("the total is their sum") { ... };
      *          };
      *      };
      *
-     * A test's full name is its groups and itself, joined by " > "
-     * ("the basket > with three things in it > the total is their sum"): what a
-     * failure is listed as, and what -test-only takes.
+     * A GROUP'S NAME is one word: letters, digits and _ only. Its full name is
+     * the groups around it and itself, joined by dots (`basket.three_things`);
+     * a test's full name is its group's, " > ", and the test's own sentence
+     * ("basket.three_things > the total is their sum"): what a failure is
+     * listed as, and what -test-only takes. Any other sign in a group's name is
+     * refused there and then, so that these names can always be told apart.
      *
      * THE LINES OF A GROUP ITSELF - what stands in the block beside the tests -
      * run once, where they stand: lines before the first test are "before all of
@@ -139,8 +148,13 @@ stable class test_run {
         if(inside_test == 1) {
             throw new illegal_state_exception("`tests(\"" + name + "\") { ... }` was written inside a `test { ... }`: a group holds tests, a test does not hold groups");
         }
+        if(!is_group_name(name)) {
+            throw new illegal_state_exception("`tests(\"" + name + "\")`: a group's name is one word of letters, digits and _ "
+                + "(it is what -test-only takes, joined by dots). Write `tests(\"" + as_group_name(name) + "\")`; "
+                + "the tests in it keep their sentences");
+        }
         full : string = new string(name);
-        if(levels.size() > 0) { full = group_name + " > " + name; }
+        if(levels.size() > 0) { full = group_name + "." + name; }
         if(!is_wanted(full, "")) { return; }       // -test-only names other tests: this group is passed by
 
         outer : string = group_name;
@@ -186,6 +200,39 @@ stable class test_run {
         levels.pop_last();
         group_name = outer;
         if(levels.size() == 0) { inside_group = 0; }
+    }
+
+    private static def is_name_sign(c: _int64) : bool {
+        if(c >= 'a' && c <= 'z') { return true; }
+        if(c >= 'A' && c <= 'Z') { return true; }
+        if(c >= '0' && c <= '9') { return true; }
+        return c == '_';
+    }
+
+    /** is this one word of letters, digits and _ ? */
+    private static def is_group_name(name: string) : bool {
+        if(name.size() == 0) { return false; }
+        for(i : _int64 = 0; i < name.size(); i++) {
+            if(!is_name_sign(name.at(i).value)) { return false; }
+        }
+        return true;
+    }
+
+    /** the nearest name that is allowed: "a view model, with no window" -> "a_view_model_with_no_window" */
+    private static def as_group_name(name: string) : string {
+        fixed : string = "";
+        gap : _int64 = 0;
+        for(i : _int64 = 0; i < name.size(); i++) {
+            if(is_name_sign(name.at(i).value)) {
+                if(gap == 1 && fixed.size() > 0) { fixed = fixed + "_"; }
+                gap = 0;
+                fixed = fixed + part(name, i, i + 1);
+            } else {
+                gap = 1;
+            }
+        }
+        if(fixed.size() == 0) { return "group"; }
+        return fixed;
     }
 
     /** the room in front of a line that belongs to a group `depth` groups deep (none for the outermost) */
@@ -323,8 +370,9 @@ stable class test_run {
     /**
      * Is this group (`test` ""), or this test of it, to be run? Everything is,
      * unless the program was started with `-test-only`: then a group that is
-     * named, or holds a test that is named, and in it every test when the group
-     * itself is named, else the tests named.
+     * named, is inside one that is named, or holds a group or test that is
+     * named; and in it every test when the group (or one around it) is named,
+     * else the tests named.
      */
     private static def is_wanted(group: string, test: string) : bool {
         if(only_read == 0) {
@@ -336,15 +384,49 @@ stable class test_run {
         }
         if(only.size() == 0) { return true; }
 
+        wanted : bool = false;
         for(i : _int64 = 0; i < only.size(); i++) {
             named : string = only.at(i);
-            if(named == group) { return true; }                         // the whole group
-            if(index_of(group, named + " > ") == 0) { return true; }    // a group inside a group that is named
-            if(index_of(named, group + " > ") != 0) { continue; }       // a test of another group
-            if(test.size() == 0) { return true; }                       // the group of a test that is named
-            if(named == group + " > " + test) { return true; }
+            // "group.inner > the test's sentence": a group's name holds no " > ", so the first one ends it
+            named_group : string = named;
+            named_test : string = "";
+            arrow : _int64 = index_of(named, " > ");
+            if(arrow >= 0) {
+                named_group = part(named, 0, arrow);
+                named_test = part(named, arrow + 3, named.size());
+            }
+
+            if(named_group == group) {
+                if(named_test.size() == 0 || named_test == test) { met(named); }
+                if(named_test.size() == 0 || test.size() == 0 || named_test == test) { wanted = true; }
+            } else if(named_test.size() == 0 && index_of(group, named_group + ".") == 0) {
+                wanted = true;                                          // inside a group that is named
+            } else if(test.size() == 0 && index_of(named_group, group + ".") == 0) {
+                wanted = true;                                          // what is named is inside this group
+            }
         }
-        return false;
+        return wanted;
+    }
+
+    /** a group or test answered to this -test-only name */
+    private static def met(named: string) {
+        for(i : _int64 = 0; i < only_met.size(); i++) {
+            if(only_met.at(i) == named) { return; }
+        }
+        only_met.add(named);
+    }
+
+    /** the -test-only names no group or test answered to, one a line ("" when each found its own) */
+    private static def names_not_met() : string {
+        missing : string = "";
+        for(i : _int64 = 0; i < only.size(); i++) {
+            found : _int64 = 0;
+            for(j : _int64 = 0; j < only_met.size(); j++) {
+                if(only_met.at(j) == only.at(i)) { found = 1; }
+            }
+            if(found == 0) { missing = missing + only.at(i) + "\n"; }
+        }
+        return missing;
     }
 
     /** was the program started with -ide-tests? (looked up once) */
@@ -546,9 +628,23 @@ stable class test_run {
         return skipped;
     }
 
-    /** print the summary. Gives how many tests failed. */
+    /** print the summary. Gives how many tests failed (and -test-only names that fit nothing). */
     static def summary() : _int64 {
+        is_wanted("", "");                          // (reads -test-only, when no group ever asked)
         println("");
+        missing : string = names_not_met();
+        wrong_names : _int64 = 0;
+        if(missing.size() > 0) {
+            // a misspelled name must not pass with nothing run: it counts as a failure
+            wrong_names = 1;
+            println("-test-only: no such group or test:");
+            print_indented(missing);
+            println("(a group is named with dots, `shop.basket`; one test as \"shop.basket > the test's sentence\")");
+            println("");
+        }
+        if(only.size() > 0) {
+            println("only a part of the tests was run (-test-only)");
+        }
         if(failed > 0) {
             println("failed:");
             for(i : _int64 = 0; i < failures.size(); i++) {
@@ -561,7 +657,7 @@ stable class test_run {
         } else {
             println("all " + passed + " tests passed" + and_skipped());
         }
-        return failed;
+        return failed + wrong_names;
     }
 }
 
@@ -688,19 +784,23 @@ def fail_test(why: string) {
  */
 def expect_throws<e>(body: ()()) {
     threw : _int64 = 0;
-    wrong_kind : string = "";
+    wrong_kind : _int64 = 0;
+    said : string = "";
     try {
         body();
     } catch(thrown: throwable) {
         threw = 1;
         if(!(thrown is e)) {
-            wrong_kind = thrown.get_message();
+            wrong_kind = 1;
+            said = thrown.get_message();
         }
     }
     if(threw == 0) {
         throw new test_failure("expected the block to throw an exception\nbut it threw nothing");
     }
-    if(wrong_kind.size() > 0) {
-        throw new test_failure("expected the block to throw a different kind of exception\nbut it threw one that said: " + wrong_kind);
+    if(wrong_kind == 1) {
+        // (an exception may say nothing: its kind decides, not its words)
+        if(said.size() == 0) { said = "(nothing)"; }
+        throw new test_failure("expected the block to throw a different kind of exception\nbut it threw one that said: " + said);
     }
 }

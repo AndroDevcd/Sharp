@@ -36,7 +36,7 @@ def main() {
     outside_given : string = refusal_of() { given { one_note(); }.returns(1); };
     outside_verify : string = refusal_of() { verify { one_note(); }.once(); };
 
-    tests("the mock runtime") {
+    tests("mock_runtime") {
         beside := mock<note_store>();                   // beside the tests, as set-up: allowed
 
         test("mock, given and verify are refused outside a group of tests") {

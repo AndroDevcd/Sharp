@@ -142,7 +142,7 @@ def main() {
     // A. RESULTS - with the REAL store. Nothing is mocked: the notes really go
     //    in and really come out.
     // ------------------------------------------------------------------------
-    tests("the notebook with the real store: does it give the right result?") {
+    tests("notebook_with_the_real_store") {
         test("a note that was added is counted") {
             book := notebook(memory_store());
             book.add("milk");
@@ -172,7 +172,7 @@ def main() {
     //        act         run the code under test
     //        check       what was the mock asked to do?         verify { ... }.once()
     // ------------------------------------------------------------------------
-    tests("the notebook with a mock store: does it USE the store the right way?") {
+    tests("notebook_with_a_mock_store") {
         test("a mock just to fill a parameter needs no set-up at all") {
             // the cover needs a notebook, the notebook needs a store - and this
             // test cares about neither. One word fills the gap.

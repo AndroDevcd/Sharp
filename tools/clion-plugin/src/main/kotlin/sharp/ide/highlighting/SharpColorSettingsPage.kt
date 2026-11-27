@@ -100,7 +100,7 @@ class SharpColorSettingsPage : ColorSettingsPage {
             }
 
             def main() {
-                tests("a circle") {
+                tests("circle") {
                     test("its area is used by whoever asks") {
                         drawn := mock<shape>();
                         given { drawn.area(); }.returns(3);

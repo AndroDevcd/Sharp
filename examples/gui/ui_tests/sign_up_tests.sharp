@@ -72,7 +72,7 @@ class sign_up base composable {
 }
 
 def main(args: string[]) {
-    tests("signing up") {
+    tests("signing_up") {
         ui_test("an empty form says what is missing") {
             set_content(new sign_up());
             on_tag("problem").should_not_exist();
