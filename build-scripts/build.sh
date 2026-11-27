@@ -159,11 +159,25 @@ EOF
         echo "first seed: the compiler of $(basename "$ZIP")"
     fi
 fi
+# THE MEMORY THE COMPILER GETS. Compiling itself, it takes about 450 MB of the VM's memory (measured
+# on x64 and on 32-bit ARM). The VM's own ceiling is a quarter of the machine's memory: too little on
+# a small machine - a Pi with 1 GB stopped at 235 MB. Below 2.4 GB the VM is told its ceiling here:
+# three quarters of what the machine has.
+MEMORY=()
+MACHINE_MB=$(awk '/MemTotal/ {print int($2/1024)}' /proc/meminfo)
+[ "$MACHINE_MB" -lt 2400 ] && MEMORY=(-mem "$((MACHINE_MB * 3 / 4))mb")
+# a compile that ran out of memory says so in the VM's words only ("managed memory: ... kb of ... kb")
+out_of_memory() {
+    grep -aq "^managed memory:" "$1" || return 0
+    echo "THE COMPILER RAN OUT OF MEMORY: $(grep -a "^managed memory:" "$1" | head -1)"
+    echo "    this machine has $MACHINE_MB MB; compiling the compiler takes about 450 MB of it."
+    echo "    Close other programs or add swap, and run this again."
+}
 OUT="$WORK/out/boot"; mkdir -p "$OUT"
 cd "$WORK/src/compiler" || exit 1
 rm -f "$COMPILER"
 # every .sharp file of the compiler except its tests; -L: with the standard library
-"$VM" "$SEED" $(find . -name "*.sharp" -not -path "./tests/*" | sort) -j 1 -o "$COMPILER" -L "$STDLIB" > "$OUT/c.txt" 2>&1
+"$VM" "${MEMORY[@]}" "$SEED" $(find . -name "*.sharp" -not -path "./tests/*" | sort) -j 1 -o "$COMPILER" -L "$STDLIB" > "$OUT/c.txt" 2>&1
 code=$?
 errors=$(grep -c '^error' "$OUT/c.txt")
 built=0; [ -f "$COMPILER" ] && built=1
@@ -171,6 +185,7 @@ echo "exit $code ; errors: $errors ; built: $built   (the compiler: $COMPILER; w
 grep -A6 "^error" "$OUT/c.txt" | cut -c1-190 | head -45
 if [ "$errors" != 0 ] || [ "$built" != 1 ]; then
     [ "$errors" = 0 ] && tail -5 "$OUT/c.txt" | cut -c1-190       # no error line and no file: show how it ended
+    out_of_memory "$OUT/c.txt"
     rm -f "$COMPILER"
     exit 1
 fi
@@ -198,8 +213,8 @@ grep -q '^debug_compiler : decimal = false;' "$STANDARD/configuration/build_kind
 grep -q "^program_vers : string = \"$V-dev\";" "$STANDARD/configuration/configuration.sharp" || fail "configuration.sharp: the program_vers line was not found"
 rm -f "$MADE/sharpc"
 # (from inside its own folder: the name given to -o is written into the file)
-(cd "$MADE" && "$VM" "$COMPILER" $(find "$STANDARD" -name "*.sharp" | sort) -o sharpc -L "$STDLIB" -j 1 > compile.txt 2>&1)
-if [ ! -f "$MADE/sharpc" ]; then grep -a -A6 "^error" "$MADE/compile.txt" | cut -c1-190 | head -30; fail "the compiler to install did not build (whole output: $MADE/compile.txt)"; fi
+(cd "$MADE" && "$VM" "${MEMORY[@]}" "$COMPILER" $(find "$STANDARD" -name "*.sharp" | sort) -o sharpc -L "$STDLIB" -j 1 > compile.txt 2>&1)
+if [ ! -f "$MADE/sharpc" ]; then grep -a -A6 "^error" "$MADE/compile.txt" | cut -c1-190 | head -30; out_of_memory "$MADE/compile.txt"; fail "the compiler to install did not build (whole output: $MADE/compile.txt)"; fi
 said=$("$VM" "$MADE/sharpc" -V 2>&1 | head -1)
 [ "$said" = "sharpc $V-dev" ] || fail "the compiler to install says '$said', not 'sharpc $V-dev'"
 # the three names a release has, so its `sharpc` starter works as it is: there is one compiler here,
