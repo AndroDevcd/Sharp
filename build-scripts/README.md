@@ -5,20 +5,22 @@ Three scripts do everything:
 | To | Run | Where | Time |
 |---|---|---|---|
 | build Sharp | `bash build-scripts/build.sh` | Linux / WSL | minutes the first time, then seconds |
-| test it | `bash test.sh` (at the top of the repository) | Git Bash on Windows, or Linux / WSL | 3 minutes; `full`: more than an hour |
+| install what is in the repository now, as a development build (no release) | `bash build-scripts/build.sh install` | Linux / WSL / Raspberry Pi, or Git Bash for Windows | about a minute once everything was built before |
+| test it | `bash test.sh` (at the top of the repository) | Git Bash on Windows, or Linux / WSL | not measured since the suite became one program (it was 3 minutes; `full`: more than an hour) |
 | make a release | `bash build-scripts/release.sh 0.7.1` | Git Bash on Windows | 25 minutes |
 
 Each script starts with a comment that says what it does, its options, and what it prints.
 
 ```
 build-scripts/
-  build.sh       the VM and the compiler          (build.sh compiler = only the compiler, 10 seconds)
+  build.sh       the VM and the compiler          (build.sh compiler = only the compiler, 10 seconds;
+                                                   build.sh install = and install them here, as a development build)
   test.sh        the numbered tests of the Linux half: what the repository's test.sh runs (start THAT one)
   release.sh     build + test + pack the zip      (release.sh 0.7.1 install = also install it on this PC)
 
   linux/         what only Linux does:    build_vm.sh   build_sdb.sh   build_gui_library.sh   install_from_source.sh
   windows/       what only Windows does:  build_vm.sh   build_sdb.sh   build_gui_library.sh   build_plugin.sh   install_release.sh
-                                          suite.sh      (the suite on the Windows VM, with the JIT and without)
+                                          suite.sh      (the suite on the Windows VM, plain and -O, with the JIT and without)
                                           sdb_tests.sh  (the debugger's tests on Windows)
   internal/      parts the three scripts use - nothing in it is run by hand
 
@@ -90,19 +92,20 @@ Try it on a program:
 There is ONE command for every test, `test.sh` at the top of the repository:
 
 ```
-bash test.sh                      everything, the quick version (3 minutes)
-bash test.sh full                 everything, all of it (more than an hour)
+bash test.sh                      everything, the quick version
+bash test.sh full                 everything, all of it
 bash test.sh vm                   one part, quick;   bash test.sh vm full   all of it
 bash test.sh changed              the parts whose files changed since the last commit
-bash test.sh case lib_data_json   one case of the suite
+bash test.sh suite                the suite, one program: every test; the run takes seconds
+bash test.sh suite suite.library.collections     one group of the suite and the groups inside it
 bash test.sh help                 everything it can do;   bash test.sh list   the parts and their times
 ```
 
 | Part | Covers |
 |---|---|
 | `compiler` | reading and checking source, the error messages; full: code generation, self-hosting |
-| `library` | the standard library compiles; full: every case of the suite, run four ways |
-| `vm` | the suite run once, calls to C++; full: the suite four ways, the kind checks, the Windows VM |
+| `library` | the standard library compiles; full: the suite compiles, and runs four ways |
+| `vm` | the suite run once, calls to C++; full: the suite four ways, the kind checks, collector stress, the ARM JIT under qemu, the Windows VM |
 | `debugger` | sdb's tests; full: on Windows too |
 | `tools` | the command line, the files the editor reads; full: the CLion plugin's tests |
 | `programs` | the examples and the benchmarks |
@@ -120,7 +123,8 @@ Tests run side by side: `TEST_GROUPS=<n>` says how many tests at once (default 4
 `TEST_JOBS=<n>` how many compiles and programs inside each (default: one per core).
 
 `test.sh list` shows every test with its number. The tests themselves are in `tests/suite/`
-(the language and the library, one program per case) and `compiler/tests/` (the compiler).
+(the language and the library, one program: [its README](../tests/suite/README.md)) and
+`compiler/tests/` (the compiler).
 
 ## Release
 

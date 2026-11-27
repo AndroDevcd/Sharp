@@ -483,8 +483,8 @@ sorted by C: 3 7 19 42
   language, mocks the compiler writes, the GUI toolkit and coroutines.
 - [`examples`](examples) has sample programs; [`examples/gui`](examples/gui) goes from a
   to-do list to a full task manager, and to a 3D game.
-- [`tests/suite/cases`](tests/suite/cases) has one small, commented program per language
-  feature and library - the quickest way to see how something is written.
+- [`tests/suite`](tests/suite) has the language's own tests: a small, commented file per language
+  feature and library, in folders - the quickest way to see how something is written.
 - [`tools/clion-plugin`](tools/clion-plugin) is an editor plugin for CLion and IntelliJ IDEA.
 - [`build-scripts/README.md`](build-scripts/README.md) explains how to build Sharp itself,
   run its tests and make a release.

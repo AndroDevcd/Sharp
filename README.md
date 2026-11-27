@@ -119,7 +119,7 @@ def welcome(mail: mailer, name: string) {
 }
 
 def main() {
-    tests("signing up") {
+    tests("signing_up") {
         test("a new member gets exactly one welcome") {
             mail := mock<mailer>();             // the compiler writes this class
 
@@ -133,7 +133,7 @@ def main() {
 ```
 
 ```
-signing up
+signing_up
   ok    a new member gets exactly one welcome
 
 all 1 tests passed
@@ -166,7 +166,7 @@ component app {
 }
 
 def main() {
-    tests("a report") {
+    tests("report") {
         test("the title shows the time") {
             fake := mock<clock>();
             given { fake.now(); }.returns("09:30");
@@ -311,7 +311,7 @@ The full picture is in [the chart](doc/benchmarks.html) (a page to open in a bro
 | [Benchmarks](doc/benchmarks.html) | Sharp next to ten other languages in the Benchmarks Game |
 | [Getting Started](GETTING_STARTED.md) | Your first program, classes, generics, null safety, tests and a window |
 | [Examples](examples) | Sample programs, [GUI apps](examples/gui), and [tests and mocks](examples/testing) |
-| [Language by example](tests/suite/cases) | Small, commented programs that each cover one feature |
+| [Language by example](tests/suite) | The language's own tests: a small, commented file for each feature, in folders |
 | [The debugger, sdb](debugger/doc/sdb.md) | Breakpoints, stepping, variables, threads and coroutines; `sdb.json` |
 | [Building Sharp](build-scripts/README.md) | How to build, test and release Sharp |
 | [CLion / IntelliJ plugin](tools/clion-plugin) | Editor support for Sharp |

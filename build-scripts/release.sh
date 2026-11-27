@@ -72,27 +72,10 @@ if [ -f "$ZIP" ]; then
     [ "$answer" = Y ] || [ "$answer" = y ] || { echo "stopped: nothing was built or changed"; exit 1; }
 fi
 
-# ---- write the version into the sources (only when it is not the one already there)
-set_version() {
-    # 1. the compiler's own version          configuration.sharp:  program_vers : string = "X";
-    sed -i "s/^program_vers : string = \"[^\"]*\";/program_vers : string = \"$VERSION\";/" "$CONFIGURATION"
-    # 2. the library version programs get    options.sharp:        static library_version : string = "X";
-    sed -i "s/static library_version : string = \"[^\"]*\";/static library_version : string = \"$VERSION\";/" "$OPTIONS"
-    # 3. the versions the compiler accepts   options.sharp:        supported_versions := new string[] { ..., "X" };
-    #    (the new number goes after the last one of the list - the one line without a comma, whatever
-    #    number it holds: the list is not in order - and that line gets a comma)
-    if ! sed -n '/^supported_versions/,/^};/p' "$OPTIONS" | grep -q "\"$VERSION\""; then
-        sed -i "/^supported_versions/,/^};/ { s/^\( *\"[^\"]*\"\)\(\r\{0,1\}\)\$/\1,\2\n    \"$VERSION\"\2/ }" "$OPTIONS"
-    fi
-    grep -q "^program_vers : string = \"$VERSION\";" "$CONFIGURATION" \
-        && grep -q "static library_version : string = \"$VERSION\";" "$OPTIONS" \
-        && sed -n '/^supported_versions/,/^};/p' "$OPTIONS" | grep -q "\"$VERSION\"" \
-        || { echo "the version could not be written into the sources: set it by hand (build-scripts/README.md says where)"; exit 1; }
-    echo "the sources now say $VERSION   (configuration.sharp, options.sharp - part of what you commit)"
-}
-# every time, also when the number is the one there: a run that stopped half-way through set_version
-# leaves program_vers new and the list without it, and a compiler built from that refuses its own library
-set_version
+# ---- write the version into the sources (internal/common.sh: set_language_version says where).
+# Every time, also when the number is the one there (it says why).
+source "$HERE/internal/common.sh"
+set_language_version "$VERSION" || exit 1
 # the same folder as WSL sees it:  C:\Users\me\Sharp\build-scripts  ->  /mnt/c/Users/me/Sharp/build-scripts
 IN_WSL=$(MSYS_NO_PATHCONV=1 wsl wslpath -a "$(cygpath -m "$HERE")" 2>/dev/null | tr -d '\r')
 [ -n "$IN_WSL" ] || { echo "WSL did not answer: this script needs WSL (wsl --install), with g++, rsync, python3 and libsdl2-dev in it"; exit 1; }

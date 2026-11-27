@@ -8,29 +8,37 @@
 #   1. builds the VM here                       (build-scripts/linux/build_vm.sh  ->  build/linux-vm/sharp)
 #   2. takes the compiler and the standard library from the release of the version the sources
 #      say (releases/sharp-<program_vers>.zip), or the newest release when that one is not there
-#      (they are Sharp programs and Sharp files: the same on every machine - only the VM is built)
+#      (they are Sharp programs and Sharp files: the same on every machine - only the VM is built).
+#      releases/ is not in the repository: after a fresh clone the newest release's zip is
+#      downloaded into it from the project's GitHub Releases page first (and it says so)
 #   3. installs into ~/.sharp exactly as the release's own installer does, with the VM from step 1,
 #      and proves it by compiling and running the hello example
 #
 # Afterwards, in a NEW terminal:   sharpc main.sharp -o app    then    sharp app
 #
-# Needs: g++ (C++17) and python3 (to unpack the release; any Raspberry Pi OS has it).
+# Needs: g++ (C++17), python3 (to unpack the release; any Raspberry Pi OS has it), and curl or
+# wget when the release has to be downloaded. What is missing is said before anything is built.
 #   4. builds the GUI's native library here too (the release's is for 64-bit x86) and puts it beside
 #      the VM - when SDL2 is installed (sudo apt install libsdl2-dev); without it everything but
 #      GUI programs works, and it says so
 #   5. builds sdb, the debugger, here as well (the release's is for 64-bit x86) - before step 3 installs
 HERE="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$HERE" || exit 1
+# (need_tools and fetch_release come from here; what it says about a work folder is not used by this script)
+source "$HERE/build-scripts/internal/common.sh"
 
-bash build-scripts/linux/build_vm.sh "$@" || exit 1
-VM="${OUT:-$HERE/build/linux-vm}/sharp"
-
+# ---- before anything is built (the VM takes a while): the tools, and the release
+need_tools "${CXX:-g++}:sudo apt install g++   (C++17: g++ 8 or newer)" "python3:sudo apt install python3"
 # the release of the version in the sources - not simply the highest number: an abandoned higher
 # number (0.7.0, when the sources went back to the 0.4 line) must not win over the current one
 WANTED=$(grep -o 'program_vers : string = "[^"]*"' compiler/configuration/configuration.sharp 2>/dev/null | cut -d'"' -f2)
 ZIP="releases/sharp-$WANTED.zip"
 [ -n "$WANTED" ] && [ -f "$ZIP" ] || ZIP=$(ls releases/sharp-*.zip 2>/dev/null | sort -V | tail -1)
-[ -n "$ZIP" ] || { echo "no release in releases/: there is nothing to take the compiler and the library from"; exit 1; }
+# no release here at all (a fresh clone): the newest one is downloaded
+[ -n "$ZIP" ] || ZIP=$(fetch_release) || exit 1
+
+bash build-scripts/linux/build_vm.sh "$@" || exit 1
+VM="${OUT:-$HERE/build/linux-vm}/sharp"
 WORK="$HERE/build/install-from-source"; rm -rf "$WORK"; mkdir -p "$WORK"
 python3 -c "import zipfile,sys; zipfile.ZipFile(sys.argv[1]).extractall(sys.argv[2])" "$ZIP" "$WORK" || { echo "could not unpack $ZIP (python3 is needed)"; exit 1; }
 RELEASE=$(ls -d "$WORK"/sharp-* | head -1)
