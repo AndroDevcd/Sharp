@@ -6,6 +6,8 @@
 #                                               only Sharp files (compiler or the standard library).
 #     bash build-scripts/build.sh install       the VM and the compiler, then INSTALL them on this machine
 #                                               (see below; this one also runs from Git Bash on Windows)
+#     bash build-scripts/build.sh install library     only the STANDARD LIBRARY of the repository, into the
+#                                               Sharp installed here - seconds, nothing is built (below)
 #     bash build-scripts/build.sh 0.7.1         first write this LANGUAGE VERSION into the sources, then build
 #     bash build-scripts/build.sh install 0.7.1                                       ... then build and install
 #
@@ -26,6 +28,17 @@
 #     "<version>-dev", and VERSION.txt in the install folder says the commit it was built from.
 #     To go back to a release, install the release again.
 #   - nothing is tested first: run  bash test.sh  yourself when you want to know
+#
+# INSTALL LIBRARY: for a change that touched only the standard library. The repository's stdlib
+# takes the place of the installed one (~/.sharp/lib, or %LOCALAPPDATA%\Sharp\lib); the installed VM
+# and compiler stay as they are. It runs anywhere - Linux, a Pi, Git Bash - and needs no WSL.
+#
+#   - it REFUSES when the VM or the compiler changed since what is installed was built (different
+#     version numbers, or changes in runtime/ or compiler/ since the commit VERSION.txt names): a
+#     library may need what an older VM or compiler has not got. Then: build.sh install
+#   - it proves itself the way an installer does - the installed compiler builds the hello example
+#     with the new library, and it runs - and puts the library that was there BACK when that fails
+#   - VERSION.txt gets a line saying which commit the library is from
 #
 # WHAT IT BUILDS, in the work folder ~/sharp_work (internal/common.sh says why there):
 #
@@ -65,14 +78,83 @@
 # The compiler step prints  errors: N ; built: 1  and the first errors. Exits 1 when anything failed.
 
 # ---- the words of the command line: what to do, and perhaps a version number
-ACTION=""; NEW_VERSION=""
+ACTION=""; NEW_VERSION=""; LIBRARY_ONLY=0
 for word in "$@"; do
     case "$word" in
         compiler|install|stage) ACTION=$word ;;
+        library)                LIBRARY_ONLY=1 ;;
         [0-9]*.[0-9]*.[0-9]*)   NEW_VERSION=$word ;;
-        *) echo "build.sh: unknown argument '$word' (nothing, or: compiler, install - and a version like 0.7.1)"; exit 2 ;;
+        *) echo "build.sh: unknown argument '$word' (nothing, or: compiler, install, install library - and a version like 0.7.1)"; exit 2 ;;
     esac
 done
+
+# ---- `install library`: only the standard library, into the Sharp that is installed (INSTALL LIBRARY, above)
+if [ $LIBRARY_ONLY = 1 ]; then
+    stop() { echo "$*"; echo "NOTHING WAS CHANGED."; exit 1; }
+    [ "$ACTION" = install ] && [ -z "$NEW_VERSION" ] || { echo "build.sh: 'library' goes with install and nothing else:  bash build-scripts/build.sh install library"; exit 2; }
+    REPO=$(cd "$(dirname "$0")/.." && pwd)
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*) INSTALLED="$LOCALAPPDATA/Sharp"; sharp() { "$INSTALLED/bin/sharp.exe" "$@"; }
+                              sharpc() { cmd.exe //c "$(cygpath -w "$INSTALLED/bin/sharpc.cmd")" "$@" | tr -d '\r'; return "${PIPESTATUS[0]}"; } ;;
+        *)                    INSTALLED="${SHARP_HOME:-$HOME/.sharp}"; sharp() { "$INSTALLED/bin/sharp" "$@"; }; sharpc() { "$INSTALLED/bin/sharpc" "$@"; } ;;
+    esac
+    [ -d "$INSTALLED/lib" ] && [ -d "$INSTALLED/compiler" ] || stop "no Sharp is installed in $INSTALLED: there is nothing to put a library into. Install first:  bash build-scripts/build.sh install"
+    [ -d "$REPO/stdlib/std" ] && [ -d "$REPO/stdlib/platform" ] || stop "no standard library at $REPO/stdlib"
+
+    # the same VM and compiler as the sources? first by their numbers ...
+    vm_here=$(sharp -V 2>&1 | head -1 | awk '{print $2}')
+    compiler_here=$(sharpc -V 2>&1 | head -1 | awk '{print $2}')
+    vm_sources=$(grep -o '#define progvers "[^"]*"' "$REPO/runtime/main.h" | cut -d'"' -f2)$(grep -o '#define rev "[^"]*"' "$REPO/runtime/main.h" | cut -d'"' -f2)
+    compiler_sources=$(grep -o 'program_vers : string = "[^"]*"' "$REPO/compiler/configuration/configuration.sharp" | cut -d'"' -f2)
+    if [ "$vm_here" != "$vm_sources" ] || [ "${compiler_here%-dev}" != "$compiler_sources" ]; then
+        stop "installed: VM $vm_here, compiler $compiler_here - the sources: VM $vm_sources, compiler $compiler_sources." \
+             "The library of the sources may need what the installed ones have not got. Install all of it:  bash build-scripts/build.sh install"
+    fi
+    # ... then by what changed since the commit the installed build names (VERSION.txt of a development build)
+    built_from=$(grep -o 'commit [0-9a-f]*' "$INSTALLED/VERSION.txt" 2>/dev/null | head -1 | cut -d' ' -f2)
+    if [ -n "$built_from" ] && git -C "$REPO" cat-file -e "$built_from^{commit}" 2>/dev/null; then
+        changed=$(git -C "$REPO" -c core.fileMode=false -c core.autocrlf=true diff --name-only "$built_from" -- runtime compiler ':!compiler/tests' 2>/dev/null)
+        if [ -n "$changed" ]; then
+            echo "THE VM OR THE COMPILER CHANGED since what is installed was built (commit $built_from):"
+            echo "$changed" | head -8 | sed 's/^/    /'; [ "$(echo "$changed" | wc -l)" -gt 8 ] && echo "    ... and $(( $(echo "$changed" | wc -l) - 8 )) more"
+            stop "A library alone is not enough then. Install all of it:  bash build-scripts/build.sh install"
+        fi
+        grep -q "commit $built_from + changes not committed" "$INSTALLED/VERSION.txt" && \
+            echo "note: what is installed was built from commit $built_from AND changes that were not committed then; those cannot be compared."
+    else
+        echo "note: the installed Sharp does not name a commit of this repository (a release?): only the version numbers were compared."
+    fi
+
+    # the new library beside the old one, then in its place (Unix line endings, as an installer's:
+    # internal/pack_release.sh says why); the old one is kept until the new one has proved itself
+    rm -rf "$INSTALLED/lib.new" "$INSTALLED/lib.previous"
+    cp -r "$REPO/stdlib" "$INSTALLED/lib.new" || stop "could not write $INSTALLED/lib.new"
+    find "$INSTALLED/lib.new" -type f \( -name '*.sharp' -o -name '*.cpp' -o -name '*.h' \) -exec sed -i 's/\r$//' {} +
+    mv "$INSTALLED/lib" "$INSTALLED/lib.previous" && mv "$INSTALLED/lib.new" "$INSTALLED/lib" || {
+        [ -d "$INSTALLED/lib" ] || mv "$INSTALLED/lib.previous" "$INSTALLED/lib"
+        rm -rf "$INSTALLED/lib.new"; stop "could not put the library in place (is a Sharp program or an editor holding $INSTALLED/lib open?)"; }
+
+    # the proof: the installed compiler builds the hello example with it, and it runs
+    PROOF=$(mktemp -d)
+    if (cd "$PROOF" && sharpc "$(cd "$INSTALLED/examples" && pwd)/hello.sharp" -o hello > compile.txt 2>&1 && sharp hello > run.txt 2>&1 && grep -q "Hello from Sharp" run.txt); then
+        rm -rf "$PROOF" "$INSTALLED/lib.previous"
+    else
+        grep -a -A6 "^error" "$PROOF/compile.txt" | cut -c1-190 | head -20; tail -3 "$PROOF/run.txt" 2>/dev/null | cut -c1-190
+        rm -rf "$INSTALLED/lib"; mv "$INSTALLED/lib.previous" "$INSTALLED/lib"; rm -rf "$PROOF"
+        echo "THE NEW LIBRARY DOES NOT WORK with the installed compiler and VM (above): the library that was there is back."
+        echo "Install all of it:  bash build-scripts/build.sh install"; exit 1
+    fi
+
+    commit=$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null)
+    [ -n "$(git -C "$REPO" -c core.fileMode=false -c core.autocrlf=true status --porcelain -- stdlib 2>/dev/null | head -1)" ] && commit="$commit + changes not committed yet"
+    if [ -f "$INSTALLED/VERSION.txt" ]; then
+        sed -i '/^standard library alone:/d' "$INSTALLED/VERSION.txt"
+        printf 'standard library alone: %s, commit %s\r\n' "$(date -u +%Y-%m-%d)" "$commit" >> "$INSTALLED/VERSION.txt"
+    fi
+    echo "installed, the standard library alone: $(find "$INSTALLED/lib" -name '*.sharp' | wc -l) files from commit $commit, into $INSTALLED/lib"
+    echo "(the VM $vm_here and the compiler $compiler_here are as they were; no new terminal is needed)"
+    exit 0
+fi
 
 # ---- `install` from Git Bash, on Windows: the compiler and the library are made ready inside WSL
 # (`stage`, below), the Windows VM is built here, and the release's own Windows installer puts it in place

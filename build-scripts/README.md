@@ -6,6 +6,7 @@ Three scripts do everything:
 |---|---|---|---|
 | build Sharp | `bash build-scripts/build.sh` | Linux / WSL | minutes the first time, then seconds |
 | install what is in the repository now, as a development build (no release) | `bash build-scripts/build.sh install` | Linux / WSL / Raspberry Pi, or Git Bash for Windows | about a minute once everything was built before |
+| install only the standard library of the repository into the Sharp installed here (after a change to the library alone) | `bash build-scripts/build.sh install library` | Linux / WSL / Raspberry Pi, or Git Bash for Windows | seconds |
 | test it | `bash test.sh` (at the top of the repository) | Git Bash on Windows, or Linux / WSL | not measured since the suite became one program (it was 3 minutes; `full`: more than an hour) |
 | make a release | `bash build-scripts/release.sh 0.7.1` | Git Bash on Windows | 25 minutes |
 
