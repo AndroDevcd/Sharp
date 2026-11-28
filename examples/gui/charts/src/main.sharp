@@ -121,213 +121,215 @@ class dashboard base composable {
         red := rgb(235, 80, 90);
         green := rgb(60, 200, 130);
 
-        return scroll(modifier().fill()) {
-            column(modifier().fill_width().padding(20)) {
-                row {
-                    text("Charts").size(28).bold();
-                    spacer();
-                    text("Entrance").dim();
-                    dropdown(entrance, modifier().width(150)) {
-                        option("Each its own");
-                        option("Grow");
-                        option("Draw on");
-                        option("Rise");
-                        option("Fade");
-                        option("Spring");
-                        option("Bounce");
-                        option("Custom");
-                    };
-                    text("Stacked").dim();
-                    toggle(piled);
-                    text("Curved").dim();
-                    toggle(smooth);
-                    button("Replay") { replays.value += 1; }.outline();
-                    button("New numbers") { new_numbers(); version.value += 1; };
-                }.gap(10).align(ALIGN_CENTER);
-
-                // ---- bars and a line in one chart, everything switched on
-                card(modifier().fill_width()) {
+        return lazy_column(modifier().fill()) {
+            item {
+                column(modifier().fill_width().padding(20)) {
                     row {
-                        text("Revenue against target").bold();
+                        text("Charts").size(28).bold();
                         spacer();
-                        if(picked.value >= 0) {
-                            text(months[picked.value] + ": $" + chart_text.number(revenue[picked.value]) + "k").dim();
-                        } else {
-                            text("bars with a gradient, a line on top, legend, marker - click a month").dim();
-                        }
-                    };
-                    best : _int64 = 0;                  // the month with the most revenue
-                    for(i : _int64 = 1; i < 12; i++) {
-                        if(revenue[i] > revenue[best]) { best = i; }
-                    }
-                    sales := chart(chart_box("revenue", 260)) {
-                        bars("Revenue", revenue).gradient(sky, deep).corner(6);
-                        aim := line("Target", target).color(amber).thickness(3).dots(4);
-                        if(smooth.value == 1) { aim.curved(); }
+                        text("Entrance").dim();
+                        dropdown(entrance, modifier().width(150)) {
+                            option("Each its own");
+                            option("Grow");
+                            option("Draw on");
+                            option("Rise");
+                            option("Fade");
+                            option("Spring");
+                            option("Bounce");
+                            option("Custom");
+                        };
+                        text("Stacked").dim();
+                        toggle(piled);
+                        text("Curved").dim();
+                        toggle(smooth);
+                        button("Replay") { replays.value += 1; }.outline();
+                        button("New numbers") { new_numbers(); version.value += 1; };
+                    }.gap(10).align(ALIGN_CENTER);
 
-                        // the block of the axis builds every label from widgets (`it` is the label):
-                        // the best month is green and bold, the months that missed their target are red
-                        x_axis(months) {
-                            if(it.index == best) {
-                                text(it.words).size(13).bold().color(green);
-                            } else if(revenue[it.index] < target[it.index]) {
-                                text(it.words).size(13).color(red);
+                    // ---- bars and a line in one chart, everything switched on
+                    card(modifier().fill_width()) {
+                        row {
+                            text("Revenue against target").bold();
+                            spacer();
+                            if(picked.value >= 0) {
+                                text(months[picked.value] + ": $" + chart_text.number(revenue[picked.value]) + "k").dim();
                             } else {
-                                text(it.words).size(13).dim();
+                                text("bars with a gradient, a line on top, legend, marker - click a month").dim();
                             }
                         };
-                        // any widget can be written in a chart: this one stands on the best month's bar
-                        chip("best month", modifier().at(best, revenue[best]));
-                        y_axis().ticks(5).format { v: decimal -> return "$" + chart_text.number(v) + "k"; };
-                        grid_lines().dashed();
-                        // the legend below, in the middle, as pills with dots; the place pointed at
-                        // gets a tinted band while the other bars fade, and the box its own heading
-                        legend().bottom().align(ALIGN_CENTER).sign(LEGEND_DOT).pills();
-                        marker().guide(GUIDE_BAND).dim_others()
-                                .title { i: _int64 -> return months[i] + " 2026"; };
-                    };
-                    sales.on_select { i: _int64 -> picked.value = i; };
-                    with_entrance(sales);
-                };
-
-                row(modifier().fill_width()) {
-                    // ---- two lines with the area below them filled
-                    card(modifier().grow(1)) {
-                        text("Visitors").bold();
-                        text("two lines, filled below, drawn on from the left").dim();
-                        people := chart(chart_box("visitors", 220)) {
-                            all := line("All", visitors).color(violet).fill_below();
-                            back := line("Returning", returning).color(teal).fill_below();
-                            if(smooth.value == 1) { all.curved(); back.curved(); }
-
-                            x_axis(months);
-                            y_axis().ticks(4);
-                            grid_lines();
-                            // the legend's block builds each entry from widgets: the name in the series'
-                            // colour and the year's total beside it
-                            legend {
-                                total : decimal = 0;
-                                for(i : _int64 = 0; i < 12; i++) {
-                                    if(it.index == 0) { total = total + visitors[i]; }
-                                    else { total = total + returning[i]; }
-                                }
-                                text(it.name).size(13).bold().color(it.tint!!);
-                                text(chart_text.number(total)).size(13).dim();
-                            }.align(ALIGN_END);
-                            // ... and the marker's block builds the box at the mouse: texts, rows and a progress bar
-                            marker {
-                                month : _int64 = it.index;
-                                text(months[month] + " 2026").size(13).bold();
-                                row {
-                                    text("All").size(13).dim();
-                                    text(chart_text.number(visitors[month])).size(13);
-                                }.gap(8);
-                                row {
-                                    text("Returning").size(13).dim();
-                                    text(chart_text.number(returning[month])).size(13);
-                                }.gap(8);
-                                progress(returning[month] / visitors[month], modifier().width(150));
-                            }.dashed().dot(8);
-                        };
-                        with_entrance(people);
-                    };
-
-                    // ---- three series of bars: side by side, or stacked
-                    card(modifier().grow(1)) {
-                        text("Sales by product").bold();
-                        // the chart keeps `pointed` at the day under the mouse: this line is built from it
-                        if(pointed.value >= 0) {
-                            day : _int64 = pointed.value;
-                            text(days[day] + ": " + chart_text.number(phones[day] + laptops[day] + tablets[day]) + " sold in all").dim();
-                        } else {
-                            text("three series of bars: switch Stacked on and off").dim();
+                        best : _int64 = 0;                  // the month with the most revenue
+                        for(i : _int64 = 1; i < 12; i++) {
+                            if(revenue[i] > revenue[best]) { best = i; }
                         }
-                        products := chart(chart_box("products", 220)) {
-                            bars("Phones", phones).color(blue).corner(4);
-                            bars("Laptops", laptops).color(pink).corner(4);
-                            bars("Tablets", tablets).color(amber).corner(4);
+                        sales := chart(chart_box("revenue", 260)) {
+                            bars("Revenue", revenue).gradient(sky, deep).corner(6);
+                            aim := line("Target", target).color(amber).thickness(3).dots(4);
+                            if(smooth.value == 1) { aim.curved(); }
 
-                            // for_each goes over the labels as they are painted: the weekend stands out
-                            x_axis(days).for_each { l: axis_label ->
-                                if(l.index >= 5) { l.tint = amber; l.bold = 1; }
+                            // the block of the axis builds every label from widgets (`it` is the label):
+                            // the best month is green and bold, the months that missed their target are red
+                            x_axis(months) {
+                                if(it.index == best) {
+                                    text(it.words).size(13).bold().color(green);
+                                } else if(revenue[it.index] < target[it.index]) {
+                                    text(it.words).size(13).color(red);
+                                } else {
+                                    text(it.words).size(13).dim();
+                                }
                             };
+                            // any widget can be written in a chart: this one stands on the best month's bar
+                            chip("best month", modifier().at(best, revenue[best]));
+                            y_axis().ticks(5).format { v: decimal -> return "$" + chart_text.number(v) + "k"; };
+                            grid_lines().dashed();
+                            // the legend below, in the middle, as pills with dots; the place pointed at
+                            // gets a tinted band while the other bars fade, and the box its own heading
+                            legend().bottom().align(ALIGN_CENTER).sign(LEGEND_DOT).pills();
+                            marker().guide(GUIDE_BAND).dim_others()
+                                    .title { i: _int64 -> return months[i] + " 2026"; };
+                        };
+                        sales.on_select { i: _int64 -> picked.value = i; };
+                        with_entrance(sales);
+                    };
+
+                    row(modifier().fill_width()) {
+                        // ---- two lines with the area below them filled
+                        card(modifier().grow(1)) {
+                            text("Visitors").bold();
+                            text("two lines, filled below, drawn on from the left").dim();
+                            people := chart(chart_box("visitors", 220)) {
+                                all := line("All", visitors).color(violet).fill_below();
+                                back := line("Returning", returning).color(teal).fill_below();
+                                if(smooth.value == 1) { all.curved(); back.curved(); }
+
+                                x_axis(months);
+                                y_axis().ticks(4);
+                                grid_lines();
+                                // the legend's block builds each entry from widgets: the name in the series'
+                                // colour and the year's total beside it
+                                legend {
+                                    total : decimal = 0;
+                                    for(i : _int64 = 0; i < 12; i++) {
+                                        if(it.index == 0) { total = total + visitors[i]; }
+                                        else { total = total + returning[i]; }
+                                    }
+                                    text(it.name).size(13).bold().color(it.tint!!);
+                                    text(chart_text.number(total)).size(13).dim();
+                                }.align(ALIGN_END);
+                                // ... and the marker's block builds the box at the mouse: texts, rows and a progress bar
+                                marker {
+                                    month : _int64 = it.index;
+                                    text(months[month] + " 2026").size(13).bold();
+                                    row {
+                                        text("All").size(13).dim();
+                                        text(chart_text.number(visitors[month])).size(13);
+                                    }.gap(8);
+                                    row {
+                                        text("Returning").size(13).dim();
+                                        text(chart_text.number(returning[month])).size(13);
+                                    }.gap(8);
+                                    progress(returning[month] / visitors[month], modifier().width(150));
+                                }.dashed().dot(8);
+                            };
+                            with_entrance(people);
+                        };
+
+                        // ---- three series of bars: side by side, or stacked
+                        card(modifier().grow(1)) {
+                            text("Sales by product").bold();
+                            // the chart keeps `pointed` at the day under the mouse: this line is built from it
+                            if(pointed.value >= 0) {
+                                day : _int64 = pointed.value;
+                                text(days[day] + ": " + chart_text.number(phones[day] + laptops[day] + tablets[day]) + " sold in all").dim();
+                            } else {
+                                text("three series of bars: switch Stacked on and off").dim();
+                            }
+                            products := chart(chart_box("products", 220)) {
+                                bars("Phones", phones).color(blue).corner(4);
+                                bars("Laptops", laptops).color(pink).corner(4);
+                                bars("Tablets", tablets).color(amber).corner(4);
+
+                                // for_each goes over the labels as they are painted: the weekend stands out
+                                x_axis(days).for_each { l: axis_label ->
+                                    if(l.index >= 5) { l.tint = amber; l.bold = 1; }
+                                };
+                                y_axis().ticks(4);
+                                grid_lines().dashed();
+                                // bold names; a light box with dark words and square corners, a coloured highlight
+                                legend().bold().gap(24);
+                                marker().box_color(rgb(246, 247, 250)).text_color(rgb(28, 32, 44)).border(rgb(206, 211, 224))
+                                        .corner(3).highlight(rgba(255, 255, 255, 90));
+                            };
+                            products.hover(pointed);
+                            if(piled.value == 1) { products.stacked(); }
+                            with_entrance(products);
+                        };
+                    }.gap(16);
+
+                    row(modifier().fill_width()) {
+                        // ---- a colour for each bar, numbers written on the bars, below zero too
+                        card(modifier().grow(1)) {
+                            text("Profit and loss").bold();
+                            text("a colour for each bar, its number on it, new numbers spring in").dim();
+                            result := chart(chart_box("profit", 220)) {
+                                bars(profit).corner(5).value_labels().color_each { i: _int64, v: decimal ->
+                                    if(v < 0) { return red; }
+                                    return green;
+                                };
+                                x_axis(months);
+                                y_axis().ticks(4).for_each { l: axis_label -> if(l.value < 0) { l.tint = red; } };
+                                grid_lines();
+                            };
+                            result.change(motion.glide().over(0.9).ease(EASE_SPRING));
+                            with_entrance(result);
+                        };
+
+                        // ---- bars painted by the program itself
+                        card(modifier().grow(1)) {
+                            text("Steps").bold();
+                            text("every bar painted by the program: a stem and a ball").dim();
+                            walked := chart(chart_box("steps", 220)) {
+                                // the block of bars(...) puts widgets on the marks themselves (`it` is the mark):
+                                // the days that reached the goal get a chip
+                                bars(steps) {
+                                    if(it.value >= 9000) {
+                                        chip("reached");
+                                        gap(8);                 // room for the ball this chart paints on the bar's end
+                                    }
+                                }.color(teal).draw_bar { p: painter, b: mark ->
+                                    middle : decimal = b.x + b.width / 2;
+                                    p.rect(middle - 2, b.y, 4, b.height, 2, b.tint!!.with_alpha(110));
+                                    p.circle(middle, b.y, 9, b.tint!!);
+                                    p.circle(middle, b.y, 4, t.surface);
+                                };
+                                // a widget on the level of a number
+                                text("goal: 9,000", modifier().at_value(9000)).size(12).dim();
+                                x_axis(days);
+                                y_axis().ticks(4);
+                                // the box says what the program tells it, as a pill above the ball it belongs to
+                                marker().above().corner(99).box_color(teal).text_color(rgb(10, 30, 28))
+                                        .tip { h: chart_hover, tip: chart_tip ->
+                                            tip.line(chart_text.number(steps[h.index]) + " steps");
+
+                                        };
+                            };
+                            walked.enter(motion.grow().over(0.9).stagger(0.07).ease(EASE_OVERSHOOT));
+                            with_entrance(walked);
+                        };
+                    }.gap(16);
+
+                    // ---- numbers that keep coming
+                    card(modifier().fill_width()) {
+                        text("Live").bold();
+                        text("a new reading every second: the line moves on by itself").dim();
+                        feed := chart(chart_box("live", 180)) {
+                            line(live).color(green).stepped().fill_below().thickness(2);
                             y_axis().ticks(4);
                             grid_lines().dashed();
-                            // bold names; a light box with dark words and square corners, a coloured highlight
-                            legend().bold().gap(24);
-                            marker().box_color(rgb(246, 247, 250)).text_color(rgb(28, 32, 44)).border(rgb(206, 211, 224))
-                                    .corner(3).highlight(rgba(255, 255, 255, 90));
                         };
-                        products.hover(pointed);
-                        if(piled.value == 1) { products.stacked(); }
-                        with_entrance(products);
+                        feed.range(0, 100).change(motion.glide().over(0.8).ease(EASE_LINEAR));
                     };
                 }.gap(16);
-
-                row(modifier().fill_width()) {
-                    // ---- a colour for each bar, numbers written on the bars, below zero too
-                    card(modifier().grow(1)) {
-                        text("Profit and loss").bold();
-                        text("a colour for each bar, its number on it, new numbers spring in").dim();
-                        result := chart(chart_box("profit", 220)) {
-                            bars(profit).corner(5).value_labels().color_each { i: _int64, v: decimal ->
-                                if(v < 0) { return red; }
-                                return green;
-                            };
-                            x_axis(months);
-                            y_axis().ticks(4).for_each { l: axis_label -> if(l.value < 0) { l.tint = red; } };
-                            grid_lines();
-                        };
-                        result.change(motion.glide().over(0.9).ease(EASE_SPRING));
-                        with_entrance(result);
-                    };
-
-                    // ---- bars painted by the program itself
-                    card(modifier().grow(1)) {
-                        text("Steps").bold();
-                        text("every bar painted by the program: a stem and a ball").dim();
-                        walked := chart(chart_box("steps", 220)) {
-                            // the block of bars(...) puts widgets on the marks themselves (`it` is the mark):
-                            // the days that reached the goal get a chip
-                            bars(steps) {
-                                if(it.value >= 9000) {
-                                    chip("reached");
-                                    gap(8);                 // room for the ball this chart paints on the bar's end
-                                }
-                            }.color(teal).draw_bar { p: painter, b: mark ->
-                                middle : decimal = b.x + b.width / 2;
-                                p.rect(middle - 2, b.y, 4, b.height, 2, b.tint!!.with_alpha(110));
-                                p.circle(middle, b.y, 9, b.tint!!);
-                                p.circle(middle, b.y, 4, t.surface);
-                            };
-                            // a widget on the level of a number
-                            text("goal: 9,000", modifier().at_value(9000)).size(12).dim();
-                            x_axis(days);
-                            y_axis().ticks(4);
-                            // the box says what the program tells it, as a pill above the ball it belongs to
-                            marker().above().corner(99).box_color(teal).text_color(rgb(10, 30, 28))
-                                    .tip { h: chart_hover, tip: chart_tip ->
-                                        tip.line(chart_text.number(steps[h.index]) + " steps");
-
-                                    };
-                        };
-                        walked.enter(motion.grow().over(0.9).stagger(0.07).ease(EASE_OVERSHOOT));
-                        with_entrance(walked);
-                    };
-                }.gap(16);
-
-                // ---- numbers that keep coming
-                card(modifier().fill_width()) {
-                    text("Live").bold();
-                    text("a new reading every second: the line moves on by itself").dim();
-                    feed := chart(chart_box("live", 180)) {
-                        line(live).color(green).stepped().fill_below().thickness(2);
-                        y_axis().ticks(4);
-                        grid_lines().dashed();
-                    };
-                    feed.range(0, 100).change(motion.glide().over(0.8).ease(EASE_LINEAR));
-                };
-            }.gap(16);
+            };
         };
     }
 }

@@ -19,8 +19,9 @@ local stable class lazy_section {
 }
 
 /**
- * lazy_list - a scrolling list that only builds the rows you can see. Made
- * with lazy_column(...).
+ * lazy_list - a scrolling list that only builds the items you can see. Made
+ * with lazy_column(...) - items under each other, scrolling up and down - or
+ * lazy_row(...) - items side by side, scrolling left and right.
  *
  *      lazy_column(modifier().fill()) {
  *          item { text("Contacts").size(22).bold(); }          // one fixed row
@@ -30,25 +31,44 @@ local stable class lazy_section {
  *          item { text("end of list").dim(); }
  *      }.gap(4)
  *
- * A plain scroll { } builds, measures and keeps EVERY child, visible or not:
- * fine for dozens of rows, hopeless for fifty thousand. A lazy list is told
- * HOW MANY rows there are and HOW to build row i, and it builds just the
- * handful that fit the window - so a list of a million rows opens instantly
- * and scrolls smoothly.
+ *      lazy_row(modifier().fill_width().height(120)) {   // a shelf of cards
+ *          items(photos.size()) { i: _int64 -> photo_card(photos.at(i)); };
+ *      }.gap(8)
  *
- *   .gap(n)      room between the rows
+ * These are THE scrolling lists: a widget is a noun, and "scroll" is the verb of
+ * a scroll_state (below) - there is no `scroll { }` word. A list that built,
+ * measured and kept EVERY item, visible or not, would be fine for dozens of
+ * rows and hopeless for fifty thousand. A lazy list is told HOW MANY items
+ * there are and HOW to build item i, and it builds just the handful that fit
+ * the window - so a list of a million rows opens instantly and scrolls
+ * smoothly, and a list of ten costs nothing extra.
  *
- * ONLY item { } AND items(n) { i -> } GO INSIDE lazy_column { }. A widget
- * written straight into the block would be built eagerly, which is exactly
- * what this list exists to avoid - so that is an error, and so is item or
- * items anywhere else (scope.inside).
+ *   .gap(n)      room between the items
  *
- * (Android: RecyclerView with an adapter. Compose: LazyColumn with item /
- * items. The idea is the same in all of them: "virtualisation".)
+ * THE PROGRAM CAN MOVE IT TOO (scroll_state.sharp): lazy_column(where, ...)
+ * { ... } or lazy_row(where, ...) { ... } with a scroll_state, then
+ * where.scroll_to(n) brings item n into view and where.animate_scroll_to(n)
+ * glides it there - the least that does it, so an item already in view moves
+ * nothing.
+ *
+ * ONLY item { } AND items(n) { i -> } GO INSIDE lazy_column { } / lazy_row { }.
+ * A widget written straight into the block would be built eagerly, which is
+ * exactly what this list exists to avoid - so that is an error, and so is item
+ * or items anywhere else (gui.lazy_target).
+ *
+ * (Android: RecyclerView with a LinearLayoutManager, VERTICAL or HORIZONTAL.
+ * Compose: LazyColumn / LazyRow with item / items. The idea is the same in all
+ * of them: "virtualisation".)
  *
  * HOW IT WORKS
  *
- *   The scroll position is not a number of pixels (nobody knows how tall a
+ *   BOTH DIRECTIONS ARE ONE CLASS: `sideways` says which way is "along" - the
+ *   way it scrolls; "across" is the other. The few places that differ ask
+ *   long_of() / long_of_me() / measure_item() instead of naming width or
+ *   height. The words below say "row" and "top" for the up-down case; read
+ *   "item" and "start" for a lazy_row.
+ *
+ *   The scroll position is not a number of pixels (nobody knows how long a
  *   million rows are without building them). It is "which row is at the top,
  *   and how many pixels of that row have scrolled out": `first` and
  *   `first_cut`. (Compose's LazyListState keeps the same pair:
@@ -82,10 +102,11 @@ local stable class lazy_section {
  *   what it had. A row that scrolls out of view is gone, and with it what only
  *   that row remembered; keep what matters in your own state.
  *
- *   The scroll bar is an estimate: rows are assumed to be as tall, on
+ *   The scroll bar is an estimate: rows are assumed to be as long, on
  *   average, as the ones built so far.
  */
 stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scroller, stateful, overlay_painter {
+    private sideways : _int64 = 0;              // 1: a lazy_row, scrolling left-right; 0: a lazy_column, up-down
     private sections : list<lazy_section> = new list<lazy_section>();
     private total : _int64 = 0;                 // how many rows there are in all
     private space : decimal = 0;
@@ -101,37 +122,49 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
     private old_first : _int64 = 0;
 
     private owner : composable?;                // who was building when this list was made
-    private typical : decimal = 40;             // the average height of a row, for the scroll bar
-    private shown_tall : decimal = 0;           // the height of the window, from the last layout
+    private typical : decimal = 40;             // the average length of a row, for the scroll bar
+    private shown_long : decimal = 0;           // the window's length along the scrolling direction, from the last layout
     private at_end : _int64 = 0;                // 1: the last row is in view and the list cannot scroll further
 
+    // moving it from the program (scroll_state.sharp)
+    private bound : scroll_state?;              // the handle the program moves it with (lazy_column(where, ...)); null: none
+    private gliding : _int64 = 0;               // 1 while an animate_scroll_to is on its way
+    private glide_left : decimal = 0;           // the pixels it has still to move (positive: the content moves towards the start)
+
     private static const WHEEL_STEP : decimal = 48;
+    private static const GLIDE_RATE : decimal = 12;     // the share of the way left that a second of glide covers (so it eases out)
     private static const BAR_THICK : decimal = 6;
 
-    lazy_list() {
+    /**
+     * `where` is the handle the program moves the list with (scroll_state.sharp), or null for none;
+     * `across` 1 makes a lazy_row, 0 a lazy_column. The words lazy_column / lazy_row make these.
+     */
+    lazy_list(where: scroll_state?, across: _int64) {
         attach(self);
         owner = ui_host.building;
+        bound = where;
+        sideways = across;
     }
 
     /** run the block that says what is in the list: item { } and items(n) { } */
     def content(block: ()()) : lazy_list {
         scope.fill(me, block);
         if(me.kid_count() > 0) {
-            throw new illegal_state_exception("inside `lazy_column { ... }` rows are written with `item { ... }` or `items(count) { i -> ... }`; a widget written straight into the block would be built eagerly");
+            throw new illegal_state_exception("inside `lazy_column { ... }` / `lazy_row { ... }` rows are written with `item { ... }` or `items(count) { i -> ... }`; a widget written straight into the block would be built eagerly");
         }
         return self;
     }
 
-    /** room between the rows, in pixels */
-    /** how the rows behave while scrolling: SCROLL_PLAIN (the default) or SCROLL_STAGGER (stagger.sharp) */
+    /** how the rows behave while scrolling: SCROLL_PLAIN (the default) or SCROLL_STAGGER (stagger.sharp; its lag is up-down, so a lazy_row stays plain) */
     def scroll_feel(how: _int64) : lazy_list {
         feel = null;
-        if(how == SCROLL_STAGGER) { feel = new stagger(); }
+        if(how == SCROLL_STAGGER && sideways == 0) { feel = new stagger(); }
         return self;
     }
 
     private feel : stagger?;                // rows that trail behind while scrolling (null: one rigid sheet)
 
+    /** room between the rows, in pixels */
     def gap(pixels: decimal) : lazy_list {
         space = pixels;
         return self;
@@ -147,11 +180,41 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
 
     override def clips() : _int64 { return 1; }
 
-    override def kind() : string { return "lazy_column"; }
+    override def kind() : string {
+        if(sideways == 1) { return "lazy_row"; }
+        return "lazy_column";
+    }
+
+    // ------------------------------------------------------------ the two directions
+
+    /** a row's length along the scrolling direction */
+    private def long_of(line: view) : decimal {
+        if(sideways == 1) { return line.want_w; }
+        return line.want_h;
+    }
+
+    /** the list's own length along the scrolling direction */
+    private def long_of_me() : decimal {
+        if(sideways == 1) { return me.w; }
+        return me.h;
+    }
+
+    /**
+     * Measure a row: across the scrolling direction it gets the list's own size (`across`), along it
+     * as much as it likes - that is what scrolls. A lazy_row given no height takes each item's own.
+     */
+    private def measure_item(line: view, across: decimal) {
+        if(sideways == 1) {
+            if(num.is_bounded(across) == 0) { line.measure(0, UNBOUNDED, 0, UNBOUNDED); }
+            else { line.measure(0, UNBOUNDED, across, across); }
+        } else {
+            line.measure(across, across, 0, UNBOUNDED);
+        }
+    }
 
     // ------------------------------------------------------------ building one row
 
-    /** build row number `index`: the widgets its section's function makes, in a column of their own */
+    /** build row number `index`: the widgets its section's function makes, in a box of their own */
     private def build_row(index: _int64) : view {
         // find the section the row is in, and its number within that section
         within : _int64 = index;
@@ -170,7 +233,8 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
         builder_before : composable? = ui_host.building;
         scope.open = null;
         box := new column();
-        box.node().fill_w = 1;
+        if(sideways == 1) { box.node().fill_h = 1; }        // a lazy_row's item is as tall as the row
+        else { box.node().fill_w = 1; }                     // a lazy_column's row is as wide as the column
         ui_host.building = owner;
         scope.open = box.node();
         section.build_one(within);
@@ -197,50 +261,82 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
         me.remove_kid(line);
     }
 
-    /** the height a row takes in the list: its own, plus the gap after it */
+    /** the length a row takes in the list: its own, plus the gap after it */
     private def step_of(line: view) : decimal {
-        return line.want_h + space;
+        return long_of(line) + space;
     }
 
     // ------------------------------------------------------------ layout
 
     override def measure(min_w: decimal, max_w: decimal, min_h: decimal, max_h: decimal) {
-        // a lazy list needs a limit to know what "visible" means; without one it shows a window's worth
-        tall : decimal = max_h;
-        if(num.is_bounded(max_h) == 0) { tall = 600; }
-        shown_tall = tall;
+        // a lazy list needs a limit along its direction to know what "visible" means; without one it shows a window's worth
+        along : decimal = max_h;
+        across : decimal = max_w;
+        if(sideways == 1) {
+            along = max_w;
+            across = max_h;
+        }
+        if(num.is_bounded(along) == 0) { along = 600; }
+        shown_long = along;
 
         if(total == 0) {
             while(rows.size() > 0) {
                 drop_row(rows.at(0));
                 rows.remove_at(0);
             }
-            me.content_w = max_w;
-            me.content_h = 0;
+            if(sideways == 1) {
+                me.content_w = 0;
+                me.content_h = 0;
+                if(num.is_bounded(across) == 1) { me.content_h = across; }
+            } else {
+                me.content_w = max_w;
+                me.content_h = 0;
+            }
             return;
         }
 
-        fill(max_w, tall);
+        fill(across, along);
         old_rows = null;                        // the old list's rows have handed on what they knew
 
-        me.content_w = max_w;
-        me.content_h = tall;
+        if(sideways == 1) {
+            me.content_w = along;
+            if(num.is_bounded(across) == 1) { me.content_h = across; }
+            else { me.content_h = tallest_row(); }      // no height given: as tall as the tallest item in view
+        } else {
+            me.content_w = max_w;
+            me.content_h = along;
+        }
+    }
+
+    /** the height of the tallest row that exists now (a lazy_row with no height of its own takes this) */
+    private def tallest_row() : decimal {
+        most : decimal = 0;
+        for(i : _int64 = 0; i < rows.size(); i++) {
+            most = num.larger(most, rows.at(i).want_h);
+        }
+        return most;
     }
 
     /** make `rows` exactly the rows that are in view for the current scroll position (see "HOW IT WORKS") */
-    private def fill(wide: decimal, tall: decimal) {
+    private def fill(across: decimal, along: decimal) {
         if(first > total - 1) { first = total - 1; }
         if(first < 0) { first = 0; }
 
         // the rows kept from last time are only useful if they still begin at `first`
         if(rows.size() > 0 && rows_first != first) {
-            sync_rows_to_first(wide);
+            sync_rows_to_first();
         }
         if(rows.size() == 0) {
             rows.add(build_row(first));
             rows_first = first;
         }
-        rows.at(0).measure(wide, wide, 0, UNBOUNDED);
+        measure_item(rows.at(0), across);
+
+        // a scroll_to / animate_scroll_to is waiting on the handle: slide to the row (aim), then settle as usual
+        if(bound != null) {
+            asked : _int64 = bound!!.take();
+            if(asked >= 0) { aim(asked, bound!!.is_smooth(), across, along); }
+        }
 
         again : _int64 = 1;
         rounds : _int64 = 0;
@@ -253,7 +349,7 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
                 first = first - 1;
                 rows_first = first;
                 rows.insert(0, build_row(first));
-                rows.at(0).measure(wide, wide, 0, UNBOUNDED);
+                measure_item(rows.at(0), across);
                 first_cut = first_cut + step_of(rows.at(0));
             }
             if(first_cut < 0) { first_cut = 0; }           // at the very top: no further
@@ -271,14 +367,14 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
             bottom : decimal = 0 - first_cut;
             used : _int64 = 0;
             sum : decimal = 0;
-            while(bottom < tall && first + used < total) {
+            while(bottom < along && first + used < total) {
                 if(used >= rows.size()) {
                     rows.add(build_row(first + used));
                 }
                 line : view = rows.at(used);
-                line.measure(wide, wide, 0, UNBOUNDED);
+                measure_item(line, across);
                 bottom = bottom + step_of(line);
-                sum = sum + line.want_h;
+                sum = sum + long_of(line);
                 used = used + 1;
             }
             // rows kept from last time that are now below the window
@@ -293,7 +389,7 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
             at_end = 0;
             if(first + used >= total) {
                 at_end = 1;
-                short_by : decimal = tall - (bottom - space);
+                short_by : decimal = along - (bottom - space);
                 if(short_by > 0 && (first > 0 || first_cut > 0)) {
                     first_cut = first_cut - short_by;
                     again = 1;
@@ -309,7 +405,7 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
      * start at. Keep the rows both have in common; the others are dropped here
      * and built by fill() as it needs them.
      */
-    private def sync_rows_to_first(wide: decimal) {
+    private def sync_rows_to_first() {
         // rows before the new first row: gone
         while(rows.size() > 0 && rows_first < first) {
             drop_row(rows.at(0));
@@ -325,13 +421,61 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
         }
     }
 
+    /**
+     * Move so that row `index` is in view - the least that does it (scroll_state.sharp). A row above
+     * the window: the rows down to it are brought in above, as step 1 of fill does, and the window
+     * slides up to it. A row below: the rows down to it are built and measured, and the window slides
+     * until its end shows. A row in view: nothing. The slide is a change to first_cut, exactly as a
+     * turn of the wheel is, and the rest of fill() then settles first / first_cut as it always does.
+     * With `smooth` the change is spread over the next frames instead (glide_on).
+     */
+    private def aim(index: _int64, smooth: _int64, across: decimal, along: decimal) {
+        if(index < 0 || index >= total) { return; }
+
+        while(index < first) {
+            first = first - 1;
+            rows_first = first;
+            rows.insert(0, build_row(first));
+            measure_item(rows.at(0), across);
+            first_cut = first_cut + step_of(rows.at(0));
+        }
+        while(rows.size() <= index - first) {
+            rows.add(build_row(first + rows.size()));
+        }
+
+        top : decimal = 0 - first_cut;                  // where the row begins, from the start of the window
+        for(i : _int64 = 0; i < index - first; i++) {
+            measure_item(rows.at(i), across);
+            top = top + step_of(rows.at(i));
+        }
+        line : view = rows.at(index - first);
+        measure_item(line, across);
+        bottom : decimal = top + long_of(line);
+
+        shift : decimal = 0;
+        if(top < 0) { shift = top; }
+        else if(bottom > along) { shift = bottom - along; }
+
+        if(smooth == 1) {
+            glide_left = glide_left + shift;
+            if(glide_left > 0.5 || glide_left < 0 - 0.5) {
+                gliding = 1;
+                if(ui_host.current != null) { ui_host.current!!.request_frame(); }
+            }
+        } else {
+            first_cut = first_cut + shift;
+        }
+    }
+
     override def arrange() {
-        top : decimal = me.inner_y() - first_cut;
+        at : decimal = me.inner_y() - first_cut;
+        if(sideways == 1) { at = me.inner_x() - first_cut; }
         count : _int64 = rows.size();
         for(i : _int64 = 0; i < count; i++) {
             line : view = rows.at(i);
-            line.arrange(me.inner_x(), num.nearest(top), line.want_w, line.want_h);
-            top = top + step_of(line);
+            if(sideways == 1) { line.arrange(num.nearest(at), me.inner_y(), line.want_w, line.want_h); }
+            else { line.arrange(me.inner_x(), num.nearest(at), line.want_w, line.want_h); }
+            at = at + step_of(line);
         }
     }
 
@@ -341,12 +485,16 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
         if(total == 0) {
             return 0;
         }
-        // nothing further that way: let a scroller around this list have the turn
-        if(dy > 0 && first == 0 && first_cut <= 0) { return 0; }
-        if(dy < 0 && at_end == 1) { return 0; }
+        // up-down: the wheel. Sideways: a sideways wheel (or touchpad swipe) if there is one, else the ordinary wheel.
+        turn : decimal = dy;
+        if(sideways == 1 && dx != 0) { turn = 0 - dx; }
 
-        first_cut = first_cut - dy * WHEEL_STEP;
-        if(feel != null) { feel!!.push(dy * WHEEL_STEP); }
+        // nothing further that way: let a scrolling area around this list have the turn
+        if(turn > 0 && first == 0 && first_cut <= 0) { return 0; }
+        if(turn < 0 && at_end == 1) { return 0; }
+
+        first_cut = first_cut - turn * WHEEL_STEP;
+        if(feel != null) { feel!!.push(turn * WHEEL_STEP); }
         if(ui_host.current != null) {
             ui_host.current!!.relayout();       // other rows come into view: they are built in the next layout
         }
@@ -358,17 +506,44 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
         if(total == 0) {
             return;
         }
-        first_cut = first_cut - dy;
-        if(feel != null) { feel!!.push(dy); }
+        moved : decimal = dy;
+        if(sideways == 1) { moved = dx; }
+        first_cut = first_cut - moved;
+        if(feel != null) { feel!!.push(moved); }
         if(ui_host.current != null) {
             ui_host.current!!.relayout();
         }
     }
 
     override def paint(p: painter) {
+        if(gliding == 1) { glide_on(); }
         if(feel != null) {
             feel!!.sway(me, me.y, me.h);
         }
+    }
+
+    /** one frame of an animate_scroll_to: move part of the way left, easing out, until it is there */
+    private def glide_on() {
+        if(ui_host.current == null) { gliding = 0; glide_left = 0; return; }
+        host := ui_host.current!!;
+        // nothing further that way (an end of the list): done, as a turn of the wheel is
+        if((glide_left > 0 && at_end == 1) || (glide_left < 0 && first == 0 && first_cut <= 0)) {
+            gliding = 0;
+            glide_left = 0;
+            return;
+        }
+        move : decimal = glide_left;
+        if(move > 0.5 || move < 0 - 0.5) { move = glide_left * num.smaller(1, host.step * GLIDE_RATE); }
+        first_cut = first_cut + move;
+        glide_left = glide_left - move;
+        if(feel != null) { feel!!.push(0 - move); }
+        if(glide_left < 0.5 && glide_left > 0 - 0.5) {
+            gliding = 0;
+            glide_left = 0;
+        } else {
+            host.request_frame();
+        }
+        host.relayout();                    // other rows come into view: they are built in the next layout
     }
 
 
@@ -376,20 +551,25 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
         if(total == 0 || ui_host.current == null) {
             return;
         }
-        // an estimate: all rows as tall as the typical one
+        // an estimate: all rows as long as the typical one
         each : decimal = typical + space;
-        whole_tall : decimal = total * each;
-        if(whole_tall <= shown_tall) {
+        whole : decimal = total * each;
+        if(whole <= shown_long) {
             return;
         }
         scrolled : decimal = first * each + first_cut;
-        bar : decimal = num.larger(24, me.h * shown_tall / whole_tall);
-        place : decimal = (me.h - bar) * num.between(scrolled / (whole_tall - shown_tall), 0, 1);
+        length : decimal = long_of_me();
+        bar : decimal = num.larger(24, length * shown_long / whole);
+        place : decimal = (length - bar) * num.between(scrolled / (whole - shown_long), 0, 1);
 
         look : theme = ui_host.current!!.look;
         tint : color = look.text_dim.with_alpha(110);
         if(me.hovered == 1) { tint = look.text_dim.with_alpha(200); }
-        p.rect(me.x + me.w - BAR_THICK - 3, me.y + place + 2, BAR_THICK, bar - 4, BAR_THICK / 2, tint);
+        if(sideways == 1) {
+            p.rect(me.x + place + 2, me.y + me.h - BAR_THICK - 3, bar - 4, BAR_THICK, BAR_THICK / 2, tint);
+        } else {
+            p.rect(me.x + me.w - BAR_THICK - 3, me.y + place + 2, BAR_THICK, bar - 4, BAR_THICK / 2, tint);
+        }
     }
 
     // ------------------------------------------------------------ across rebuilds
@@ -401,6 +581,8 @@ stable class lazy_list base widget : behavior, clipper, wheel_target, drag_scrol
             first_cut = before.first_cut;
             typical = before.typical;
             old_rows = before.rows;
+            gliding = before.gliding;           // a glide under way carries on
+            glide_left = before.glide_left;
             if(feel != null && before.feel != null) { feel = before.feel; }
             old_first = before.rows_first;
         }

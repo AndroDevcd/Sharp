@@ -13,10 +13,9 @@ const SCROLL_STAGGER : _int64 = 1;      // rows trail a little behind, so gaps o
  * a little behind the one before it, so the rows spread apart; as the
  * movement dies down they close up again.
  *
- *      scroll { column { ... } }.scroll_feel(SCROLL_STAGGER);
- *      lazy_column { ... }.scroll_feel(SCROLL_STAGGER);
+ *      lazy_column { ... }.scroll_feel(SCROLL_STAGGER);     // (a lazy_row stays plain: the lag is up-down)
  *
- * FRAMEWORK USE: a scroller or lazy list owns one of these and feeds it.
+ * FRAMEWORK USE: a lazy list owns one of these and feeds it.
  *
  * HOW IT WORKS
  *

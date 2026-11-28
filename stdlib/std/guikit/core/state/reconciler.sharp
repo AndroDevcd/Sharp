@@ -21,7 +21,7 @@ import (
  *      old tree                 new tree
  *      column                   column            same kind  -> carry over
  *        text "count: 1"          text "count: 2"   same kind  -> carry over (nothing to carry)
- *        scroller (at 240px)      scroller          same kind  -> scroll position carried
+ *        lazy_column (at 240px)   lazy_column       same kind  -> scroll position carried
  *          ...                      ...
  *        button                   checkbox          different  -> the checkbox starts fresh
  *

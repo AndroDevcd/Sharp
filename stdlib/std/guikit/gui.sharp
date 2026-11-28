@@ -33,7 +33,7 @@ import (
  *      run an app          gui.run(title, width, height, root)
  *                          gui.use_theme(t)  gui.current_theme()  gui.after(seconds) { }  gui.every(seconds) { }
  *      lay things out      column  row  stack  wrap  grid  grid_fit  spacer  gap  divider
- *      scroll              scroll  scroll_row  lazy_column { item { }  items(n) { i -> } }
+ *      scroll              lazy_column  lazy_row { item { }  items(n) { i -> } }  scroll_state (scroll_to, animate_scroll_to)
  *      show things         text  image  progress
  *      show numbers        chart { bars(...)  line(...)  x_axis(...)  y_axis()  grid_lines()  legend()  marker() }
  *                          each takes a block that builds it from widgets; any widget in the block: modifier().at(...)
@@ -85,7 +85,7 @@ import (
  *      std.guikit.layout.flow      flex (the algorithm)  row  column  wrap  spacer
  *      std.guikit.layout.stacking  stack
  *      std.guikit.layout.grids     grid
- *      std.guikit.layout.scrolling scroller  lazy_list
+ *      std.guikit.layout.scrolling lazy_list  scroll_state
  *
  *      std.guikit.widgets.display  label  picture  divider  progress_bar
  *      std.guikit.widgets.input    button  checkbox  radio  toggle  slider  text_field  dropdown  tabs
@@ -507,82 +507,88 @@ stable class gui {
         return made;
     }
 
-    /** a scrolling window onto content taller than the room there is (scroller.sharp) */
-    static def scroll(content: element) : scroller {
-        return new scroller(content, 0);
-    }
-
-    static def scroll(look: modifier, content: element) : scroller {
-        made := new scroller(content, 0);
-        look.apply_to(made.node());
-        return made;
-    }
-
-    /** the block form: the widgets made in the block scroll, stacked top to bottom */
-    static def scroll(block: ()()) : scroller {
-        return new scroller(scrolling_column(block), 0);
-    }
-
-    static def scroll(look: modifier, block: ()()) : scroller {
-        made := new scroller(scrolling_column(block), 0);
-        look.apply_to(made.node());
-        return made;
-    }
-
-    /** the column inside a block-form scroller: as wide as the scroller, as tall as its content */
-    private static def scrolling_column(block: ()()) : column {
-        inside := new column();
-        inside.node().fill_w = 1;
-        inside.content(block);
-        return inside;
-    }
-
-    /** the sideways scroller: the widgets made in the block sit side by side and scroll left-right */
-    static def scroll_row(block: ()()) : scroller {
-        return new scroller(scrolling_row(block), 1);
-    }
-
-    static def scroll_row(look: modifier, block: ()()) : scroller {
-        made := new scroller(scrolling_row(block), 1);
-        look.apply_to(made.node());
-        return made;
-    }
-
-    /** the row inside a sideways scroller: as tall as the scroller, as wide as its content */
-    private static def scrolling_row(block: ()()) : row {
-        inside := new row();
-        inside.node().fill_h = 1;
-        inside.content(block);
-        return inside;
-    }
+    // There are no `scroll { }` / `scroll_row { }` words: a list that scrolls is a lazy_column or a
+    // lazy_row (lazy_list.sharp), and "scroll" is the verb of a scroll_state (scroll_to,
+    // animate_scroll_to), not a widget.
 
     /**
-     * A scrolling list that only builds the rows in view - for long lists
-     * (lazy_list.sharp). Inside the block, only item { } and items(n) { i -> }.
+     * THE scrolling list - a column of items that only builds the ones in view, for ten rows or a
+     * million (lazy_list.sharp). Inside the block, only item { } and items(n) { i -> }. With a
+     * scroll_state first, the program can move it too: where.scroll_to(n) / where.animate_scroll_to(n)
+     * (scroll_state.sharp).
      */
     static def lazy_column(block: ()()) : lazy_list {
-        made := new lazy_list();
+        made := new lazy_list(null, 0);
         made.content(block);
         return made;
     }
 
     static def lazy_column(look: modifier, block: ()()) : lazy_list {
-        made := new lazy_list();
+        made := new lazy_list(null, 0);
         look.apply_to(made.node());
         made.content(block);
         return made;
     }
 
-    /** inside lazy_column { }: one row, built when it scrolls into view */
-    static def item(block: ()()) {
-        target := scope.inside("lazy_column", "item { ... }", "lazy_column { ... }").how as lazy_list;
-        target.add_section(1, { i: _int64 -> block(); });
+    static def lazy_column(where: scroll_state, block: ()()) : lazy_list {
+        made := new lazy_list(where, 0);
+        made.content(block);
+        return made;
     }
 
-    /** inside lazy_column { }: `count` rows; row i (from 0) is built by the block when it scrolls into view */
+    static def lazy_column(where: scroll_state, look: modifier, block: ()()) : lazy_list {
+        made := new lazy_list(where, 0);
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /** the same list sideways: items side by side, scrolling left-right - the same item { }, items(n) { } and scroll_state */
+    static def lazy_row(block: ()()) : lazy_list {
+        made := new lazy_list(null, 1);
+        made.content(block);
+        return made;
+    }
+
+    static def lazy_row(look: modifier, block: ()()) : lazy_list {
+        made := new lazy_list(null, 1);
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    static def lazy_row(where: scroll_state, block: ()()) : lazy_list {
+        made := new lazy_list(where, 1);
+        made.content(block);
+        return made;
+    }
+
+    static def lazy_row(where: scroll_state, look: modifier, block: ()()) : lazy_list {
+        made := new lazy_list(where, 1);
+        look.apply_to(made.node());
+        made.content(block);
+        return made;
+    }
+
+    /** inside lazy_column { } or lazy_row { }: one item, built when it scrolls into view */
+    static def item(block: ()()) {
+        lazy_target("item { ... }").add_section(1, { i: _int64 -> block(); });
+    }
+
+    /** inside lazy_column { } or lazy_row { }: `count` items; item i (from 0) is built by the block when it scrolls into view */
     static def items(count: _int64, each: (_int64)()) {
-        target := scope.inside("lazy_column", "items(count) { i -> ... }", "lazy_column { ... }").how as lazy_list;
-        target.add_section(count, each);
+        lazy_target("items(count) { i -> ... }").add_section(count, each);
+    }
+
+    /** the lazy list whose block is being filled - item and items belong nowhere else (as scope.inside, for either kind) */
+    private static def lazy_target(written: string) : lazy_list {
+        open : view? = scope.open;
+        if(open != null && (open!!.how.kind() == "lazy_column" || open!!.how.kind() == "lazy_row")) {
+            return open!!.how as lazy_list;
+        }
+        found : string = "outside any block";
+        if(open != null) { found = "inside a `" + open!!.how.kind() + "`"; }
+        throw new illegal_state_exception("`" + written + "` only works inside `lazy_column { ... }` or `lazy_row { ... }` (here it was used " + found + ")");
     }
 
     /** children in `columns` equal columns, row after row (grid.sharp) */

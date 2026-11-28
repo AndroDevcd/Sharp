@@ -23,7 +23,7 @@ import (
  *
  *      scroll_to()             turn the wheel of the scrolling area around it until it can be seen
  *
- *      on a scrolling area (a scroll { }, a lazy_column { }):
+ *      on a scrolling area (a lazy_column { }, a lazy_row { }):
  *      scroll_to(on_tag("row_40"))     turn its wheel until that widget is there and can be seen - also a
  *                                      row of a long list that the list has not made yet
  *      scroll_to_end()  scroll_to_start()      as far as it goes

@@ -349,18 +349,20 @@ class tasks_screen base composable {
                     text("Nothing to do. Press + to add a task.").dim();
                 }
 
-                scroll(list_look) {
-                    column(modifier().fill_width().padding(0, 6)) {
-                        for(i : _int64 = 0; i < model.tasks.size(); i++) {
-                            one : task = model.tasks.at(i);
-                            if(model.shows(one) == 1) {
-                                task_card(one);
+                lazy_column(list_look) {
+                    item {
+                        column(modifier().fill_width().padding(0, 6)) {
+                            for(i : _int64 = 0; i < model.tasks.size(); i++) {
+                                one : task = model.tasks.at(i);
+                                if(model.shows(one) == 1) {
+                                    task_card(one);
+                                }
                             }
-                        }
-                    }.gap(10).reorderable { from: _int64, to: _int64 -> model.move_shown(from, to); };
-                    // reorderable: hold a card to pick it up, drag it, let go. Cards glide to
-                    // their new places whenever the list changes, and a new one fades in.
-                }.scroll_feel(SCROLL_STAGGER);              // ... and trail a little behind while the list scrolls
+                        }.gap(10).reorderable { from: _int64, to: _int64 -> model.move_shown(from, to); };
+                        // reorderable: hold a card to pick it up, drag it, let go. Cards glide to
+                        // their new places whenever the list changes, and a new one fades in.
+                    };
+                };
             }.gap(12);
 
             fab("+") { model.start_adding(); };
@@ -529,42 +531,44 @@ class settings_screen base composable {
     override def build() : element {
         t := gui.current_theme();
 
-        return scroll(modifier().fill()) {
-            column(modifier().fill_width().padding(20)) {
-                text("Settings").size(26).bold();
+        return lazy_column(modifier().fill()) {
+            item {
+                column(modifier().fill_width().padding(20)) {
+                    text("Settings").size(26).bold();
 
-                card(modifier().fill_width()) {
-                    text("Theme").bold();
-                    row {
-                        chip("Dark") { set_dark(1); }.selected(model.dark.value);
-                        chip("Light") { set_dark(0); }.selected(1 - model.dark.value);
-                    }.gap(8);
-                    text("Remembered for the next time the program starts.").dim().size(13);
-                };
+                    card(modifier().fill_width()) {
+                        text("Theme").bold();
+                        row {
+                            chip("Dark") { set_dark(1); }.selected(model.dark.value);
+                            chip("Light") { set_dark(0); }.selected(1 - model.dark.value);
+                        }.gap(8);
+                        text("Remembered for the next time the program starts.").dim().size(13);
+                    };
 
-                card(modifier().fill_width().animate_size()) {
-                    text("Sync").bold();
-                    text(rich {
-                        plain("Two seconds of pretend work on a ");
-                        bold("background thread");
-                        plain(". The window stays alive; look at the Tasks tab while it runs.");
-                    }, modifier().fill_width());
-                    row {
-                        button(sync_words()) { model.sync(); }.outline();
-                        text(model.last_sync.value).dim();
-                    }.gap(12).align(ALIGN_CENTER);
-                    // this card glides to its new height when the line below comes and goes
-                    if(model.syncing.value == 1) {
-                        text("Working ...", modifier().padding(8, 6).background(t.primary.with_alpha(40), shape.pill()));
-                    }
-                };
+                    card(modifier().fill_width().animate_size()) {
+                        text("Sync").bold();
+                        text(rich {
+                            plain("Two seconds of pretend work on a ");
+                            bold("background thread");
+                            plain(". The window stays alive; look at the Tasks tab while it runs.");
+                        }, modifier().fill_width());
+                        row {
+                            button(sync_words()) { model.sync(); }.outline();
+                            text(model.last_sync.value).dim();
+                        }.gap(12).align(ALIGN_CENTER);
+                        // this card glides to its new height when the line below comes and goes
+                        if(model.syncing.value == 1) {
+                            text("Working ...", modifier().padding(8, 6).background(t.primary.with_alpha(40), shape.pill()));
+                        }
+                    };
 
-                card(modifier().fill_width()) {
-                    text("A calendar, on a page of its own").bold();
-                    month_view(shown_day, modifier().fill_width());
-                    text("Chosen: " + date_words(shown_day.value)).dim();
-                };
-            }.gap(14);
+                    card(modifier().fill_width()) {
+                        text("A calendar, on a page of its own").bold();
+                        month_view(shown_day, modifier().fill_width());
+                        text("Chosen: " + date_words(shown_day.value)).dim();
+                    };
+                }.gap(14);
+            };
         };
     }
 

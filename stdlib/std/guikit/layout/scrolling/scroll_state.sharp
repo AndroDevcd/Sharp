@@ -1,0 +1,91 @@
+mod std.guikit.layout.scrolling;
+
+import (
+    std.guikit.*
+)
+
+/**
+ * scroll_state - a handle on a lazy list's position, so the PROGRAM can move
+ * the list, not only the user with the wheel. Made with a composable's own
+ * scroll_state() (remembered like a state), or `new scroll_state()` in a model
+ * that lives as long as the screen.
+ *
+ *      class settings base composable {
+ *          where := scroll_state();
+ *          chosen := state(0);
+ *
+ *          override def build() : element {
+ *              where.animate_scroll_to(chosen.value);          // keep the chosen row in view
+ *              return lazy_column(where, modifier().fill()) {
+ *                  items(rows.size()) { i: _int64 -> row(i); };
+ *              };
+ *          }
+ *      }
+ *
+ *   .scroll_to(n)            bring row n into view at once
+ *   .animate_scroll_to(n)    bring row n into view with a glide
+ *
+ * `n` is the ITEM NUMBER, from 0, counted across the list's item { } and
+ * items(n) { } blocks in order - a row of a lazy_column, an item of a lazy_row.
+ * The list moves THE LEAST IT HAS TO: an item past the far edge of the window
+ * ends up at that edge, one before the near edge at that edge, and one already
+ * in view does not move the list at all. So asking for the highlighted item on
+ * every build is harmless, and pressing DOWN on the bottom row scrolls the list
+ * by one row - the way an Android list follows its selection.
+ * (Android: RecyclerView.scrollToPosition / smoothScrollToPosition. Compose:
+ * LazyListState.scrollToItem / animateScrollToItem.)
+ *
+ * HOW IT WORKS: the handle keeps only the REQUEST - which row, and whether to
+ * glide. The list it is given to (lazy_column(where, ...) or lazy_row(where,
+ * ...)) takes the request the next time it is laid out, when it knows where
+ * its items are, and moves
+ * itself; the position stays the list's own memory, as it always was. That is
+ * what lets the handle work across rebuilds: the list is made anew every
+ * frame, the handle is not.
+ */
+stable class scroll_state : state_cell {
+    private wanted : _int64 = 0 - 1;        // the row to bring into view; -1: nothing asked
+    private smooth : _int64 = 0;            // 1: glide there; 0: be there at once
+
+    /** bring row `index` into view at once */
+    def scroll_to(index: _int64) {
+        wanted = index;
+        smooth = 0;
+        ask();
+    }
+
+    /** bring row `index` into view with a glide */
+    def animate_scroll_to(index: _int64) {
+        wanted = index;
+        smooth = 1;
+        ask();
+    }
+
+    /** lay the tree out again: the list takes the request while it is laid out */
+    private def ask() {
+        if(ui_host.current != null) {
+            ui_host.current!!.relayout();
+            ui_host.current!!.repaint();
+        }
+    }
+
+    /** FRAMEWORK USE: the list takes the waiting request (-1: none), which clears it */
+    def take() : _int64 {
+        got : _int64 = wanted;
+        wanted = 0 - 1;
+        return got;
+    }
+
+    /** FRAMEWORK USE: is the waiting request a glide? */
+    def is_smooth() : _int64 {
+        return smooth;
+    }
+
+    override def take_from(other: state_cell) {
+        if(other is scroll_state) {
+            before := other as scroll_state;
+            wanted = before.wanted;
+            smooth = before.smooth;
+        }
+    }
+}

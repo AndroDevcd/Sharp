@@ -142,6 +142,19 @@ stable class composable : element, behavior, stateful {
         return cell;
     }
 
+    /**
+     * A handle on a lazy list's position, to move it from the program
+     * (scroll_state.sharp): `where := scroll_state();` then
+     * lazy_column(where, ...) { } or lazy_row(where, ...) { }, and
+     * where.animate_scroll_to(n). Remembered
+     * with the composable like a state. (Compose: rememberLazyListState.)
+     */
+    def scroll_state() : scroll_state {
+        cell := new scroll_state();
+        keep(cell);
+        return cell;
+    }
+
     // ------------------------------------------------------------ a life with a beginning and an end
     //
     // A composable APPEARS when it is first built onto the screen, and is GONE

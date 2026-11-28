@@ -239,12 +239,14 @@ def ui_test_tests() {
         ui_test("scrolling to a widget that is out of sight") {
             picked := gui.state(0);
             set_content {
-                scroll(modifier().fill()) {
-                    column {
-                        for(i : _int64 = 0; i < 60; i++) {
-                            text("row " + i, modifier().height(40));
-                        }
-                        button("At the bottom", modifier().tag("bottom")) { picked.value = 1; };
+                lazy_column(modifier().fill()) {
+                    item {
+                        column {
+                            for(i : _int64 = 0; i < 60; i++) {
+                                text("row " + i, modifier().height(40));
+                            }
+                            button("At the bottom", modifier().tag("bottom")) { picked.value = 1; };
+                        };
                     };
                 };
             };

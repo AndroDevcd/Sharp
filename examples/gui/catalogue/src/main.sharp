@@ -92,12 +92,14 @@ class grid_screen base composable {
         // cards in a grid: as many columns as fit, each at least 170 wide
         return column(modifier().fill()) {
             tab_header("Catalogue");
-            scroll(modifier().grow(1).fill_width()) {
-                grid_fit(170, modifier().fill_width().padding(16)) {
-                    for(i : _int64 = 1; i <= 24; i++) {
-                        product_card(i, t);
-                    }
-                }.gap(gap_between);
+            lazy_column(modifier().grow(1).fill_width()) {
+                item {
+                    grid_fit(170, modifier().fill_width().padding(16)) {
+                        for(i : _int64 = 1; i <= 24; i++) {
+                            product_card(i, t);
+                        }
+                    }.gap(gap_between);
+                };
             };
         };
     }
@@ -181,41 +183,43 @@ class settings_screen base composable {
     }
 
     def settings_list(card: modifier) {
-        scroll(modifier().grow(1).fill_width()) {
-            column(modifier().fill_width().padding(16)) {
-                column(card) {
-                    text("Grid spacing").bold();
-                    radio("Compact", density, 0);
-                    radio("Normal", density, 1);
-                    radio("Roomy", density, 2);
-                }.gap(8);
-
-                column(card) {
-                    text("Sort by").bold();
-                    dropdown(sort_by, modifier().width(220)) {
-                        option("Name");
-                        option("Price, low to high");
-                        option("Price, high to low");
-                        option("Newest first");
-                    };
-                    text("chosen: option " + sort_by.value).dim();
-                }.gap(8);
-
-                column(card) {
-                    text("Tags (they wrap to the width)").bold();
-                    wrap {
-                        tag("kitchen"); tag("outdoor"); tag("new"); tag("on sale"); tag("handmade");
-                        tag("gift idea"); tag("limited"); tag("eco"); tag("best seller"); tag("clearance");
+        lazy_column(modifier().grow(1).fill_width()) {
+            item {
+                column(modifier().fill_width().padding(16)) {
+                    column(card) {
+                        text("Grid spacing").bold();
+                        radio("Compact", density, 0);
+                        radio("Normal", density, 1);
+                        radio("Roomy", density, 2);
                     }.gap(8);
-                }.gap(8);
 
-                row(modifier().fill_width()) {
-                    button("Light theme") { gui.use_theme(theme.light()); }.outline();
-                    button("Dark theme") { gui.use_theme(theme.dark()); }.outline();
-                    spacer();
-                    button("About") { about.value = 1; };
-                }.gap(8);
-            }.gap(12);
+                    column(card) {
+                        text("Sort by").bold();
+                        dropdown(sort_by, modifier().width(220)) {
+                            option("Name");
+                            option("Price, low to high");
+                            option("Price, high to low");
+                            option("Newest first");
+                        };
+                        text("chosen: option " + sort_by.value).dim();
+                    }.gap(8);
+
+                    column(card) {
+                        text("Tags (they wrap to the width)").bold();
+                        wrap {
+                            tag("kitchen"); tag("outdoor"); tag("new"); tag("on sale"); tag("handmade");
+                            tag("gift idea"); tag("limited"); tag("eco"); tag("best seller"); tag("clearance");
+                        }.gap(8);
+                    }.gap(8);
+
+                    row(modifier().fill_width()) {
+                        button("Light theme") { gui.use_theme(theme.light()); }.outline();
+                        button("Dark theme") { gui.use_theme(theme.dark()); }.outline();
+                        spacer();
+                        button("About") { about.value = 1; };
+                    }.gap(8);
+                }.gap(12);
+            };
         };
     }
 

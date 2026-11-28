@@ -71,19 +71,18 @@ def stack(look: modifier) : stack { return gui.stack(look); }
 def stack(block: ()()) : stack { return gui.stack(block); }
 def stack(look: modifier, block: ()()) : stack { return gui.stack(look, block); }
 
-/** a scrolling window onto content taller than the room there is (layout/scrolling/scroller.sharp) */
-def scroll(content: element) : scroller { return gui.scroll(content); }
-def scroll(look: modifier, content: element) : scroller { return gui.scroll(look, content); }
-def scroll(block: ()()) : scroller { return gui.scroll(block); }
-def scroll(look: modifier, block: ()()) : scroller { return gui.scroll(look, block); }
-
-/** a sideways scroller: the widgets made in the block sit side by side and scroll left-right */
-def scroll_row(block: ()()) : scroller { return gui.scroll_row(block); }
-def scroll_row(look: modifier, block: ()()) : scroller { return gui.scroll_row(look, block); }
-
-/** a scrolling list that only builds the rows in view; inside: item { } and items(n) { i -> } (layout/scrolling/lazy_list.sharp) */
+/** THE scrolling list: a column of items that only builds the ones in view; inside: item { } and items(n) { i -> } (layout/scrolling/lazy_list.sharp) */
 def lazy_column(block: ()()) : lazy_list { return gui.lazy_column(block); }
 def lazy_column(look: modifier, block: ()()) : lazy_list { return gui.lazy_column(look, block); }
+/** ... that the program can move too, through a scroll_state: where.scroll_to(n) / animate_scroll_to(n) (scroll_state.sharp) */
+def lazy_column(where: scroll_state, block: ()()) : lazy_list { return gui.lazy_column(where, block); }
+def lazy_column(where: scroll_state, look: modifier, block: ()()) : lazy_list { return gui.lazy_column(where, look, block); }
+
+/** the same list sideways: items side by side, scrolling left-right - the same item { }, items(n) { } and scroll_state */
+def lazy_row(block: ()()) : lazy_list { return gui.lazy_row(block); }
+def lazy_row(look: modifier, block: ()()) : lazy_list { return gui.lazy_row(look, block); }
+def lazy_row(where: scroll_state, block: ()()) : lazy_list { return gui.lazy_row(where, block); }
+def lazy_row(where: scroll_state, look: modifier, block: ()()) : lazy_list { return gui.lazy_row(where, look, block); }
 
 /** inside lazy_column { }: one row */
 def item(block: ()()) { gui.item(block); }

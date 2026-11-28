@@ -98,11 +98,11 @@ def profile_row(name: string, role: string) {
 - `spacer()` takes all the room that is left: here it pushes the button to the right.
 - `.center()` puts the children in the middle.
 
-More containers: `scroll { }` for content taller than the window, `grid_fit(170) { }` for cards
-that take as many columns as fit, `wrap { }` for things that flow onto the next line, `card { }`.
+More containers: `grid_fit(170) { }` for cards that take as many columns as fit, `wrap { }` for
+things that flow onto the next line, `card { }`.
 
-A long list is a `lazy_column`. It only builds the rows that are in sight, so ten thousand rows
-cost the same as ten:
+Anything that scrolls is a `lazy_column` (up-down) or a `lazy_row` (sideways). It only builds the
+rows that are in sight, so ten thousand rows cost the same as ten:
 
 ```javascript
 def inbox(count: _int64) {
